@@ -1,18 +1,39 @@
 module CG_SAT where 
 
-import CG
 import Data.Boolean.SatSolver
 import Data.List
 import Control.Applicative
 import Control.Monad
 
+-- | This is the old, simpler version. See CG.hs for more options.
+-- | In this version
+-- | * only tags matter, not lemmas
+-- | * only one tag per analysis
+-- | * only 1 token before or after
+
+data Tag = Art | Adj | Adv | Det | N | PN | V | V2 | VV | Sg | Particle | Pl | Prep | P1 | P2 | P3 | Subj | Imper | Cond | Inf deriving (Show,Read,Eq)
 
 type Literal = ((Integer, Tag), Boolean)
+
+data Context = C {prev :: [Tag], next :: [Tag]} deriving (Show)
+data Rule = Select [Tag] Context | Remove [Tag] Context deriving (Show)
 
 instance Eq Boolean where
   Var n      == Var m        = m==n
   (n :||: m) == (n' :||: m') = n==n' && m==m'
   (n :&&: m) == (n' :&&: m') = n==n' && m==m'
+
+
+-- Sets of tags
+verb = [V,V2,VV]
+noun = [N,PN]
+det  = [Art,Det]
+adv  = [Adv,Particle]
+
+-- Rules
+rmVerb = Remove verb (C det [])
+slNoun = Select noun (C [] verb)
+rmAdv = Remove adv (C [] det)
 
 -- SAT stuff
 
@@ -61,6 +82,10 @@ applyRule rule@(Remove tags (C pre post)) lits = case rule of
                                                   | ((n1, _), bool1) <- possiblyPost,
                                                     ((n2, _), bool2) <- possiblyTags,
                                                     n1-n2 == 1] --context comes after tag
+   where possiblyTags = filter (\((int, tag), bool) -> tag `elem` tags) lits
+         possiblyPre = filter (\((int, tag), bool) -> tag `elem` pre) lits
+         possiblyPost = filter (\((int, tag), bool) -> tag `elem` post) lits
+applyRule rule@(Select tags (C pre post)) lits = case rule of
                (Select tags (C [] post)) -> [Not bool1 :||: bool2
                                                   | ((n1, _), bool1) <- possiblyPost,
                                                     ((n2, _), bool2) <- possiblyTags,
@@ -76,7 +101,7 @@ applyRule rule@(Remove tags (C pre post)) lits = case rule of
 -- possible application: grammar writer wants to try two combinations of tag sets, would explode in the normal implementation, but sat solver would not be overkilol
 
 
--- Two simplifications: drop the lemma & allow only one tag in each analysis
+-- Simplification: allow only one tag in each analysis
 ex1 = [ [Det]   --the
       , [N,V]   --bear
       , [N,V]   --sleeps
@@ -88,8 +113,8 @@ lits = mkLiterals $ mkSymbols ex1
 
 formulae = concat $ [anchor, mkBigrams, applyRule slNoun, applyRule rmVerb, applyRule rmAdv] <*> [lits]
 
-notmain :: IO ()
-notmain = do 
+main' :: IO ()
+main' = do 
    solver <- foldM (flip assertTrue) newSatSolver formulae
    --print solver
    solution <- solve solver
