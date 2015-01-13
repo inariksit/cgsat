@@ -1,7 +1,9 @@
 module CG where
 
 import Data.Boolean.SatSolver
+import Data.Foldable hiding (concatMap)
 import Data.List
+import Data.Monoid
 import Control.Applicative
 import Control.Monad
 
@@ -43,18 +45,31 @@ type Sentence = [Analysis]
 
 
 -- | 0: word itself. -n: to the left. n: to the right.
-type Position = Integer
+data Position = Exactly Integer | AtLeast Integer deriving (Show,Eq,Read)
 
 
--- REMOVE Fin IF (-1* Fin) (1* Fin)
+-- REMOVE Fin IF ((-1* Fin) AND (1* Fin)) OR (hargle bargle)
 -- means: remove Fin if there is a Fin from position -1 anywhere left, and there is a Fin from position 1 anywhere to the right.
 
 -- IF ((-1* (fin)) OR (1* (fin))) ;
-data Condition = C Position [Tag] deriving (Show)
+data Condition = C Position [Tag]
+               | NOT Condition
+               | AND Condition Condition
+               | OR Condition Condition deriving (Show)
 
-data RS = Remove | Select deriving (Show,Eq)
+toCList :: Condition -> [Condition]
+toCList (AND c1 c2) = toCList c1 ++ toCList c2
+toCList (OR c1 c2)  = toCList c1 ++ toCList c2
+toCList (NOT c)     = toCList c
+toCList c           = [c]
 
-data Rule = And RS [Tag] [Condition] | Or RS [Tag] [Condition] deriving (Show)
+mkC :: String -> [Tag] -> Condition
+mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) tags
+             | otherwise       = C (Exactly $ read str)          tags
+
+--data RS = Remove | Select deriving (Show,Eq)
+
+data Rule = Remove [Tag] Condition | Select [Tag] Condition deriving (Show)
 
 
 
@@ -65,15 +80,17 @@ det  = [Art,Det]
 adv  = [Adv,Particle]
 conj = [CoordConj]
 
+lemmaBear :: Condition
+lemmaBear = C (Exactly 0) [Lem "bear"]
 
 -- Rules
-rmParticle = Or Remove [Particle] []
-rmVerbIfBear = Or Remove verb [C 0 [Lem "bear"]]
-slNounIfBear = Or Select noun [C 0 [Lem "bear"]]
-rmVerbIfDet = Or Remove verb [C (-1) det]
-rmAdvIfDet = Or Remove adv [C 1 det]
-slPrepIfDet = Or Select [Prep] [C (1) det]
-andTest = And Select verb [C (-1) conj, C 1 [Prep]]
+rmParticle = Remove [Particle] (mkC "0" [])
+rmVerbIfBear = Remove verb lemmaBear
+slNounIfBear = Select noun lemmaBear
+rmVerbIfDet = Remove verb (mkC "-1" det)
+rmAdvIfDet = Remove adv (mkC "1*" det)
+slPrepIfDet = Select [Prep] (mkC "1" det)
+andTest = Select verb (AND (mkC "-1" conj) (mkC "1" [Prep]))
 
 
 

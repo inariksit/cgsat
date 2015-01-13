@@ -79,84 +79,101 @@ mkCombs pre post = foldr1 (:||:) combinations
                                              bool1 /= bool2]
 
 
--- 3) Apply rules to literals. Assuming everything is OR!
+-- 3) Apply rules to literals. 
 applyRule :: Rule -> [Literal] -> [Boolean]
 
--- a) remove/select <tags> everywhere
-applyRule (Or rs tags []) lits = 
-  case rs of
-    Remove -> [Not bool | (_,bool) <- chosenTags]
-    Select -> [bool | (_,bool) <- chosenTags] ++ [Not bool | (_,bool) <- otherTags]
-  where chosenTags = filter (\((int, tags'), bool) -> tags' `multiElem` tags) lits
-        otherTags  = filter (\((int, tags'), bool) -> tags' `multiNotElem` tags) lits
 
--- b) remove analyses containing <tags> if the word itself contains any of <tags'>
-applyRule rule lits = applyRule' rule lits
+applyRule rule lits = 
+  case rule of
 
--- Helper function for recursive case
-applyRule' rule@(Or _ _ []) lits = trace (show rule ++ "\n") $ []
-applyRule' rule@(Or rs chosenTags  (c@(C p contextTags):cs)) lits = 
-  trace (show rule ++ "\ncontextN: " ++  show contextN ++
-         "\nchosenTags: " ++ show chosenTags ++
-         "\ncontextTags: " ++ show contextTags ++
-         "\nisMultiNotElem: " ++ show isMultiNotElem ++
-         "\nisMultiElem: " ++ show isMultiElem) $
-  applyRule' (Or rs chosenTags cs) lits ++
-  case rs of 
-    Remove -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
+-- empty condition, remove/select <tags> everywhere
+    (Remove tags c@(C _ [])) -> [Not bool | (_,bool) <- chosen tags]
+    (Select tags c@(C _ [])) -> [bool | (_,bool) <- chosen tags] ++ 
+                                [Not bool | (_,bool) <- other tags]
 
-    Select -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] 
-              ++  [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
+-- conditions must all hold
+    (Remove tags c@(AND c1 c2)) -> trace (show rule) $ applyRuleAnd rule (toCList c) lits
+    (Select tags c@(AND c1 c2)) -> trace (show rule) $ applyRuleAnd rule (toCList c) lits
+
+-- condition(s) must not hold
+    (Remove tags c@(NOT c1)) -> trace (show rule) $ applyRuleNot rule (toCList c) lits
+    (Select tags c@(NOT c1)) -> trace (show rule) $ applyRuleNot rule (toCList c) lits
+
+-- either we have a simple condition or OR: apply all rules in sequence
+    (Remove tags c) -> trace (show rule) $ applyRuleOr rule (toCList c) lits
+    (Select tags c) -> trace (show rule) $ applyRuleOr rule (toCList c) lits
+  where chosen tags = filter (\((int, tags'), bool) -> tags' `multiElem` tags) lits
+        other tags  = filter (\((int, tags'), bool) -> tags' `multiNotElem` tags) lits
+
+
+applyRuleNot :: Rule -> [Condition] -> [((Integer, [Tag]), Boolean)] -> [Boolean]
+applyRuleNot = undefined 
+
+-- Helper function for OR case
+applyRuleOr :: Rule -> [Condition] -> [((Integer, [Tag]), Boolean)] -> [Boolean]
+applyRuleOr rule [] lits = trace (show rule ++ "\n") $ []
+applyRuleOr rule (c@(C p contextTags):cs) lits = applyRuleOr rule cs lits ++
+  case rule of 
+    (Remove chosenTags _) -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
+
+    (Select chosenTags _) -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] ++
+                             [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
 
   where 
         -- has a context tag at exactly n places away.
         -- if context is 0, word itself must have context tag.
-        contextN = if p==0 then filter hasContextTag lits
-                           else filter (hasContextTags . exactlyN) lits
+        contextN = case p of
+                      (Exactly 0) -> filter hasContextTag lits
+                      (Exactly n) -> filter (hasContextTags . exactlyN n) lits
+                      (AtLeast n) -> filter (hasContextTags . atleastN n) lits
 
         --for each tag, get a list of tags that are exactly n places away
-        exactlyN :: ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
-        exactlyN ((int,_),_) = filter (\((int',_),_) -> int+p == int') lits
+        exactlyN :: Integer -> ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
+        exactlyN n ((int,_),_) = filter (\((int',_),_) -> int+n == int') lits
 
         --same but list of tags that are at least n places away
-        atleastN ((int,_),_) = filter (\((int',_),_) -> int+p >= int') lits
+        atleastN n ((int,_),_) = filter (\((int',_),_) -> int+n >= int') lits
 
 
         hasContextTag ((int,tags),bool) = tags `multiElem` contextTags
 
         hasContextTags [] = False
         hasContextTags (x:xs) = if hasContextTag x then True else hasContextTags xs
-
-        --for debugging
-        isMultiNotElem = [((foo,tags),bool) | ((foo,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
-        isMultiElem = [((foo,tags),bool) | ((foo,tags),bool) <- contextN, tags `multiElem` chosenTags] 
+ 
 
 
-applyRule' r@(And rs chosenTags cs) lits = 
-  case rs of 
-    Remove -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
+applyRuleAnd rule cs lits = 
+  case rule of 
+    (Remove chosenTags c) -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
 
-    Select -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] 
-              ++  [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
-  where contextN = getContext lits r cs
+    (Select chosenTags c) -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] ++
+                             [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
+  where contextN = getContext lits cs
 
-getContext :: [((Integer, [Tag]), Boolean)] -> Rule -> [Condition] -> [((Integer, [Tag]), Boolean)]
-getContext chosen _ []                       = chosen
-getContext chosen r (c@(C p contextTags):cs) = getContext newChosen r cs
+getContext :: [((Integer, [Tag]), Boolean)] -> [Condition] -> [((Integer, [Tag]), Boolean)]
+getContext chosen []                       = chosen
+getContext chosen (c@(C p contextTags):cs) = getContext newChosen cs
   
 
   where 
-        newChosen = if p==0 then filter hasContextTag chosen
-                           else filter (hasContextTags . exactlyN) chosen
+        newChosen = case p of
+                      (Exactly 0) -> filter hasContextTag chosen
+                      (Exactly n) -> filter (hasContextTags . exactlyN n) chosen
+                      (AtLeast n) -> filter (hasContextTags . atleastN n) chosen
+
+        --for each tag, get a list of tags that are exactly n places away
+        exactlyN :: Integer -> ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
+        exactlyN n ((int,_),_) = filter (\((int',_),_) -> int+n == int') chosen
+
+        --same but list of tags that are at least n places away
+        atleastN n ((int,_),_) = filter (\((int',_),_) -> int+n >= int') chosen
 
 
         hasContextTag ((int,tags),bool) = tags `multiElem` contextTags
         hasContextTags [] = False
         hasContextTags (x:xs) = if hasContextTag x then True else hasContextTags xs
         
-        exactlyN :: ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
-        exactlyN ((int,_),_) = filter (\((int',_),_) -> int+p == int') chosen
---first 
+
         
 
 --True if any of the items in AS is in BS
@@ -173,10 +190,10 @@ showTag ((t,tags),_) = show t ++ ": " ++ show tags
 basicRules = [ anchor , mkBigrams ]
 
 moreRules  = [ applyRule slNounIfBear
-       --      , applyRule rmVerbIfBear
-       --      , applyRule rmVerbIfDet
-       --      , applyRule slPrepIfDet 
-       --      , applyRule rmAdvIfDet 
+             , applyRule rmVerbIfBear
+             , applyRule rmVerbIfDet
+             , applyRule slPrepIfDet 
+             , applyRule rmAdvIfDet 
              , applyRule andTest ]
 
 rules = basicRules ++ moreRules
