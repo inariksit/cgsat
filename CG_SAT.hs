@@ -1,48 +1,56 @@
-module CG_SAT where 
+--module CG_SAT where 
 
+import CG
+import CG_data
 import Data.Boolean.SatSolver
 import Data.List
 import Control.Applicative
 import Control.Monad
+import System.Environment
+import Debug.Trace
 
--- | This is the old, simpler version. See CG.hs for more options.
--- | In this version
--- | * only tags matter, not lemmas
--- | * only one tag per analysis
--- | * only 1 token before or after
 
-data Tag = Art | Adj | Adv | Det | N | PN | V | V2 | VV | Sg | Particle | Pl | Prep | P1 | P2 | P3 | Subj | Imper | Cond | Inf deriving (Show,Read,Eq)
+type Literal = ((Integer, [Tag]), Boolean)
 
-type Literal = ((Integer, Tag), Boolean)
-
-data Context = C {prev :: [Tag], next :: [Tag]} deriving (Show)
-data Rule = Select [Tag] Context | Remove [Tag] Context deriving (Show)
 
 instance Eq Boolean where
   Var n      == Var m        = m==n
+  Var n      == _            = False
+  _          == Var n        = False
   (n :||: m) == (n' :||: m') = n==n' && m==m'
+  (n :||: m) == _            = False
   (n :&&: m) == (n' :&&: m') = n==n' && m==m'
+  (n :&&: m) == _            = False
+  Not bool   == Not bool'    = bool == bool
+  Not bool   == _            = False
+  Yes        == Yes          = True
+  Yes        == _            = False
+  No         == No           = True
+  No         == _            = False
 
 
--- Sets of tags
-verb = [V,V2,VV]
-noun = [N,PN]
-det  = [Art,Det]
-adv  = [Adv,Particle]
-
--- Rules
-rmVerb = Remove verb (C det [])
-slNoun = Select noun (C [] verb)
-rmAdv = Remove adv (C [] det)
 
 -- SAT stuff
+-- possible application: grammar writer wants to try two combinations of tag sets, would explode in the normal implementation, but sat solver would not be overkill
+
+-- | Input: sentence, as in list of analyses.
+-- | Output: for each word in sentence, 
+-- | * its position in the sentence
+-- | * one of the suggested tag sequences
+-- | * id of that hypothesis in the SAT solver
+-- [((1,[Lem "the", Det]),Var 1),
+--  ((2,[Lem "bear", N,Sg]),Var 2),
+--  ((2,[Lem "bear", V,Pl]),Var 3),
+--  ((3,[Lem "sleep", N,Pl]),Var 4),
+--  ((3,[Lem "sleep", V,Sg]),Var 5)]
+mkLits :: Sentence -> [((Integer,[Tag]),Boolean)]
+mkLits = mkLiterals . mkSymbols
 
 mkSymbols :: [[a]] -> [(Integer,a)]
 mkSymbols as = concat $ go as 1
     where go []     n = []
           go (x:xs) n = map (\tag -> (n,tag)) x : go xs (n+1)
 
--- [((1,Art),Var 1),((2,N),Var 2),((2,V),Var 3),((3,N),Var 4),((3,V),Var 5)]
 mkLiterals :: [b] -> [(b,Boolean)]
 mkLiterals bs = go bs 1
     where go []     n = []
@@ -58,74 +66,146 @@ anchor lits = [bool | ((int, tag), bool) <- lits,
 
 -- 2) Take all possible bigrams
 mkBigrams :: [Literal] -> [Boolean]
-mkBigrams lits = zipWith mkCombs  pres posts --[lits] [lits] -- 
+mkBigrams lits = zipWith mkCombs pres posts --[lits] [lits]
     where len = length lits
-          pres = take (len-1) $ groupBy number lits
-          posts = tail $ groupBy number lits
-          number ((n1,_),_) ((n2,_),_) = n1==n2 
+          pres = take (len-1) $ groupBy sameNumber lits
+          posts = tail $ groupBy sameNumber lits
+          sameNumber ((n1,_),_) ((n2,_),_) = n1==n2 
 
 mkCombs :: [Literal] -> [Literal] -> Boolean
 mkCombs pre post = foldr1 (:||:) combinations
-    where combinations = [bool1 :&&: bool2 | ((_, _), bool1) <- pre, 
-                                             ((int, tag), bool2) <- post,
+    where combinations = [bool1 :&&: bool2 | (_, bool1) <- pre, 
+                                             (_, bool2) <- post,
                                              bool1 /= bool2]
 
 
--- 3) Apply rules to literals
+-- 3) Apply rules to literals. Assuming everything is OR!
 applyRule :: Rule -> [Literal] -> [Boolean]
-applyRule rule@(Remove tags (C pre post)) lits = case rule of
-               (Remove tags (C pre []))  -> [Not bool1 :||: Not bool2 
-                                                  | ((n1, _), bool1) <- possiblyPre,
-                                                    ((n2, _), bool2) <- possiblyTags,
-                                                    n2-n1 == 1] --take only consecutive elements
-               (Remove tags (C [] post)) -> [Not bool1 :||: Not bool2 
-                                                  | ((n1, _), bool1) <- possiblyPost,
-                                                    ((n2, _), bool2) <- possiblyTags,
-                                                    n1-n2 == 1] --context comes after tag
-   where possiblyTags = filter (\((int, tag), bool) -> tag `elem` tags) lits
-         possiblyPre = filter (\((int, tag), bool) -> tag `elem` pre) lits
-         possiblyPost = filter (\((int, tag), bool) -> tag `elem` post) lits
-applyRule rule@(Select tags (C pre post)) lits = case rule of
-               (Select tags (C [] post)) -> [Not bool1 :||: bool2
-                                                  | ((n1, _), bool1) <- possiblyPost,
-                                                    ((n2, _), bool2) <- possiblyTags,
-                                                    n1-n2 == 1] 
-   where possiblyTags = filter (\((int, tag), bool) -> tag `elem` tags) lits
-         possiblyPre = filter (\((int, tag), bool) -> tag `elem` pre) lits
-         possiblyPost = filter (\((int, tag), bool) -> tag `elem` post) lits
+
+-- a) remove/select <tags> everywhere
+applyRule (Or rs tags []) lits = 
+  case rs of
+    Remove -> [Not bool | (_,bool) <- chosenTags]
+    Select -> [bool | (_,bool) <- chosenTags] ++ [Not bool | (_,bool) <- otherTags]
+  where chosenTags = filter (\((int, tags'), bool) -> tags' `multiElem` tags) lits
+        otherTags  = filter (\((int, tags'), bool) -> tags' `multiNotElem` tags) lits
+
+-- b) remove analyses containing <tags> if the word itself contains any of <tags'>
+applyRule rule lits = applyRule' rule lits
+
+-- Helper function for recursive case
+applyRule' rule@(Or _ _ []) lits = trace (show rule ++ "\n") $ []
+applyRule' rule@(Or rs chosenTags  (c@(C p contextTags):cs)) lits = 
+  trace (show rule ++ "\ncontextN: " ++  show contextN ++
+         "\nchosenTags: " ++ show chosenTags ++
+         "\ncontextTags: " ++ show contextTags ++
+         "\nisMultiNotElem: " ++ show isMultiNotElem ++
+         "\nisMultiElem: " ++ show isMultiElem) $
+  applyRule' (Or rs chosenTags cs) lits ++
+  case rs of 
+    Remove -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
+
+    Select -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] 
+              ++  [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
+
+  where 
+        -- has a context tag at exactly n places away.
+        -- if context is 0, word itself must have context tag.
+        contextN = if p==0 then filter hasContextTag lits
+                           else filter (hasContextTags . exactlyN) lits
+
+        --for each tag, get a list of tags that are exactly n places away
+        exactlyN :: ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
+        exactlyN ((int,_),_) = filter (\((int',_),_) -> int+p == int') lits
+
+        --same but list of tags that are at least n places away
+        atleastN ((int,_),_) = filter (\((int',_),_) -> int+p >= int') lits
 
 
+        hasContextTag ((int,tags),bool) = tags `multiElem` contextTags
+
+        hasContextTags [] = False
+        hasContextTags (x:xs) = if hasContextTag x then True else hasContextTags xs
+
+        --for debugging
+        isMultiNotElem = [((foo,tags),bool) | ((foo,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
+        isMultiElem = [((foo,tags),bool) | ((foo,tags),bool) <- contextN, tags `multiElem` chosenTags] 
 
 
--- Test with example sentence [[Art], [N,V], [N,V], [Prep,Adv], [Det], [N,V]]
--- possible application: grammar writer wants to try two combinations of tag sets, would explode in the normal implementation, but sat solver would not be overkilol
+applyRule' r@(And rs chosenTags cs) lits = 
+  case rs of 
+    Remove -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
+
+    Select -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] 
+              ++  [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
+  where contextN = getContext lits r cs
+
+getContext :: [((Integer, [Tag]), Boolean)] -> Rule -> [Condition] -> [((Integer, [Tag]), Boolean)]
+getContext chosen _ []                       = chosen
+getContext chosen r (c@(C p contextTags):cs) = getContext newChosen r cs
+  
+
+  where 
+        newChosen = if p==0 then filter hasContextTag chosen
+                           else filter (hasContextTags . exactlyN) chosen
 
 
--- Simplification: allow only one tag in each analysis
-ex1 = [ [Det]   --the
-      , [N,V]   --bear
-      , [N,V]   --sleeps
-      , [Prep,Adv] --in
-      , [Det]     --the
-      , [N,V] ]   --house
+        hasContextTag ((int,tags),bool) = tags `multiElem` contextTags
+        hasContextTags [] = False
+        hasContextTags (x:xs) = if hasContextTag x then True else hasContextTags xs
+        
+        exactlyN :: ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
+        exactlyN ((int,_),_) = filter (\((int',_),_) -> int+p == int') chosen
+--first 
+        
 
-lits = mkLiterals $ mkSymbols ex1
+--True if any of the items in AS is in BS
+multiElem :: (Eq a) => [a] -> [a] -> Bool
+multiElem as bs = or $ map (\a -> a `elem` bs) as --elem <$> as <*> [bs]
 
-formulae = concat $ [anchor, mkBigrams, applyRule slNoun, applyRule rmVerb, applyRule rmAdv] <*> [lits]
+-- True if none if the items in AS is in BS
+multiNotElem :: (Eq a) => [a] -> [a] -> Bool
+multiNotElem as bs = and $ map (\a -> a `notElem` bs) as
 
-main' :: IO ()
-main' = do 
+showTag :: (Show t, Num t) => ((t, [Tag]), Boolean) -> String
+showTag ((t,tags),_) = show t ++ ": " ++ show tags
+
+basicRules = [ anchor , mkBigrams ]
+
+moreRules  = [ applyRule slNounIfBear
+       --      , applyRule rmVerbIfBear
+       --      , applyRule rmVerbIfDet
+       --      , applyRule slPrepIfDet 
+       --      , applyRule rmAdvIfDet 
+             , applyRule andTest ]
+
+rules = basicRules ++ moreRules
+---- Main stuff
+
+disambiguate :: [Analysis] -> IO ()
+disambiguate analyses = do
+   let lits = mkLits analyses
+       formulae = nub $ concatMap (\rule -> rule lits) rules
+   putStrLn "\nliterals:"
+   mapM_ print lits
+   putStrLn "\nformulae:"
+   mapM_ print formulae
+   putStrLn "---------\n"
+
    solver <- foldM (flip assertTrue) newSatSolver formulae
-   --print solver
    solution <- solve solver
    print solution
-   let truetags = filter (\(_,(Var int)) ->lookupVar int solution == Just True) lits
+   let truetags = filter (\(_,(Var int)) -> lookupVar int solution == Just True) lits
    putStrLn "\nTag sequence:"
    mapM_ putStrLn $ map showTag truetags
 
+   putStrLn "-----------\n"
 
-showTag :: (Show t, Num t) => ((t, Tag), Boolean) -> String
-showTag ((t,tag),_) = show t ++ ": " ++ show tag
+main :: IO ()
+main = do 
+   --args <- getArgs
+   mapM_ disambiguate exs
+
 
 {-
 Literals:

@@ -10,9 +10,25 @@ import Control.Monad
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma is a special type of tag: Lem String
 data Tag = 
-   Art | Adj | Adv | Det | N | PN | V | V2 | VV | Sg | Particle 
- | Pl | Prep | P1 | P2 | P3 | Subj | Imper | Cond | Inf 
- | Lem String deriving (Show,Read,Eq)
+   Art | Adj | Adv | Det | N | PN | V | V2 | VV 
+ | Particle | Prep | CoordConj | Pron
+ | Sg | Pl | P1 | P2 | P3 
+ | Subj | Imper | Cond | Inf | Pres
+ | Nom | Acc | Dat
+ | Lem String deriving (Show,Read)
+
+-- | Lemma should be first element in an analysis.
+instance Ord Tag where
+  Lem l `compare` Lem l' = l `compare` l'
+  Lem l `compare` _      = LT
+  _     `compare` Lem l  = GT
+  tag   `compare` tag'   = show tag `compare` show tag'
+
+instance Eq Tag where
+  Lem l == Lem l' = l == l'
+  Lem l == tag    = False
+  tag   == Lem l  = False
+  tag   == tag'   = show tag == show tag'
 
 -- | Analysis is just a list of tags: for instance the word form "alusta" would get
 -- | [Lem "alus", N, Sg, Part], [Lem "alustaa", V, Sg, Imperative]
@@ -20,14 +36,15 @@ type Analysis = [[Tag]]
 
 -- | Sentence is just a list of analyses: e.g. "the bear sleeps"
 -- | [ [[Lem "the", Det]], 
--- |   [[Lem "bear", V, Pl],[Lem "bear, N, Sg]], 
+-- |   [[Lem "bear", V, Pl],[Lem "bear", N, Sg]], 
 -- |   [[Lem "sleep", V, Sg, P3], [Lem "sleep", N, Pl]]
 -- | ]
 type Sentence = [Analysis]
 
-data Position = P {num :: Int, scan :: Direction} deriving (Show)
 
-data Direction = SLeft | SRight deriving (Show)
+-- | 0: word itself. -n: to the left. n: to the right.
+type Position = Integer
+
 
 -- REMOVE Fin IF (-1* Fin) (1* Fin)
 -- means: remove Fin if there is a Fin from position -1 anywhere left, and there is a Fin from position 1 anywhere to the right.
@@ -35,7 +52,9 @@ data Direction = SLeft | SRight deriving (Show)
 -- IF ((-1* (fin)) OR (1* (fin))) ;
 data Condition = C Position [Tag] deriving (Show)
 
-data Rule = Select [Tag] [Condition] | Remove [Tag] [Condition] deriving (Show)
+data RS = Remove | Select deriving (Show,Eq)
+
+data Rule = And RS [Tag] [Condition] | Or RS [Tag] [Condition] deriving (Show)
 
 
 
@@ -44,29 +63,26 @@ verb = [V,V2,VV]
 noun = [N,PN]
 det  = [Art,Det]
 adv  = [Adv,Particle]
+conj = [CoordConj]
+
 
 -- Rules
-rmVerbIfBear = Remove verb [C (P 0 SRight) [Lem "bear"]]
+rmParticle = Or Remove [Particle] []
+rmVerbIfBear = Or Remove verb [C 0 [Lem "bear"]]
+slNounIfBear = Or Select noun [C 0 [Lem "bear"]]
+rmVerbIfDet = Or Remove verb [C (-1) det]
+rmAdvIfDet = Or Remove adv [C 1 det]
+slPrepIfDet = Or Select [Prep] [C (1) det]
+andTest = And Select verb [C (-1) conj, C 1 [Prep]]
 
--- Analyses
-the = [[Lem "the", Det]]
-bear = [Lem "bear", N,Sg] : [[Lem "bear", V,y,z,w] | y <- [Sg,Pl], z <- [P1,P2], w <- [Subj,Imper,Cond]]-- and so on
-sleeps = [[Lem "sleep", N,Pl],
-          [Lem "sleep", V,Sg,P3]]
-in_ = [[Lem "in", Prep],
-       [Lem "in", Adv]]
 
--- Sentence
-ex0 = [ the --unambiguous
-      , bear
-      , sleeps ]
 
 -- | Shows all analyses as string, each lemma+tags in one line
 showAnalysis :: Analysis -> String
 showAnalysis = concatMap showTags
   
 showTags :: [Tag] -> String
-showTags ((Lem l):as) = "\n      " ++ '"':l ++ '"':' ':analyses
+showTags ((Lem l):as) = '\n':'\t':'"':l ++ '"':' ':analyses
   where analyses = unwords $ map show as
 
 
