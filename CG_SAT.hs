@@ -4,14 +4,12 @@ import CG
 import CG_data
 import Data.Boolean.SatSolver
 import Data.List
-import Control.Applicative
 import Control.Monad
 import System.Environment
 import Debug.Trace
 
 
 type Literal = ((Integer, [Tag]), Boolean)
-
 
 instance Eq Boolean where
   Var n      == Var m        = m==n
@@ -31,7 +29,6 @@ instance Eq Boolean where
 
 
 -- SAT stuff
--- possible application: grammar writer wants to try two combinations of tag sets, would explode in the normal implementation, but sat solver would not be overkill
 
 -- | Input: sentence, as in list of analyses.
 -- | Output: for each word in sentence, 
@@ -178,7 +175,7 @@ getContext chosen (c@(C p contextTags):cs) = getContext newChosen cs
 
 --True if any of the items in AS is in BS
 multiElem :: (Eq a) => [a] -> [a] -> Bool
-multiElem as bs = or $ map (\a -> a `elem` bs) as --elem <$> as <*> [bs]
+multiElem as bs = or $ map (\a -> a `elem` bs) as
 
 -- True if none if the items in AS is in BS
 multiNotElem :: (Eq a) => [a] -> [a] -> Bool
@@ -197,6 +194,8 @@ moreRules  = [ applyRule slNounIfBear
              , applyRule andTest ]
 
 rules = basicRules ++ moreRules
+
+
 ---- Main stuff
 
 disambiguate :: [Analysis] -> IO ()
