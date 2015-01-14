@@ -113,23 +113,32 @@ Unit propagation magic!
 
 % \begin{verbatim}
  \begin{lstlisting}
-data Rule = Remove [Tag] Condition | Select [Tag] Condition deriving (Show)
+data Rule = Remove [Tag] Condition | Select [Tag] Condition
 
--- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
--- | but `C _ []' is assumed to mean that.
 data Condition = C Position [Tag]
                | NOT Condition
                | AND Condition Condition
-               | OR Condition Condition deriving (Show)
+               | OR Condition Condition 
+\end{lstlisting}
 
--- | Position can be exact or at least.
--- | The meaning of numbers is 
--- | *  0: word itself
--- | * -n: to the left
--- | *  n: to the right.
-data Position = Exactly Integer | AtLeast Integer deriving (Show,Eq,Read)
+The data type for Rule is either remove or select a list of tags, with condition(s).
+For Condition, there are basic conditions (position and a list of context tags) and combined conditions, with constructors `NOT', `AND' and `OR'. For instance, the following rule is read as ``remove tag for any verb, if the lemma is \emph{bear} or there is a determiner or an article anywhere to the left''.
+
+\begin{lstlisting}
+verb = [V, V2, V3, VV, V2V, VS]
+Remove verb (OR (C (Exactly 0)  [Lem "bear"])
+                (C (AtLeast -1) [Det,Art])
+            )
+\end{lstlisting}
+
+There is no special constructor for empty condition (ie. remove/select tag everywhere), but an empty tag list in a condition, i.e. \texttt{C \_ []} is assumed to mean that.
+
+The data type for position can be exact n places or at least n places. The number 0 means the word itself, negative number means \emph{n} positions to the left and positive \emph{n} positions to the right.
+
+\begin{lstlisting}
+data Position = Exactly Integer | AtLeast Integer
  \end{lstlisting}
-%\end{verbatim}
+
 
 %If you want references on a separate page, uncomment the following command.
 %\clearpage
