@@ -1,1 +1,143 @@
-/Users/inari/Documents/Courses/Grammar Formalisms/paper.tex
+\documentclass[a4paper, 11pt]{article}
+\topmargin-2.0cm
+
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{extramarks}
+\usepackage{pagecounting}
+\usepackage{color}
+\usepackage[round]{natbib}
+\usepackage{lipsum}
+\usepackage{enumerate}
+%\usepackage{tipa}
+%\usepackage{gb4e}
+\usepackage{graphicx}
+\usepackage{amsmath, amsthm}
+%\usepackage{colortbl}
+\usepackage{caption}
+\usepackage[a4paper]{geometry}
+\usepackage{courier}
+\usepackage{listings}
+\lstset{
+         basicstyle=\footnotesize\ttfamily, 
+         numberstyle=\tiny,          
+         numbersep=5pt,             
+         tabsize=2,                
+         extendedchars=true,      
+         breaklines=true,        
+         showspaces=false,      
+         showtabs=false,       
+         xleftmargin=17pt,
+         framexleftmargin=17pt,
+         framexrightmargin=5pt,
+         framexbottommargin=4pt,
+         showstringspaces=false 
+ }
+ \lstloadlanguages{
+         Haskell
+ }
+
+\usepackage{url}
+
+\advance\oddsidemargin-0.35in
+\advance\evensidemargin-0.65in
+\textheight9.5in
+\textwidth6.5in
+
+\newcommand{\hsp}{\hspace*{\parindent}}
+\definecolor{gray}{rgb}{0.4,0.4,0.4}
+
+\newcommand\blfootnote[1]{
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{#1}
+  \addtocounter{footnote}{-1}
+  \endgroup
+}
+
+%\sectionfont{\large}
+
+\begin{document}
+\lstset{language=Haskell}
+\pagestyle{fancy}
+\lhead{\textcolor{gray}{Inari Listenmaa}}
+\chead{\textcolor{gray}{\bf Grammar Formalisms}}
+\rhead{\textcolor{gray}{LP2 2014}}
+\lfoot{\textcolor{gray}{}}
+\rfoot{\thepage}
+\renewcommand{\headrulewidth}{0.5pt} 
+\renewcommand{\footrulewidth}{0.5pt} 
+\fancyfoot[C]{\footnotesize \textcolor{gray}{}} 
+
+\centerline{ {\Large \bf Constraint Grammar} }
+\vspace*{0.2cm}
+
+\section{Introduction}
+
+In this course paper, I describe the implementation of Constraint Grammar in Haskell, using a SAT solver to find a solution that fits all the constraints.
+
+First I describe the existing implementations, followed by my own SAT-based solution.
+
+\section{Constraint Grammar}
+
+Constraint grammar was first introduced by \cite{KarlssonTODO}. 
+It a tool for disambiguating output by morphological analyser.
+
+\section{Standard implementation(s)}
+
+The first implementation, CG-1, was introduced in \cite{KarlssonTODO}. Karlsson describes the implementation as ``ad hoc`` and ``without any deeper technical contributions to parsing theory``, and adds that ideally, CG should be implemented with finite state methods.
+CG-2, implemented by \cite{tapanainen1996}, used finite state technology. 
+The latest version, CG-3, was implemented by \cite{TODO} without finite state technology. The implementation introduced new properties, such as ordering of the rules.
+
+\begin{quote}
+[--] the Lisp, C, and C++ implementations of the Constraint Grammar Parser are all fairly ad hoc rule interpreters without any deeper technical contributions to parsing theory. These implementations are not based on the use of well understood and theoretically sound parsing algorithms. Rather, they could be characterized as situation-action parsing programs. 
+\end{quote}
+
+\subsection{Workflow}
+
+All implementations (TODO check) go through the input many times and apply all possible rules each time. 
+After one pass, it may be possible to apply some rules that didn't fire the last time.
+
+
+\subsection{Resolving conflicts}
+
+For CG-1 and CG-2, ... sections? TODO
+
+In CG-3, the rules are ordered. In case of a conflict, the rule that is described first is given priority.
+
+
+\section{SAT based implementation}
+
+Unit propagation magic!
+
+\subsection{Data types}
+
+% \begin{verbatim}
+ \begin{lstlisting}
+data Rule = Remove [Tag] Condition | Select [Tag] Condition deriving (Show)
+
+-- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
+-- | but `C _ []' is assumed to mean that.
+data Condition = C Position [Tag]
+               | NOT Condition
+               | AND Condition Condition
+               | OR Condition Condition deriving (Show)
+
+-- | Position can be exact or at least.
+-- | The meaning of numbers is 
+-- | *  0: word itself
+-- | * -n: to the left
+-- | *  n: to the right.
+data Position = Exactly Integer | AtLeast Integer deriving (Show,Eq,Read)
+ \end{lstlisting}
+%\end{verbatim}
+
+%If you want references on a separate page, uncomment the following command.
+%\clearpage
+
+%\begin{small}
+%\bibliographystyle{plainnat}
+%\bibliography{references}
+%\end{small}
+
+\end{document}
+
