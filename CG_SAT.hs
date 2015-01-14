@@ -103,11 +103,11 @@ applyRule rule lits =
         other tags  = filter (\((int, tags'), bool) -> tags' `multiNotElem` tags) lits
 
 
-applyRuleNot :: Rule -> [Condition] -> [((Integer, [Tag]), Boolean)] -> [Boolean]
+applyRuleNot :: Rule -> [Condition] -> [Literal] -> [Boolean]
 applyRuleNot = undefined 
 
 -- Helper function for OR case
-applyRuleOr :: Rule -> [Condition] -> [((Integer, [Tag]), Boolean)] -> [Boolean]
+applyRuleOr :: Rule -> [Condition] -> [Literal] -> [Boolean]
 applyRuleOr rule [] lits = trace (show rule ++ "\n") $ []
 applyRuleOr rule (c@(C p contextTags):cs) lits = applyRuleOr rule cs lits ++
   case rule of 
@@ -121,11 +121,12 @@ applyRuleOr rule (c@(C p contextTags):cs) lits = applyRuleOr rule cs lits ++
         -- if context is 0, word itself must have context tag.
         contextN = case p of
                       (Exactly 0) -> filter hasContextTag lits
+                      (AtLeast 0) -> lits -- at least 0 means basically remove everywhere 
                       (Exactly n) -> filter (hasContextTags . exactlyN n) lits
                       (AtLeast n) -> filter (hasContextTags . atleastN n) lits
 
         --for each tag, get a list of tags that are exactly n places away
-        exactlyN :: Integer -> ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
+        exactlyN :: Integer -> Literal -> [Literal]
         exactlyN n ((int,_),_) = filter (\((int',_),_) -> int+n == int') lits
 
         --same but list of tags that are at least n places away
@@ -147,7 +148,7 @@ applyRuleAnd rule cs lits =
                              [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
   where contextN = getContext lits cs
 
-getContext :: [((Integer, [Tag]), Boolean)] -> [Condition] -> [((Integer, [Tag]), Boolean)]
+getContext :: [Literal] -> [Condition] -> [Literal]
 getContext chosen []                       = chosen
 getContext chosen (c@(C p contextTags):cs) = getContext newChosen cs
   
@@ -159,7 +160,7 @@ getContext chosen (c@(C p contextTags):cs) = getContext newChosen cs
                       (AtLeast n) -> filter (hasContextTags . atleastN n) chosen
 
         --for each tag, get a list of tags that are exactly n places away
-        exactlyN :: Integer -> ((Integer, [Tag]), Boolean) -> [((Integer, [Tag]), Boolean)]
+        exactlyN :: Integer -> Literal -> [Literal]
         exactlyN n ((int,_),_) = filter (\((int',_),_) -> int+n == int') chosen
 
         --same but list of tags that are at least n places away
