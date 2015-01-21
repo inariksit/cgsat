@@ -159,12 +159,73 @@ satisfy the constraints.
 \item \texttt{has\_driving\_licence} = True
 \end{itemize}
 
-SAT solving is being used for many applications where 
+SAT solving is used for many applications where constraints must be
+satisfied, such as software and hardware verification.
+
+\subsection{CG formulated in SAT}
+
+We make each analysis a variable. For instance, the fifth line denotes
+a hypothesis that the correct analysis of the 3rd item in the sentence
+is \texttt{<V,Sg>}. We call this \texttt{Var 5}.
+
+\begin{lstlisting}
+((1,[Lem "the",Det]),Var 1)
+((2,[Lem "bear",N,Sg]),Var 2)
+((2,[Lem "bear",V,Pl]),Var 3)
+((3,[Lem "sleep",N,Pl]),Var 4)
+((3,[Lem "sleep",V,Sg]),Var 5)
+((4,[Lem "in",Prep]),Var 6)
+((4,[Lem "in",Adv]),Var 7)
+((5,[Lem "the",Det]),Var 8)
+((6,[Lem "house",V,Inf]),Var 9)
+((6,[Lem "house",N,Sg]),Var 10)
+\end{lstlisting}
+
+
+We have defined our variables, but not yet any truth values. We can
+start by doing two things:
+\begin{enumerate}
+\item Make unambiguous tokens true by default: e.g. \texttt{Var 1}
+  shows that the reading \texttt{Det} for the first token must be true.
+\item Make hypotheses of possible n-grams. In the example below, we
+show bigrams: \texttt{(Var 1 $\wedge$ Var 2) $\vee$ (Var 1 $\wedge$ Var 3)}
+means that the first two tokens have analyses \texttt{Det,N} or
+\texttt{Det,V}.
+\end{enumerate}
+
+We could easily add a third rule: for ambiguous tokens, make sure that
+only one reading can be true (or a less strict version, where all
+readings can't be true). For instance, \texttt{Not (Var 2 $\wedge$ Var
+  3)} would be the constraint that the second token can't be both
+\texttt{N} and \texttt{V} at the same time. However,
+\cite{KarlssonTODO} argues that CG cannot remove genuine ambiguities;
+in a case where a sentence is genuinely ambiguous, all readings are
+returned.
+
+
+
+\begin{lstlisting}
+Var 1
+Var 8
+(Var 1 :&&: Var 2) :||: (Var 1 :&&: Var 3)
+(Var 2 :&&: Var 4) :||: ((Var 2 :&&: Var 5) :||: ((Var 3 :&&: Var 4) :||: (Var 3 :&&: Var 5)))
+(Var 4 :&&: Var 6) :||: ((Var 4 :&&: Var 7) :||: ((Var 5 :&&: Var 6) :||: (Var 5 :&&: Var 7)))
+(Var 6 :&&: Var 8) :||: (Var 7 :&&: Var 8)
+(Var 8 :&&: Var 9) :||: ((Var 8 :&&: Var 10))
+\end{lstlisting}
+% Not (Var 2 :&&: Var 3)
+% Not (Var 4 :&&: Var 5)
+% Not (Var 6 :&&: Var 7)
+% Not (Var 9 :&&: Var 10)
+
+Another property of CG is that cannot remove all readings: if all
+other analyses are eliminated, the remaining analysis must be
+returned, even if it were to be eliminated at the next pass. 
+However, this property isn't implemented in the SAT version.
 
 \subsection{Data types}
 
-% \begin{verbatim}
- \begin{lstlisting}
+\begin{lstlisting}
 data Rule = Remove [Tag] Condition | Select [Tag] Condition
 
 data Condition = C Position [Tag]
