@@ -15,6 +15,7 @@
 \usepackage{amsmath, amsthm}
 %\usepackage{colortbl}
 \usepackage{caption}
+\usepackage[T1]{fontenc}
 \usepackage[a4paper]{geometry}
 \usepackage{courier}
 \usepackage{listings}
@@ -108,33 +109,57 @@ In CG-3, the rules are ordered. In case of a conflict, the rule that is describe
 \section{SAT based implementation}
 
 SAT solving is based on a technique called unit propagation:
-a set of complex Boolean clauses is simplified, starting from single literals and working up to
-For instance, the following constraints describe rules for driving a car.
+a set of complex Boolean clauses is simplified, starting from unit
+clauses, which consist of just a single variable, and working up to a solution, where all variables in the set
+have a True or False value.
 
-We have a set of variables that can be either true or false:
+Let us show this with a small example.
+We have a set of variables describing properties of people: \texttt{is\_under\_18},
+\texttt{has\_driving\_licence} and \texttt{is\_drunk}.
 
-\begin{verbatim}
-can_drive
-has_driving_licence
-is_over_18
-is_drunk
-\end{verbatim}
+% For instance, the following constraints describe rules for driving a car.
+% \begin{verbatim}
+% can_drive
+% has_driving_licence
+% is_under_18
+% is_drunk
+% \end{verbatim}
 
-Next, we represent a possible situation in the world. In order to be allowed to drive, a person must have a driving licence and they must not be drunk. This is represented by the clause $can\_drive ∧\wedge has\_driving\_licence ∧\wedge \neg is\_drunk$. Furthermore, from the world knowledge, we know that in order to have a driving licence, one must be over 18. This is represented by the second clause.
+% Next, we represent a possible situation in the world. In order to be allowed to drive, a person must have a driving licence and they must not be drunk. This is represented by the clause $can\_drive ∧\wedge has\_driving\_licence ∧\wedge \neg is\_drunk$. Furthermore, from the world knowledge, we know that in order to have a driving licence, one must be over 18. This is represented by the second clause.
+
+Clause 1 describes a possible situation in a world: someone is behaving in away that makes you think of a hypothesis ``either they are underage or
+drunk''. This is represented as \texttt{is\_under\_18} $\vee$
+\texttt{is\_drunk}. Just by this clause we can't solve the reason for the
+behaviour: it can be one of them or both.
+
+Clause 2 comes from the world knowledge that in order to have a
+driving licence, one must be over 18. The form of the clause is
+obtained by applying negation distributively over the more intuitive
+clause $\neg$ (\texttt{has\_driving\_licence} $\wedge$
+\texttt{is\_under\_18}): it is not possible to both have driving
+licence and be under 18.
+
+\begin{enumerate}
+\item \texttt{is\_under\_18} $\vee$ \texttt{is\_drunk}
+\item ($\neg$ \texttt{has\_driving\_licence}) $\vee$ ($\neg$ \texttt{is\_under\_18})
+\item \texttt{has\_driving\_licence}
+\end{enumerate}
+
+Clause 3 provides us some undeniable evidence that
+the person has a driving licence. By this clause, 
+we know that the variable \texttt{is\_under\_18} is not true.
+Knowing that, we can eliminate \texttt{is\_under\_18} from the first
+clause. 
+The solution is below: the three variables must have these values in order to
+satisfy the constraints.
 
 \begin{itemize}
-%\item $can\_drive \wedge has\_driving\_licence \wedge \neg is\_drunk$,
-%\item $has\_driving\_licence \wedge is\_over\_18$, 
-\item $\neg is\_over\_18 \vee is\_drunk$
-\item $is\_over\_18$
+\item \texttt{is\_drunk} = True
+\item \texttt{is\_under\_18} = False
+\item \texttt{has\_driving\_licence} = True
 \end{itemize}
 
-Here we have a possible situation in a world: someone is behaving in a way that makes you think of a hypothesis ``either they are underage or drunk''. This is represented by the clause $\neg is\_over\_18 \vee is\_drunk$. Just by this clause we can't solve the reason for the behaviour: it can be one of them or both. Then we get evidence that they are over 18, represented by the clause $is\_over\_18$. Thus we know that the part $\neg is\_over\_18$ of the is not true, so we can eliminate that from the clause. The solution is below: these variables must be true for the situation to be consistent.
-
-\begin{itemize}
-\item $is\_drunk$ = True
-\item $is\_over\_18$ = True
-\end{itemize}
+SAT solving is being used for many applications where 
 
 \subsection{Data types}
 
@@ -166,6 +191,76 @@ The data type for position can be exact n places or at least n places. The numbe
 data Position = Exactly Integer | AtLeast Integer
  \end{lstlisting}
 
+\subsection{Complex conditions}
+Conditions constructed by OR are represented as a sequence, and AND as
+parallel. In Haskell, I simply use nested lists: everything inside the
+outer list is subject to OR, and within the lists AND. This is best
+demonstrated by an example:
+
+\begin{itemize}
+\item \texttt{OR (OR C1 C2) C3} becomes \texttt{[[C1], [C2], [C3]]} 
+\item \texttt{AND (AND C1 C2) C3} becomes \texttt{[[C1, C2, C3]]} 
+\item \texttt{AND (OR C1 C2) C3} becomes \texttt{[[C1,C3], [C2,C3]]}
+\end{itemize}
+
+\subsection{Conflicts}
+If you try to use conflicting rules, you get user error: mzero.
+
+\subsection{Example run}
+
+We show an example run for the sentence \emph{They are both happy and go to the house}. This is
+taken from a real output of a morphological analyser, and was
+initially ambiguous in the following ways:
+
+\begin{itemize}
+\item[] are
+\begin{itemize}
+\item[] \texttt{<''be'', V, Pres>}
+\item[] \texttt{<''are'', N, Sg>}
+\end{itemize}
+
+\item[] both
+\begin{itemize}
+\item[] \texttt{<''both'', CoordConj>}
+\item[] \texttt{<''both'',Det>}
+\item[] \texttt{<''both'',Pron>}
+\end{itemize}
+
+
+\item[] go
+\begin{itemize}
+\item[] \texttt{<''go'', V, Inf>}
+\item[] \texttt{<''go'', V, Pres>}
+\item[] \texttt{<''go'', N, Sg>}
+\end{itemize}
+
+\item[] to
+\begin{itemize}
+\item[] \texttt{<''to'', Prep>}
+\item[] \texttt{<''to'', Adv>}
+\end{itemize}
+
+\item[] house
+\begin{itemize}
+\item[] \texttt{<''house'', V, Inf>}
+\item[] \texttt{<''house'', V, Pres>}
+\item[] \texttt{<''house'', N, Sg>}
+\end{itemize}
+\end{itemize}
+
+\begin{verbatim}
+Tag sequence:
+1: [Lem "they",Pron,Subj,Nom,P3]
+2: [Lem "are",N,Sg]
+3: [Lem "both",Pron]
+4: [Lem "happy",Adj]
+5: [Lem "and",CoordConj]
+6: [Lem "go",V,Inf]
+6: [Lem "go",V,Pres]
+7: [Lem "to",Prep]
+8: [Lem "the",Det]
+9: [Lem "house",N,Sg]
+\end{verbatim}
 
 %If you want references on a separate page, uncomment the following command.
 %\clearpage

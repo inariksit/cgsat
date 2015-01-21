@@ -83,25 +83,46 @@ applyRule :: Rule -> [Literal] -> [Boolean]
 applyRule rule lits = 
   case rule of
 
--- a) empty condition, remove/select <tags> everywhere
-    (Remove tags c@(C _ [])) -> trace ("applyRule: " ++ show c) $ [Not bool | (_,bool) <- chosen tags]
-    (Select tags c@(C _ [])) -> trace ("applyRule: " ++ show c ++ "\nother  : " ++ show (other tags) ++ "\nchosen : " ++ (show $ chosen tags)) $ 
-                                [bool | (_,bool) <- chosen tags] ++ 
-                                [Not bool | (_,bool) <- other tags]
-
--- b) condition(s) must not hold 
+-- a) condition(s) must not hold 
 -- TODO nesting of NOTs with AND and OR -- is it even relevant? do linguists write horribly nested and confusing stuff?
     (Remove tags c@(NOT c1)) -> map Not $ applyRules rule (toLists c) lits
     (Select tags c@(NOT c1)) -> map Not $ applyRules rule (toLists c) lits
 
--- c) general case, there can be nested ANDs, ORs or just plain rules
+-- b) general case, there can be nested ANDs, ORs or just plain rules
     (Remove tags c) -> applyRules rule (toLists c) lits
     (Select tags c) -> applyRules rule (toLists c) lits
 
-  where -- chosen is simple: just get tags' that are in tags
-        chosen tags = filter (\((ind,tags'),bool) -> tags' `multiElem` tags) lits
+  -- where -- chosen is simple: just get tags' that are in tags
+  --       chosen tags = filter (\((ind,tags'),bool) -> tags' `multiElem` tags) lits
 
         -- other must filter tags' that are not in tags, but not from all lits:
+        -- just from the words that have somewhere an analysis which is in tags
+  --       other tags  = filter (\((ind,tags'),bool) -> tags' `multiNotElem` tags) (allWithReading tags)
+
+  --       -- list of positions in the sentence, where one of the analyses is in tags. e.g.
+  --       --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl], (3,[Pron]), tags = [N]
+  --       -- ====> [1,2] is returned.
+  --       chosenInds tags = [ind | ((ind,_),_) <- chosen tags]
+
+  --       -- all lemmas that have the desired reading in one of their analyses. e.g.
+  --       --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl]), tags = [V]
+  --       -- ====> (2,[V,Sg]) and (2,[N,Pl]) are returned
+  --       allWithReading tags = filter (\((ind,_),_) -> ind `elem` chosenInds tags) lits
+
+applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
+applyRules rule [] lits       = []
+applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRules rule xxs lits ++
+  case rule of 
+    (Remove tags c) -> [Not bool | ((_,tags'),bool) <- chosen tags]
+
+    (Select tags c) -> [bool | ((_,tags'),bool) <- chosen tags] ++
+                       [Not bool | ((_,tags'),bool) <- allWithReading tags, tags' `multiNotElem` tags]
+  where contextN = getContext lits lits xs 
+
+        -- chosen is simple: just get tags' that are in tags
+        chosen tags = filter (\((ind,tags'),bool) -> tags' `multiElem` tags) contextN
+
+        -- other must filter tags' that are not in tags, but not from all lits in contextN:
         -- just from the words that have somewhere an analysis which is in tags
         other tags  = filter (\((ind,tags'),bool) -> tags' `multiNotElem` tags) (allWithReading tags)
 
@@ -114,48 +135,28 @@ applyRule rule lits =
         --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl]), tags = [V]
         -- ====> (2,[V,Sg]) and (2,[N,Pl]) are returned
         allWithReading tags = filter (\((ind,_),_) -> ind `elem` chosenInds tags) lits
-
-        negate (Not b) = b
-        negate b       = Not b
-
-applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
-applyRules rule [] lits       = []
-applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRules rule xxs lits ++
-  case rule of 
-    (Remove tags c) -> [Not bool | ((_,tags'),bool) <- chosen tags]
-
-    (Select tags c) -> [bool | ((_,tags'),bool) <- chosen tags] ++
-                       [Not bool | ((_,tags'),bool) <- allWithReading tags, tags' `multiNotElem` tags]
-  where contextN = getContext lits lits xs 
-
-        --main difference here is that tags are chosen from contextN, not lits
-        chosen tags = filter (\((ind,tags'),bool) -> tags' `multiElem` tags) contextN
-        other tags  = filter (\((ind,tags'),bool) -> tags' `multiNotElem` tags) (allWithReading tags)
-
-        chosenInds tags = [ind | ((ind,_),_) <- chosen tags]
-
-        allWithReading tags = filter (\((ind,_),_) -> ind `elem` chosenInds tags) contextN
-
+ 
 
 --for singleton lists, goes just one time and chooses all lits that apply
 --for lists with more members, chooses lits where all conditions apply
 getContext :: [Literal] -> [Literal] -> [Condition] -> [Literal]
-getContext lits chosen []                       = trace ("getContext: " ++ show chosen) $ chosen
-getContext lits chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ show chosen) $ getContext lits newChosen cs
+getContext original chosen ((C _ []):cs)            = trace ("getContext: " ++ show original) $original
+getContext original chosen []                       = trace ("getContext: " ++ show chosen) $ chosen
+getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ show chosen) $ getContext original newChosen cs
   
   where 
         newChosen = case p of
                       (Exactly 0) -> filter hasContextTag chosen
-                      (AtLeast 0) -> lits -- at least 0 means remove/select everywhere 
-                      (Exactly n) -> filter (hasContextTags . exactlyN n) chosen
-                      (AtLeast n) -> filter (hasContextTags . atleastN n) chosen
+                      (AtLeast 0) -> original -- at least 0 means remove/select everywhere 
+                      (Exactly n) -> filter (hasContextTags . exactly n) chosen
+                      (AtLeast n) -> filter (hasContextTags . atleast n) chosen
 
-        --for each tag, get a list of tags that are exactly n places away
-        exactlyN :: Integer -> Literal -> [Literal]
-        exactlyN n ((ind,_),_) = filter (\((ind',_),_) -> ind+n == ind') lits --chosen
+        --for each tag, get a list of tags that are n places away in the original sentence
+        exactly :: Integer -> Literal -> [Literal]
+        exactly n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+n == ind']
 
         --same but list of tags that are at least n places away
-        atleastN n ((ind,_),_) = filter (\((ind',_),_) -> ind+n >= ind') lits --chosen
+        atleast n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+n >= ind']
 
 
         hasContextTag ((ind,tags),bool) = tags `multiElem` contextTags
@@ -178,14 +179,14 @@ basicRules = [ anchor , mkBigrams ]
 
 moreRules  = [ rmParticle
              -- , slNounIfBear
-             , slVerbAlways 
-             , rmVerbIfDet ]
-             -- , rmNounIfPron
-             -- , slPrepIfDet 
-             -- , rmAdvIfDet 
+             -- , slVerbAlways 
+             , rmVerbIfDet
+             , rmNounIfPron
+             , slPrepIfDet 
+             , rmAdvIfDet 
              -- , notTest
              -- , notOrTest 
-             -- , andTest ]
+             , andTest ]
 
 
 rules = basicRules ++ map applyRule moreRules
