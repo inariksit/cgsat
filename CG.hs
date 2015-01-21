@@ -1,5 +1,6 @@
 module CG where
 
+import Control.Applicative
 import Data.Boolean.SatSolver
 import Data.List
 
@@ -9,7 +10,8 @@ import Data.List
 -- | Lemma is a special type of tag: Lem String
 data Tag = 
    Art | Adj | Adv | Det | N | PN | V | V2 | VV 
- | Particle | Prep | CoordConj | Pron
+ | Particle | Prep | Pron
+ | CoordConj | SubordConj
  | Sg | Pl | P1 | P2 | P3 
  | Subj | Imper | Cond | Inf | Pres
  | Nom | Acc | Dat
@@ -55,12 +57,57 @@ data Position = Exactly Integer | AtLeast Integer deriving (Show,Eq,Read)
 
 
 
--- We want to have conditions in a list later on
-toCList :: Condition -> [Condition]
-toCList (AND c1 c2) = toCList c1 ++ toCList c2
-toCList (OR c1 c2)  = toCList c1 ++ toCList c2
-toCList (NOT c)     = toCList c
-toCList c           = [c]
+
+
+{-    
+     OR
+    /  \
+   C1   AND
+        / \
+       C2  C3
+
+
+[[Ca], [Cm, ..., Cn], [Co, ... , Cp]]
+
+Everything inside the outer list is constructed by OR (or just C).
+Everything inside an inner list is constructed by AND.
+-}
+
+
+
+toLists :: Condition -> [[Condition]]
+
+--for OR, we make a list of lists, all in sequence.
+--for AND, we need to make them parallel and put in a form with OR as the first constructor
+--ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
+--for NOT, TODO
+toLists c = case c of
+    (C position tags)               -> [[c]]
+    (OR  c1           c2)           -> toLists c1 ++ toLists c2 
+    (NOT c1)                        -> toLists c1 --TODO
+    (AND c1@(AND _ _) c2@(AND _ _)) -> [toListsAnd c]
+    (AND c1@(NOT _ )  c2         )  -> error "do you even know what you're doing D:"
+    (AND c1           c2@(NOT _) )  -> error "do you even know what you're doing D:"
+    (AND c1           c2         )  -> map toListsAnd $ and' <$> simpleList c1 <*> simpleList c2  
+  where and' c1 c2 = AND c1 c2
+
+        toListsAnd (AND c1 c2) = concat (toLists c1 ++ toLists c2)
+        toListsAnd c@(C _ _)   = [c]
+
+        simpleList (AND c1 c2) = simpleList c1 ++ simpleList c2
+        simpleList (OR c1 c2)  = simpleList c1 ++ simpleList c2
+        simpleList (NOT c)     = simpleList c
+        simpleList c           = [c]
+
+
+and' :: Condition -> Condition -> Condition
+and' c1 c2 = AND c1 c2
+
+or1 = OR dummy dummy
+or2 = OR lemmaBear lemmaBear 
+
+and1 = AND dummy dummy
+and2 = AND lemmaBear lemmaBear
 
 -- and a nice way of writing them
 mkC :: String -> [Tag] -> Condition
@@ -69,6 +116,7 @@ mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) tags
 
 lemmaBear :: Condition
 lemmaBear = mkC "0" [Lem "bear"]
+dummy = C (Exactly 0) []
 
 
 -- Sets of tags
@@ -76,7 +124,7 @@ verb = [V,V2,VV]
 noun = [N,PN]
 det  = [Art,Det]
 adv  = [Adv,Particle]
-conj = [CoordConj]
+conj = [CoordConj,SubordConj]
 
 
 -- Rules
@@ -87,6 +135,9 @@ rmVerbIfDet = Remove verb (mkC "-1" det)
 rmAdvIfDet = Remove adv (mkC "1*" det)
 slPrepIfDet = Select [Prep] (mkC "1" det)
 andTest = Select verb (AND (mkC "-1" conj) (mkC "1" [Prep]))
+notAndTest = Select verb (NOT (AND (mkC "-1" conj) (mkC "1" [Prep])))
+notOrTest = Select verb  (NOT (OR (mkC "-1" conj) (mkC "1" [Prep])))
+
 
 
 
