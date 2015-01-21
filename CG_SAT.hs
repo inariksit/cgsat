@@ -56,8 +56,8 @@ mkLiterals bs = go bs 1
 
 -- 1) If something is unambiguous to start with, anchor that
 anchor :: [Literal] -> [Boolean]
-anchor lits = [bool | ((int, tag), bool) <- lits, 
-                      isUniq int indices]
+anchor lits = [bool | ((ind,tag),bool) <- lits, 
+                      isUniq ind indices]
    where indices = map (\((int, _), _) -> int) lits
          isUniq x xs = length (findIndices (==x) xs) == 1
 
@@ -83,96 +83,85 @@ applyRule :: Rule -> [Literal] -> [Boolean]
 applyRule rule lits = 
   case rule of
 
--- empty condition, remove/select <tags> everywhere
-    (Remove tags c@(C _ [])) -> [Not bool | (_,bool) <- chosen tags]
-    (Select tags c@(C _ [])) -> [bool | (_,bool) <- chosen tags] ++ 
+-- a) empty condition, remove/select <tags> everywhere
+    (Remove tags c@(C _ [])) -> trace ("applyRule: " ++ show c) $ [Not bool | (_,bool) <- chosen tags]
+    (Select tags c@(C _ [])) -> trace ("applyRule: " ++ show c ++ "\nother  : " ++ show (other tags) ++ "\nchosen : " ++ (show $ chosen tags)) $ 
+                                [bool | (_,bool) <- chosen tags] ++ 
                                 [Not bool | (_,bool) <- other tags]
 
--- conditions must all hold
-    (Remove tags c@(AND c1 c2)) -> trace (show rule) $ applyRuleAnd rule (toCList c) lits
-    (Select tags c@(AND c1 c2)) -> trace (show rule) $ applyRuleAnd rule (toCList c) lits
+-- b) condition(s) must not hold 
+-- TODO nesting of NOTs with AND and OR -- is it even relevant? do linguists write horribly nested and confusing stuff?
+    (Remove tags c@(NOT c1)) -> map Not $ applyRules rule (toLists c) lits
+    (Select tags c@(NOT c1)) -> map Not $ applyRules rule (toLists c) lits
 
--- condition(s) must not hold
-    (Remove tags c@(NOT c1)) -> trace (show rule) $ applyRuleNot rule (toCList c) lits
-    (Select tags c@(NOT c1)) -> trace (show rule) $ applyRuleNot rule (toCList c) lits
+-- c) general case, there can be nested ANDs, ORs or just plain rules
+    (Remove tags c) -> applyRules rule (toLists c) lits
+    (Select tags c) -> applyRules rule (toLists c) lits
 
--- either we have a simple condition or OR: apply all rules in sequence
-    (Remove tags c) -> trace (show rule) $ applyRuleOr rule (toCList c) lits
-    (Select tags c) -> trace (show rule) $ applyRuleOr rule (toCList c) lits
-  where chosen tags = filter (\((int, tags'), bool) -> tags' `multiElem` tags) lits
-        other tags  = filter (\((int, tags'), bool) -> tags' `multiNotElem` tags) lits
+  where -- chosen is simple: just get tags' that are in tags
+        chosen tags = filter (\((ind,tags'),bool) -> tags' `multiElem` tags) lits
 
+        -- other must filter tags' that are not in tags, but not from all lits:
+        -- just from the words that have somewhere an analysis which is in tags
+        other tags  = filter (\((ind,tags'),bool) -> tags' `multiNotElem` tags) (allWithReading tags)
 
-applyRuleNot :: Rule -> [Condition] -> [Literal] -> [Boolean]
-applyRuleNot = undefined 
+        -- list of positions in the sentence, where one of the analyses is in tags. e.g.
+        --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl], (3,[Pron]), tags = [N]
+        -- ====> [1,2] is returned.
+        chosenInds tags = [ind | ((ind,_),_) <- chosen tags]
 
--- Helper function for OR case
-applyRuleOr :: Rule -> [Condition] -> [Literal] -> [Boolean]
-applyRuleOr rule [] lits = trace (show rule ++ "\n") $ []
-applyRuleOr rule (c@(C p contextTags):cs) lits = applyRuleOr rule cs lits ++
+        -- all lemmas that have the desired reading in one of their analyses. e.g.
+        --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl]), tags = [V]
+        -- ====> (2,[V,Sg]) and (2,[N,Pl]) are returned
+        allWithReading tags = filter (\((ind,_),_) -> ind `elem` chosenInds tags) lits
+
+        negate (Not b) = b
+        negate b       = Not b
+
+applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
+applyRules rule [] lits       = []
+applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRules rule xxs lits ++
   case rule of 
-    (Remove chosenTags _) -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
+    (Remove tags c) -> [Not bool | ((_,tags'),bool) <- chosen tags]
 
-    (Select chosenTags _) -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] ++
-                             [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
+    (Select tags c) -> [bool | ((_,tags'),bool) <- chosen tags] ++
+                       [Not bool | ((_,tags'),bool) <- allWithReading tags, tags' `multiNotElem` tags]
+  where contextN = getContext lits lits xs 
 
-  where 
-        -- has a context tag at exactly n places away.
-        -- if context is 0, word itself must have context tag.
-        contextN = case p of
-                      (Exactly 0) -> filter hasContextTag lits
-                      (AtLeast 0) -> lits -- at least 0 means basically remove everywhere 
-                      (Exactly n) -> filter (hasContextTags . exactlyN n) lits
-                      (AtLeast n) -> filter (hasContextTags . atleastN n) lits
+        --main difference here is that tags are chosen from contextN, not lits
+        chosen tags = filter (\((ind,tags'),bool) -> tags' `multiElem` tags) contextN
+        other tags  = filter (\((ind,tags'),bool) -> tags' `multiNotElem` tags) (allWithReading tags)
 
-        --for each tag, get a list of tags that are exactly n places away
-        exactlyN :: Integer -> Literal -> [Literal]
-        exactlyN n ((int,_),_) = filter (\((int',_),_) -> int+n == int') lits
+        chosenInds tags = [ind | ((ind,_),_) <- chosen tags]
 
-        --same but list of tags that are at least n places away
-        atleastN n ((int,_),_) = filter (\((int',_),_) -> int+n >= int') lits
+        allWithReading tags = filter (\((ind,_),_) -> ind `elem` chosenInds tags) contextN
 
 
-        hasContextTag ((int,tags),bool) = tags `multiElem` contextTags
-
-        hasContextTags [] = False
-        hasContextTags (x:xs) = if hasContextTag x then True else hasContextTags xs
- 
-
-
-applyRuleAnd rule cs lits = 
-  case rule of 
-    (Remove chosenTags c) -> [Not bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags]
-
-    (Select chosenTags c) -> [bool | ((_,tags),bool) <- contextN, tags `multiElem` chosenTags] ++
-                             [Not bool | ((_,tags),bool) <- contextN, tags `multiNotElem` chosenTags]
-  where contextN = getContext lits cs
-
-getContext :: [Literal] -> [Condition] -> [Literal]
-getContext chosen []                       = chosen
-getContext chosen (c@(C p contextTags):cs) = getContext newChosen cs
+--for singleton lists, goes just one time and chooses all lits that apply
+--for lists with more members, chooses lits where all conditions apply
+getContext :: [Literal] -> [Literal] -> [Condition] -> [Literal]
+getContext lits chosen []                       = trace ("getContext: " ++ show chosen) $ chosen
+getContext lits chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ show chosen) $ getContext lits newChosen cs
   
-
   where 
         newChosen = case p of
                       (Exactly 0) -> filter hasContextTag chosen
+                      (AtLeast 0) -> lits -- at least 0 means remove/select everywhere 
                       (Exactly n) -> filter (hasContextTags . exactlyN n) chosen
                       (AtLeast n) -> filter (hasContextTags . atleastN n) chosen
 
         --for each tag, get a list of tags that are exactly n places away
         exactlyN :: Integer -> Literal -> [Literal]
-        exactlyN n ((int,_),_) = filter (\((int',_),_) -> int+n == int') chosen
+        exactlyN n ((ind,_),_) = filter (\((ind',_),_) -> ind+n == ind') lits --chosen
 
         --same but list of tags that are at least n places away
-        atleastN n ((int,_),_) = filter (\((int',_),_) -> int+n >= int') chosen
+        atleastN n ((ind,_),_) = filter (\((ind',_),_) -> ind+n >= ind') lits --chosen
 
 
-        hasContextTag ((int,tags),bool) = tags `multiElem` contextTags
+        hasContextTag ((ind,tags),bool) = tags `multiElem` contextTags
         hasContextTags [] = False
         hasContextTags (x:xs) = if hasContextTag x then True else hasContextTags xs
-        
-
-        
+           
 
 --True if any of the items in AS is in BS
 multiElem :: (Eq a) => [a] -> [a] -> Bool
@@ -187,14 +176,19 @@ showTag ((t,tags),_) = show t ++ ": " ++ show tags
 
 basicRules = [ anchor , mkBigrams ]
 
-moreRules  = [ applyRule slNounIfBear
-             , applyRule rmVerbIfBear
-             , applyRule rmVerbIfDet
-             , applyRule slPrepIfDet 
-             , applyRule rmAdvIfDet 
-             , applyRule andTest ]
+moreRules  = [ rmParticle
+             -- , slNounIfBear
+             , slVerbAlways 
+             , rmVerbIfDet ]
+             -- , rmNounIfPron
+             -- , slPrepIfDet 
+             -- , rmAdvIfDet 
+             -- , notTest
+             -- , notOrTest 
+             -- , andTest ]
 
-rules = basicRules ++ moreRules
+
+rules = basicRules ++ map applyRule moreRules
 
 
 ---- Main stuff
@@ -202,7 +196,8 @@ rules = basicRules ++ moreRules
 disambiguate :: [Analysis] -> IO ()
 disambiguate analyses = do
    let lits = mkLits analyses
-       formulae = nub $ concatMap (\rule -> rule lits) rules
+       formulae = nub $ concatMap (\rule -> rule lits) rules --doesn't always add all rules -- why?
+--       formulae = concatMap (\rule -> rule lits) rules --gives (user error: mzero) if rules conflict
    putStrLn "\nliterals:"
    mapM_ print lits
    putStrLn "\nformulae:"
@@ -270,3 +265,4 @@ Whole rule set:
 ~2v | 1n
 
 -}
+

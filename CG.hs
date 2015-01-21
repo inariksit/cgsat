@@ -80,18 +80,19 @@ toLists :: Condition -> [[Condition]]
 --for OR, we make a list of lists, all in sequence.
 --for AND, we need to make them parallel and put in a form with OR as the first constructor
 --ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
---for NOT, TODO
-toLists c = case c of
-    (C position tags)               -> [[c]]
+--just one level of nesting, should make this work for all inputs ... then again who writes millions of nested ands and ors
+--for NOT, rather make some rules to get a normal form? e.g.
+-- * NOT (OR a b)  = NOT a && NOT b
+-- * NOT (AND a b) = NOT a || NOT b
+toLists cond = case cond of
+    (C position tags)               -> [[cond]]
     (OR  c1           c2)           -> toLists c1 ++ toLists c2 
-    (NOT c1)                        -> toLists c1 --TODO
-    (AND c1@(AND _ _) c2@(AND _ _)) -> [toListsAnd c]
-    (AND c1@(NOT _ )  c2         )  -> error "do you even know what you're doing D:"
-    (AND c1           c2@(NOT _) )  -> error "do you even know what you're doing D:"
-    (AND c1           c2         )  -> map toListsAnd $ and' <$> simpleList c1 <*> simpleList c2  
-  where and' c1 c2 = AND c1 c2
-
-        toListsAnd (AND c1 c2) = concat (toLists c1 ++ toLists c2)
+    (NOT c1)                        -> toLists c1 --applyRule allows one NOT at top level
+    (AND c1@(AND _ _) c2@(AND _ _)) -> [toListsAnd cond]
+    (AND c1@(NOT _ )  c2         )  -> error "so complicated D:"
+    (AND c1           c2@(NOT _) )  -> error "do you even know what you're doing ;__;"
+    (AND c1           c2         )  -> map toListsAnd $ AND <$> simpleList c1 <*> simpleList c2  
+  where toListsAnd (AND c1 c2) = concat (toLists c1 ++ toLists c2)
         toListsAnd c@(C _ _)   = [c]
 
         simpleList (AND c1 c2) = simpleList c1 ++ simpleList c2
@@ -100,23 +101,14 @@ toLists c = case c of
         simpleList c           = [c]
 
 
-and' :: Condition -> Condition -> Condition
-and' c1 c2 = AND c1 c2
-
-or1 = OR dummy dummy
-or2 = OR lemmaBear lemmaBear 
-
-and1 = AND dummy dummy
-and2 = AND lemmaBear lemmaBear
-
--- and a nice way of writing them
+-- Nicer way of writing conditions
 mkC :: String -> [Tag] -> Condition
 mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) tags
              | otherwise       = C (Exactly $ read str)          tags
 
 lemmaBear :: Condition
 lemmaBear = mkC "0" [Lem "bear"]
-dummy = C (Exactly 0) []
+always = (mkC "0" [])
 
 
 -- Sets of tags
@@ -128,15 +120,16 @@ conj = [CoordConj,SubordConj]
 
 
 -- Rules
-rmParticle = Remove [Particle] (mkC "0" [])
-rmVerbIfBear = Remove verb lemmaBear
+rmParticle = Remove [Particle] always
+slVerbAlways = Select verb always
 slNounIfBear = Select noun lemmaBear
 rmVerbIfDet = Remove verb (mkC "-1" det)
-rmAdvIfDet = Remove adv (mkC "1*" det)
+rmAdvIfDet = Remove adv (mkC "1" det)
+rmNounIfPron = Remove noun (mkC "-1" [Pron])
 slPrepIfDet = Select [Prep] (mkC "1" det)
-andTest = Select verb (AND (mkC "-1" conj) (mkC "1" [Prep]))
-notAndTest = Select verb (NOT (AND (mkC "-1" conj) (mkC "1" [Prep])))
-notOrTest = Select verb  (NOT (OR (mkC "-1" conj) (mkC "1" [Prep])))
+andTest = Select verb (AND (mkC "-2" (Adj:verb)) (mkC "-1" conj) )
+notTest = Select verb (NOT (mkC "-1" [Prep]))
+notOrTest = Select verb (NOT (OR (mkC "-1" conj) (mkC "1" [Prep])))
 
 
 

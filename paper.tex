@@ -107,7 +107,34 @@ In CG-3, the rules are ordered. In case of a conflict, the rule that is describe
 
 \section{SAT based implementation}
 
-Unit propagation magic!
+SAT solving is based on a technique called unit propagation:
+a set of complex Boolean clauses is simplified, starting from single literals and working up to
+For instance, the following constraints describe rules for driving a car.
+
+We have a set of variables that can be either true or false:
+
+\begin{verbatim}
+can_drive
+has_driving_licence
+is_over_18
+is_drunk
+\end{verbatim}
+
+Next, we represent a possible situation in the world. In order to be allowed to drive, a person must have a driving licence and they must not be drunk. This is represented by the clause $can\_drive ∧\wedge has\_driving\_licence ∧\wedge \neg is\_drunk$. Furthermore, from the world knowledge, we know that in order to have a driving licence, one must be over 18. This is represented by the second clause.
+
+\begin{itemize}
+%\item $can\_drive \wedge has\_driving\_licence \wedge \neg is\_drunk$,
+%\item $has\_driving\_licence \wedge is\_over\_18$, 
+\item $\neg is\_over\_18 \vee is\_drunk$
+\item $is\_over\_18$
+\end{itemize}
+
+Here we have a possible situation in a world: someone is behaving in a way that makes you think of a hypothesis ``either they are underage or drunk''. This is represented by the clause $\neg is\_over\_18 \vee is\_drunk$. Just by this clause we can't solve the reason for the behaviour: it can be one of them or both. Then we get evidence that they are over 18, represented by the clause $is\_over\_18$. Thus we know that the part $\neg is\_over\_18$ of the is not true, so we can eliminate that from the clause. The solution is below: these variables must be true for the situation to be consistent.
+
+\begin{itemize}
+\item $is\_drunk$ = True
+\item $is\_over\_18$ = True
+\end{itemize}
 
 \subsection{Data types}
 
