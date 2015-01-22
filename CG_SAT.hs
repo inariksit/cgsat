@@ -113,10 +113,9 @@ applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
 applyRules rule [] lits       = []
 applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRules rule xxs lits ++
   case rule of 
-    (Remove tags c) -> [Not bool | ((_,tags'),bool) <- chosen tags]
+    (Remove tags c) -> map (Not . getBool) (chosen tags)
+    (Select tags c) -> map getBool (chosen tags) ++ map (Not . getBool) (other tags)
 
-    (Select tags c) -> [bool | ((_,tags'),bool) <- chosen tags] ++
-                       [Not bool | ((_,tags'),bool) <- allWithReading tags, tags' `multiNotElem` tags]
   where contextN = getContext lits lits xs :: [Literal]
 
         -- chosen is simple: just get tags' that are in tags
@@ -126,9 +125,10 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
         -- just from the words that have somewhere an analysis which is in tags
         other tags  = filter (\lit -> getTags lit `multiNotElem` tags) (allWithReading tags)
 
-        -- all lemmas that have the desired reading in one of their analyses. e.g.
-        --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl]), tags = [V]
-        -- ====> chosen tags will be (2,[V,Sg)
+        -- all words that have the desired reading in one of their analyses. e.g.
+        --      lits = [(1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl])]
+        --      tags = [V]
+        -- ====> chosen tags will return (2,[V,Sg)
         -- ====> (2,[V,Sg]) and (2,[N,Pl]) are returned
         allWithReading tags = intersectBy sameInd lits (chosen tags)
  
@@ -136,7 +136,7 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
 --for singleton lists, goes just one time and chooses all lits that apply
 --for lists with more members, chooses lits where all conditions apply
 getContext :: [Literal] -> [Literal] -> [Condition] -> [Literal]
-getContext original chosen ((C _ []):cs)            = trace ("getContext: " ++ show original) $original
+getContext original chosen ((C _ []):cs)            = trace ("getContext: " ++ show original) $ original
 getContext original chosen []                       = trace ("getContext: " ++ show chosen) $ chosen
 getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ show chosen) $ getContext original newChosen cs
   
