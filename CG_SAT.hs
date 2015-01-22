@@ -13,16 +13,16 @@ type Literal = ((Integer, [Tag]), Boolean)
 
 --we want to often compare the indices
 sameInd :: Literal -> Literal -> Bool
-sameInd lit lit' = ind lit == ind lit'
+sameInd lit lit' = getInd lit == getInd lit'
 
-ind :: Literal -> Integer
-ind ((i,_),_) = i
+getInd :: Literal -> Integer
+getInd ((i,_),_) = i
 
-tag' :: Literal -> [Tag]
-tag' ((_,t),_) = t
+getTags :: Literal -> [Tag]
+getTags ((_,t),_) = t
 
-bool' :: Literal -> Boolean
-bool' (_,b) = b
+getBool :: Literal -> Boolean
+getBool (_,b) = b
 
 instance Eq Boolean where
   Var n      == Var m        = m==n
@@ -71,7 +71,7 @@ mkLiterals bs = go bs 1
 anchor :: [Literal] -> [Boolean]
 anchor lits = [bool | ((ind,tag),bool) <- lits, 
                       isUniq ind indices]
-  where indices = map ind lits
+  where indices = map getInd lits
         isUniq x xs = length (findIndices (==x) xs) == 1
 
 -- 2) Take all possible bigrams
@@ -88,10 +88,11 @@ mkCombs pre post = foldr1 (:||:) combinations
                                              (_, bool2) <- post,
                                              bool1 /= bool2]
 
--- 3) Exclude hypotheses for same index so that only one may apply
+-- 3) Exclude hypotheses for same index so that not all can be true at the same time
+-- (probably disregard, doesn't fit in with the original philosophy of CG)
 exclude :: [Literal] -> [Boolean]
 exclude lits = map Not $ combinations
-  where boolsByIndex = (map . map) bool' (groupBy sameInd lits) :: [[Boolean]]
+  where boolsByIndex = (map . map) getBool (groupBy sameInd lits) :: [[Boolean]]
         ambiguous = filter (\x -> length x > 1) boolsByIndex    :: [[Boolean]]
         combinations = map (foldr1 (:&&:)) ambiguous            :: [Boolean]
 
@@ -116,24 +117,20 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
 
     (Select tags c) -> [bool | ((_,tags'),bool) <- chosen tags] ++
                        [Not bool | ((_,tags'),bool) <- allWithReading tags, tags' `multiNotElem` tags]
-  where contextN = getContext lits lits xs 
+  where contextN = getContext lits lits xs :: [Literal]
 
         -- chosen is simple: just get tags' that are in tags
-        chosen tags = filter (\((ind,tags'),bool) -> tags' `multiElem` tags) contextN
+        chosen tags = filter (\lit -> getTags lit `multiElem` tags) contextN :: [Literal]
 
         -- other must filter tags' that are not in tags, but not from all lits in contextN:
         -- just from the words that have somewhere an analysis which is in tags
-        other tags  = filter (\((ind,tags'),bool) -> tags' `multiNotElem` tags) (allWithReading tags)
-
-        -- list of positions in the sentence, where one of the analyses is in tags. e.g.
-        --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl], (3,[Pron]), tags = [N]
-        -- ====> [1,2] is returned.
-        chosenInds tags = [ind | ((ind,_),_) <- chosen tags]
+        other tags  = filter (\lit -> getTags lit `multiNotElem` tags) (allWithReading tags)
 
         -- all lemmas that have the desired reading in one of their analyses. e.g.
         --      lits = (1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl]), tags = [V]
+        -- ====> chosen tags will be (2,[V,Sg)
         -- ====> (2,[V,Sg]) and (2,[N,Pl]) are returned
-        allWithReading tags = filter (\((ind,_),_) -> ind `elem` chosenInds tags) lits
+        allWithReading tags = intersectBy sameInd lits (chosen tags)
  
 
 --for singleton lists, goes just one time and chooses all lits that apply
@@ -150,7 +147,7 @@ getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ s
                       (Exactly n) -> filter (hasContextTags . exactly n) chosen
                       (AtLeast n) -> filter (hasContextTags . atleast n) chosen
 
-        --for analysis, get a list of analyses that are n places away in original sentence
+        --given word and n, returns list of words that are n places away in original sentence
         exactly :: Integer -> Literal -> [Literal]
         exactly n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+n == ind']
 
@@ -196,7 +193,7 @@ disambiguate :: [Analysis] -> IO ()
 disambiguate analyses = do
    let lits = mkLits analyses
 --       formulae = nub $ concatMap (\rule -> rule lits) rules --doesn't always add all rules -- why?
-       formulae = concatMap (\rule -> rule lits) rules --gives (user error: mzero) if rules conflict
+       formulae = concatMap ($ lits) rules --gives (user error: mzero) if rules conflict
    putStrLn "\nliterals:"
    mapM_ print lits
    putStrLn "\nformulae:"
