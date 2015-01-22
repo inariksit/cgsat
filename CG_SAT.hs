@@ -5,7 +5,7 @@ import CG_data
 import Data.Boolean.SatSolver
 import Data.List
 import Control.Monad
-import System.Environment
+--import System.Environment
 import Debug.Trace
 
 
@@ -91,7 +91,7 @@ mkCombs pre post = foldr1 (:||:) combinations
 -- 3) Exclude hypotheses for same index so that not all can be true at the same time
 -- (probably disregard, doesn't fit in with the original philosophy of CG)
 exclude :: [Literal] -> [Boolean]
-exclude lits = map Not $ combinations
+exclude lits = map Not combinations
   where boolsByIndex = (map . map) getBool (groupBy sameInd lits) :: [[Boolean]]
         ambiguous = filter (\x -> length x > 1) boolsByIndex    :: [[Boolean]]
         combinations = map (foldr1 (:&&:)) ambiguous            :: [Boolean]
