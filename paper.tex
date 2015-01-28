@@ -82,6 +82,8 @@ First I describe the existing implementations, followed by my own SAT-based solu
 
 Constraint Grammar (CG) was first introduced by \cite{KarlssonTODO}. 
 It a tool for disambiguating output by morphological analyser.
+CG can run on unrestricted text, given that the morphological analyser
+has large vocabulary.
 
 Parsing is an action where an unstructured input is transformed into a
 structured output. In a sense, applying CG rules on a text shouldn't
@@ -99,12 +101,12 @@ until we see an adverb).
 In the example below, we show possible tags for the sentence ``the bear sleeps''.
 
 \begin{lstlisting}
-<the>     Det
-<bear>    Noun, Sg
-          Verb, Pl, Pres
-          Verb, Inf
-<sleep>   Noun, Pl
-          Verb, Sg3, Pres
+the     <Det>
+bear    <Noun, Sg>
+        <Verb, Pl, Pres>
+        <Verb, Inf>
+sleep   <Noun, Pl>
+        <Verb, Sg3, Pres>
 \end{lstlisting}
 
 We could disambiguate this sentence with two rules: 
@@ -127,10 +129,24 @@ preceded by a noun (\emph{bear}) and followed by a sentence boundary,
 so we can apply rule 2. The finished analysis is as follows:
 
 \begin{lstlisting}
-<the>     Det
-<bear>    Noun, Sg
-<sleep>   Verb, Sg3, Pres
+the     <Det>
+bear    <Noun, Sg>
+sleep   <Verb, Sg3, Pres>
 \end{lstlisting}
+
+\subsubsection{Syntax}
+
+``Because syntax, just as morphological disambiguation, relies on
+elimination of alternatives, it is advantageous to introduce all
+simple syntactic instantiations at once. Readings not having syntactic
+labels after morphological analysis get them via morphosyntactic
+mapping.''
+
+e.g. it makes sense
+7: [Lem "they",Pron,Subj,Nom,P3]
+if we have a morph tag, like a pron, to label it already
+since we know that they can only be SUBJ
+and them can only be OBJ
 
 CG can also be applied to shallow syntax. After having disambiguated
 the text morphologically, we can apply possible syntactic labels. For
@@ -138,21 +154,22 @@ instance, a noun can have a syntactic role of subject, object or
 predicative; and a verb in present tense 3rd person singular can be
 only the main verb (possibly combined with a conjunction, e.g. ``the
 bear eats and sleeps''). The next step is shown below; the analyses
-chosen in the previous step are shown in the angle brackets, and
-syntactic labels are fully capitalised and preceded by @.
+chosen in the previous step are shown in the angle brackets, and potential
+syntactic labels are fully capitalised and preceded by @. The sign >
+in the tag \texttt{@DN>} expresses head/modifier relation determiner of the next head nominal to the right
 
 \begin{lstlisting}
-<the,  Det>                
-<bear, N, Sg>           @SUBJ
-                        @OBJ
-                        @PREDC
-<sleep, V, Sg3, Pres>   @MAINV
+the     <Det>            @DN>    
+bear    <N, Sg>          @SUBJ
+                         @OBJ
+                         @PREDC
+sleep   <V, Sg3, Pres>   @MAINV
 \end{lstlisting}
 
 This set would be disambiguated by a syntactic constraint that would
 select subject if followed by a finite verb form.
 
-\cite{koskenniemi92} include also clause boundaries (TODO read about
+\cite{koskenniemi92} include also 4 types of clause boundaries (TODO read about
 it), such as marking coordinated or subordinated clauses, or showing
 beginning and end of an embedded clause.
 %; so the parse would be complete if \emph{the} and \emph{bear} would belong to 
@@ -176,6 +193,16 @@ The latest version, CG-3, was implemented by \cite{TODO} without finite state te
 [--] the Lisp, C, and C++ implementations of the Constraint Grammar Parser are all fairly ad hoc rule interpreters without any deeper technical contributions to parsing theory. These implementations are not based on the use of well understood and theoretically sound parsing algorithms. Rather, they could be characterized as situation-action parsing programs. 
 \end{quote}
 
+\begin{quote}The whole finite-state grammar consists of a set of rules which
+constrain the possible choices of word Interpretations, tags and
+boundaries to only those which are considered grammatical. The entire grammar Is effectively equivalent to the (theoretical) intersection of all individual rule automata. However, such an intersection would be impractical to compute due to Its huge size.
+The logical task for any finite-state parser in the current approach is
+to compute the intersection of the unanalyzed sentence automaton and
+each rule automaton. Actual parsing can be done in several alternative
+ways which are guaranteed to yield the same result, but which vary in
+terms of efficiency.
+\end{quote}
+
 \subsection{Workflow}
 
 All implementations (TODO check) go through the input many times and apply all possible rules each time. 
@@ -196,7 +223,7 @@ a set of complex Boolean clauses is simplified, starting from unit
 clauses, which consist of just a single variable, and working up to a solution, where all variables in the set
 have a True or False value.
 
-Let us show this with a small example.
+Let us demonstrate this with a small example.
 We have a set of variables describing properties of people: \texttt{is\_under\_18},
 \texttt{has\_driving\_licence} and \texttt{is\_drunk}.
 
@@ -314,7 +341,7 @@ data Rule = Remove [Tag] Condition | Select [Tag] Condition
 data Condition = C Position [Tag]
                | NOT Condition
                | AND Condition Condition
-               | OR Condition Condition 
+               | OR  Condition Condition 
 \end{lstlisting}
 
 The data type for Rule is either remove or select a list of tags, with condition(s).

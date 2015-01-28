@@ -147,16 +147,34 @@ getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ s
                       (Exactly n) -> filter (hasContextTags . exactly n) chosen
                       (AtLeast n) -> filter (hasContextTags . atleast n) chosen
 
+                      (Fwd n bs)  -> filter (hasContextTags . barrier n bs) chosen
+
+                      --takes all analyses that are between n and barrier
+                      --this will become the context, and applyRules will check 
+                      --if there's anything in it that matches the select/remove tags
+                      --(Fwd n bs)  -> nub $ concatMap (barrier n bs) chosen
+                      (Bck n bs)  -> undefined
+
         --given word and n, returns list of words that are n places away in original sentence
         exactly :: Integer -> Literal -> [Literal]
-        exactly n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+n == ind']
+        exactly n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind' == ind+n]
 
         --same but list of tags that are at least n places away
-        atleast n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+n >= ind']
+        atleast n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind' >= ind+n ]
 
+        -- between m and n places away
+        between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+m <= ind' && ind' <= ind+n ]
 
         hasContextTag ((_,tags),_) = tags `multiElem` contextTags
         hasContextTags ts = or $ map hasContextTag ts
+
+        barrier n btags lit = --trace ("\nbarrier: " ++ show lit ++ "\nmindist: " ++ show mindist ++ "\n" ++ show (between n mindist lit)) $ 
+           if dists==[] then [] else between n mindist lit
+           where barinds = [ind | ((ind,tags),_) <- original, tags `multiElem` btags]
+                 dists   = map (\i -> i - getInd lit) barinds :: [Integer]
+                 mindist = minimum dists
+                 
+
            
 
 --True if any of the items in AS is in BS
@@ -170,18 +188,19 @@ multiNotElem as bs = and $ map (\a -> a `notElem` bs) as
 showTag :: (Show t, Num t) => ((t, [Tag]), Boolean) -> String
 showTag ((t,tags),_) = show t ++ ": " ++ show tags
 
-basicRules = [ anchor , mkBigrams , exclude ]
+basicRules = [ anchor , mkBigrams] --, exclude ]
 
-moreRules  = [ rmParticle
-             -- , slNounIfBear
-             -- , slVerbAlways 
-             , rmVerbIfDet
-             , rmNounIfPron
-             , slPrepIfDet 
-             , rmAdvIfDet 
-             -- , notTest
-             -- , notOrTest 
-             , andTest ]
+moreRules  = [ slNounIfBear
+             -- , slVerbAlways --conflicts with anything that selects other than V 
+              , rmVerbIfDet
+             -- , rmNounIfPron
+              , slPrepIfDet 
+              , rmAdvIfDet 
+              , notTest
+              , barTest 
+              , notOrTest 
+             -- , andTest
+              , rmParticle ]
 
 
 rules = basicRules ++ map applyRule moreRules
@@ -192,7 +211,7 @@ rules = basicRules ++ map applyRule moreRules
 disambiguate :: [Analysis] -> IO ()
 disambiguate analyses = do
    let lits = mkLits analyses
---       formulae = nub $ concatMap (\rule -> rule lits) rules --doesn't always add all rules -- why?
+       --formulae = nub $ concatMap (\rule -> rule lits) rules --doesn't always add all rules -- why?
        formulae = concatMap ($ lits) rules --gives (user error: mzero) if rules conflict
    putStrLn "\nliterals:"
    mapM_ print lits

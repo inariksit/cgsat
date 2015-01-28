@@ -10,7 +10,7 @@ import Data.List
 -- | Lemma is a special type of tag: Lem String
 data Tag = 
    Art | Adj | Adv | Det | N | PN | V | V2 | VV 
- | Particle | Prep | Pron
+ | Particle | Prep | Pron | Punct
  | CoordConj | SubordConj
  | Sg | Pl | P1 | P2 | P3 
  | Subj | Imper | Cond | Inf | Pres
@@ -53,7 +53,10 @@ data Condition = C Position [Tag]
 -- | *  0: word itself
 -- | * -n: to the left
 -- | *  n: to the right.
-data Position = Exactly Integer | AtLeast Integer deriving (Show,Eq,Read)
+data Position = Exactly Integer 
+              | AtLeast Integer
+              | Fwd Integer [Tag]  --Barrier rules
+              | Bck Integer [Tag] deriving (Show,Eq,Read)
 
 
 
@@ -108,7 +111,7 @@ mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) tags
 
 lemmaBear :: Condition
 lemmaBear = mkC "0" [Lem "bear"]
-always = (mkC "0" [])
+always = mkC "0" []
 
 
 -- Sets of tags
@@ -130,6 +133,9 @@ slPrepIfDet = Select [Prep] (mkC "1" det)
 andTest = Select verb (AND (mkC "-2" (Adj:verb)) (mkC "-1" conj) )
 notTest = Select verb (NOT (mkC "-1" [Prep]))
 notOrTest = Select verb (NOT (OR (mkC "-1" conj) (mkC "1" [Prep])))
+barTest = Select [CoordConj] (C (Fwd 1 [Punct]) [CoordConj])
+--barTest = Select [CoordConj] (C (Fwd 1 [Punct]) [Particle])
+
 
 
 
