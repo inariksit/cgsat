@@ -110,16 +110,29 @@ applyRule rule lits =
     (Select tags c) -> applyRules rule (toLists c) lits
 
 applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
-applyRules rule [] lits       = []
+applyRules rule []         lits = []
 applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRules rule xxs lits ++
   case rule of 
-    (Remove tags c) -> map (Not . getBool) (chosen tags)
-    (Select tags c) -> map getBool (chosen tags) ++ map (Not . getBool) (other tags)
+    -- (Remove tags c) -> map (Not . getBool) (chosen tags)
+    -- (Select tags c) -> map getBool (chosen tags) ++ map (Not . getBool) (other tags)
 
-  where contextN = getContext lits lits xs :: [Literal]
+     -- reason => consequence    translates into  Not reason | consequence.
+     -- for example,
+     -- prevIsPron => Not Noun  ===============>  Not prevIsPron | Not Noun
+    (Remove tags c) -> [(Not . getBool) reason :||: Not (head conseq)
+                          | reason <- chosen tags, 
+                            let (Just conseq) = lookup reason contextReasons ]       
+    (Select tags c) -> undefined
+
+
+  where 
+        origContext = getContext lits lits xs :: [Literal]
+        contextReasons = getReasonForContext origContext origContext xs :: [(Literal,[Boolean])]
+        (context,_) = unzip contextReasons 
 
         -- chosen is simple: just get tags' that are in tags
-        chosen tags = filter (\lit -> getTags lit `multiElem` tags) contextN :: [Literal]
+        chosen tags = filter (\lit -> getTags lit `multiElem` tags) context :: [Literal]
+        
 
         -- other must filter tags' that are not in tags, but not from all lits in contextN:
         -- just from the words that have somewhere an analysis which is in tags
@@ -131,7 +144,24 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
         -- ====> chosen tags will return (2,[V,Sg)
         -- ====> (2,[V,Sg]) and (2,[N,Pl]) are returned
         allWithReading tags = intersectBy sameInd lits (chosen tags)
- 
+
+
+--TODO TODO TODO get rid of this horror and integrate it into getContext
+getReasonForContext :: [Literal] -> [Literal] -> [Condition] -> [(Literal,[Boolean])]
+getReasonForContext orig chosen ((C _ []):cs) = map (\lit -> (lit, [getBool lit])) chosen
+getReasonForContext orig []       cs          = []
+getReasonForContext orig (l:lits) cs = (l,findCtxt cs l orig []) : getReasonForContext orig lits cs
+   where findCtxt []     lit allLits found = map getBool $ concat found
+         findCtxt (c:cs) lit allLits found = findCtxt cs lit allLits (newFound:found)
+           where newFound = [lit' | lit' <- allLits, contextMatches c lit lit']
+                 contextMatches (C p tags) lit lit' = 
+                   case p of 
+                     (Exactly n) -> getInd lit == (getInd lit')+n
+                     (AtLeast n) -> getInd lit >= (getInd lit')+n
+                     _ -> True
+
+
+
 
 --for singleton lists, goes just one time and chooses all lits that apply
 --for lists with more members, chooses lits where all conditions apply
@@ -148,11 +178,6 @@ getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ s
                       (AtLeast n) -> filter (hasContextTags . atleast n) chosen
 
                       (Fwd n bs)  -> filter (hasContextTags . barrier n bs) chosen
-
-                      --takes all analyses that are between n and barrier
-                      --this will become the context, and applyRules will check 
-                      --if there's anything in it that matches the select/remove tags
-                      --(Fwd n bs)  -> nub $ concatMap (barrier n bs) chosen
                       (Bck n bs)  -> undefined
 
         --given word and n, returns list of words that are n places away in original sentence
@@ -168,8 +193,8 @@ getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ s
         hasContextTag ((_,tags),_) = tags `multiElem` contextTags
         hasContextTags ts = or $ map hasContextTag ts
 
-        barrier n btags lit = --trace ("\nbarrier: " ++ show lit ++ "\nmindist: " ++ show mindist ++ "\n" ++ show (between n mindist lit)) $ 
-           if dists==[] then [] else between n mindist lit
+        barrier n btags lit | dists==[] = [] 
+                            | otherwise = between n mindist lit
            where barinds = [ind | ((ind,tags),_) <- original, tags `multiElem` btags]
                  dists   = map (\i -> i - getInd lit) barinds :: [Integer]
                  mindist = minimum dists
@@ -190,17 +215,18 @@ showTag ((t,tags),_) = show t ++ ": " ++ show tags
 
 basicRules = [ anchor , mkBigrams] --, exclude ]
 
-moreRules  = [ slNounIfBear
+moreRules  = [ rmParticle 
              -- , slVerbAlways --conflicts with anything that selects other than V 
-              , rmVerbIfDet
-             -- , rmNounIfPron
-              , slPrepIfDet 
-              , rmAdvIfDet 
-              , notTest
-              , barTest 
-              , notOrTest 
+             -- , rmVerbIfDet
+              , rmNounIfPron
+              , slNounAfterConj
+             -- , slPrepIfDet 
+             -- , rmAdvIfDet 
+             -- , notTest
+             -- , barTest 
+             -- , notOrTest 
              -- , andTest
-              , rmParticle ]
+              , slNounIfBear ]
 
 
 rules = basicRules ++ map applyRule moreRules

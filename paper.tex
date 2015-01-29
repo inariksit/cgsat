@@ -333,6 +333,33 @@ other analyses are eliminated, the remaining analysis must be
 returned, even if it were to be eliminated at the next pass. 
 However, this property isn't implemented in the SAT version.
 
+\subsection{Workflow}
+
+Assume we have a fragment ``both houses and cars''.
+The word \emph{both} has analyses \texttt{CoordConj} and
+\texttt{Pron}, and \emph{houses} is ambiguous between \texttt{N} and \texttt{V}.
+We have in our rule set the following rules:
+
+\begin{enumerate}
+\item remove N after Pron
+\item select N after *Conj
+\item select CoordConj before another CoordConj
+\end{enumerate}
+
+In the previous implementations, neither of rules 1 and 2 would fire
+before we have disambiguated \emph{both} with rule 3.
+In this implementation, we are creating all clauses before giving
+them to the SAT solver. We express these constraints as implications:
+\begin{itemize}
+\item \emph{both} is \texttt{Pron} $\Rightarrow$ remove \texttt{N} for \emph{houses}
+\item \emph{both} is \texttt{CoordConj} $\Rightarrow$ select
+  \texttt{N} for \emph{houses}
+\end{itemize}
+
+For lemmas with only one reading, this leads to redundant clauses,
+such as \texttt{Not (Var 8) :||: Not (Var 8)}, but SAT solver will
+take care of them.
+
 \subsection{Data types}
 
 \begin{lstlisting}
