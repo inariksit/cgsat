@@ -134,7 +134,7 @@ andTest = Select verb (AND (mkC "-2" (Adj:verb)) (mkC "-1" conj) )
 notTest = Select verb (NOT (mkC "-1" [Prep]))
 slNounAfterConj = Select noun ((mkC "-1" conj))
 notOrTest = Select verb (NOT (OR (mkC "-1" conj) (mkC "1" [Prep])))
-barTest = Select [CoordConj] (C (Fwd 1 [Punct]) [CoordConj])
+slCCifCC = Select [CoordConj] (C (Fwd 1 [Punct]) [CoordConj])
 
 
 

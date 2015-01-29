@@ -116,18 +116,24 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
     -- (Remove tags c) -> map (Not . getBool) (chosen tags)
     -- (Select tags c) -> map getBool (chosen tags) ++ map (Not . getBool) (other tags)
 
-     -- reason => consequence    translates into  Not reason | consequence.
+     -- reason => consequence    translates into  Not reason || consequence.
      -- for example,
-     -- prevIsPron => Not Noun  ===============>  Not prevIsPron | Not Noun
-    (Remove tags c) -> [(Not . getBool) reason :||: Not (head conseq)
-                          | reason <- chosen tags, 
-                            let (Just conseq) = lookup reason contextReasons ]       
-    (Select tags c) -> undefined
+     -- -1Pron && +1Verb => Not Noun  =========>  Not (-1Pron && +1Verb) || Not Noun
+     -- SAT solver will transform it into conjunctive normal form
+    (Remove tags c) -> [Not (foldr1 (:&&:) reason) :||: (Not . getBool) conseq
+                          | conseq <- chosen tags, 
+                            let (Just reason) = lookup conseq contextReasons ]       
+    (Select tags c) -> [Not (foldr1 (:&&:) reason) :||: getBool conseq
+                          | conseq <- chosen tags, 
+                            let (Just reason) = lookup conseq contextReasons ]  
+                     ++ [Not (foldr1 (:&&:) reason) :||: (Not . getBool) conseq
+                          | conseq <- other tags, 
+                            let (Just reason) = lookup conseq contextReasons ]
 
 
   where 
         origContext = getContext lits lits xs :: [Literal]
-        contextReasons = getReasonForContext origContext origContext xs :: [(Literal,[Boolean])]
+        contextReasons = getReasonForContext lits origContext xs :: [(Literal,[Boolean])]
         (context,_) = unzip contextReasons 
 
         -- chosen is simple: just get tags' that are in tags
@@ -146,20 +152,30 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
         allWithReading tags = intersectBy sameInd lits (chosen tags)
 
 
---TODO TODO TODO get rid of this horror and integrate it into getContext
+--TODO TODO TODO get rid of this horror
 getReasonForContext :: [Literal] -> [Literal] -> [Condition] -> [(Literal,[Boolean])]
-getReasonForContext orig chosen ((C _ []):cs) = map (\lit -> (lit, [getBool lit])) chosen
+getReasonForContext orig chosen ((C _ []):cs) =  trace ("getReason: reason is itself") $ map (\lit -> (lit, [getBool lit])) chosen
 getReasonForContext orig []       cs          = []
-getReasonForContext orig (l:lits) cs = (l,findCtxt cs l orig []) : getReasonForContext orig lits cs
+getReasonForContext orig (l:lits) cs = trace ("getReason: " ++ (show $ (l,findCtxt cs l orig []))) $ 
+  (l,findCtxt cs l orig []) : getReasonForContext orig lits cs
    where findCtxt []     lit allLits found = map getBool $ concat found
          findCtxt (c:cs) lit allLits found = findCtxt cs lit allLits (newFound:found)
            where newFound = [lit' | lit' <- allLits, contextMatches c lit lit']
-                 contextMatches (C p tags) lit lit' = 
+                 contextMatches (C p tags) lit@((ind,_),_) lit' = 
                    case p of 
-                     (Exactly n) -> getInd lit == (getInd lit')+n
-                     (AtLeast n) -> getInd lit >= (getInd lit')+n
-                     _ -> True
+                     (Exactly n) -> getInd lit' == ind+n &&
+                                    getTags lit' `multiElem` tags
+                     (AtLeast n) -> getInd lit' >= ind+n &&
+                                    getTags lit' `multiElem` tags
 
+                     --TODO something wrong
+                     --(Fwd n bs)  -> getInd lit' >= ind+n && getInd lit' <= barrier bs lit
+
+                     _           -> lit' == lit --just a temp fix, will accept it always ???
+                     where barrier btags lit = min' lit [lit' | lit' <- allLits, 
+                                                                getTags lit' `multiElem` btags]
+                           min' lit lits = minimum $ map (\lit' -> getInd lit' - getInd lit) lits
+                                                       
 
 
 
@@ -220,10 +236,10 @@ moreRules  = [ rmParticle
              -- , rmVerbIfDet
               , rmNounIfPron
               , slNounAfterConj
+              , slCCifCC             
              -- , slPrepIfDet 
-             -- , rmAdvIfDet 
+              , rmAdvIfDet 
              -- , notTest
-             -- , barTest 
              -- , notOrTest 
              -- , andTest
               , slNounIfBear ]
