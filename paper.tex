@@ -356,6 +356,12 @@ them to the SAT solver. We express these constraints as implications:
   \texttt{N} for \emph{houses}
 \end{itemize}
 
+After adding this feature, the first rule will give the clause
+\texttt{Not (Var 7) :||: Not (Var 6)} and the second \texttt{Not (Var
+  7) :||: Var 6}.
+This is easily generalised to multiple contexts; \texttt{Not (Var
+  7 :&&: Var 8) :||: Var 6}.
+
 For lemmas with only one reading, this leads to redundant clauses,
 such as \texttt{Not (Var 8) :||: Not (Var 8)}, but SAT solver will
 take care of them.
