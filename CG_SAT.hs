@@ -206,8 +206,8 @@ getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ s
         -- between m and n places away
         between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+m <= ind' && ind' <= ind+n ]
 
-        hasContextTag ((_,tags),_) = tags `multiElem` contextTags
-        hasContextTags ts = or $ map hasContextTag ts
+        hasContextTag  lit  = getTags lit `multiElem` contextTags
+        hasContextTags lits = any hasContextTag lits
 
         barrier n btags lit | dists==[] = [] 
                             | otherwise = between n mindist lit
@@ -220,11 +220,11 @@ getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ s
 
 --True if any of the items in AS is in BS
 multiElem :: (Eq a) => [a] -> [a] -> Bool
-multiElem as bs = or $ map (\a -> a `elem` bs) as
+multiElem as bs = any (\a -> a `elem` bs) as
 
 -- True if none if the items in AS is in BS
 multiNotElem :: (Eq a) => [a] -> [a] -> Bool
-multiNotElem as bs = and $ map (\a -> a `notElem` bs) as
+multiNotElem as bs = all (\a -> a `notElem` bs) as
 
 showTag :: (Show t, Num t) => ((t, [Tag]), Boolean) -> String
 showTag ((t,tags),_) = show t ++ ": " ++ show tags
@@ -237,7 +237,7 @@ moreRules  = [ rmParticle
               , rmNounIfPron
               , slNounAfterConj
               , slCCifCC             
-             -- , slPrepIfDet 
+              , slPrepIfDet 
               , rmAdvIfDet 
              -- , notTest
              -- , notOrTest 
