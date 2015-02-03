@@ -1,10 +1,11 @@
 --module CG_SAT where 
-
+{-# LANGUAGE ScopedTypeVariables #-}
 import CG
 import CG_data
 import Data.Boolean.SatSolver
 import Data.List
 import Control.Monad
+import Control.Exception
 --import System.Environment
 import Debug.Trace
 
@@ -111,7 +112,7 @@ applyRule rule lits =
 
 applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
 applyRules rule []         lits = []
-applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRules rule xxs lits ++
+applyRules rule x@(xs:xxs) lits = applyRules rule xxs lits ++
   case rule of 
     -- (Remove tags c) -> map (Not . getBool) (chosen tags)
     -- (Select tags c) -> map getBool (chosen tags) ++ map (Not . getBool) (other tags)
@@ -120,21 +121,24 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
      -- for example,
      -- -1Pron && +1Verb => Not Noun  =========>  Not (-1Pron && +1Verb) || Not Noun
      -- SAT solver will transform it into conjunctive normal form
-    (Remove tags c) -> [Not (foldr1 (:&&:) reason) :||: (Not . getBool) conseq
+    (Remove tags c) -> [Not (foldr1' (:&&:) reason) :||: (Not . getBool) conseq
                           | conseq <- chosen tags, 
                             let (Just reason) = lookup conseq contextReasons ]       
-    (Select tags c) -> [Not (foldr1 (:&&:) reason) :||: getBool conseq
+    (Select tags c) -> [Not (foldr1' (:&&:) reason) :||: getBool conseq
                           | conseq <- chosen tags, 
                             let (Just reason) = lookup conseq contextReasons ]  
-                     ++ [Not (foldr1 (:&&:) reason) :||: (Not . getBool) conseq
+                     ++ [Not (foldr1' (:&&:) reason) :||: (Not . getBool) conseq
                           | conseq <- other tags, 
                             let (Just reason) = lookup conseq contextReasons ]
 
 
   where 
-        origContext = getContext lits lits xs :: [Literal]
-        contextReasons = getReasonForContext lits origContext xs :: [(Literal,[Boolean])]
-        (context,_) = unzip contextReasons 
+
+        foldr1' f [] = Yes
+        foldr1' f xs = foldr1 f xs
+
+        contextReasons = getContext lits (zip lits (repeat [Yes])) xs :: [(Literal,[Boolean])]
+        (context,_) = unzip contextReasons
 
         -- chosen is simple: just get tags' that are in tags
         chosen tags = filter (\lit -> getTags lit `multiElem` tags) context :: [Literal]
@@ -152,49 +156,31 @@ applyRules rule x@(xs:xxs) lits = trace ("\napplyRules: " ++ show x) $ applyRule
         allWithReading tags = intersectBy sameInd lits (chosen tags)
 
 
---TODO TODO TODO get rid of this horror
-getReasonForContext :: [Literal] -> [Literal] -> [Condition] -> [(Literal,[Boolean])]
-getReasonForContext orig chosen ((C _ []):cs) =  trace ("getReason: reason is itself") $ map (\lit -> (lit, [getBool lit])) chosen
-getReasonForContext orig []       cs          = []
-getReasonForContext orig (l:lits) cs = trace ("getReason: " ++ (show $ (l,findCtxt cs l orig []))) $ 
-  (l,findCtxt cs l orig []) : getReasonForContext orig lits cs
-   where findCtxt []     lit allLits found = map getBool $ concat found
-         findCtxt (c:cs) lit allLits found = findCtxt cs lit allLits (newFound:found)
-           where newFound = [lit' | lit' <- allLits, contextMatches c lit lit']
-                 contextMatches (C p tags) lit@((ind,_),_) lit' = 
-                   case p of 
-                     (Exactly n) -> getInd lit' == ind+n &&
-                                    getTags lit' `multiElem` tags
-                     (AtLeast n) -> getInd lit' >= ind+n &&
-                                    getTags lit' `multiElem` tags
-
-                     --TODO something wrong
-                     --(Fwd n bs)  -> getInd lit' >= ind+n && getInd lit' <= barrier bs lit
-
-                     _           -> lit' == lit --just a temp fix, will accept it always ???
-                     where barrier btags lit = min' lit [lit' | lit' <- allLits, 
-                                                                getTags lit' `multiElem` btags]
-                           min' lit lits = minimum $ map (\lit' -> getInd lit' - getInd lit) lits
-                                                       
-
-
-
 --for singleton lists, goes just one time and chooses all lits that apply
 --for lists with more members, chooses lits where all conditions apply
-getContext :: [Literal] -> [Literal] -> [Condition] -> [Literal]
-getContext original chosen ((C _ []):cs)            = trace ("getContext: " ++ show original) $ original
-getContext original chosen []                       = trace ("getContext: " ++ show chosen) $ chosen
-getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ show chosen) $ getContext original newChosen cs
+getContext :: [Literal] -> [(Literal,[Boolean])] -> [Condition] -> [(Literal,[Boolean])] --[Literal]
+getContext original chosen ((C _ []):cs)            = chosen
+getContext original chosen []                       = chosen 
+getContext original chosen (c@(C p contextTags):cs) = getContext original newChosen cs
   
   where 
-        newChosen = case p of
-                      (Exactly 0) -> filter hasContextTag chosen
-                      (AtLeast 0) -> original -- at least 0 means remove/select everywhere 
-                      (Exactly n) -> filter (hasContextTags . exactly n) chosen
-                      (AtLeast n) -> filter (hasContextTags . atleast n) chosen
 
-                      (Fwd n bs)  -> filter (hasContextTags . barrier n bs) chosen
-                      (Bck n bs)  -> undefined
+        chosen_ = fst $ unzip chosen
+        newChosen =  -- should include reasons for the previous as well 
+          case p of
+            (Exactly 0) -> zip (filter hasContextTag chosen_) (repeat [Yes])
+            (AtLeast 0) -> chosen -- at least 0 means remove/select everywhere 
+            (Exactly n) -> [(lit, map getBool $ filter hasContextTag $ exactly n lit)
+                             | lit <- chosen_
+                             , any hasContextTag $ exactly n lit]
+            (AtLeast n) -> [(lit, map getBool $ filter hasContextTag $ atleast n lit)
+                             | lit <- chosen_
+                             , any hasContextTag $ atleast n lit]
+
+            (Fwd n bs)  -> [(lit, map getBool $ filter hasContextTag $ barrier n bs lit)
+                             | lit <- chosen_
+                             , any hasContextTag $ barrier n bs lit]
+            (Bck n bs)  -> undefined
 
         --given word and n, returns list of words that are n places away in original sentence
         exactly :: Integer -> Literal -> [Literal]
@@ -204,10 +190,10 @@ getContext original chosen (c@(C p contextTags):cs) = trace ("getContext: " ++ s
         atleast n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind' >= ind+n ]
 
         -- between m and n places away
-        between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- original, ind+m <= ind' && ind' <= ind+n ]
+        between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- original
+                                       , ind+m <= ind' && ind' <= ind+n ]
 
-        hasContextTag  lit  = getTags lit `multiElem` contextTags
-        hasContextTags lits = any hasContextTag lits
+        hasContextTag lit = getTags lit `multiElem` contextTags
 
         barrier n btags lit | dists==[] = [] 
                             | otherwise = between n mindist lit
@@ -229,20 +215,21 @@ multiNotElem as bs = all (\a -> a `notElem` bs) as
 showTag :: (Show t, Num t) => ((t, [Tag]), Boolean) -> String
 showTag ((t,tags),_) = show t ++ ": " ++ show tags
 
+basicRules :: [[Literal] -> [Boolean]]
 basicRules = [ anchor , mkBigrams] --, exclude ]
 
 moreRules  = [ rmParticle 
-             -- , slVerbAlways --conflicts with anything that selects other than V 
-             -- , rmVerbIfDet
-              , rmNounIfPron
-              , slNounAfterConj
-              , slCCifCC             
-              , slPrepIfDet 
-              , rmAdvIfDet 
-             -- , notTest
-             -- , notOrTest 
-             -- , andTest
-              , slNounIfBear ]
+             , slVerbAlways --conflicts with anything that selects other than V 
+             , rmVerbIfDet
+             , rmNounIfPron
+             , slNounAfterConj
+             , slCCifCC             
+             , slPrepIfDet 
+             , rmAdvIfDet 
+             , notTest
+             , notOrTest 
+             , andTest
+             , slNounIfBear ]
 
 
 rules = basicRules ++ map applyRule moreRules
@@ -253,22 +240,39 @@ rules = basicRules ++ map applyRule moreRules
 disambiguate :: [Analysis] -> IO ()
 disambiguate analyses = do
    let lits = mkLits analyses
-       --formulae = nub $ concatMap (\rule -> rule lits) rules --doesn't always add all rules -- why?
-       formulae = concatMap ($ lits) rules --gives (user error: mzero) if rules conflict
+       basic = concatMap ($ lits) basicRules --gives (user error: mzero) if rules conflict
    putStrLn "\nliterals:"
    mapM_ print lits
    putStrLn "\nformulae:"
-   mapM_ print formulae
+   mapM_ print basic
+   solver <- foldM (flip assertTrue) newSatSolver basic
+
+   solver2 <- goodRules lits moreRules [] solver 
    putStrLn "---------\n"
 
-   solver <- foldM (flip assertTrue) newSatSolver formulae
-   solution <- solve solver
+   solution <- solve solver2
    print solution
    let truetags = filter (\(_,(Var int)) -> lookupVar int solution == Just True) lits
    putStrLn "\nTag sequence:"
    mapM_ putStrLn $ map showTag truetags
 
    putStrLn "-----------\n"
+
+goodRules :: [Literal] -> [Rule] -> [Rule] -> SatSolver -> IO SatSolver
+goodRules lits []       good solver = return solver
+goodRules lits (rl:rls) good solver = do
+  let formulae = applyRule rl lits
+  x <- try $ foldM (flip assertTrue) solver formulae
+  case x of 
+    Left (error :: IOError) -> do
+        putStrLn ("Rule " ++ show rl ++ " conflicts, not added!")
+        goodRules lits rls good solver
+    Right solver' -> do
+        mapM_ print formulae
+        goodRules lits rls (rl:good) solver'
+
+  
+   
 
 main :: IO ()
 main = do 
