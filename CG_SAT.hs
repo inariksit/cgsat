@@ -7,7 +7,7 @@ import Data.List
 import Control.Monad
 import Control.Exception
 --import System.Environment
-import Debug.Trace
+--import Debug.Trace
 
 
 type Literal = ((Integer, [Tag]), Boolean)
@@ -114,8 +114,8 @@ applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
 applyRules rule []         lits = []
 applyRules rule x@(xs:xxs) lits = applyRules rule xxs lits ++
   case rule of 
-    -- (Remove tags c) -> map (Not . getBool) (chosen tags)
-    -- (Select tags c) -> map getBool (chosen tags) ++ map (Not . getBool) (other tags)
+     -- reason is e.g. "-1 is noun" and consequence is "remove verb"
+     -- needed because the word at -1 could have many tags, and they could conflict.
 
      -- reason => consequence    translates into  Not reason || consequence.
      -- for example,
@@ -158,7 +158,7 @@ applyRules rule x@(xs:xxs) lits = applyRules rule xxs lits ++
 
 --for singleton lists, goes just one time and chooses all lits that apply
 --for lists with more members, chooses lits where all conditions apply
-getContext :: [Literal] -> [(Literal,[Boolean])] -> [Condition] -> [(Literal,[Boolean])] --[Literal]
+getContext :: [Literal] -> [(Literal,[Boolean])] -> [Condition] -> [(Literal,[Boolean])]
 getContext original chosen ((C _ []):cs)            = chosen
 getContext original chosen []                       = chosen 
 getContext original chosen (c@(C p contextTags):cs) = getContext original newChosen cs
@@ -219,7 +219,6 @@ basicRules :: [[Literal] -> [Boolean]]
 basicRules = [ anchor , mkBigrams] --, exclude ]
 
 moreRules  = [ rmParticle 
-             , slVerbAlways --conflicts with anything that selects other than V 
              , rmVerbIfDet
              , rmNounIfPron
              , slNounAfterConj
@@ -229,6 +228,7 @@ moreRules  = [ rmParticle
              , notTest
              , notOrTest 
              , andTest
+             , slVerbAlways --conflicts with anything that selects other than V 
              , slNounIfBear ]
 
 
@@ -240,14 +240,14 @@ rules = basicRules ++ map applyRule moreRules
 disambiguate :: [Analysis] -> IO ()
 disambiguate analyses = do
    let lits = mkLits analyses
-       basic = concatMap ($ lits) basicRules --gives (user error: mzero) if rules conflict
+       basic = concatMap ($ lits) basicRules
    putStrLn "\nliterals:"
    mapM_ print lits
    putStrLn "\nformulae:"
    mapM_ print basic
    solver <- foldM (flip assertTrue) newSatSolver basic
 
-   solver2 <- goodRules lits moreRules [] solver 
+   solver2 <- goodRules lits moreRules solver 
    putStrLn "---------\n"
 
    solution <- solve solver2
@@ -258,18 +258,18 @@ disambiguate analyses = do
 
    putStrLn "-----------\n"
 
-goodRules :: [Literal] -> [Rule] -> [Rule] -> SatSolver -> IO SatSolver
-goodRules lits []       good solver = return solver
-goodRules lits (rl:rls) good solver = do
+goodRules :: [Literal] -> [Rule] -> SatSolver -> IO SatSolver
+goodRules lits []       solver = return solver
+goodRules lits (rl:rls) solver = do
   let formulae = applyRule rl lits
   x <- try $ foldM (flip assertTrue) solver formulae
   case x of 
     Left (error :: IOError) -> do
         putStrLn ("Rule " ++ show rl ++ " conflicts, not added!")
-        goodRules lits rls good solver
+        goodRules lits rls solver
     Right solver' -> do
         mapM_ print formulae
-        goodRules lits rls (rl:good) solver'
+        goodRules lits rls solver'
 
   
    
