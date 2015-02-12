@@ -17,15 +17,6 @@ data Tag =
  | Nom | Acc | Dat
  | Lem String deriving (Eq,Show,Read)
 
--- This is ugly, but since Lem String is unary constructor, can't use Enum
--- TODO: read all these from a file
-allTags :: [Tag]
-allTags =  [Art, Adj, Adv, Det, N, PN, V, V2, VV 
-          , Particle, Prep, Pron, Punct
-          , CoordConj, SubordConj
-          , Sg, Pl, P1, P2, P3 
-          , Subj, Imper, Cond, Inf, Pres
-          , Nom, Acc, Dat]
 
 -- | Lemma should be first element in an analysis.
 instance Ord Tag where
@@ -59,7 +50,8 @@ data Test = NEG Condition | POS Condition deriving (Show)
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ []' is assumed to mean that.
---   (Bool, [Tag]) emulates NOT in CG3: `NOT 1 foo' means `1 (* \ foo)'.
+--   (Bool, [Tag]) emulates set negation NOT in CG3.
+--   NOT foo === intersection with foo and the candidate is empty
 data Condition = C Position (Bool, [Tag])
                | AND Condition Condition
                | OR Condition Condition deriving (Show)
@@ -112,10 +104,6 @@ toLists cond = case cond of
         simpleList (AND c1 c2) = simpleList c1 ++ simpleList c2
         simpleList (OR c1 c2)  = simpleList c1 ++ simpleList c2
         simpleList c           = [c]
---        simpleList c           = [handleNot c]
-
-        handleNot (C p (b,ts)) | b     = C p (True, ts)
-                               | not b = C p (True, allTags \\ ts)
 
 
 -- Shorthand for writing positive tests without barriers

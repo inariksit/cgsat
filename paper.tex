@@ -366,6 +366,34 @@ For lemmas with only one reading, this leads to redundant clauses,
 such as \texttt{Not (Var 8) :||: Not (Var 8)}, but SAT solver will
 take care of them.
 
+\subsubsection{Negation}
+
+Say we have a rule that inforces agreement: if token at n-1 is Sg,
+choose Sg for n as well.
+
+\begin{lstlisting}
+rmPlIfSg = Remove [Pl] (C (Exactly -1) [Sg])
+rmSgIfPl = Remove [Sg] (C (Exactly -1) [Pl])
+\end{lstlisting}
+
+We could also express the rules like this:
+\begin{lstlisting}
+rmPlIfSg = Remove [Pl] (NOT (C (Exactly (-1)) [Pl]))
+rmSgIfPl = Remove [Sg] (NOT (C (Exactly (-1)) [Sg]))
+\end{lstlisting}
+
+Although, this is bad: 
+\begin{lstlisting}
+((1,[Lem "the",Det]),Var 1)
+((2,[Lem "bear",N,Sg]),Var 2)
+((2,[Lem "bear",V,Pl]),Var 3)
+((3,[Lem "sleep",N,Pl]),Var 4)
+((3,[Lem "sleep",V,Sg,P3]),Var 5)
+\end{lstlisting}
+
+Negation removes both readings for token 2 ``bear'', because the first
+token doesn't have any number reading.
+
 \subsection{Data types}
 
 \begin{lstlisting}

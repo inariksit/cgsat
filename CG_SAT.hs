@@ -105,7 +105,6 @@ applyRule :: Rule -> [Literal] -> [Boolean]
 applyRule rule lits = trace (show rule) $
   case rule of
 -- a) condition(s) must not hold 
--- TODO nesting of NOTs with AND and OR -- is it even relevant? do linguists write horribly nested and confusing stuff?
 --for each literal, if getContext is empty, remove/select it
     (Remove tags c@(NEG c1)) -> [Not (getBool lit) | lit <- lits
                                                    , getTags lit `multiElem` tags
@@ -115,7 +114,7 @@ applyRule rule lits = trace (show rule) $
                                              , ctxt lit c1==[]] 
                              ++ [Not (getBool lit) | lit <- lits
                                                    , getTags lit `multiElem` tags
-                                                   ,  ctxt lit c1/=[]]
+                                                   , ctxt lit c1/=[]]
 
     (Remove tags (NEG c)) -> map Not $ applyRules rule (toLists c) lits
     (Select tags (NEG c)) -> map Not $ applyRules rule (toLists c) lits
@@ -275,8 +274,7 @@ showTag ((t,tags),_) = show t ++ ": " ++ show tags
 basicRules :: [[Literal] -> [Boolean]]
 basicRules = [ anchor , mkBigrams] --, exclude ]
 
-moreRules  = [ rmParticle 
-             , rmVerbIfDet
+moreRules  = [ rmVerbIfDet
              , rmNounIfPron
              , slNounAfterConj
              , slCCifCC             
