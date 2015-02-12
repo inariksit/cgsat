@@ -4,10 +4,11 @@ import CG
 import CG_data
 import Data.Boolean.SatSolver
 import Data.List
+import Data.Maybe
 import Control.Monad
 import Control.Exception
 --import System.Environment
---import Debug.Trace
+import Debug.Trace
 
 
 type Literal = ((Integer, [Tag]), Boolean)
@@ -70,10 +71,8 @@ mkLiterals bs = go bs 1
 
 -- 1) If something is unambiguous to start with, anchor that
 anchor :: [Literal] -> [Boolean]
-anchor lits = [bool | ((ind,tag),bool) <- lits, 
-                      isUniq ind indices]
-  where indices = map getInd lits
-        isUniq x xs = length (findIndices (==x) xs) == 1
+anchor lits = [getBool lit | lit <- lits, isUniq lit]
+  where isUniq lit = length (filter (sameInd lit) lits) == 1
 
 -- 2) Take all possible bigrams
 mkBigrams :: [Literal] -> [Boolean]
@@ -94,26 +93,53 @@ mkCombs pre post = foldr1 (:||:) combinations
 exclude :: [Literal] -> [Boolean]
 exclude lits = map Not combinations
   where boolsByIndex = (map . map) getBool (groupBy sameInd lits) :: [[Boolean]]
-        ambiguous = filter (\x -> length x > 1) boolsByIndex    :: [[Boolean]]
-        combinations = map (foldr1 (:&&:)) ambiguous            :: [Boolean]
+        ambiguous = filter (atLeast 1) boolsByIndex               :: [[Boolean]]
+        combinations = map (foldr1 (:&&:)) ambiguous              :: [Boolean]
+        
+        atLeast 0 _      = True
+        atLeast _ []     = False
+        atLeast n (_:ys) = atLeast (n-1) ys
 
 -- 4) Apply rules to literals. 
 applyRule :: Rule -> [Literal] -> [Boolean]
-applyRule rule lits = 
+applyRule rule lits = trace (show rule) $
   case rule of
 -- a) condition(s) must not hold 
 -- TODO nesting of NOTs with AND and OR -- is it even relevant? do linguists write horribly nested and confusing stuff?
-    (Remove tags c@(NOT c1)) -> map Not $ applyRules rule (toLists c) lits
-    (Select tags c@(NOT c1)) -> map Not $ applyRules rule (toLists c) lits
+--for each literal, if getContext is empty, remove/select it
+    (Remove tags c@(NEG c1)) -> [Not (getBool lit) | lit <- lits
+                                                   , getTags lit `multiElem` tags
+                                                   , ctxt lit c1==[]]
+    (Select tags c@(NEG c1)) -> [getBool lit | lit <- lits
+                                             , getTags lit `multiElem` tags
+                                             , ctxt lit c1==[]] 
+                             ++ [Not (getBool lit) | lit <- lits
+                                                   , getTags lit `multiElem` tags
+                                                   ,  ctxt lit c1/=[]]
+
+    (Remove tags (NEG c)) -> map Not $ applyRules rule (toLists c) lits
+    (Select tags (NEG c)) -> map Not $ applyRules rule (toLists c) lits
 
 -- b) general case, there can be nested ANDs, ORs or just plain rules
-    (Remove tags c) -> applyRules rule (toLists c) lits
-    (Select tags c) -> applyRules rule (toLists c) lits
+    (Remove tags (POS c)) -> applyRules rule (toLists c) lits
+    (Select tags (POS c)) -> applyRules rule (toLists c) lits
+
+  where ctxt lit c = getContext' lit lits $ head (toLists c) -------- bad
+
+--pseudocode
+        -- slct :: Literal -> Boolean
+        -- slct lit = (context => lit),      context = getContext lit foo bar, there are ctxttags
+--                 ++ (context => Not lit) and there are no context tags anywhere
 
 applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
 applyRules rule []         lits = []
-applyRules rule x@(xs:xxs) lits = applyRules rule xxs lits ++
+applyRules rule x@(xs:xxs) lits = trace (show x) $ applyRules rule xxs lits ++
   case rule of 
+    (Remove tags c) -> mkVars (chosen tags) Not 
+    (Select tags c) -> mkVars (chosen tags) id ++ mkVars (other tags) Not
+
+
+  where 
      -- reason is e.g. "-1 is noun" and consequence is "remove verb"
      -- needed because the word at -1 could have many tags, and they could conflict.
 
@@ -121,21 +147,9 @@ applyRules rule x@(xs:xxs) lits = applyRules rule xxs lits ++
      -- for example,
      -- -1Pron && +1Verb => Not Noun  =========>  Not (-1Pron && +1Verb) || Not Noun
      -- SAT solver will transform it into conjunctive normal form
-    (Remove tags c) -> [Not (foldr1' (:&&:) reason) :||: (Not . getBool) conseq
-                          | conseq <- chosen tags, 
-                            let (Just reason) = lookup conseq contextReasons ]       
-    (Select tags c) -> [Not (foldr1' (:&&:) reason) :||: getBool conseq
-                          | conseq <- chosen tags, 
-                            let (Just reason) = lookup conseq contextReasons ]  
-                     ++ [Not (foldr1' (:&&:) reason) :||: (Not . getBool) conseq
-                          | conseq <- other tags, 
-                            let (Just reason) = lookup conseq contextReasons ]
-
-
-  where 
-
-        foldr1' f [] = Yes
-        foldr1' f xs = foldr1 f xs
+        mkVars tags neg = [Not (foldr1 (:&&:) reason) :||: (neg . getBool) conseq
+                            | conseq <- tags, 
+                              let reason = fromMaybe [Yes] (lookup conseq contextReasons) ]
 
         contextReasons = getContext lits (zip lits (repeat [Yes])) xs :: [(Literal,[Boolean])]
         (context,_) = unzip contextReasons
@@ -158,29 +172,32 @@ applyRules rule x@(xs:xxs) lits = applyRules rule xxs lits ++
 
 --for singleton lists, goes just one time and chooses all lits that apply
 --for lists with more members, chooses lits where all conditions apply
+                           --just for one literal, then can be reused for NOT case
 getContext :: [Literal] -> [(Literal,[Boolean])] -> [Condition] -> [(Literal,[Boolean])]
-getContext original chosen ((C _ []):cs)            = chosen
+getContext original chosen ((C _ (_,[])):cs)        = chosen
 getContext original chosen []                       = chosen 
-getContext original chosen (c@(C p contextTags):cs) = getContext original newChosen cs
+getContext original chosen (c@(C p (yOrN,contextTags)):cs) = getContext original newChosen cs
   
   where 
-
-        chosen_ = fst $ unzip chosen
         newChosen =  -- should include reasons for the previous as well 
           case p of
-            (Exactly 0) -> zip (filter hasContextTag chosen_) (repeat [Yes])
+            (Exactly 0) -> chosen
             (AtLeast 0) -> chosen -- at least 0 means remove/select everywhere 
-            (Exactly n) -> [(lit, map getBool $ filter hasContextTag $ exactly n lit)
-                             | lit <- chosen_
-                             , any hasContextTag $ exactly n lit]
-            (AtLeast n) -> [(lit, map getBool $ filter hasContextTag $ atleast n lit)
-                             | lit <- chosen_
-                             , any hasContextTag $ atleast n lit]
+            (Exactly n) -> choose (exactly n)
+            (AtLeast n) -> choose (atleast n)
 
-            (Fwd n bs)  -> [(lit, map getBool $ filter hasContextTag $ barrier n bs lit)
-                             | lit <- chosen_
-                             , any hasContextTag $ barrier n bs lit]
-            (Bck n bs)  -> undefined
+            (Barrier n bs)  -> choose (barrier n bs) --Negative ind?
+
+        choose ctxFun = case yOrN of
+                          True -> [(lit, map getBool $ filter hasContextTag $ ctxFun lit)
+                                   | lit <- fst $ unzip chosen
+                                   , any hasContextTag $ ctxFun lit]
+                          False ->  [(lit, map getBool $ filter noContextTag $ ctxFun lit)
+                                   | lit <- fst $ unzip chosen]
+
+        hasContextTag lit = getTags lit `multiElem` contextTags
+        noContextTag lit  = getTags lit `multiNotElem` contextTags
+
 
         --given word and n, returns list of words that are n places away in original sentence
         exactly :: Integer -> Literal -> [Literal]
@@ -193,15 +210,55 @@ getContext original chosen (c@(C p contextTags):cs) = getContext original newCho
         between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- original
                                        , ind+m <= ind' && ind' <= ind+n ]
 
-        hasContextTag lit = getTags lit `multiElem` contextTags
-
         barrier n btags lit | dists==[] = [] 
                             | otherwise = between n mindist lit
-           where barinds = [ind | ((ind,tags),_) <- original, tags `multiElem` btags]
+           where
+                 barinds = [ind | ((ind,tags),_) <- original, tags `multiElem` btags]
                  dists   = map (\i -> i - getInd lit) barinds :: [Integer]
                  mindist = minimum dists
                  
+getContext' :: Literal -> [Literal] -> [Condition] -> [Boolean]
+getContext' lit allLits ((C _ (_,[])):cs)            = [getBool lit]
+getContext' lit allLits []                       = trace ("getContext': empty cond") $ []
+getContext' lit allLits (c@(C p (yOrN,contextTags)):cs) = trace ("getContext': " ++ show lit) $ getContext' lit allLits cs ++
+  
+         -- should include reasons for the previous as well 
+          case p of
+            (Exactly 0) -> [getBool lit]
+            (AtLeast 0) -> [getBool lit] -- at least 0 means remove/select everywhere 
+            (Exactly n) -> choose (exactly n) lit
+            (AtLeast n) -> choose (atleast n) lit
 
+            (Barrier n bs)  -> choose (barrier n bs) lit
+  where 
+
+        -- choose ctxFun lit = map getBool $ filter hasContextTag $ ctxFun lit
+
+
+        choose ctxFun lit = case yOrN of
+                          True -> map getBool $ filter hasContextTag $ ctxFun lit
+                          False -> map getBool $ filter noContextTag $ ctxFun lit
+
+        hasContextTag lit = getTags lit `multiElem` contextTags
+        noContextTag lit = getTags lit `multiNotElem` contextTags
+
+
+        --given word and n, returns list of words that are n places away in original sentence
+        exactly :: Integer -> Literal -> [Literal]
+        exactly n ((ind,_),_) = [lit | lit@((ind',_),_) <- allLits, ind' == ind+n]
+
+        --same but list of tags that are at least n places away
+        atleast n ((ind,_),_) = [lit | lit@((ind',_),_) <- allLits, ind' >= ind+n ]
+
+        -- between m and n places away
+        between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- allLits
+                                       , ind+m <= ind' && ind' <= ind+n ]
+        barrier n btags lit | dists==[] = [] 
+                            | otherwise = between n mindist lit
+           where barinds = [ind | ((ind,tags),_) <- allLits, tags `multiElem` btags]
+                 dists   = map (\i -> i - getInd lit) barinds :: [Integer]
+                 mindist = minimum dists
+                 
            
 
 --True if any of the items in AS is in BS
@@ -225,11 +282,13 @@ moreRules  = [ rmParticle
              , slCCifCC             
              , slPrepIfDet 
              , rmAdvIfDet 
-             , notTest
-             , notOrTest 
-             , andTest
+             , rmPlIfSg
+             , rmSgIfPl
+             , negTest
+             , negOrTest 
              , slVerbAlways --conflicts with anything that selects other than V 
-             , slNounIfBear ]
+             -- , slNounIfBear 
+             , rmParticle ]
 
 
 rules = basicRules ++ map applyRule moreRules
