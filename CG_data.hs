@@ -22,7 +22,7 @@ they = [[Lem "they", Pron, Subj, Nom, P3]]
 
 are = [[Lem "be", V, Pres], [Lem "are", N, Sg]]
 
-both = [[Lem "both", CoordConj], [Lem "both", Det], [Lem "both", Pron]]
+both_ = [[Lem "both", CoordConj], [Lem "both", Det], [Lem "both", Pron]]
 
 happy = [[Lem "happy", Adj], [Lem "happy", Particle]] --just for test
 
@@ -49,7 +49,7 @@ ex0 = [ the --unambiguous
 
 ex1 = [ they
       , are
-      , both
+      , both_
       , happy
       , and_
       , go
@@ -57,7 +57,7 @@ ex1 = [ they
       , the
       , house ]
 
-ex2 = [ both
+ex2 = [ both_
       , house
       , and_
       , bear
