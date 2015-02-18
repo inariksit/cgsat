@@ -3,41 +3,39 @@ module CG_data where
 import CG
 
 -- Analyses
-the = [[Lem "the", Det]]
-bear = [Lem "bear", N,Sg] : [[Lem "bear", V,y] | y <- [Pl]]
---bear = [Lem "bear", N,Sg] : [[Lem "bear", V,y,z,w] | y <- [Sg,Pl], z <- [P1,P2], w <- [Subj,Imper]]
---bear = [Lem "bear", N,Sg] : [[Lem "bear", V,y,z] | y <- [Sg,Pl], z <- [P1,P2]]
+the = [Lem "the":det]
+bear = [Lem "bear", Tag "n", Tag "sg"] : [[Lem "bear", Tag "vblex",y] | y <- [Tag "pl", Tag "fin"]]
 
-sleeps = [[Lem "sleep", N,Pl],
-          [Lem "sleep", V,Sg,P3]]
+sleeps = [[Lem "sleep", Tag "n", Tag "pl"],
+          [Lem "sleep", Tag "vblex",Tag "sg", Tag "p3"]]
 
-sleep = [[Lem "sleep", N,Sg],
-         [Lem "sleep", V,Inf],
-         [Lem "sleep", V,Pres]]
+sleep = [[Lem "sleep", Tag "n" ,Tag "sg"],
+         [Lem "sleep", Tag "vblex",Tag "inf"],
+         [Lem "sleep", Tag "vblex",Tag "pres"]]
 
-in_ = [[Lem "in", Prep],
-       [Lem "in", Adv]]
+in_ = [[Lem "in", Tag "prep"],
+       [Lem "in", Tag "adv"]]
 
-they = [[Lem "they", Pron, Subj, Nom, P3]]
+they = [[Lem "they", Tag "pron", Tag "subj", Tag "nom", Tag "p3"]]
 
-are = [[Lem "be", V, Pres], [Lem "are", N, Sg]]
+are = [[Lem "be", Tag "vblex", Tag "pres"], [Lem "are", Tag "n", Tag "sg"]]
 
-both_ = [[Lem "both", CoordConj], [Lem "both", Det], [Lem "both", Pron]]
+both_ = [[Lem "both", Tag "cnjcoo"], [Lem "both", Tag "det"], [Lem "both", Tag "pron"]]
 
-happy = [[Lem "happy", Adj], [Lem "happy", Particle]] --just for test
+happy = [[Lem "happy", Tag "adj"], [Lem "happy", Tag "particle"]] --just for test
 
-and_ = [[Lem "and", CoordConj]]
+and_ = [[Lem "and", Tag "cnjcoo"]]
 
-go = [[Lem "go", V, Inf], [Lem "go", V, Pres], [Lem "go", N, Sg]]
+go = [[Lem "go", Tag "vblex", Tag "inf"], [Lem "go", Tag "vblex", Tag "pres"], [Lem "go", Tag "n", Tag "sg"]]
 
-to = [[Lem "to", Prep],
-       [Lem "to", Adv]]
+to = [[Lem "to", Tag "prep"],
+       [Lem "to", Tag "adv"]]
 
-house = [[Lem "house", V, Inf], [Lem "house", V, Pres], [Lem "house", N, Sg]]
+house = [[Lem "house", Tag "vblex", Tag "inf"], [Lem "house", Tag "vblex", Tag "pres"], [Lem "house", Tag "n", Tag "sg"]]
 
-comma = [[Lem ",", Punct]]
+comma = [[Lem ",", Tag "punct"]]
 
-part = [[Lem "particletest", Particle]]
+part = [[Lem "particletest", Tag "particle"]]
 
 -- Sentence
 ex0 = [ the --unambiguous

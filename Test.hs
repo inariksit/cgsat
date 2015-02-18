@@ -17,27 +17,26 @@ checkGetContext lit allLits conds = length (getContext lit allLits conds) == len
 checkRule :: Rule -> Bool
 checkRule rule = True
 
+allTags :: [Tag]
+allTags =  [Art , Adj , Adv , Det , N , PN , V , V2 , VV 
+           , Particle , Prep , Pron , Punct
+           , CoordConj , SubordConj
+           , Sg , Pl , P1 , P2 , P3 
+           , Subj , Imper , Cond , Inf , Pres
+           , Nom , Acc , Dat ]
+
+
 instance Arbitrary Tag where
-  arbitrary = elements [Art , Adj , Adv , Det , N , PN , V , V2 , VV 
-                      , Particle , Prep , Pron , Punct
-                      , CoordConj , SubordConj
-                      , Sg , Pl , P1 , P2 , P3 
-                      , Subj , Imper , Cond , Inf , Pres
-                      , Nom , Acc , Dat ]
+  arbitrary = elements allTags
 
 instance Arbitrary Boolean where
-  arbitrary = elements [Var n | n <- [1..100]]
+  arbitrary = elements [Var n | n <- [1..50]]
 
 instance Arbitrary Position where
   arbitrary = elements $ [Exactly n | n <- [-5..5]] ++
                          [AtLeast n | n <- [-5..5]] ++
                          [Barrier n [t] | n <- [-5..5],
-                                          t <- [Art, Adj, Adv, Det, N, PN, V, V2, VV 
-                                                 , Particle, Prep, Pron, Punct
-                                                 , CoordConj, SubordConj
-                                                 , Sg, Pl, P1, P2, P3 
-                                                 , Subj, Imper, Cond, Inf, Pres
-                                                 , Nom, Acc, Dat ]]
+                                          t <- allTags]
 
 instance Arbitrary Condition where
   arbitrary = do pos <- arbitrary

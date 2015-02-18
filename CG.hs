@@ -8,14 +8,7 @@ import Data.List
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma is a special type of tag: Lem String
-data Tag = 
-   Art | Adj | Adv | Det | N | PN | V | V2 | VV 
- | Particle | Prep | Pron | Punct
- | CoordConj | SubordConj
- | Sg | Pl | P1 | P2 | P3 
- | Subj | Imper | Cond | Inf | Pres
- | Nom | Acc | Dat
- | Lem String deriving (Eq,Show,Read)
+data Tag = Tag String | Lem String deriving (Eq,Read)
 
 
 -- | Lemma should be first element in an analysis.
@@ -23,8 +16,11 @@ instance Ord Tag where
   Lem l `compare` Lem l' = l `compare` l'
   Lem l `compare` _      = LT
   _     `compare` Lem l  = GT
-  tag   `compare` tag'   = show tag `compare` show tag'
+  Tag t `compare` Tag t' = t `compare` t'
 
+instance Show Tag where
+  show (Lem str) = "\"" ++ str ++ "\""
+  show (Tag str) = "<" ++ str ++ ">"
 
 -- | Analysis is just a list of tags: for instance the word form "alusta" would get
 -- | [Lem "alus", N, Sg, Part], [Lem "alustaa", V, Sg, Imperative]
@@ -126,32 +122,35 @@ andTest = AND lemmaBear always
 
 
 -- Sets of tags
-verb = [V,V2,VV]
-noun = [N,PN]
-det  = [Art,Det]
-adv  = [Adv,Particle]
-conj = [CoordConj,SubordConj]
-
+verb = map Tag ["vblex","vbser","vbmod"]
+noun = map Tag ["n", "np"]
+det  = map Tag ["art","det"]
+adv  = map Tag ["adv","particle"]
+conj = map Tag ["cnjcoo","cnjsub"]
+prep = [Tag "prep"]
+sg   = [Tag "sg"]
+pl   = [Tag "pl"]
+cnjcoo  = [Tag "cnjcoo"]
 
 -- Rules
-rmParticle = Remove [Particle] (POS always)
+rmParticle = Remove [Tag "particle"] (POS always)
 slVerbAlways = Select verb (POS always)
 slNounIfBear = Select noun (POS lemmaBear)
 
 rmVerbIfDet = Remove verb (mkT "-1" det)
 rmAdvIfDet = Remove adv (mkT "1" det)
-rmNounIfPron = Remove noun (mkT "-1" [Pron])
-slPrepIfDet = Select [Prep] (mkT "1" det)
+rmNounIfPron = Remove noun (mkT "-1" [Tag "pron"])
+slPrepIfDet = Select prep (mkT "1" det)
 slNounAfterConj = Select noun (mkT "-1" conj)
 
-slCCifCC = Select [CoordConj] (POS (C (Barrier 1 [Punct]) (True,[CoordConj])))
+slCCifCC = Select cnjcoo (POS (C (Barrier 1 [Tag "punct"]) (True,cnjcoo)))
 
-rmPlIfSg = Remove [Pl] (POS (C (Exactly (-1)) (False,[Sg])))
+rmPlIfSg = Remove pl (POS (C (Exactly (-1)) (False,sg)))
 --rmPlIfSg = Remove [Pl] (mkT "-1" [Sg])
-rmSgIfPl = Remove [Sg] (mkT "-1" [Pl])
+rmSgIfPl = Remove sg (mkT "-1" pl)
 
-negTest   = Select verb (neg (mkT "-1" [Prep]))
-negOrTest = Select verb (NEG (OR (mkC "-1" conj) (mkC "1" [Prep])))
+negTest   = Select verb (neg (mkT "-1" prep))
+negOrTest = Select verb (NEG (OR (mkC "-1" conj) (mkC "1" prep)))
 
 
 
@@ -163,7 +162,7 @@ showAnalysis :: Analysis -> String
 showAnalysis = concatMap showTags
   
 showTags :: [Tag] -> String
-showTags ((Lem l):as) = '\n':'\t':'"':l ++ '"':' ':analyses
+showTags (l:as) = show l ++ '\n':'\t':analyses
   where analyses = unwords $ map show as
 
 

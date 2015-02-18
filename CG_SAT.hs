@@ -1,6 +1,8 @@
---module CG_SAT where 
 {-# LANGUAGE ScopedTypeVariables #-}
 ---- ^ that's for the IO error
+
+module CG_SAT where 
+
 
 import CG
 import CG_data
@@ -144,6 +146,7 @@ applyRules rule (conds:cs) allLits = trace (show conds) $ applyRules rule cs all
      -- cause => consequence    translates into     Not cause || consequence.
      -- cause is e.g. "-1 is noun" and consequence is "remove verb"
      -- needed because the word at -1 could have many tags, and they could conflict.
+        mkVars :: [(Literal,[Literal])] -> (Boolean -> Boolean) -> [Boolean]
         mkVars lits neg = [Not (foldr1 (:&&:) causes) :||: neg conseq
                              | (l, ls) <- lits
                               , let conseq = getBool l
@@ -209,23 +212,21 @@ getContext lit allLits ((C pos (bool,ctags)):cs) = getContext lit allLits cs ++
         between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- allLits
                                        , ind+m <= ind' && ind' <= ind+n ]
 
-        barrier n btags lit | dists==[] = [] -- or allLits? what to do if no BARRIER in clause?
+        barrier n btags lit | barinds==[] = allLits -- if no barrier in clause, return all
                             | n < 0     = between mindist n lit
                             | otherwise = between n mindist lit
            where barinds = [getInd lit | lit <- allLits
-                                         , (not.null) (intersection lit btags)]
+                                       , (not.null) (intersection lit btags)]
                  dists   = map (\i -> i - getInd lit) barinds :: [Integer]
                  mindist = minimum dists
                  
 
 
-showTag :: (Show t, Num t) => ((t, [Tag]), Boolean) -> String
-showTag ((t,tags),_) = show t ++ ": " ++ show tags
-
 basicRules :: [[Literal] -> [Boolean]]
 basicRules = [ anchor , mkBigrams] --, exclude ]
 
-moreRules  = [ rmVerbIfDet
+moreRules  = [slVerbAlways --conflicts with anything that selects other than V 
+              , rmVerbIfDet
              , rmNounIfPron
              , slNounAfterConj
              , slCCifCC             
@@ -235,7 +236,6 @@ moreRules  = [ rmVerbIfDet
              , rmSgIfPl
              , negTest
              , negOrTest 
-             , slVerbAlways --conflicts with anything that selects other than V 
              , slNounIfBear 
              , rmParticle ]
 
@@ -247,24 +247,30 @@ rules = basicRules ++ map applyRule moreRules
 
 disambiguate :: [Analysis] -> IO ()
 disambiguate analyses = do
-   let lits = mkLits analyses
-       basic = concatMap ($ lits) basicRules
-   putStrLn "\nliterals:"
-   mapM_ print lits
-   putStrLn "\nformulae:"
-   mapM_ print basic
-   solver <- foldM (flip assertTrue) newSatSolver basic
+  let lits = mkLits analyses
+      basic = concatMap ($ lits) basicRules
+  putStrLn "\nliterals:"
+  mapM_ print lits
+  putStrLn "\nformulae:"
+  mapM_ print basic
+  solver <- foldM (flip assertTrue) newSatSolver basic
 
-   solver2 <- goodRules lits moreRules solver 
-   putStrLn "---------\n"
+  solver2 <- goodRules lits moreRules solver 
+  putStrLn "---------\n"
 
-   solution <- solve solver2
-   print solution
-   let truetags = filter (\(_,(Var int)) -> lookupVar int solution == Just True) lits
-   putStrLn "\nTag sequence:"
-   mapM_ putStrLn $ map showTag truetags
+  solution <- solve solver2
+  print solution
+  let truetags = filter (\(_,(Var int)) -> lookupVar int solution == Just True) lits
+  putStrLn "\nTag sequence:"
+  mapM_ putStrLn $ map prTag truetags
 
-   putStrLn "-----------\n"
+  putStrLn "-----------\n"
+
+  where prTag :: (Show t, Num t) => ((t, [Tag]), Boolean) -> String
+        prTag ((t,tags),_) = show t ++ ": " ++ showTags tags
+        showTags (l:as) = show l ++ ' ':(unwords $ map show as)
+
+
 
 goodRules :: [Literal] -> [Rule] -> SatSolver -> IO SatSolver
 goodRules lits []       solver = return solver
@@ -282,8 +288,8 @@ goodRules lits (rl:rls) solver = do
   
    
 
-main :: IO ()
-main = do 
+main' :: IO ()
+main' = do 
    --args <- getArgs
    mapM_ disambiguate exs
 

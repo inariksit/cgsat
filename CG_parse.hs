@@ -1,6 +1,29 @@
 module CG_parse where
 
 import CG
+import Data.Attoparsec.Text
+import Prelude hiding (takeWhile)
+
+parse :: String -> Rule
+parse str = undefined
+
+ex1 = "(-1 (\"Mari\"))" 
+ex2 = "(1C Verb OR (<adj>) OR Noun)"
+
+parseCondition :: Parser Condition
+parseCondition = do
+  skipWhile ((=='(') || (==' '))
+  num <- signed
+  skipWhile (flip elem "C*") --TODO handle *
+  skipSpace
+  char '('
+  tags <- takeWhile ((flip notElem " ("))
+  
+  return $ C (Exactly num) (True,lookup (unpack tags) ctx)
+
+ctx = [("Verb", CG.verb), ("\"Mari\"", [Lem "Mari"])]
+
+
 
 {-
 Inline OR
