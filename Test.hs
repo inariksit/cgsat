@@ -18,13 +18,7 @@ checkRule :: Rule -> Bool
 checkRule rule = True
 
 allTags :: [Tag]
-allTags =  [Art , Adj , Adv , Det , N , PN , V , V2 , VV 
-           , Particle , Prep , Pron , Punct
-           , CoordConj , SubordConj
-           , Sg , Pl , P1 , P2 , P3 
-           , Subj , Imper , Cond , Inf , Pres
-           , Nom , Acc , Dat ]
-
+allTags =  verb ++ noun ++ det ++ adv ++ conj ++ prep ++ sg ++ pl ++ cnjcoo
 
 instance Arbitrary Tag where
   arbitrary = elements allTags

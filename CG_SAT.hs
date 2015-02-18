@@ -181,7 +181,7 @@ applyRules rule (conds:cs) allLits = trace (show conds) $ applyRules rule cs all
 getContext :: Literal          -- ^ a single analysis
                -> [Literal]    -- ^ list of all analyses
                -> [Condition]  -- ^ list of conditions grouped by AND
-               -> [Literal]    -- ^ context for the first arg. As many Lits as Conditions.
+               -> [Literal]    -- ^ context for the first arg. As many Lits as Conditions (except for barrier rules: if barrier doesn't match, return all from the first allowed position).
 getContext lit allLits []     = []
 getContext lit allLits ((C pos (bool,ctags)):cs) = getContext lit allLits cs ++
    case ctags of
@@ -212,7 +212,7 @@ getContext lit allLits ((C pos (bool,ctags)):cs) = getContext lit allLits cs ++
         between m n ((ind,_),_) = [lit | lit@((ind',_),_) <- allLits
                                        , ind+m <= ind' && ind' <= ind+n ]
 
-        barrier n btags lit | barinds==[] = allLits -- if no barrier in clause, return all
+        barrier n btags lit | barinds==[] = atleast n lit
                             | n < 0     = between mindist n lit
                             | otherwise = between n mindist lit
            where barinds = [getInd lit | lit <- allLits
@@ -225,8 +225,7 @@ getContext lit allLits ((C pos (bool,ctags)):cs) = getContext lit allLits cs ++
 basicRules :: [[Literal] -> [Boolean]]
 basicRules = [ anchor , mkBigrams] --, exclude ]
 
-moreRules  = [slVerbAlways --conflicts with anything that selects other than V 
-              , rmVerbIfDet
+moreRules  = [ rmVerbIfDet
              , rmNounIfPron
              , slNounAfterConj
              , slCCifCC             
@@ -237,6 +236,7 @@ moreRules  = [slVerbAlways --conflicts with anything that selects other than V
              , negTest
              , negOrTest 
              , slNounIfBear 
+             , slVerbAlways --conflicts with anything that selects other than V 
              , rmParticle ]
 
 
