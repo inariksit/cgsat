@@ -1,0 +1,99 @@
+
+comment "#" ;
+comment "CONSTRAINTS" ;
+comment "DELIMITERS" ;
+
+Defs.  Grammar ::= [Def] ;
+terminator Def "" ;
+
+SetDef. Def ::= SetDecl ;
+
+Set. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
+
+SetName.  SetName ::= UIdent ;
+
+-- These definitions are only used in a SetDecl.
+Lemma.   Tag1 ::= String ; 
+Tag.     Tag1 ::= Id ;
+Named.   Tag1 ::= SetName ;
+EOS.     Tag1 ::= ">>>" ;
+coercions Tag 1 ;
+
+separator nonempty Tag "" ;
+
+
+RuleDef. Def ::= Rule ;
+
+SelectIf. Rule ::= "SELECT" TagSet "IF" [Cond] ";" ;
+RemoveIf. Rule ::= "REMOVE" TagSet "IF" [Cond] ";" ;
+SelectAlways. Rule ::= "SELECT" TagSet ";" ;
+RemoveAlways. Rule ::= "REMOVE" TagSet ";" ;
+MatchLemma. Rule ::= String Rule ;
+
+
+C.        Cond  ::= Cond1 ;
+Linked.   Cond1 ::= Cond1 "LINK" Cond ;
+CNotPos.  Cond1 ::= "NOT" Position TagSet ;
+CPos.     Cond1 ::= Position TagSet ;
+CBarrier. Cond1 ::= Position TagSet Barrier ;
+CNotBar.  Cond1 ::= "NOT" Position TagSet Barrier ;
+_.        Cond1 ::= "(" Cond ")" ;
+
+separator Cond "" ;
+
+
+-- LinkedCond. LinkedCond ::= Cond ;
+-- separator LinkedCond "LINK" ;
+
+TagSet.  TagSet  ::= TagSet1 ;
+_.       TagSet1 ::= "(" TagSet ")" ; -- you can add parentheses around any tag set
+
+-- Essentially, tags bound by AND are like one tag.
+-- These tags are separated by spaces and enclosed in parentheses.
+-- Also you can just parenthesise a single tag randomly.
+AND.     Tag1 ::= "(" [Tag] ")" ; 
+
+-- OR 
+OR.      TagSet1 ::= Tag "OR" TagSet1 ; 
+Diff.    TagSet1 ::= TagSet1 "-" TagSet ;
+Cart.    TagSet1 ::= TagSet1 "+" TagSet ;
+All.     TagSet1 ::= "(*)" ;
+NilT.    TagSet1 ::= Tag ;
+
+--OR.      TagSet1 ::= [TagOR] ;
+-- rules TagOR ::= Tag1 ; 
+-- separator TagOR "OR" ;
+
+
+Exactly. Position ::= Signed ;
+AtLeast. Position ::= "*" Signed ;
+_. Position ::= Position "C" ; --We're not interested in the unambiguous
+
+Barrier. Barrier ::= "BARRIER" TagSet ;
+
+
+
+
+token UIdent (upper (letter | digit | '_')*) ;
+token Id (letter (upper | letter | digit | '/' | '_' | '>')*) ;
+token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
+
+
+{- Fred Karlsson's CG book 1995:
+
+"The constraint file consists of thirteen sections. The following designated expressions must occur in the following form and order, each followed by sets, function declarations, constraints etc. of the appropriate type:
+SENTENCE-DELIMITERS
+SET-DECLARATIONS 
+SYNTACTIC-FUNCTION-DECLARATIONS 
+PRINCIPAL-FUNCTION-DECLARATIONS 
+TEMPLATES
+MORPHOSYNTACTIC-MAPPINGS 
+CLAUSE-BOUNDARY-CONSTRAINTS 
+DISAMBIGUATION-CONSTRAINTS 
+HEURISTIC-DISAMBIGUATION-CONSTRAINTS 
+SYNTACTIC-CONSTRAINTS 
+HEURISTIC-SYNTACTIC-CONSTRAINTS 
+MORPHOLOGICAL-HEURISTICS 
+TEXT-BASED-HEURISTICS
+END"
+-}
