@@ -45,8 +45,8 @@ getData s = case pText (ParApertium.myLexer s) of
                            mapM_ print anals
                            return anals
 
-test :: IO ()
-test = do args <- getArgs
+main :: IO ()
+main = do args <- getArgs
           case args of
              [file1,file2] -> do readFile file1 >>= getRules
                                  readFile file2 >>= getData
@@ -162,7 +162,8 @@ transText x = case x of
 transLine :: Line -> CG.Analysis
 transLine x = case x of
   Line _wordform analyses -> map transAnalysis analyses
-  LinePunct line punct    -> transLine line
+  LinePunct (Punct str)     -> [[CG.Lem str, CG.Tag "punct"]]
+--  LinePunct line punct    -> transLine line
   NoAnalysis (Iden id) _  -> [[CG.Lem id]]
 --  PLineP punc1 line punc2 -> transLine line
 
