@@ -5,14 +5,14 @@ module CG_SAT where
 
 
 import CG
-import CG_data
+import CG_parse
 import Data.Boolean.SatSolver
 import Data.List
 import Data.Maybe
 import Data.Tuple.Extra
 import Control.Monad
 import Control.Exception
---import System.Environment
+import System.Environment
 import Debug.Trace
 
 
@@ -240,13 +240,10 @@ moreRules  = [ rmVerbIfDet
              , rmParticle ]
 
 
-rules = basicRules ++ map applyRule moreRules
-
-
 ---- Main stuff
 
-disambiguate :: [Analysis] -> IO ()
-disambiguate analyses = do
+disambiguate :: [Analysis] -> [Rule] -> IO ()
+disambiguate analyses rules = do
   let lits = mkLits analyses
       basic = concatMap ($ lits) basicRules
   putStrLn "\nliterals:"
@@ -255,7 +252,7 @@ disambiguate analyses = do
   mapM_ print basic
   solver <- foldM (flip assertTrue) newSatSolver basic
 
-  solver2 <- goodRules lits moreRules solver 
+  solver2 <- goodRules lits rules solver 
   putStrLn "---------\n"
 
   solution <- solve solver2
@@ -287,57 +284,19 @@ goodRules lits (rl:rls) solver = do
 
   
    
-
 main' :: IO ()
-main' = do 
-   --args <- getArgs
-   mapM_ disambiguate exs
+main' = do
+  args <- getArgs
+  
+  let (dFile, rFile) = case args of
+                             [f1, f2] -> (f1, f2)
+                             _        -> ("morph-output.txt", "../../data/hun_cg2.rlx")
+  data' <- readFile dFile >>= getData 
+  rules <- readFile rFile >>= getRules
+  disambiguate data' rules
 
-
-{-
-Literals:
-0art, 1n, 1v, 2n, 2v
-
-Clauses:
--- If something is unambiguous to start with, anchor that:
-
-0art
-0art & 1n | 0art & 1v
-1n   & 2n | 1n   & 2v | 1v & 2n | 1v & 2v
-
-rules:
-  Remove verb (C art [])
-
-translates into 
-  (x-1 art) => ~(x verb)
-
-as a disjunction:
-  ~(x-1 art) | ~(x verb)
-
-for all indices x
-
-  ~0art | ~1v
-
-
-  Select noun (C [] verb)
-
-translates into
-  (x+1 verb) => x noun  
-
-as a disjunction:
-  ~(x+1 verb) | x noun
-
-for all indices x:
-
-  ~2v | 1n
-
-Whole rule set:
-
-0art
-0art & 1n | 0art & 1v
-1n   & 2n | 1n   & 2v | 1v & 2n | 1v & 2v
-~0art | ~1v
-~2v | 1n
-
--}
-
+main'' :: String -> String -> IO ()
+main'' dFile rFile = do 
+  data' <- readFile dFile >>= getData 
+  rules <- readFile rFile >>= getRules
+  disambiguate data' rules

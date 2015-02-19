@@ -4,6 +4,11 @@ import Control.Applicative
 import Data.Boolean.SatSolver
 import Data.List
 
+-- TODO:
+-- * More complicated set operations for tag sets, not just conditions.
+-- * CG2/CG3 decisions
+
+
 -- | All kinds of morphological tags are in the same data type: e.g.  Prep, P1, Conditional.
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
@@ -23,8 +28,8 @@ instance Show Tag where
   show (Tag str) = "<" ++ str ++ ">"
 
 -- | Analysis is just a list of tags: for instance the word form "alusta" would get
--- | [Lem "alus", N, Sg, Part], [Lem "alustaa", V, Sg, Imperative]
-type Analysis = [[Tag]]
+-- | [[Lem "alus", N, Sg, Part], [Lem "alustaa", V, Sg, Imperative]]
+type Analysis = [[Tag]] --(String, [[Tag]]) ?
 
 -- | Sentence is just a list of analyses: e.g. "the bear sleeps"
 -- | [ [[Lem "the", Det]], 
@@ -40,12 +45,11 @@ data Rule = Remove [Tag] Test | Select [Tag] Test deriving (Show)
 
 
 -- | Test is a condition with a possible NEG, to implement CG3's NEGATE
---   NEGATE negates the whole result, NOT just a single clause
-
+--   NEGATE negates the whole result, NOT just a single clause.
 data Test = NEG Condition | POS Condition deriving (Show)
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
---   but `C _ []' is assumed to mean that.
+--   but `C _ (_,[])' is assumed to mean that.
 --   (Bool, [Tag]) emulates set negation NOT in CG3.
 --   NOT foo === intersection with foo and the candidate is empty
 data Condition = C Position (Bool, [Tag])

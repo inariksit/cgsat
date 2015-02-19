@@ -1,0 +1,21 @@
+comment "--" ;
+
+Lines. Text ::= [Line] ;
+
+terminator Line "" ;
+
+Line.       Line ::= "^" Iden "/" [Analysis] "$" ;
+LinePunct.  Line ::= Line Punct ;
+NoAnalysis. Line ::= "^" Iden "/" "*" Iden "$" ;
+--PLineP.    Line ::= Punct Line Punct ;
+
+Anal. Analysis ::= Iden [TagA] ;
+
+separator Analysis "/" ;
+
+TagA.  TagA      ::= "<" Iden ">" ;
+separator TagA "" ;
+ 
+token Punct ["!?.,:"] ;
+
+token Iden (letter (letter|digit|'_'|'\''|'*')*) ;
