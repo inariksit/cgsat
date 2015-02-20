@@ -162,20 +162,14 @@ transText x = case x of
 transLine :: Line -> CG.Analysis
 transLine x = case x of
   Line _wordform analyses -> map transAnalysis analyses
-  LinePunct (Punct str)     -> [[CG.Lem str, CG.Tag "punct"]]
---  LinePunct line punct    -> transLine line
+  LinePunct (Punct str)   -> [[CG.Lem str, CG.Tag "punct"]]
   NoAnalysis (Iden id) _  -> [[CG.Lem id]]
---  PLineP punc1 line punc2 -> transLine line
 
 
 transAnalysis :: Analysis -> [CG.Tag]
-transAnalysis (Anal iden tags) = mkLem iden:(map transTagA tags)
-  where mkLem (Iden str) = CG.Lem str
+transAnalysis (Anal (Iden id) tags) = CG.Lem id:(map transTagA tags)
 
 transTagA :: TagA -> CG.Tag
-transTagA (TagA iden) = transIden iden
-
-transIden :: Iden -> CG.Tag
-transIden (Iden str) = CG.Tag str
+transTagA (TagA (Iden id)) = CG.Tag id
 
 

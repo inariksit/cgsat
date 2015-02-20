@@ -5,10 +5,8 @@ Lines. Text ::= [Line] ;
 terminator Line "" ;
 
 Line.       Line ::= "^" Iden "/" [Analysis] "$" ;
---LinePunct.  Line ::= Line Punct ;
 LinePunct.  Line ::= Punct ;
 NoAnalysis. Line ::= "^" Iden "/" "*" Iden "$" ;
---PLineP.    Line ::= Punct Line Punct ;
 
 Anal. Analysis ::= Iden [TagA] ;
 
