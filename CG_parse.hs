@@ -21,7 +21,7 @@ import Debug.Trace
 
 import qualified CG
 
-type Env = [(String,[CG.Tag])]
+type Env = [(String,CG.TagSet)]
 
 
 
@@ -81,29 +81,36 @@ transSetDecl (Set (SetName (UIdent name)) tags) = do
 
                                       
 
-transTag :: Tag -> State Env [CG.Tag]
+transTag :: Tag -> State Env CG.TagSet
 transTag tag = case tag of
-  Lemma str    -> return [CG.Lem str] 
-  Tag (Id str) -> return [CG.Tag str]
+  Lemma str    -> return [[CG.Lem str]]
+  Tag (Id str) -> return [[CG.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
-                     return (concat ts)
-  EOS          -> return [CG.Tag ">>>"]
+                     let allInOne = [concat (concat ts)]
+                     return allInOne
   Named (SetName (UIdent name)) -> do
     env <- get
     case lookup name env of
       Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
-      Just ts -> (return ts :: State Env [CG.Tag])
+      Just ts -> (return ts :: State Env CG.TagSet)
 
 
-transTagSet :: TagSet -> State Env [CG.Tag]
+transTagSet :: TagSet -> State Env CG.TagSet
 transTagSet ts = case ts of
   TagSet tagset  -> transTagSet tagset
-  OR tag tagset  -> liftM2 (++) (transTag tag) (transTagSet tagset)
- ---TODO all set operations!
-  Diff ts1 ts2   -> liftM2 (\\) (transTagSet ts1) (transTagSet ts2)
-  Cart ts1 ts2   -> liftM2 (++) (transTagSet ts1) (transTagSet ts2)
-  All            -> return []
   NilT tag       -> transTag tag
+  All            -> return [[]]
+  OR tag tagset  -> liftM2 (++) (transTag tag) (transTagSet tagset)
+
+  ----TODO all set operations!
+
+  Diff ts1 ts2   -> liftM2 (\\) (transTagSet ts1) (transTagSet ts2)
+
+  Cart ts1 ts2   -> do tags1 <- transTagSet ts1   
+                       tags2 <- transTagSet ts2
+                       let combs = sequence (tags1 ++ tags2)
+                       return combs
+
 
 transRule :: Rule -> State Env CG.Rule
 transRule rl = case rl of
@@ -111,13 +118,13 @@ transRule rl = case rl of
   RemoveIf tags conds -> liftM2 CG.Remove (transTagSet tags) (transConds conds)
   SelectAlways tags   -> liftM2 CG.Select (transTagSet tags) (return $ CG.POS CG.always)
   RemoveAlways tags   -> liftM2 CG.Remove (transTagSet tags) (return $ CG.POS CG.always)
-  MatchLemma lem rule -> do eval <- transRule rule
-                            case eval of
+  MatchLemma lem rule -> do cgrule <- transRule rule
+                            case cgrule of
                                CG.Select ts c -> return $ CG.Select ts (insert c lem)
                                CG.Remove ts c -> return $ CG.Remove ts (insert c lem)
   where insert :: CG.Test -> String -> CG.Test
-        insert (CG.POS cs) str = CG.POS $ CG.AND cs (CG.mkC "0" [CG.Lem str])
-        insert (CG.NEG cs) str = CG.NEG $ CG.AND cs (CG.mkC "0" [CG.Lem str])
+        insert (CG.POS cs) str = CG.POS $ CG.AND cs (CG.mkC "0" [[CG.Lem str]])
+        insert (CG.NEG cs) str = CG.NEG $ CG.AND cs (CG.mkC "0" [[CG.Lem str]])
 
 transConds :: [Cond] -> State Env CG.Test
 transConds c = do conds <- mapM transCond c
@@ -131,7 +138,7 @@ transCond c = case c of
   CNotPos pos ts -> liftM2 CG.C (transPosition pos) (transTagSet' False ts)
   CBarrier pos ts bar -> handleBar pos ts bar True
   CNotBar pos ts bar  -> handleBar pos ts bar False
-  where transTagSet' :: Bool -> TagSet -> State Env (Bool, [CG.Tag])
+  where transTagSet' :: Bool -> TagSet -> State Env (Bool, CG.TagSet)
         transTagSet' b ts = do tags <- transTagSet ts
                                return (b, tags)
         handleBar pos ts bar bool = do
@@ -148,7 +155,7 @@ transPosition pos = return $ case pos of
   Exactly (Signed str) -> CG.Exactly $ read str
   AtLeast (Signed str) -> CG.AtLeast $ read str
 
-transBarrier :: Barrier -> State Env [CG.Tag]
+transBarrier :: Barrier -> State Env CG.TagSet
 transBarrier (Barrier ts) = transTagSet ts
 
 
@@ -161,9 +168,9 @@ transText x = case x of
 
 transLine :: Line -> CG.Analysis
 transLine x = case x of
-  Line _wordform analyses -> map transAnalysis analyses
-  LinePunct (Punct str)   -> [[CG.Lem str, CG.Tag "punct"]]
-  NoAnalysis (Iden id) _  -> [[CG.Lem id]]
+  Line (Iden wform) analyses  -> (wform, map transAnalysis analyses)
+  LinePunct (Punct str)     -> (str,[[CG.Lem str, CG.Tag "punct"]])
+  NoAnalysis (Iden wform) _ -> (wform,[[CG.Lem wform]])
 
 
 transAnalysis :: Analysis -> [CG.Tag]
