@@ -27,9 +27,20 @@ instance Show Tag where
   show (Lem str) = "\"" ++ str ++ "\""
   show (Tag str) = "<" ++ str ++ ">"
 
--- | Analysis is just a list of tags: for instance the word form "alusta" would get
+-- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
+--  For example, 
+--    LIST DefArt = (det def) ;
+--    LIST Dem    = "az" "ez" "amaz" "emez" ;
+--
+--  translate into
+--    defArt = [[Tag "det", Tag "def"]]
+--    dem    = [[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]]
+--  See the datatype for Test.
+type TagSet = [[Tag]]
+
+-- | Analysis is just list of tags: for instance the word form "alusta" would get
 -- | [[Lem "alus", N, Sg, Part], [Lem "alustaa", V, Sg, Imperative]]
-type Analysis = [[Tag]] --(String, [[Tag]]) ?
+type Analysis = [[Tag]]
 
 -- | Sentence is just a list of analyses: e.g. "the bear sleeps"
 -- | [ [[Lem "the", Det]], 
@@ -40,8 +51,8 @@ type Sentence = [Analysis]
 
 
 -- | Rule is either remove or select a list of tags, with condition(s).
--- | See the datatype for Condition.
-data Rule = Remove [Tag] Test | Select [Tag] Test deriving (Show)
+
+data Rule = Remove TagSet Test | Select TagSet Test deriving (Show)
 
 
 -- | Test is a condition with a possible NEG, to implement CG3's NEGATE
@@ -52,7 +63,7 @@ data Test = NEG Condition | POS Condition deriving (Show)
 --   but `C _ (_,[])' is assumed to mean that.
 --   (Bool, [Tag]) emulates set negation NOT in CG3.
 --   NOT foo === intersection with foo and the candidate is empty
-data Condition = C Position (Bool, [Tag])
+data Condition = C Position (Bool, TagSet)
                | AND Condition Condition
                | OR Condition Condition deriving (Show)
 
@@ -63,7 +74,7 @@ data Condition = C Position (Bool, [Tag])
 -- | *  n: to the right.
 data Position = Exactly Integer 
               | AtLeast Integer
-              | Barrier Integer [Tag] deriving (Show,Eq,Read)
+              | Barrier Integer TagSet deriving (Show,Eq,Read)
 
 
 
@@ -108,10 +119,10 @@ toLists cond = case cond of
 
 -- Shorthand for writing positive tests without barriers
 -- TODO better parser
-mkT :: String -> [Tag] -> Test
+mkT :: String -> TagSet -> Test
 mkT str tags = POS $ mkC str tags
 
-mkC :: String -> [Tag] -> Condition
+mkC :: String -> TagSet -> Condition
 mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) (True, tags)
              | otherwise       = C (Exactly $ read str)          (True, tags)
 
@@ -120,37 +131,36 @@ neg (POS t) = (NEG t)
 neg (NEG t) = (POS t)
 
 lemmaBear :: Condition
-lemmaBear = mkC "0" [Lem "bear"]
-always = mkC "0" []
+lemmaBear = mkC "0" [[Lem "bear"]]
+always = mkC "0" [[]]
 andTest = AND lemmaBear always
 
 
 -- Sets of tags
-verb = map Tag ["vblex","vbser","vbmod"]
-noun = map Tag ["n", "np"]
-det  = map Tag ["art","det"]
-adv  = map Tag ["adv","particle"]
-conj = map Tag ["cnjcoo","cnjsub"]
-prep = [Tag "prep"]
-sg   = [Tag "sg"]
-pl   = [Tag "pl"]
-cnjcoo  = [Tag "cnjcoo"]
+verb = map Tag ["vblex","vbser","vbmod"]:[]
+noun = map Tag ["n", "np"]:[]
+det  = map Tag ["art","det"]:[]
+adv  = map Tag ["adv","particle"]:[]
+conj = map Tag ["cnjcoo","cnjsub"]:[]
+prep = [Tag "prep"]:[]
+sg   = [Tag "sg"]:[]
+pl   = [Tag "pl"]:[]
+cnjcoo  = [Tag "cnjcoo"]:[]
 
 -- Rules
-rmParticle = Remove [Tag "particle"] (POS always)
+rmParticle = Remove [[Tag "particle"]] (POS always)
 slVerbAlways = Select verb (POS always)
 slNounIfBear = Select noun (POS lemmaBear)
 
 rmVerbIfDet = Remove verb (mkT "-1" det)
 rmAdvIfDet = Remove adv (mkT "1" det)
-rmNounIfPron = Remove noun (mkT "-1" [Tag "pron"])
+rmNounIfPron = Remove noun (mkT "-1" [[Tag "pron"]])
 slPrepIfDet = Select prep (mkT "1" det)
 slNounAfterConj = Select noun (mkT "-1" conj)
 
-slCCifCC = Select cnjcoo (POS (C (Barrier 1 [Tag "punct"]) (True,cnjcoo)))
+slCCifCC = Select cnjcoo (POS (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo)))
 
 rmPlIfSg = Remove pl (POS (C (Exactly (-1)) (False,sg)))
---rmPlIfSg = Remove [Pl] (mkT "-1" [Sg])
 rmSgIfPl = Remove sg (mkT "-1" pl)
 
 negTest   = Select verb (neg (mkT "-1" prep))

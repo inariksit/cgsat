@@ -16,7 +16,6 @@ SetName.  SetName ::= UIdent ;
 Lemma.   Tag1 ::= String ; 
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
-EOS.     Tag1 ::= ">>>" ;
 coercions Tag 1 ;
 
 separator nonempty Tag "" ;
@@ -42,9 +41,6 @@ _.        Cond1 ::= "(" Cond ")" ;
 separator Cond "" ;
 
 
--- LinkedCond. LinkedCond ::= Cond ;
--- separator LinkedCond "LINK" ;
-
 TagSet.  TagSet  ::= TagSet1 ;
 _.       TagSet1 ::= "(" TagSet ")" ; -- you can add parentheses around any tag set
 
@@ -60,11 +56,6 @@ Cart.    TagSet1 ::= TagSet1 "+" TagSet ;
 All.     TagSet1 ::= "(*)" ;
 NilT.    TagSet1 ::= Tag ;
 
---OR.      TagSet1 ::= [TagOR] ;
--- rules TagOR ::= Tag1 ; 
--- separator TagOR "OR" ;
-
-
 Exactly. Position ::= Signed ;
 AtLeast. Position ::= "*" Signed ;
 _. Position ::= Position "C" ; --We're not interested in the unambiguous
@@ -75,7 +66,7 @@ Barrier. Barrier ::= "BARRIER" TagSet ;
 
 
 token UIdent (upper (letter | digit | '_')*) ;
-token Id (letter (upper | letter | digit | '/' | '_' | '>')*) ;
+token Id ((letter | '>' | '<') (upper | letter | digit | '/' | '_' | '>' | '<')*) ;
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 
 

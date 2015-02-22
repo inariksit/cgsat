@@ -9,7 +9,7 @@ import CG_parse
 import Data.Boolean.SatSolver
 import Data.List
 import Data.Maybe
-import Data.Tuple.Extra
+import Data.Set (Set, fromList, isSubsetOf)
 import Control.Monad
 import Control.Exception
 import System.Environment
@@ -31,9 +31,17 @@ getBool (_,b) = b
 sameInd :: Literal -> Literal -> Bool
 sameInd lit lit' = getInd lit == getInd lit'
 
---needing this so many times :-P
-intersection :: Literal -> [Tag] -> [Tag]
-intersection lit tags = getTags lit `intersect` tags
+
+--Analysis has [Tag]
+--Rule     has [[Tag]]
+--
+--At least one complete sublists in the rule must be found in the analysis.
+--so in that sense it's "intersection", just that 
+--the items to match in the rule are lists of tags, and in analysis single tags.
+intersection :: Literal -> [[Tag]] -> Bool
+intersection lit tags = or $ map (\tagset -> isSubsetOf tagset tagsInAna) tagsInRule
+  where tagsInAna  = fromList $ getTags lit :: Set Tag
+        tagsInRule = map fromList tags :: [Set Tag]
 
 instance Eq Boolean where
   Var n      == Var m        = m==n
@@ -64,7 +72,7 @@ instance Eq Boolean where
 --  ((2,[Lem "bear", V,Pl]),Var 3),
 --  ((3,[Lem "sleep", N,Pl]),Var 4),
 --  ((3,[Lem "sleep", V,Sg]),Var 5)]
-mkLits :: Sentence -> [((Integer,[Tag]),Boolean)]
+mkLits :: Sentence -> [Literal]
 mkLits = mkLiterals . mkSymbols
 
 mkSymbols :: [[a]] -> [(Integer,a)]
@@ -117,14 +125,14 @@ applyRule rule lits = trace (show rule) $
 -- a) condition(s) must not hold 
 --for each literal, if getContext is empty, remove/select it
     (Remove tags (NEG conds)) -> [Not (getBool lit) | lit <- lits
-                                                    , (not.null) (intersection lit tags)
+                                                    , intersection lit tags
                                                     , null (ctxt lit conds)]
 
     (Select tags (NEG conds)) -> [getBool lit | lit <- lits
-                                              , (not.null) (intersection lit tags)
+                                              , intersection lit tags
                                               , null (ctxt lit conds)] 
                               ++ [Not (getBool lit) | lit <- lits
-                                                    , (not.null) (intersection lit tags)
+                                                    , intersection lit tags
                                                     , (not.null) (ctxt lit conds)]
 
 -- b) general case, there can be nested ANDs, ORs or just plain rules
@@ -135,8 +143,8 @@ applyRule rule lits = trace (show rule) $
 
 
 applyRules :: Rule -> [[Condition]] -> [Literal] -> [Boolean]
-applyRules rule []     allLits = []
-applyRules rule (conds:cs) allLits = trace (show conds) $ applyRules rule cs allLits ++
+applyRules rule []         allLits = []
+applyRules rule (conds:cs) allLits = applyRules rule cs allLits ++
   case rule of 
     (Remove tags c) -> mkVars (chosen tags) Not 
     (Select tags c) -> mkVars (chosen tags) id ++ mkVars (other tags) Not
@@ -154,17 +162,17 @@ applyRules rule (conds:cs) allLits = trace (show conds) $ applyRules rule cs all
 
 
         -- chosen: analyses that have the wanted readings and context
-        chosen :: [Tag] -> [(Literal,[Literal])]
+        chosen :: TagSet -> [(Literal,[Literal])]
         chosen tags = [(lit, context) | lit <- allLits
-                                        , (not . null) (lit `intersection` tags) 
+                                        , intersection lit tags
                                         , let context = getContext lit allLits conds
                                         , (not . null) context ]
  
         -- other: analyses that don't have the wanted readings,
         -- but some word in the same location does have the wanted reading(s)
-        other :: [Tag] -> [(Literal,[Literal])]
+        other :: TagSet -> [(Literal,[Literal])]
         other tags = [(lit, context) | lit <- allWithReading tags
-                                       , null (lit `intersection` tags)
+                                       , not (lit `intersection` tags)
                                        , let context = getContext lit allLits conds
                                        , (not . null) context ]
 
@@ -197,8 +205,8 @@ getContext lit allLits ((C pos (bool,ctags)):cs) = getContext lit allLits cs ++
                          True -> filter hasContextTag $ f lit
                          False -> filter noContextTag $ f lit
 
-        hasContextTag lit = (not . null) (intersection lit ctags)
-        noContextTag lit  = null (intersection lit ctags)
+        hasContextTag lit = intersection lit ctags
+        noContextTag lit  = not (intersection lit ctags)
 
 
         --given word and n, returns list of words that are n places away in original sentence
@@ -216,7 +224,7 @@ getContext lit allLits ((C pos (bool,ctags)):cs) = getContext lit allLits cs ++
                             | n < 0     = between mindist n lit
                             | otherwise = between n mindist lit
            where barinds = [getInd lit | lit <- allLits
-                                       , (not.null) (intersection lit btags)]
+                                       , intersection lit btags]
                  dists   = map (\i -> i - getInd lit) barinds :: [Integer]
                  mindist = minimum dists
                  
@@ -242,8 +250,8 @@ moreRules  = [ rmVerbIfDet
 
 ---- Main stuff
 
-disambiguate :: [Analysis] -> [Rule] -> IO ()
-disambiguate analyses rules = do
+disambiguate :: [Rule] -> [Analysis] -> IO ()
+disambiguate rules analyses = do
   let lits = mkLits analyses
       basic = concatMap ($ lits) basicRules
   putStrLn "\nliterals:"
@@ -282,21 +290,40 @@ goodRules lits (rl:rls) solver = do
         mapM_ print formulae
         goodRules lits rls solver'
 
-  
-   
+
+split :: [Analysis] -> [Sentence]
+split as = go as []
+  where go [] ys = ys
+        go xs ys = let beforePunct = takeWhile (not . isPunct) xs 
+                       fromPunct   = dropWhile (not . isPunct) xs
+                       punct = if null fromPunct then [] else head fromPunct 
+                       newxs = if null fromPunct then [] else tail fromPunct
+                       newsent = startToken:beforePunct ++ [punct, endToken]
+                   in go newxs (newsent:ys)
+
+        startToken = [[Lem ">>>", Tag ">>>"]]
+        endToken   = [[Lem "<<<", Tag "<<<"]]
+
+        isPunct :: Analysis -> Bool
+        isPunct = tagsInAna [Lem ".", Lem "!", Lem "?"]
+
+        tagsInAna :: [Tag] -> Analysis -> Bool
+        tagsInAna tags as = or $ map ((not.null) . intersect tags) as
+
+
 main' :: IO ()
 main' = do
   args <- getArgs
   
-  let (dFile, rFile) = case args of
+  let (rFile, dFile) = case args of
                              [f1, f2] -> (f1, f2)
-                             _        -> ("morph-output.txt", "../../data/hun_cg2.rlx")
+                             _        -> ("../../data/hun_cg2.rlx", "../../data/morph-output.txt")
   data' <- readFile dFile >>= getData 
   rules <- readFile rFile >>= getRules
-  disambiguate data' rules
+  mapM_ (disambiguate rules) (split data')
 
 main'' :: String -> String -> IO ()
-main'' dFile rFile = do 
-  data' <- readFile dFile >>= getData 
+main'' rFile dFile = do 
   rules <- readFile rFile >>= getRules
-  disambiguate data' rules
+  data' <- readFile dFile >>= getData 
+  mapM_ (disambiguate rules) (split data')

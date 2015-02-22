@@ -73,7 +73,7 @@ getCGRules (Defs defs) = do mapM updateEnv defs
 ---- CG parsing
 
 transSetDecl :: SetDecl -> State Env ()
-transSetDecl (Set (SetName (UIdent name)) tags) = do 
+transSetDecl (Set (SetName (UIdent name)) tags) = trace (show tags) $ do 
   env <- get
   tl <- mapM transTag tags
   let tagList = concat tl
@@ -100,15 +100,22 @@ transTagSet ts = case ts of
   TagSet tagset  -> transTagSet tagset
   NilT tag       -> transTag tag
   All            -> return [[]]
-  OR tag tagset  -> liftM2 (++) (transTag tag) (transTagSet tagset)
+  OR tag tagset  -> do tags1 <- transTag tag
+                       tags2 <- transTagSet tagset
+                       return $ tags1 ++ tags2
 
   ----TODO all set operations!
 
-  Diff ts1 ts2   -> liftM2 (\\) (transTagSet ts1) (transTagSet ts2)
+  Diff All ts    -> error "TODO this should have effect on a higher level"
+  Diff ts All    -> error "something except everything? are you a philosopher?"
+  Diff ts1 ts2   -> do tags1 <- transTagSet ts1
+                       tags2 <- transTagSet ts2
+                       return $ tags1 \\ tags2
+  
 
   Cart ts1 ts2   -> do tags1 <- transTagSet ts1   
                        tags2 <- transTagSet ts2
-                       let combs = sequence (tags1 ++ tags2)
+                       let combs = [[x,y] | x<-concat tags1, y<-concat tags2]
                        return combs
 
 
@@ -168,9 +175,9 @@ transText x = case x of
 
 transLine :: Line -> CG.Analysis
 transLine x = case x of
-  Line (Iden wform) analyses  -> (wform, map transAnalysis analyses)
-  LinePunct (Punct str)     -> (str,[[CG.Lem str, CG.Tag "punct"]])
-  NoAnalysis (Iden wform) _ -> (wform,[[CG.Lem wform]])
+  Line (Iden wform) analyses  -> map transAnalysis analyses
+  LinePunct (Punct str)     -> [[CG.Lem str, CG.Tag "punct"]]
+  NoAnalysis (Iden wform) _ -> [[CG.Lem wform]]
 
 
 transAnalysis :: Analysis -> [CG.Tag]
