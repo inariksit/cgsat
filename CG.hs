@@ -137,15 +137,15 @@ andTest = AND lemmaBear always
 
 
 -- Sets of tags
-verb = map Tag ["vblex","vbser","vbmod"]:[]
-noun = map Tag ["n", "np"]:[]
-det  = map Tag ["art","det"]:[]
-adv  = map Tag ["adv","particle"]:[]
-conj = map Tag ["cnjcoo","cnjsub"]:[]
-prep = [Tag "prep"]:[]
-sg   = [Tag "sg"]:[]
-pl   = [Tag "pl"]:[]
-cnjcoo  = [Tag "cnjcoo"]:[]
+verb = (map . map) Tag [["vblex"],["vbser"],["vbmod"]]
+noun = (map . map) Tag [["n", "np"]]
+det  = [[Tag "det"]]
+adv  = [[Tag "adv"]]
+conj = (map . map) Tag [["cnjcoo"],["cnjsub"]]
+prep = [[Tag "prep"]]
+sg   = [[Tag "sg"]]
+pl   = [[Tag "pl"]]
+cnjcoo  = [[Tag "cnjcoo"]]
 
 -- Rules
 rmParticle = Remove [[Tag "particle"]] (POS always)

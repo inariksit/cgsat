@@ -8,7 +8,7 @@ import Data.Boolean.SatSolver
 import Test.QuickCheck
 
 main :: IO ()
-main = do verboseCheck checkRule
+main = do --verboseCheck checkRule
           quickCheck checkGetContext
 
 checkGetContext :: Literal -> [Literal] -> [Condition] -> Bool
@@ -18,7 +18,7 @@ checkRule :: Rule -> Bool
 checkRule rule = True
 
 allTags :: [Tag]
-allTags =  verb ++ noun ++ det ++ adv ++ conj ++ prep ++ sg ++ pl ++ cnjcoo
+allTags = concat $ verb ++ noun ++ det ++ adv ++ conj ++ prep ++ sg ++ pl ++ cnjcoo
 
 instance Arbitrary Tag where
   arbitrary = elements allTags
@@ -29,7 +29,7 @@ instance Arbitrary Boolean where
 instance Arbitrary Position where
   arbitrary = elements $ [Exactly n | n <- [-5..5]] ++
                          [AtLeast n | n <- [-5..5]] ++
-                         [Barrier n [t] | n <- [-5..5],
+                         [Barrier n [[t]] | n <- [-5..5],
                                           t <- allTags]
 
 instance Arbitrary Condition where

@@ -36,14 +36,14 @@ getRules s = case pGrammar (ParCG.myLexer s) of
   where pr (Right rule) = putStrLn $ show rule
         pr (Left string) = putStrLn string
 
-getData :: String -> IO [CG.Analysis]
+getData :: String -> IO [CG.Sentence]
 getData s = case pText (ParApertium.myLexer s) of
             Bad err  -> do putStrLn "getData: syntax error"
                            putStrLn err
                            exitFailure 
             Ok text  -> do let anals = transText text
                            mapM_ print anals
-                           return anals
+                           return (split anals)
 
 main :: IO ()
 main = do args <- getArgs
@@ -68,6 +68,27 @@ getCGRules (Defs defs) = do mapM updateEnv defs
         getRules :: Env -> Def -> Either String CG.Rule
         getRules _ (SetDef  s) = Left $ PrCG.printTree s
         getRules e (RuleDef r) = Right $ evalState (transRule r) e
+
+
+
+split :: [CG.Analysis] -> [CG.Sentence]
+split as = go as []
+  where go [] ys = ys
+        go xs ys = let beforePunct = takeWhile (not . isPunct) xs 
+                       fromPunct   = dropWhile (not . isPunct) xs
+                       punct = if null fromPunct then [] else head fromPunct 
+                       newxs = if null fromPunct then [] else tail fromPunct
+                       newsent = startToken:beforePunct ++ [punct, endToken]
+                   in go newxs (newsent:ys)
+
+        startToken = [[CG.Lem ">>>", CG.Tag ">>>"]]
+        endToken   = [[CG.Lem "<<<", CG.Tag "<<<"]]
+
+        isPunct :: CG.Analysis -> Bool
+        isPunct = tagsInAna [CG.Lem ".", CG.Lem "!", CG.Lem "?"]
+
+        tagsInAna :: [CG.Tag] -> CG.Analysis -> Bool
+        tagsInAna tags as = or $ map ((not.null) . intersect tags) as
 
 
 ---- CG parsing
