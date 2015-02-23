@@ -132,7 +132,7 @@ neg (NEG t) = (POS t)
 
 lemmaBear :: Condition
 lemmaBear = mkC "0" [[Lem "bear"]]
-always = mkC "0" [[]]
+always = mkC "0" []
 andTest = AND lemmaBear always
 
 
