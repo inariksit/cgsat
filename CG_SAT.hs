@@ -151,8 +151,8 @@ applyRules rule (conds:cs) allLits = trace (show rule ++ "\n" ++ (show (map (\li
 
   where
         allCondsHold :: [[Literal]] -> Bool
-        allCondsHold context | null context = True
-                             | otherwise    =  length (filter (not.null) context) >= 1 --length context == length (filter (not.null) context)
+        allCondsHold context | null conds = True --getContext must return something for mkVars to work, so if the TagSet part in Condition is null, getContext returns just the word itself as the context
+                             | otherwise    = length context == length (filter (not.null) context)
 
 
      -- cause => consequence    translates into     Not cause || consequence.
@@ -195,9 +195,10 @@ getContext :: Literal          -- ^ a single analysis
                -> [Literal]    -- ^ list of all analyses
                -> [Condition]  -- ^ list of conditions grouped by AND
                -> [[Literal]]  -- ^ context for the first arg. If all conditions match for a literal, there should be as many non-empty Literal lists as Conditions.
-getContext lit allLits []     = [[]]
+getContext lit allLits []     = []
 getContext lit allLits ((C position (bool,ctags)):cs) = getContext lit allLits cs ++
   case ctags of
+    []     -> [[lit]] -- empty tags in condition = remove/select always
     [[]]   -> [[lit]] -- empty tags in condition = remove/select always
     (t:ts) -> case position of
                 (Exactly 0) -> [[lit]]
