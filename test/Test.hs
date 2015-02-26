@@ -1,10 +1,8 @@
 module Main where
 
 import CG
-import CG_SAT
-import CG_data
+--import CG_data
 import Control.Monad
-import Data.Boolean.SatSolver
 import Test.QuickCheck
 
 main :: IO ()

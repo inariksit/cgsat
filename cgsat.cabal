@@ -16,13 +16,13 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     CG, CG_SAT
-  other-modules:       CG_data, CG_parse, SAT.SAT, BNFC.ErrM,
+  exposed-modules:     CG, CG_SAT, CG_data, CG_parse
+  other-modules:       BNFC.ErrM, SAT.SAT,
                        BNFC.AbsApertium, BNFC.LexApertium, BNFC.ParApertium,
                        BNFC.AbsCG, BNFC.LexCG, BNFC.ParCG, BNFC.PrintCG
   other-extensions:    CPP, MagicHash
   build-depends:       base >=4.6 && <4.7,
-                         split >=0.2 && <0.3,
+                       split >=0.2 && <0.3,
                        containers >=0.5 && <0.6,
                        minisat >=0.1 && <0.2,
                        mtl >=2.1 && <2.2,
@@ -32,9 +32,17 @@ library
   build-tools:         alex, happy
   default-language:    Haskell2010
 
+executable CG_SAT
+--  hs-source-dirs:      executable
+  build-depends:       base >= 4 && < 5,
+                       minisat >=0.1 && <0.2
+  default-language:    Haskell2010
+  main-is: CG_SAT.hs
+
 Test-Suite test-cgsat
     type:            exitcode-stdio-1.0
     hs-source-dirs:  test
     main-is:         Test.hs
     build-depends:   base,
                      QuickCheck
+    default-language:    Haskell2010
