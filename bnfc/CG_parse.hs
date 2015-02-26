@@ -1,4 +1,4 @@
-module CG_parse where
+module BNFC.CG_parse where
 
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
@@ -10,7 +10,7 @@ import PrintApertium
 import AbsCG
 import LexCG
 import ParCG
-import qualified PrintCG as PrCG
+import PrintCG
 import ErrM
 
 import Control.Applicative
@@ -66,7 +66,7 @@ parseCGRules (Defs defs) = do mapM updateEnv defs
         updateEnv (RuleDef r) = return ()
 
         parseRules :: Env -> Def -> Either String CG.Rule
-        parseRules _ (SetDef  s) = Left $ PrCG.printTree s
+        parseRules _ (SetDef  s) = Left $ PrintCG.printTree s
         parseRules e (RuleDef r) = Right $ evalState (transRule r) e
 
 

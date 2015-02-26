@@ -3,7 +3,7 @@ module Main where
 
 import CG
 import CG_data
-import CG_parse (parseData, parseRules)
+import BNFC.CG_parse (parseData, parseRules)
 import Data.List
 import Data.List.Split
 import Data.Maybe
