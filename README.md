@@ -12,8 +12,11 @@ bnfc
 data
   - Hungarian CG rules and morpho analysed data to use as examples
 
+executable
+  - just to make things more complicated and add more directories
+
 test
-  - some QuickCheck tests. Probably stopped working when I changed stuff.
+  - some QuickCheck tests (mostly because it's fun to random generate rules)
         
 
 
