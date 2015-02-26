@@ -1,7 +1,9 @@
 module Main where
 
 import CG
---import CG_data
+import CG_SAT (getContext,Token(..))
+import MiniSat
+import SAT.SAT (Bit(..))
 import Control.Monad
 import Test.QuickCheck
 
@@ -9,7 +11,7 @@ main :: IO ()
 main = do --verboseCheck checkRule
           quickCheck checkGetContext
 
-checkGetContext :: Literal -> [Literal] -> [Condition] -> Bool
+checkGetContext :: Token -> [Token] -> [Condition] -> Bool
 checkGetContext lit allLits conds = length (getContext lit allLits conds) == length conds
 
 checkRule :: Rule -> Bool
@@ -21,8 +23,8 @@ allTags = concat $ verb ++ noun ++ det ++ adv ++ conj ++ prep ++ sg ++ pl ++ cnj
 instance Arbitrary Tag where
   arbitrary = elements allTags
 
-instance Arbitrary Boolean where
-  arbitrary = elements [Var n | n <- [1..50]]
+instance Arbitrary Bit where
+  arbitrary = elements [Lit (MkLit n) | n <- [1..50]]
 
 instance Arbitrary Position where
   arbitrary = elements $ [Exactly n | n <- [-5..5]] ++

@@ -135,7 +135,7 @@ maximizeFromTop s as rs =
 
 --------------------------------------------------------------------------------
 
-test =
+testSolver =
   do s <- newSolver
      xs <- sequence [ newBit s | i <- [1..50] ]
      atMostOne s (take 20 xs)

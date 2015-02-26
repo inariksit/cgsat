@@ -1,9 +1,8 @@
-module Main where 
+module CG_SAT where 
 
 
 import CG
 import CG_data
-import CG_parse (parseData, parseRules)
 import Data.List
 import Data.List.Split
 import Data.Maybe
@@ -12,8 +11,6 @@ import Control.Monad
 import Control.Exception
 import MiniSat
 import SAT.SAT
-import System.Environment
-import System.IO.Unsafe
 import Debug.Trace
 
 
@@ -259,16 +256,6 @@ removeConflicting toks (rl:rls) solver = do
         removeConflicting toks rls solver'
 
 -}
-
-main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    [f1, f2]   -> do rules <- readFile f1 >>= parseRules
-                     data' <- readFile f2 >>= parseData 
-                     mapM_ (disambiguate rules) data'
-    ("test":_) -> Main.test
-    _          -> putStrLn "usage: ./CG_SAT (<rules> <data> | test)"
 
 test :: IO ()
 test = mapM_ (disambiguate rls) CG_data.exs
