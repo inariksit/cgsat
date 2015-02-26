@@ -1,17 +1,16 @@
-module BNFC.CG_parse where
+module CG_parse where
 
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
-import AbsApertium
-import LexApertium
-import ParApertium
-import PrintApertium
-import AbsCG
-import LexCG
-import ParCG
-import PrintCG
-import ErrM
+import BNFC.AbsApertium
+import BNFC.LexApertium
+import BNFC.ParApertium
+import BNFC.AbsCG
+import BNFC.LexCG
+import BNFC.ParCG
+import BNFC.PrintCG
+import BNFC.ErrM
 
 import Control.Applicative
 import Control.Monad.State.Lazy
@@ -24,26 +23,25 @@ import qualified CG
 type Env = [(String,CG.TagSet)]
 
 
+test = False
 
 parseRules :: String -> IO [CG.Rule]
-parseRules s = case pGrammar (ParCG.myLexer s) of
+parseRules s = case pGrammar (BNFC.ParCG.myLexer s) of
             Bad err  -> do putStrLn "parseRules: syntax error"
                            putStrLn err
                            exitFailure 
             Ok  tree -> do let rules = evalState (parseCGRules tree) []
-                           --mapM_ pr rules
+                           when test (mapM_ pr rules)
                            return $ rights rules
   where pr (Right rule) = putStrLn $ show rule
         pr (Left string) = putStrLn string
 
 parseData :: String -> IO [CG.Sentence]
-parseData s = case pText (ParApertium.myLexer s) of
+parseData s = case pText (BNFC.ParApertium.myLexer s) of
             Bad err  -> do putStrLn "parseData: syntax error"
                            putStrLn err
                            exitFailure 
             Ok text  -> do return $ (split . transText) text
-                           -- mapM_ print anas
-                           -- return (split anas)
 
 main :: IO ()
 main = do args <- getArgs
@@ -66,7 +64,7 @@ parseCGRules (Defs defs) = do mapM updateEnv defs
         updateEnv (RuleDef r) = return ()
 
         parseRules :: Env -> Def -> Either String CG.Rule
-        parseRules _ (SetDef  s) = Left $ PrintCG.printTree s
+        parseRules _ (SetDef  s) = Left $ BNFC.PrintCG.printTree s
         parseRules e (RuleDef r) = Right $ evalState (transRule r) e
 
 

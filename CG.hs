@@ -1,11 +1,9 @@
 module CG where
 
 import Control.Applicative
-import Data.Boolean.SatSolver
 import Data.List
 
 -- TODO:
--- * More complicated set operations for tag sets, not just conditions.
 -- * CG2/CG3 decisions
 
 
