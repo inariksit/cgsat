@@ -25,31 +25,31 @@ type Env = [(String,CG.TagSet)]
 
 
 
-getRules :: String -> IO [CG.Rule]
-getRules s = case pGrammar (ParCG.myLexer s) of
-            Bad err  -> do putStrLn "getRules: syntax error"
+parseRules :: String -> IO [CG.Rule]
+parseRules s = case pGrammar (ParCG.myLexer s) of
+            Bad err  -> do putStrLn "parseRules: syntax error"
                            putStrLn err
                            exitFailure 
-            Ok  tree -> do let rules = evalState (getCGRules tree) []
-                           mapM_ pr rules
+            Ok  tree -> do let rules = evalState (parseCGRules tree) []
+                           --mapM_ pr rules
                            return $ rights rules
   where pr (Right rule) = putStrLn $ show rule
         pr (Left string) = putStrLn string
 
-getData :: String -> IO [CG.Sentence]
-getData s = case pText (ParApertium.myLexer s) of
-            Bad err  -> do putStrLn "getData: syntax error"
+parseData :: String -> IO [CG.Sentence]
+parseData s = case pText (ParApertium.myLexer s) of
+            Bad err  -> do putStrLn "parseData: syntax error"
                            putStrLn err
                            exitFailure 
-            Ok text  -> do let anals = transText text
-                           mapM_ print anals
-                           return (split anals)
+            Ok text  -> do return $ (split . transText) text
+                           -- mapM_ print anas
+                           -- return (split anas)
 
 main :: IO ()
 main = do args <- getArgs
           case args of
-             [file1,file2] -> do readFile file1 >>= getRules
-                                 readFile file2 >>= getData
+             [file1,file2] -> do readFile file1 >>= parseRules
+                                 readFile file2 >>= parseData
                                  putStrLn "foo"
              _             -> do putStrLn "Usage: CG_parse <rules> <data>"
                                  exitFailure
@@ -57,17 +57,17 @@ main = do args <- getArgs
 
 ---
 
-getCGRules :: Grammar -> State Env [Either String CG.Rule]
-getCGRules (Defs defs) = do mapM updateEnv defs
-                            env <- get
-                            return $ map (getRules env) defs
+parseCGRules :: Grammar -> State Env [Either String CG.Rule]
+parseCGRules (Defs defs) = do mapM updateEnv defs
+                              env <- get
+                              return $ map (parseRules env) defs
   where updateEnv :: Def -> State Env ()
         updateEnv (SetDef  s) = transSetDecl s
         updateEnv (RuleDef r) = return ()
 
-        getRules :: Env -> Def -> Either String CG.Rule
-        getRules _ (SetDef  s) = Left $ PrCG.printTree s
-        getRules e (RuleDef r) = Right $ evalState (transRule r) e
+        parseRules :: Env -> Def -> Either String CG.Rule
+        parseRules _ (SetDef  s) = Left $ PrCG.printTree s
+        parseRules e (RuleDef r) = Right $ evalState (transRule r) e
 
 
 

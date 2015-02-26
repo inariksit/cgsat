@@ -160,7 +160,7 @@ slNounAfterConj = Select noun (mkT "-1" conj)
 
 slCCifCC = Select cnjcoo (POS (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo)))
 
-rmPlIfSg = Remove pl (POS (C (Exactly (-1)) (False,sg)))
+rmPlIfSg = Remove pl (POS (C (Exactly (-1)) (True,sg)))
 rmSgIfPl = Remove sg (mkT "-1" pl)
 
 negTest   = Select verb (neg (mkT "-1" prep))

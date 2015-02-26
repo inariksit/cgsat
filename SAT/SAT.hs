@@ -1,5 +1,6 @@
-module Main where
+module SAT.SAT where
 
+import CG (Tag(..))
 import MiniSat
 import Data.List ( nub )
 
@@ -22,6 +23,7 @@ addClauseBit :: Solver -> [Bit] -> IO ()
 addClauseBit s xs
   | true `elem` xs = do return ()
   | otherwise      = do addClause s [ x | Lit x <- xs ]
+                        --putStrLn ("addClauseBit: " ++show xs)
                         return ()
 
 solveBit :: Solver -> [Bit] -> IO Bool
@@ -133,7 +135,7 @@ maximizeFromTop s as rs =
 
 --------------------------------------------------------------------------------
 
-main =
+test =
   do s <- newSolver
      xs <- sequence [ newBit s | i <- [1..50] ]
      atMostOne s (take 20 xs)
@@ -146,3 +148,34 @@ main =
       else
        do return ()
 
+
+--------------------------------------------------------------------------------
+
+main' = 
+  do s <- newSolver
+     let names = [(1,Tag "det"),(2, Tag "noun"),(2, Tag "verb"),(3, Tag "noun"),(3,Tag "verb")]
+     lits <- sequence [ newBit s | i <- [1..5] ]
+     addClauseBit s [(lits !! 0)] --anchor unambiguous
+     addClauseBit s [nt (lits !! 0), nt (lits !! 2)] --Remove Verb IF -1 Det
+     b <- maximize s [] lits
+     print b
+     if b then
+       do bs <- sequence [ modelValueBit s x | x <- lits ]
+          putStrLn [ if b == Just True then '1' else '0' | b <- bs ]
+      else
+       do return ()
+     
+-- Literals:
+-- 0det, 1n, 1v, 2n, 2v
+
+-- Clauses:
+-- -- If something is unambiguous to start with, anchor that:
+
+-- 0det
+-- 0det & 1n | 0det & 1v
+-- 1n   & 2n | 1n   & 2v | 1v & 2n | 1v & 2v
+
+-- rules:
+--   Remove verb (C (-1) det)
+
+--   ~(x-1 det) | ~(x verb)
