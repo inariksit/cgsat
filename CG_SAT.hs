@@ -4,7 +4,6 @@ module CG_SAT where
 import CG
 import CG_data
 import Data.List
-import Data.List.Split
 import Data.Maybe
 import Data.Set (Set, fromList, isSubsetOf)
 import Control.Monad
@@ -28,11 +27,6 @@ getBit (_,b) = b
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
 sameInd tok tok' = getInd tok == getInd tok'
-
-atLeast :: Int -> [a] -> Bool
-atLeast 0 _      = True
-atLeast _ []     = False
-atLeast n (_:xs) = atLeast (n-1) xs
 
 
 --Rule     has [[Tag]].
@@ -62,12 +56,11 @@ addPosition as = concat $ go as 1
 
 --------------------------------------------------------------------------------
 
--- 1) If something is unambiguous to start with, anchor that
-anchor :: [Token] -> [Bit]
-anchor toks = [getBit tok | tok <- toks
-                          , isUniq $ filter (sameInd tok) toks]
-  where isUniq [x] = True
-        isUniq _   = False
+-- | For each position, at least one analysis must be true.
+--   Groups tokes by index and returns lists of variables 
+--   to be used in disjunction.
+anchor :: [Token] -> [[Bit]]
+anchor toks = (map.map) getBit (groupBy sameInd toks)
 
 {-
 -- 2) Take all possible bigrams
@@ -84,15 +77,8 @@ mkCombs pre post = foldr1 (:||:) combinations
                                              (_, bool2) <- post,
                                              bool1 /= bool2]
 
--- 3) Exclude hypotheses for same index so that not all can be true at the same time
--- (probably disregard, doesn't fit in with the original philosophy of CG)
-exclude :: [Token] -> [Bit]
-exclude toks = map Not combinations
-  where boolsByIndex = (map . map) getBit (groupBy sameInd toks) :: [[Bit]]
-        ambiguous = filter (atLeast 1) boolsByIndex               :: [[Bit]]
-        combinations = map (foldr1 (:&&:)) ambiguous              :: [Bit]
+--}
 
--}
 
 -- 4) Apply rules to tokens. 
 applyRule :: [Token] -> Rule -> [[Bit]]
@@ -179,10 +165,8 @@ getContext tok allToks []     = []
 getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
   case ctags of
     []     -> [[tok]] -- empty tags in condition = remove/select always
-    [[]]   -> [[tok]] -- empty tags in condition = remove/select always
+    [[]]   -> [[tok]] -- since we need a context, give the word itself
     (t:ts) -> case position of
-                (Exactly 0) -> [[tok]]
-                (AtLeast 0) -> [[tok]] -- position 0* = remove/select always
                 (Exactly n) -> [filter (neg' . tagsMatchRule ctags) (exactly n tok)]
                 (AtLeast n) -> [filter (neg' . tagsMatchRule ctags) (atleast n tok)]
                 (Barrier n bs)  -> [filter (neg' . tagsMatchRule ctags) (barrier n bs tok)]
@@ -217,7 +201,7 @@ disambiguate rules sentence = do
   let chunkedSent = addPosition sentence
   bits <- sequence [ newBit s | _ <- chunkedSent ]
   let toks = zip chunkedSent bits
-      unambig = chunksOf 1 $ anchor toks :: [[Bit]]
+      unambig = anchor toks :: [[Bit]]
       appliedrules = concatMap (applyRule toks) rules  :: [[Bit]]
   putStrLn "\ntokens:"
   mapM_ print toks
@@ -232,17 +216,20 @@ disambiguate rules sentence = do
           putStrLn [ if b == Just True then '1' else '0' | b <- bs ]
           mapM_ putStrLn [ prTok t | (b, t) <- zip bs toks, b == Just True ]
     else
-       do putStrLn "No solution" >> return ()
+       do putStrLn "No solution"
+          conf <- conflict s
+          print conf
+          return ()
 
   putStrLn "-----------\n"
 
   where prTok :: Token -> String
-        prTok t = show (getInd t) ++ ": " ++ showTags (getTags t)
-        showTags (l:as) = show l ++ ' ':(unwords $ map show as)
+        prTok t = show (getInd t) ++ ": " ++ (unwords $ map show (getTags t))
+
 
 
 {-
-removeConflicting :: [Token] -> [Rule] -> SatSolver -> IO SatSolver
+removeConflicting :: [Token] -> [Rule] -> Solver -> IO Solver
 removeConflicting toks []       solver = return solver
 removeConflicting toks (rl:rls) solver = do
   let formulae = applyRule rl toks

@@ -146,11 +146,11 @@ transRule rl = case rl of
   RemoveAlways tags   -> liftM2 CG.Remove (transTagSet tags) (return $ CG.POS CG.always)
   MatchLemma lem rule -> do cgrule <- transRule rule
                             case cgrule of
-                               CG.Select ts c -> return $ CG.Select ts (insert c lem)
-                               CG.Remove ts c -> return $ CG.Remove ts (insert c lem)
-  where insert :: CG.Test -> String -> CG.Test
-        insert (CG.POS cs) str = CG.POS $ CG.AND cs (CG.mkC "0" [[CG.Lem str]])
-        insert (CG.NEG cs) str = CG.NEG $ CG.AND cs (CG.mkC "0" [[CG.Lem str]])
+                               CG.Select ts c -> return $ CG.Select (cart ts lem) c
+                               CG.Remove ts c -> return $ CG.Remove (cart ts lem) c
+  where cart :: CG.TagSet -> String -> CG.TagSet
+        cart ts str = [[CG.Lem str,t] | t<-concat ts]
+
 
 transConds :: [Cond] -> State Env CG.Test
 transConds c = do conds <- mapM transCond c
@@ -194,13 +194,13 @@ transText x = case x of
 
 transLine :: Line -> CG.Analysis
 transLine x = case x of
-  Line (Iden wform) analyses  -> map transAnalysis analyses
-  LinePunct (Punct str)     -> [[CG.Lem str, CG.Tag "punct"]]
-  NoAnalysis (Iden wform) _ -> [[CG.Lem wform]]
+  Line (Iden wform) analyses -> map (transAnalysis wform) analyses
+  LinePunct (Punct str)     -> [[CG.WF str, CG.Lem str, CG.Tag "punct"]]
+  NoAnalysis (Iden wform) _ -> [[CG.WF wform]]
 
 
-transAnalysis :: Analysis -> [CG.Tag]
-transAnalysis (Anal (Iden id) tags) = CG.Lem id:(map transTagA tags)
+transAnalysis :: String -> Analysis -> [CG.Tag]
+transAnalysis wf (Anal (Iden id) tags) = CG.WF wf:CG.Lem id:(map transTagA tags)
 
 transTagA :: TagA -> CG.Tag
 transTagA (TagA (Iden id)) = CG.Tag id
