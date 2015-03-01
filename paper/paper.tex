@@ -220,57 +220,18 @@ In CG-3, the rules are ordered. In case of a conflict, the rule that is describe
 
 SAT solving is based on a technique called unit propagation:
 a set of complex Boolean clauses is simplified, starting from unit
-clauses, which consist of just a single variable, and working up to a solution, where all variables in the set
-have a True or False value.
-
-Let us demonstrate this with a small example.
-We have a set of variables describing properties of people: \texttt{is\_under\_18},
-\texttt{has\_driving\_licence} and \texttt{is\_drunk}.
-
-% For instance, the following constraints describe rules for driving a car.
-% \begin{verbatim}
-% can_drive
-% has_driving_licence
-% is_under_18
-% is_drunk
-% \end{verbatim}
-
-% Next, we represent a possible situation in the world. In order to be allowed to drive, a person must have a driving licence and they must not be drunk. This is represented by the clause $can\_drive ∧\wedge has\_driving\_licence ∧\wedge \neg is\_drunk$. Furthermore, from the world knowledge, we know that in order to have a driving licence, one must be over 18. This is represented by the second clause.
-
-Clause 1 describes a possible situation in a world: someone is behaving in away that makes you think of a hypothesis ``either they are underage or
-drunk''. This is represented as \texttt{is\_under\_18} $\vee$
-\texttt{is\_drunk}. Just by this clause we can't solve the reason for the
-behaviour: it can be one of them or both.
-
-Clause 2 comes from the world knowledge that in order to have a
-driving licence, one must be over 18. The form of the clause is
-obtained by applying negation distributively over the more intuitive
-clause $\neg$ (\texttt{has\_driving\_licence} $\wedge$
-\texttt{is\_under\_18}): it is not possible to both have driving
-licence and be under 18.
-
-\begin{enumerate}
-\item \texttt{is\_under\_18} $\vee$ \texttt{is\_drunk}
-\item ($\neg$ \texttt{has\_driving\_licence}) $\vee$ ($\neg$ \texttt{is\_under\_18})
-\item \texttt{has\_driving\_licence}
-\end{enumerate}
-
-Clause 3 provides us some undeniable evidence that
-the person has a driving licence. By this clause, 
-we know that the variable \texttt{is\_under\_18} is not true.
-Knowing that, we can eliminate \texttt{is\_under\_18} from the first
-clause. 
-The solution is below: the three variables must have these values in order to
-satisfy the constraints.
-
-\begin{itemize}
-\item \texttt{is\_drunk} = True
-\item \texttt{is\_under\_18} = False
-\item \texttt{has\_driving\_licence} = True
-\end{itemize}
+clauses, which consist of just a single variable, and working up to a
+solution, where all variables in the set have a True or False value.
 
 SAT solving is used for many applications where constraints must be
 satisfied, such as software and hardware verification.
+Application of logic to POS tagging or shallow parsing isn't new;
+\cite{lager1998, lager2000} presents POS tagging rules as logic, and uses
+a theorem prover (DisLog, TODO cite) to implement small constraint rules.
+Inspired by the approach, my implementation tries to emulate the CG
+formalism in behaviour and features offered.
+
+
 
 \subsection{CG formulated in SAT}
 
@@ -279,16 +240,12 @@ a hypothesis that the correct analysis of the 3rd item in the sentence
 is \texttt{<V,Sg>}. We call this \texttt{Var 5}.
 
 \begin{lstlisting}
-((1,[Lem "the",Det]),Var 1)
-((2,[Lem "bear",N,Sg]),Var 2)
-((2,[Lem "bear",V,Pl]),Var 3)
-((3,[Lem "sleep",N,Pl]),Var 4)
-((3,[Lem "sleep",V,Sg]),Var 5)
-((4,[Lem "in",Prep]),Var 6)
-((4,[Lem "in",Adv]),Var 7)
-((5,[Lem "the",Det]),Var 8)
-((6,[Lem "house",V,Inf]),Var 9)
-((6,[Lem "house",N,Sg]),Var 10)
+((1,["the",<det>]),Lit v0)
+((2,["bear",<n>,<sg>]),Lit v1)
+((2,["bear",<vblex>,<pl>]),Lit v2)
+((2,["bear",<vblex>,<fin>]),Lit v3)
+((3,["sleep",<n>,<pl>]),Lit v4)
+((3,["sleep",<vblex>,<sg>,<p3>]),Lit v5)
 \end{lstlisting}
 
 
@@ -331,7 +288,8 @@ Var 8
 Another property of CG is that cannot remove all readings: if all
 other analyses are eliminated, the remaining analysis must be
 returned, even if it were to be eliminated at the next pass. 
-However, this property isn't implemented in the SAT version.
+This is implemented as a clause that says that at least one literal
+of each position must be true.
 
 \subsection{Workflow}
 
@@ -378,8 +336,8 @@ rmSgIfPl = Remove [Sg] (C (Exactly -1) [Pl])
 
 We could also express the rules like this:
 \begin{lstlisting}
-rmPlIfSg = Remove [Pl] (NOT (C (Exactly (-1)) [Pl]))
-rmSgIfPl = Remove [Sg] (NOT (C (Exactly (-1)) [Sg]))
+rmPlIfSg = Remove [Pl] (C (Exactly (-1)) (False,[Pl]))
+rmSgIfPl = Remove [Sg] (C (Exactly (-1)) (False,[Sg]))
 \end{lstlisting}
 
 Although, this is bad: 
@@ -399,14 +357,13 @@ token doesn't have any number reading.
 \begin{lstlisting}
 data Rule = Remove [Tag] Condition | Select [Tag] Condition
 
-data Condition = C Position [Tag]
-               | NOT Condition
+data Condition = C Position (Bool,[Tag])
                | AND Condition Condition
                | OR  Condition Condition 
 \end{lstlisting}
 
 The data type for Rule is either remove or select a list of tags, with condition(s).
-For Condition, there are basic conditions (position and a list of context tags) and combined conditions, with constructors `NOT', `AND' and `OR'. For instance, the following rule is read as ``remove tag for any verb, if the lemma is \emph{bear} or there is a determiner or an article anywhere to the left''.
+For Condition, there are basic conditions (position and a list of context tags) and combined conditions, with constructors `AND' and `OR'. For instance, the following rule is read as ``remove tag for any verb, if the lemma is \emph{bear} or there is a determiner or an article anywhere to the left''.
 
 \begin{lstlisting}
 verb = [V, V2, V3, VV, V2V, VS]

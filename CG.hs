@@ -10,18 +10,20 @@ import Data.List
 -- | All kinds of morphological tags are in the same data type: e.g.  Prep, P1, Conditional.
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
--- | Lemma is a special type of tag: Lem String
-data Tag = Tag String | Lem String deriving (Eq,Read)
+-- | Lemma and word form are also in tags.
+data Tag = Tag String | Lem String | WF String deriving (Eq,Read)
 
 
--- | Lemma should be first element in an analysis.
+-- | Wordform should be first element in an analysis.
 instance Ord Tag where
+  WF l `compare` WF l' = l `compare` l'
+  WF l `compare` _      = LT
+  _     `compare` WF l  = GT
   Lem l `compare` Lem l' = l `compare` l'
-  Lem l `compare` _      = LT
-  _     `compare` Lem l  = GT
   Tag t `compare` Tag t' = t `compare` t'
-
+  foo   `compare` bar    = show foo `compare` show bar
 instance Show Tag where
+  show (WF str) = "\"<" ++ str ++ ">\""
   show (Lem str) = "\"" ++ str ++ "\""
   show (Tag str) = "<" ++ str ++ ">"
 
@@ -37,7 +39,7 @@ instance Show Tag where
 type TagSet = [[Tag]]
 
 -- | Analysis is just list of tags: for instance the word form "alusta" would get
--- | [[Lem "alus", N, Sg, Part], [Lem "alustaa", V, Sg, Imperative]]
+-- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
 type Analysis = [[Tag]]
 
 -- | Sentence is just a list of analyses: e.g. "the bear sleeps"
@@ -136,7 +138,7 @@ andTest = AND lemmaBear always
 
 -- Sets of tags
 verb = (map . map) Tag [["vblex"],["vbser"],["vbmod"]]
-noun = (map . map) Tag [["n", "np"]]
+noun = (map . map) Tag [["n"], ["np"]]
 det  = [[Tag "det"]]
 adv  = [[Tag "adv"]]
 conj = (map . map) Tag [["cnjcoo"],["cnjsub"]]
@@ -148,7 +150,7 @@ cnjcoo  = [[Tag "cnjcoo"]]
 -- Rules
 rmParticle = Remove [[Tag "particle"]] (POS always)
 slVerbAlways = Select verb (POS always)
-slNounIfBear = Select noun (POS lemmaBear)
+slNounIfBear = Select [[Lem "bear", n] | n <- concat noun] (POS always)
 
 rmVerbIfDet = Remove verb (mkT "-1" det)
 rmAdvIfDet = Remove adv (mkT "1" det)

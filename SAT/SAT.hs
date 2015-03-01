@@ -35,6 +35,7 @@ modelValueBit :: Solver -> Bit -> IO (Maybe Bool)
 modelValueBit s (Lit x)  = modelValue s x
 modelValueBit s (Bool b) = return (Just b)
 
+
 --------------------------------------------------------------------------------
 
 andl, orl :: Solver -> [Bit] -> IO Bit
