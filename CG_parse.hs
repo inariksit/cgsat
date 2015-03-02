@@ -3,14 +3,15 @@ module CG_parse where
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
-import BNFC.AbsApertium
-import BNFC.LexApertium
-import BNFC.ParApertium
-import BNFC.AbsCG
-import BNFC.LexCG
-import BNFC.ParCG
-import BNFC.PrintCG
-import BNFC.ErrM
+import Apertium.Abs
+import Apertium.Lex
+import Apertium.Par
+import Apertium.ErrM as AErr
+import CG.Abs
+import CG.Lex
+import CG.Par
+import CG.Print
+import CG.ErrM as CGErr
 
 import Control.Applicative
 import Control.Monad.State.Lazy
@@ -18,30 +19,30 @@ import Data.Either
 import Data.List
 import Debug.Trace
 
-import qualified CG
+import qualified CG_base as CGB
 
-type Env = [(String,CG.TagSet)]
+type Env = [(String, CGB.TagSet)]
 
 
 test = False
 
-parseRules :: String -> IO [CG.Rule]
-parseRules s = case pGrammar (BNFC.ParCG.myLexer s) of
-            Bad err  -> do putStrLn "parseRules: syntax error"
-                           putStrLn err
-                           exitFailure 
-            Ok  tree -> do let rules = evalState (parseCGRules tree) []
-                           when test (mapM_ pr rules)
-                           return $ rights rules
+parseRules :: String -> IO [CGB.Rule]
+parseRules s = case pGrammar (CG.Par.myLexer s) of
+            CGErr.Bad err  -> do putStrLn "parseRules: syntax error"
+                                 putStrLn err
+                                 exitFailure 
+            CGErr.Ok  tree -> do let rules = evalState (parseCGRules tree) []
+                                 when test (mapM_ pr rules)
+                                 return $ rights rules
   where pr (Right rule) = putStrLn $ show rule
         pr (Left string) = putStrLn string
 
-parseData :: String -> IO [CG.Sentence]
-parseData s = case pText (BNFC.ParApertium.myLexer s) of
-            Bad err  -> do putStrLn "parseData: syntax error"
-                           putStrLn err
-                           exitFailure 
-            Ok text  -> do return $ (split . transText) text
+parseData :: String -> IO [CGB.Sentence]
+parseData s = case pText (Apertium.Par.myLexer s) of
+            AErr.Bad err  -> do putStrLn "parseData: syntax error"
+                                putStrLn err
+                                exitFailure 
+            AErr.Ok text  -> do return $ (split . transText) text
 
 main :: IO ()
 main = do args <- getArgs
@@ -55,7 +56,7 @@ main = do args <- getArgs
 
 ---
 
-parseCGRules :: Grammar -> State Env [Either String CG.Rule]
+parseCGRules :: Grammar -> State Env [Either String CGB.Rule]
 parseCGRules (Defs defs) = do mapM updateEnv defs
                               env <- get
                               return $ map (parseRules env) defs
@@ -63,13 +64,13 @@ parseCGRules (Defs defs) = do mapM updateEnv defs
         updateEnv (SetDef  s) = transSetDecl s
         updateEnv (RuleDef r) = return ()
 
-        parseRules :: Env -> Def -> Either String CG.Rule
-        parseRules _ (SetDef  s) = Left $ BNFC.PrintCG.printTree s
+        parseRules :: Env -> Def -> Either String CGB.Rule
+        parseRules _ (SetDef  s) = Left $ CG.Print.printTree s
         parseRules e (RuleDef r) = Right $ evalState (transRule r) e
 
 
 
-split :: [CG.Analysis] -> [CG.Sentence]
+split :: [CGB.Analysis] -> [CGB.Sentence]
 split as = go as []
   where go [] ys = ys
         go xs ys = let beforePunct = takeWhile (not . isPunct) xs 
@@ -79,13 +80,13 @@ split as = go as []
                        newsent = startToken:beforePunct ++ [punct, endToken]
                    in go newxs (newsent:ys)
 
-        startToken = [[CG.Lem ">>>", CG.Tag ">>>"]]
-        endToken   = [[CG.Lem "<<<", CG.Tag "<<<"]]
+        startToken = [[CGB.Lem ">>>", CGB.Tag ">>>"]]
+        endToken   = [[CGB.Lem "<<<", CGB.Tag "<<<"]]
 
-        isPunct :: CG.Analysis -> Bool
-        isPunct = tagsInAna [CG.Lem ".", CG.Lem "!", CG.Lem "?"]
+        isPunct :: CGB.Analysis -> Bool
+        isPunct = tagsInAna [CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
 
-        tagsInAna :: [CG.Tag] -> CG.Analysis -> Bool
+        tagsInAna :: [CGB.Tag] -> CGB.Analysis -> Bool
         tagsInAna tags as = or $ map ((not.null) . intersect tags) as
 
 
@@ -100,10 +101,10 @@ transSetDecl (Set (SetName (UIdent name)) tags) = trace (show tags) $ do
 
                                       
 
-transTag :: Tag -> State Env CG.TagSet
+transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
-  Lemma str    -> return [[CG.Lem str]]
-  Tag (Id str) -> return [[CG.Tag str]]
+  Lemma str    -> return [[CGB.Lem str]]
+  Tag (Id str) -> return [[CGB.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
                      let allInOne = [concat (concat ts)]
                      return allInOne
@@ -111,10 +112,10 @@ transTag tag = case tag of
     env <- get
     case lookup name env of
       Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
-      Just ts -> (return ts :: State Env CG.TagSet)
+      Just ts -> (return ts :: State Env CGB.TagSet)
 
 
-transTagSet :: TagSet -> State Env CG.TagSet
+transTagSet :: TagSet -> State Env CGB.TagSet
 transTagSet ts = case ts of
   TagSet tagset  -> transTagSet tagset
   NilT tag       -> transTag tag
@@ -138,71 +139,70 @@ transTagSet ts = case ts of
                        return combs
 
 
-transRule :: Rule -> State Env CG.Rule
+transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
-  SelectIf tags conds -> liftM2 CG.Select (transTagSet tags) (transConds conds)
-  RemoveIf tags conds -> liftM2 CG.Remove (transTagSet tags) (transConds conds)
-  SelectAlways tags   -> liftM2 CG.Select (transTagSet tags) (return $ CG.POS CG.always)
-  RemoveAlways tags   -> liftM2 CG.Remove (transTagSet tags) (return $ CG.POS CG.always)
+  SelectIf tags conds -> liftM2 CGB.Select (transTagSet tags) (transCondSet conds)
+  RemoveIf tags conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
+  SelectAlways tags   -> liftM2 CGB.Select (transTagSet tags) (return $ CGB.POS CGB.always)
+  RemoveAlways tags   -> liftM2 CGB.Remove (transTagSet tags) (return $ CGB.POS CGB.always)
   MatchLemma lem rule -> do cgrule <- transRule rule
                             case cgrule of
-                               CG.Select ts c -> return $ CG.Select (cart ts lem) c
-                               CG.Remove ts c -> return $ CG.Remove (cart ts lem) c
-  where cart :: CG.TagSet -> String -> CG.TagSet
-        cart ts str = [[CG.Lem str,t] | t<-concat ts]
+                               CGB.Select ts c -> return $ CGB.Select (cart ts lem) c
+                               CGB.Remove ts c -> return $ CGB.Remove (cart ts lem) c
+  where cart :: CGB.TagSet -> String -> CGB.TagSet
+        cart ts str = [[CGB.Lem str,t] | t<-concat ts]
 
 
-transConds :: [Cond] -> State Env CG.Test
-transConds c = do conds <- mapM transCond c
-                  return $ CG.POS $ foldr1 CG.AND conds
+transCondSet :: CondSet -> State Env CGB.Test
+transCondSet (C cs) = do conds <- mapM transCond cs
+                         return $ CGB.POS $ foldr1 CGB.AND conds
 
-transCond :: Cond -> State Env CG.Condition
+transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
-  C cond         -> transCond cond
-  Linked c1 c2   -> liftM2 CG.AND (transCond c1) (transCond c2) ----TODO
-  CPos pos ts    -> liftM2 CG.C (transPosition pos) (transTagSet' True  ts)
-  CNotPos pos ts -> liftM2 CG.C (transPosition pos) (transTagSet' False ts)
+  Link0 c1 c2    -> liftM2 CGB.AND (transCond c1) (transCond c2)
+  CPos pos ts    -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
+  CNotPos pos ts -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
   CBarrier pos ts bar -> handleBar pos ts bar True
   CNotBar pos ts bar  -> handleBar pos ts bar False
-  where transTagSet' :: Bool -> TagSet -> State Env (Bool, CG.TagSet)
+  where transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
         transTagSet' b ts = do tags <- transTagSet ts
                                return (b, tags)
         handleBar pos ts bar bool = do
           pos' <- transPosition pos
           let int = case pos' of 
-                          CG.Exactly i -> error "this is parse error in real CG, sorry"
-                          CG.AtLeast i -> i
+                          CGB.Exactly i -> error "this is parse error in real CG, sorry"
+                          CGB.AtLeast i -> i
           btags <- transBarrier bar
-          liftM2 CG.C (return $ CG.Barrier int btags) (transTagSet' bool ts)
+          liftM (CGB.C (CGB.Barrier int btags)) (transTagSet' bool ts)
 
 
-transPosition :: Position -> State Env CG.Position
+transPosition :: Position -> State Env CGB.Position
 transPosition pos = return $ case pos of
-  Exactly (Signed str) -> CG.Exactly $ read str
-  AtLeast (Signed str) -> CG.AtLeast $ read str
+  Exactly (Signed str) -> CGB.Exactly $ read str
+  AtLeast (Signed str) -> CGB.AtLeast $ read str
 
-transBarrier :: Barrier -> State Env CG.TagSet
+transBarrier :: Barrier -> State Env CGB.TagSet
 transBarrier (Barrier ts) = transTagSet ts
 
 
--- Apertium morpho output parsing
+--  morpho output parsing
 
-transText :: Text -> [CG.Analysis]
+transText :: Text -> [CGB.Analysis]
 transText x = case x of
   Lines lines  -> map transLine lines
 
 
-transLine :: Line -> CG.Analysis
+transLine :: Line -> CGB.Analysis
 transLine x = case x of
   Line (Iden wform) analyses -> map (transAnalysis wform) analyses
-  LinePunct (Punct str)     -> [[CG.WF str, CG.Lem str, CG.Tag "punct"]]
-  NoAnalysis (Iden wform) _ -> [[CG.WF wform]]
+  LinePunct (Punct str)     -> [[CGB.WF str, CGB.Lem str, CGB.Tag "punct"]]
+  NoAnalysis (Iden wform) _ -> [[CGB.WF wform]]
 
 
-transAnalysis :: String -> Analysis -> [CG.Tag]
-transAnalysis wf (Anal (Iden id) tags) = CG.WF wf:CG.Lem id:(map transTagA tags)
+transAnalysis :: String -> Analysis -> [CGB.Tag]
+transAnalysis wf (Anal (Iden id) tags) = CGB.WF wf:CGB.Lem id:(map transTagA tags)
 
-transTagA :: TagA -> CG.Tag
-transTagA (TagA (Iden id)) = CG.Tag id
+transTagA :: TagA -> CGB.Tag
+transTagA (TagA (Iden id)) = CGB.Tag id
 
 

@@ -1,6 +1,6 @@
 module CG_data where
 
-import CG
+import CG_base
 
 -- Analyses
 the = ("the",[[Lem "the", Tag "det"]])

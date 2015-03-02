@@ -1,6 +1,6 @@
 module Main where
 
-import CG
+import CG_base
 import CG_SAT (getContext,Token(..))
 import MiniSat
 import SAT.SAT (Bit(..))

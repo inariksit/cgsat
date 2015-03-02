@@ -23,22 +23,25 @@ separator nonempty Tag "" ;
 
 RuleDef. Def ::= Rule ;
 
-SelectIf. Rule ::= "SELECT" TagSet "IF" [Cond] ";" ;
-RemoveIf. Rule ::= "REMOVE" TagSet "IF" [Cond] ";" ;
+SelectIf. Rule ::= "SELECT" TagSet "IF" CondSet ";" ;
+RemoveIf. Rule ::= "REMOVE" TagSet "IF" CondSet ";" ;
 SelectAlways. Rule ::= "SELECT" TagSet ";" ;
 RemoveAlways. Rule ::= "REMOVE" TagSet ";" ;
 MatchLemma. Rule ::= String Rule ;
 
 
-C.        Cond  ::= Cond1 ;
-Linked.   Cond1 ::= Cond1 "LINK" Cond ;
-CNotPos.  Cond1 ::= "NOT" Position TagSet ;
-CPos.     Cond1 ::= Position TagSet ;
-CBarrier. Cond1 ::= Position TagSet Barrier ;
-CNotBar.  Cond1 ::= "NOT" Position TagSet Barrier ;
-_.        Cond1 ::= "(" Cond ")" ;
+C.     CondSet ::= [Cond] ;
+_.     CondSet ::= "(" CondSet ")" ; -- allow parentheses surrounding whole condition set
 
-separator Cond "" ;
+CNotPos.  Cond ::= "NOT" Position TagSet ;
+CPos.     Cond ::= Position TagSet ;
+CBarrier. Cond ::= Position TagSet Barrier ;
+CNotBar.  Cond ::= "NOT" Position TagSet Barrier ;
+Link0.    Cond ::= Cond1 Cond ; --force parentheses if no explisit LINK
+_.        Cond1 ::= "(" Cond ")" ; 
+_.        Cond  ::= Cond1 ;
+
+separator Cond "LINK" ;
 
 
 TagSet.  TagSet  ::= TagSet1 ;

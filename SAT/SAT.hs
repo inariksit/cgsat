@@ -1,6 +1,6 @@
 module SAT.SAT where
 
-import CG (Tag(..))
+import CG_base (Tag(..))
 import MiniSat
 import Data.List ( nub )
 

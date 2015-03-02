@@ -16,11 +16,11 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     CG, CG_SAT, CG_data, CG_parse, SAT.SAT
-  other-modules:       BNFC.ErrM, 
-                       BNFC.AbsApertium, BNFC.LexApertium, BNFC.ParApertium,
-                       BNFC.AbsCG, BNFC.LexCG, BNFC.ParCG, BNFC.PrintCG
-  other-extensions:    CPP, MagicHash
+  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, SAT.SAT
+  other-modules:       CG.ErrM, Apertium.ErrM,
+                       Apertium.Abs, Apertium.Lex, Apertium.Par,
+                       CG.Abs, CG.Lex, CG.Par, CG.Print
+--  other-extensions:    
   build-depends:       base >=4.6 && <4.7,
                        containers >=0.5 && <0.6,
                        minisat >=0.1 && <0.2,

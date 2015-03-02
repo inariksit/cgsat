@@ -1,11 +1,7 @@
-module CG where
+module CG_base where
 
 import Control.Applicative
 import Data.List
-
--- TODO:
--- * CG2/CG3 decisions
-
 
 -- | All kinds of morphological tags are in the same data type: e.g.  Prep, P1, Conditional.
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
@@ -42,18 +38,12 @@ type TagSet = [[Tag]]
 -- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
 type Analysis = [[Tag]]
 
--- | Sentence is just a list of analyses: e.g. "the bear sleeps"
--- | [ [[Lem "the", Det]], 
--- |   [[Lem "bear", V, Pl],[Lem "bear", N, Sg]], 
--- |   [[Lem "sleep", V, Sg, P3], [Lem "sleep", N, Pl]]
--- | ]
+-- | Sentence is just a list of analyses
 type Sentence = [Analysis]
 
 
--- | Rule is either remove or select a list of tags, with condition(s).
-
+-- | Rule is either remove or select a list of tags, with contextual test
 data Rule = Remove TagSet Test | Select TagSet Test deriving (Show)
-
 
 -- | Test is a condition with a possible NEG, to implement CG3's NEGATE
 --   NEGATE negates the whole result, NOT just a single clause.

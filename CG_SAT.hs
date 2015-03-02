@@ -1,7 +1,7 @@
 module CG_SAT where 
 
 
-import CG
+import CG_base
 import CG_data
 import Data.List
 import Data.Maybe
@@ -106,7 +106,7 @@ applyRule toks rule = --trace (show rule) $
 
 applyRules :: Rule -> [[Condition]] -> [Token] -> [[Bit]]
 applyRules rule []         allToks = []
-applyRules rule (conds:cs) allToks = trace (show rule ++ "\n") $ {-++ (show (map (\tok -> getContext tok allToks conds) allToks))) $ -}
+applyRules rule (conds:cs) allToks = --trace (show rule ++ "\n") $ {-++ (show (map (\tok -> getContext tok allToks conds) allToks))) $ -}
   applyRules rule cs allToks ++
   case rule of 
     (Remove tags c) -> mkVars (chosen tags) nt 
@@ -199,10 +199,11 @@ disambiguate :: [Rule] -> Sentence -> IO ()
 disambiguate rules sentence = do
   s <- newSolver
   let chunkedSent = addPosition sentence
-  bits <- sequence [ newBit s | _ <- chunkedSent ]
-  let toks = zip chunkedSent bits
+  bitsForTags <- sequence [ newBit s | _ <- chunkedSent ]
+  bitsForRules <- sequence [ newBit s | _ <- rules ]
+  let toks = zip chunkedSent bitsForTags
       unambig = anchor toks :: [[Bit]]
-      appliedrules = concatMap (applyRule toks) rules  :: [[Bit]]
+      appliedrules = [ nt x:c | (r,x) <- zip rules bitsForRules, c <- applyRule toks r ]
   putStrLn "\ntokens:"
   mapM_ print toks
   putStrLn "\nformulas:"
@@ -210,10 +211,14 @@ disambiguate rules sentence = do
   mapM_ print appliedrules
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) appliedrules
-  b <- maximize s [] bits
+  b <- maximize s [] bitsForRules
   if b then
-       do bs <- sequence [ modelValueBit s x | x <- bits ]
-          putStrLn [ if b == Just True then '1' else '0' | b <- bs ]
+       do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
+          putStrLn "These rules were not added due to conflicts:"
+          mapM_ putStrLn [ show r | (b, r) <- zip rs rules, b /= Just True ]
+
+          bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
+          putStrLn "\nThe following tag sequence was chosen:"
           mapM_ putStrLn [ prTok t | (b, t) <- zip bs toks, b == Just True ]
     else
        do putStrLn "No solution"
@@ -227,23 +232,6 @@ disambiguate rules sentence = do
         prTok t = show (getInd t) ++ ": " ++ (unwords $ map show (getTags t))
 
 
-
-{-
-removeConflicting :: [Token] -> [Rule] -> Solver -> IO Solver
-removeConflicting toks []       solver = return solver
-removeConflicting toks (rl:rls) solver = do
-  let formulae = applyRule rl toks
-  x <- try $ foldM (flip assertTrue) solver formulae
-  case x of 
-    Left (error :: IOError) -> do
-        putStrLn ("Rule " ++ show rl ++ " conflicts, not added!")
-        removeConflicting toks rls solver
-    Right solver' -> do
-        mapM_ print formulae
-        removeConflicting toks rls solver'
-
--}
-
 test :: IO ()
 test = mapM_ (disambiguate rls) CG_data.exs
 
@@ -256,6 +244,8 @@ test = mapM_ (disambiguate rls) CG_data.exs
              , rmPlIfSg
              , rmSgIfPl
              , slNounIfBear 
-             --, slVerbAlways --conflicts with anything that selects other than V 
+             , slVerbAlways --conflicts with anything that selects other than V 
+             , negTest      --should conflict
+             , negOrTest    --should conflict
              , rmParticle ]
---}
+

@@ -1,7 +1,5 @@
 module Main where
 
-import CG
-import CG_data
 import CG_parse (parseData, parseRules)
 import CG_SAT
 import System.Environment
