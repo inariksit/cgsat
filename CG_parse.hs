@@ -77,7 +77,7 @@ split as = go as []
                        fromPunct   = dropWhile (not . isPunct) xs
                        punct = if null fromPunct then [] else head fromPunct 
                        newxs = if null fromPunct then [] else tail fromPunct
-                       newsent = startToken:beforePunct ++ [punct, endToken]
+                       newsent = startToken:beforePunct ++ punct:endToken:[]
                    in go newxs (newsent:ys)
 
         startToken = [[CGB.Lem ">>>", CGB.Tag ">>>"]]
@@ -154,8 +154,13 @@ transRule rl = case rl of
 
 
 transCondSet :: CondSet -> State Env CGB.Test
-transCondSet (C cs) = do conds <- mapM transCond cs
-                         return $ CGB.POS $ foldr1 CGB.AND conds
+transCondSet (C cs) =
+  do conds <- mapM transCond cs
+     let conds' = case cs of
+                    (Link0 c1 c2:_) -> conds
+                    _               -> fixNumbering conds
+     return $ CGB.POS $ foldr1 CGB.AND conds'
+  where fixNumbering = id ----TODO
 
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
