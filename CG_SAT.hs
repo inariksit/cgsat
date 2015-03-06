@@ -211,10 +211,10 @@ disambiguate rules sentence = do
   mapM_ print appliedrules
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) appliedrules
-  b <- maximize s [] bitsForRules
+  b <- maximizeFromTop s [] bitsForRules
   if b then
        do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
-          putStrLn "These rules were not added due to conflicts:"
+          putStrLn "These rules were not applied due to conflicts:"
           mapM_ putStrLn [ show r | (b, r) <- zip rs rules, b /= Just True ]
 
           bs <- sequence [ modelValueBit s x | x <- bitsForTags ]

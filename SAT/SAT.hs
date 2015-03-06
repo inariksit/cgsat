@@ -1,8 +1,9 @@
 module SAT.SAT where
 
-import CG_base (Tag(..))
+import CG_base ( Tag(..) )
 import MiniSat
-import Data.List ( nub )
+import Data.List ( nub, elemIndex )
+import Data.Maybe ( catMaybes )
 
 --------------------------------------------------------------------------------
 
@@ -99,7 +100,7 @@ solveOne s as xs =
 --------------------------------------------------------------------------------
 
 maximize :: Solver -> [Bit] -> [Bit] -> IO Bool
-maximize s as xs =
+maximize s as rs =
   do b <- solveBit s as
      if not b then
        do return False
@@ -113,26 +114,35 @@ maximize s as xs =
                      , b /= Just False
                      ]
                    let xs' = [ x | (x,Just False) <- xs `zip` bs ]
-                   addClauseBit s (nt a : [ x | x <- xs' ])
+                   addClauseBit s (nt a : xs') 
                    b <- solveBit s (a:as)
                    if not b then
                      do return True
                     else
                      do opti xs'
-           in opti xs
+           in opti rs
 
 --------------------------------------------------------------------------------
 
-{-
+
 maximizeFromTop :: Solver -> [Bit] -> [Bit] -> IO Bool
 maximizeFromTop s as rs =
-  do b <- solveBit s (as ++ rs)
+  do b <- solveBit s (as ++ rs)     
      if b then
        do return True
       else
        do ys <- conflict s
-          let rs' = reverse rs
--}        
+          putStrLn "maximizeFromTop here again, hi!"
+          putStr "The following clauses conflict: "
+          print ys
+          putStrLn "---------\n"
+          let indFuns = (map (\i -> elemIndex (Lit i)) ys) :: [[Bit] -> Maybe Int]
+              indices = catMaybes $ map ($ rs) indFuns
+              smallest = if null indices 
+                            then (length ys - 1) --remove rules one by one
+                            else minimum indices
+              newRs = take smallest rs
+          maximizeFromTop s as newRs
 
 --------------------------------------------------------------------------------
 
