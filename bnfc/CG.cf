@@ -69,7 +69,7 @@ Barrier. Barrier ::= "BARRIER" TagSet ;
 
 
 token UIdent (upper (letter | digit | '_')*) ;
-token Id ((letter | '>' | '<') (upper | letter | digit | '/' | '_' | '>' | '<')*) ;
+token Id ((letter | '>' | '<') (upper | letter | digit | '/' | '_' | '>' | '<' | '+' | '-' | '!')*) ;
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 
 
