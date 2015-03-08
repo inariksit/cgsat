@@ -153,23 +153,27 @@ transRule rl = case rl of
         cart ts str = [[CGB.Lem str,t] | t<-concat ts]
 
 
-transCondSet :: CondSet -> State Env CGB.Test
-transCondSet (C cs) =
-  do conds <- mapM transCond cs
-     let conds' = case cs of
-                    (Link0 c1 c2:_) -> conds
-                    _               -> fixNumbering conds
-     return $ CGB.POS $ foldr1 CGB.AND conds'
-  where fixNumbering = id ----TODO
+transCondSet :: [Cond] -> State Env CGB.Test
+transCondSet cs = do
+  conds <- mapM transCond cs
+  return $ CGB.POS $ foldr1 CGB.AND conds
 
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
-  Link0 c1 c2    -> liftM2 CGB.AND (transCond c1) (transCond c2)
-  CPos pos ts    -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
-  CNotPos pos ts -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
+  CPos pos ts         -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
+  CNotPos pos ts      -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
   CBarrier pos ts bar -> handleBar pos ts bar True
   CNotBar pos ts bar  -> handleBar pos ts bar False
-  where transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
+  Linked  (c:cs)      -> do
+    first@(CGB.C pos _) <- transCond c
+    let basePos = case pos of
+                    CGB.Exactly i -> i 
+                    CGB.AtLeast i -> i
+                    CGB.Barrier _ _ -> error "semantics not defined"
+    rest <- mapM transCond cs
+    return $ foldr1 CGB.AND (first:fixNumbering rest)
+  where fixNumbering = id -- TODO
+        transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
         transTagSet' b ts = do tags <- transTagSet ts
                                return (b, tags)
         handleBar pos ts bar bool = do

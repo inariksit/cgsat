@@ -2,6 +2,7 @@
 comment "#" ;
 comment "CONSTRAINTS" ;
 comment "DELIMITERS" ;
+comment "SECTION" ;
 
 Defs.  Grammar ::= [Def] ;
 terminator Def "" ;
@@ -23,25 +24,28 @@ separator nonempty Tag "" ;
 
 RuleDef. Def ::= Rule ;
 
-SelectIf. Rule ::= "SELECT" TagSet "IF" CondSet ";" ;
-RemoveIf. Rule ::= "REMOVE" TagSet "IF" CondSet ";" ;
+SelectIf. Rule ::= "SELECT" TagSet "IF" [Cond] ";" ;
+RemoveIf. Rule ::= "REMOVE" TagSet "IF" [Cond] ";" ;
 SelectAlways. Rule ::= "SELECT" TagSet ";" ;
 RemoveAlways. Rule ::= "REMOVE" TagSet ";" ;
 MatchLemma. Rule ::= String Rule ;
 
 
-C.     CondSet ::= [Cond] ;
-_.     CondSet ::= "(" CondSet ")" ; -- allow parentheses surrounding whole condition set
+CNotPos.  Cond1 ::= "NOT" Position TagSet ;
+CPos.     Cond1 ::= Position TagSet ;
+CBarrier. Cond1 ::= Position TagSet Barrier ;
+CNotBar.  Cond1 ::= "NOT" Position TagSet Barrier ;
+Linked.   Cond  ::= [Cond1] ;
+_.        Cond ::= "(" Cond ")" ; 
 
-CNotPos.  Cond ::= "NOT" Position TagSet ;
-CPos.     Cond ::= Position TagSet ;
-CBarrier. Cond ::= Position TagSet Barrier ;
-CNotBar.  Cond ::= "NOT" Position TagSet Barrier ;
-Link0.    Cond ::= Cond1 Cond ; --force parentheses if no explisit LINK
-_.        Cond1 ::= "(" Cond ")" ; 
-_.        Cond  ::= Cond1 ;
+--force parentheses if no explisit LINK
+--ListC.    CondSet ::= [Cond] ;
+--_.        CondSet ::= "(" CondSet ")" ;
 
-separator Cond "LINK" ;
+
+
+separator nonempty Cond1 "LINK" ;
+separator nonempty Cond "" ;
 
 
 TagSet.  TagSet  ::= TagSet1 ;
@@ -61,6 +65,7 @@ NilT.    TagSet1 ::= Tag ;
 
 Exactly. Position ::= Signed ;
 AtLeast. Position ::= "*" Signed ;
+_. Position ::= Position "*" ;
 _. Position ::= Position "C" ; --We're not interested in the unambiguous
 
 Barrier. Barrier ::= "BARRIER" TagSet ;
@@ -68,7 +73,7 @@ Barrier. Barrier ::= "BARRIER" TagSet ;
 
 
 
-token UIdent (upper (letter | digit | '_')*) ;
+token UIdent ((upper | '>' | '<')(upper | letter | digit | '/' | '_' | '>' | '<' | '+' | '-' | '!')*) ;
 token Id ((letter | '>' | '<') (upper | letter | digit | '/' | '_' | '>' | '<' | '+' | '-' | '!')*) ;
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 
