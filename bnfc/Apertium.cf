@@ -2,19 +2,21 @@ comment "--" ;
 
 Lines. Text ::= [Line] ;
 
-terminator Line "" ;
+separator Line "" ;
 
 Line.       Line ::= "^" Iden "/" [Analysis] "$" ;
-LinePunct.  Line ::= Punct ;
+OnlyPunct.  Line ::= Punct ;
+LinePunct.  Line ::= "^" Punct "/" [Analysis] "$" ; 
 NoAnalysis. Line ::= "^" Iden "/" "*" Iden "$" ;
 
-Anal. Analysis ::= Iden [TagA] ;
+IdenA.   Analysis ::= Iden [TagA] ;
+PunctA.  Analysis ::= Punct [TagA] ;
 
-separator Analysis "/" ;
+separator nonempty Analysis "/" ;
 
 TagA.  TagA      ::= "<" Iden ">" ;
 separator TagA "" ;
  
-token Punct ["!?.,:"] ;
+token Punct ["!?.,:¿¡'"] ; -- fails if I include “”
 
-token Iden (letter (letter|digit|'_'|'\''|'*')*) ;
+token Iden ( ["!?.,:¿¡'"]| (upper|letter|digit|'_'|' '|'\''|'*'|'+'|'-')+ | ('>')+ | ('<')+) ;

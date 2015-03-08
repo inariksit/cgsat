@@ -39,7 +39,7 @@ parseRules s = case pGrammar (CG.Par.myLexer s) of
 
 parseData :: String -> IO [CGB.Sentence]
 parseData s = case pText (Apertium.Par.myLexer s) of
-            AErr.Bad err  -> do putStrLn "parseData: syntax error"
+            AErr.Bad err  -> do putStr "parseData: "
                                 putStrLn err
                                 exitFailure 
             AErr.Ok text  -> do return $ (split . transText) text
@@ -203,13 +203,17 @@ transText x = case x of
 
 transLine :: Line -> CGB.Analysis
 transLine x = case x of
-  Line (Iden wform) analyses -> map (transAnalysis wform) analyses
-  LinePunct (Punct str)     -> [[CGB.WF str, CGB.Lem str, CGB.Tag "punct"]]
+  Line (Iden wform) anas    -> map (transAnalysis wform) anas
+  LinePunct (Punct p) anas  -> map (transAnalysis p) anas
+  OnlyPunct (Punct str)     -> [[CGB.WF str, CGB.Lem str, CGB.Tag "punct"]]
   NoAnalysis (Iden wform) _ -> [[CGB.WF wform]]
 
 
 transAnalysis :: String -> Analysis -> [CGB.Tag]
-transAnalysis wf (Anal (Iden id) tags) = CGB.WF wf:CGB.Lem id:(map transTagA tags)
+transAnalysis wf ana =
+  case ana of
+    (IdenA (Iden id) tags)  -> CGB.WF wf:CGB.Lem id:(map transTagA tags)
+    (PunctA (Punct id) tags) -> CGB.WF wf:CGB.Lem id:(map transTagA tags)
 
 transTagA :: TagA -> CGB.Tag
 transTagA (TagA (Iden id)) = CGB.Tag id

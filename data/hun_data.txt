@@ -1,4 +1,4 @@
---^Hol/hol<adv><itg>$
+^Hol/hol<adv><itg>$
 ^van/van<vbser><pres><p3><sg>$
 ^Jancsi/Jancsi<np><ant><m><sg><nom>$?
 ^Jancsi/Jancsi<np><ant><m><sg><nom>$
