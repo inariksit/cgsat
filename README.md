@@ -15,7 +15,7 @@ bnfc
   - BNFC grammars for parsing CG rules and Apertium input format.
 
 data
-  - Hungarian CG rules and morpho analysed data to use as examples
+  - Hungarian, Spanish and Finnish CG rules and morpho analysed data to use as examples
 
 executable
   - just to make things more complicated and add more directories

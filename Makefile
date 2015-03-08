@@ -1,4 +1,6 @@
-all:
+default: grammars rest
+
+grammars:
 	bnfc -d bnfc/Apertium.cf
 	bnfc -d bnfc/CG.cf
 	happy -gca CG/Par.y
@@ -6,6 +8,9 @@ all:
 	happy -gca Apertium/Par.y
 	alex -g Apertium/Lex.x
 	ghc --make CG/Test.hs -o CG/Test
+	ghc --make Apertium/Test.hs -o Apertium/Test
+
+rest:
 	cabal configure --enable-tests
 	cabal build
 
