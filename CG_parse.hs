@@ -56,17 +56,23 @@ main = do args <- getArgs
 
 ---
 
-parseCGRules :: Grammar -> State Env [Either String CGB.Rule]
-parseCGRules (Defs defs) = do mapM updateEnv defs
-                              env <- get
-                              return $ map (parseRules env) defs
-  where updateEnv :: Def -> State Env ()
-        updateEnv (SetDef  s) = transSetDecl s
-        updateEnv (RuleDef r) = return ()
+startToken = [[CGB.Lem ">>>", CGB.Tag ">>>"]]
+endToken   = [[CGB.Lem "<<<", CGB.Tag "<<<"]]
 
-        parseRules :: Env -> Def -> Either String CGB.Rule
-        parseRules _ (SetDef  s) = Left $ CG.Print.printTree s
-        parseRules e (RuleDef r) = Right $ evalState (transRule r) e
+parseCGRules :: Grammar -> State Env [Either String CGB.Rule]
+parseCGRules (Defs defs) = do mapM updateEnv defs 
+                              modify ((">>>",startToken) :)
+                              modify (("<<<",endToken) :)
+                              env <- get
+                              return $ map (parseRules' env) defs
+  where updateEnv :: Def -> State Env ()
+        updateEnv (SetDef  s) = do nameTags <- transSetDecl s
+                                   modify (nameTags :)
+        updateEnv (RuleDef r) = do return ()
+
+        parseRules' :: Env -> Def -> Either String CGB.Rule
+        parseRules' _ (SetDef  s) = Left $ CG.Print.printTree s
+        parseRules' e (RuleDef r) = Right $ evalState (transRule r) e
 
 
 
@@ -80,9 +86,6 @@ split as = go as []
                        newsent = startToken:beforePunct ++ punct:endToken:[]
                    in go newxs (newsent:ys)
 
-        startToken = [[CGB.Lem ">>>", CGB.Tag ">>>"]]
-        endToken   = [[CGB.Lem "<<<", CGB.Tag "<<<"]]
-
         isPunct :: CGB.Analysis -> Bool
         isPunct = tagsInAna [CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
 
@@ -92,12 +95,11 @@ split as = go as []
 
 ---- CG parsing
 
-transSetDecl :: SetDecl -> State Env ()
+transSetDecl :: SetDecl -> State Env (String, CGB.TagSet)
 transSetDecl (Set (SetName (UIdent name)) tags) = trace (show tags) $ do 
-  env <- get
   tl <- mapM transTag tags
   let tagList = concat tl
-  put $ (name, tagList):env
+  return (name, tagList)
 
                                       
 
@@ -165,30 +167,48 @@ transCond c = case c of
   CBarrier pos ts bar -> handleBar pos ts bar True
   CNotBar pos ts bar  -> handleBar pos ts bar False
   Linked  (c:cs)      -> do
-    first@(CGB.C pos _) <- transCond c
-    let basePos = case pos of
-                    CGB.Exactly i -> i 
-                    CGB.AtLeast i -> i
-                    CGB.Barrier _ _ -> error "semantics not defined"
-    rest <- mapM transCond cs
-    return $ foldr1 CGB.AND (first:fixNumbering rest)
-  where fixNumbering = id -- TODO
+    first@(CGB.C pos tags) <- transCond c
+    let base = getPos pos
+    
+    conds <- mapM transCond cs
+    return $ foldr1 CGB.AND (first:fixNumbering base conds [])
+  where fixNumbering base []                  res = res
+        fixNumbering base (CGB.C pos tags:cs) res = 
+          let newBase = getPos pos
+              newPos = changePos pos newBase
+          in fixNumbering newBase cs ((CGB.C newPos tags):res)
+
+        getPos pos =
+          case pos of
+            CGB.Exactly i -> i 
+            CGB.AtLeast i -> i
+            CGB.Barrier i _ -> i 
+
+        changePos pos newI = 
+          case pos of
+            CGB.Exactly i -> CGB.Exactly newI 
+            CGB.AtLeast i -> CGB.AtLeast newI
+            CGB.Barrier i ts -> CGB.Barrier newI ts 
+
         transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
-        transTagSet' b ts = do tags <- transTagSet ts
-                               return (b, tags)
-        handleBar pos ts bar bool = do
-          pos' <- transPosition pos
-          let int = case pos' of 
-                          CGB.Exactly i -> error "this is parse error in real CG, sorry"
+        transTagSet' b ts = 
+          do tags <- transTagSet ts
+             return (b, tags)
+
+        handleBar pos ts bar bool = 
+          do pos' <- transPosition pos
+             let int = case pos' of 
+                          CGB.Exactly i -> i
                           CGB.AtLeast i -> i
-          btags <- transBarrier bar
-          liftM (CGB.C (CGB.Barrier int btags)) (transTagSet' bool ts)
+             btags <- transBarrier bar
+             liftM (CGB.C $ CGB.Barrier int btags) (transTagSet' bool ts)
 
 
 transPosition :: Position -> State Env CGB.Position
 transPosition pos = return $ case pos of
   Exactly (Signed str) -> CGB.Exactly $ read str
-  AtLeast (Signed str) -> CGB.AtLeast $ read str
+  AtLeastPre (Signed str) -> CGB.AtLeast $ read str
+  AtLeastPost (Signed str) -> CGB.AtLeast $ read str
 
 transBarrier :: Barrier -> State Env CGB.TagSet
 transBarrier (Barrier ts) = transTagSet ts

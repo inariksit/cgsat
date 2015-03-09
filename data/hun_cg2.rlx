@@ -29,7 +29,8 @@ LIST Conj   = "és" "vagy" cm ;
 # Verbs that can take an infinite verb as argument
 LIST MetaVerb = "akar" "szeret" "imád" ;
 LIST Anp = pxs pxp ;
-
+#LIST >>> = ">>>" ;
+#LIST <<< = "<<<" ;
 ## TODO: add (*) to fomacg, and uncomment rules starting with 6 #'s
 
 CONSTRAINTS
