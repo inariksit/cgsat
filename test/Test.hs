@@ -10,13 +10,31 @@ import Test.QuickCheck
 main :: IO ()
 main = do --verboseCheck checkRule
           quickCheck checkGetContext
+          quickCheck checkToLists
 
+
+--check that getContext gives as many contexts as it is given conditions
 checkGetContext :: Token -> [Token] -> [Condition] -> Bool
 checkGetContext lit allLits conds = length (getContext lit allLits conds) == length conds
 
+--conditions glued together with AND form a list as long as there were original conditions
+checkToLists :: (Condition, Int) -> Bool
+checkToLists (cond, num) = length (toLists cond) == num
+
+--just for fun, to see automatically generated CG rules
 checkRule :: Rule -> Bool
 checkRule rule = True
 
+--------------------------------------------------------------------------------
+
+arbCondList :: Gen (Condition, Int)
+arbCondList = 
+  do num <- choose (2,10)
+     cond <- arbitrary :: Gen Condition
+     let numConds = replicate num cond
+     return (foldr1 AND numConds, num)
+
+--------------------------------------------------------------------------------
 allTags :: [Tag]
 allTags = concat $ verb ++ noun ++ det ++ adv ++ conj ++ prep ++ sg ++ pl ++ cnjcoo
 
@@ -30,7 +48,7 @@ instance Arbitrary Position where
   arbitrary = elements $ [Exactly n | n <- [-5..5]] ++
                          [AtLeast n | n <- [-5..5]] ++
                          [Barrier n [[t]] | n <- [-5..5],
-                                          t <- allTags]
+                                            t <- allTags]
 
 instance Arbitrary Condition where
   arbitrary = do pos <- arbitrary
