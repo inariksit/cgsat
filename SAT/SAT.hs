@@ -125,24 +125,38 @@ maximize s as rs =
 --------------------------------------------------------------------------------
 
 
-maximizeFromTop :: Solver -> [Bit] -> [Bit] -> IO Bool
-maximizeFromTop s as rs =
+maximizeFromTop :: Solver -> [Bit] -> IO Bool
+maximizeFromTop s []     = return True
+maximizeFromTop s (r:rs) =
+  do b <- solveBit s [r]
+     if b then
+       do addClauseBit s [r]
+          maximizeFromTop s rs
+      else
+       do putStrLn $ "maximizeFromTop: clause " ++ show r ++ " conflicts, not added!"
+          maximizeFromTop s rs
+
+discardFromBottom :: Solver -> [Bit] -> [Bit] -> IO Bool
+discardFromBottom s as rs =
   do b <- solveBit s (as ++ rs)     
      if b then
        do return True
       else
        do ys <- conflict s
-          putStrLn "maximizeFromTop here again, hi!"
+          putStr "discardFromBottom: "
           putStr "The following clauses conflict: "
           print ys
           putStrLn "---------\n"
-          let indFuns = (map (\i -> elemIndex (Lit i)) ys) :: [[Bit] -> Maybe Int]
+          let indFuns = map (\i -> elemIndex (Lit (neg i))) ys :: [[Bit] -> Maybe Int]
               indices = catMaybes $ map ($ rs) indFuns
               smallest = if null indices 
                             then (length ys - 1) --remove rules one by one
                             else minimum indices
               newRs = take smallest rs
-          maximizeFromTop s as newRs
+          -- putStrLn $ "length of conflicting: " ++ show (length ys) ++ show ys
+          -- putStrLn $ "      apply elemIndex: " ++ show (length indices) ++ show indices
+          -- putStrLn $ "       remaining list: " ++ show newRs
+          discardFromBottom s as newRs
 
 --------------------------------------------------------------------------------
 
