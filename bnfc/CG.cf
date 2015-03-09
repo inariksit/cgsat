@@ -64,8 +64,8 @@ All.     TagSet1 ::= "(*)" ;
 NilT.    TagSet1 ::= Tag ;
 
 Exactly. Position ::= Signed ;
-AtLeast. Position ::= "*" Signed ;
-_. Position ::= Position "*" ;
+AtLeastPre. Position ::= "*" Signed ;
+AtLeastPost. Position ::= Signed "*" ; 
 _. Position ::= Position "C" ; --We're not interested in the unambiguous
 
 Barrier. Barrier ::= "BARRIER" TagSet ;
