@@ -195,7 +195,7 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 
 ---- Main stuff
 
-disambiguate :: [Rule] -> Sentence -> IO ()
+disambiguate :: [Rule] -> Sentence -> IO [String]
 disambiguate rules sentence = do
   s <- newSolver
   let chunkedSent = addPosition sentence
@@ -206,12 +206,12 @@ disambiguate rules sentence = do
       appliedrules = [ nt x:c | (r,x) <- zip rules bitsForRules, c <- applyRule toks r ]
   putStrLn "\ntokens:"
   mapM_ print toks
-  putStrLn "\nformulas:"
-  mapM_ print unambig
-  mapM_ print appliedrules
+  --putStrLn "\nformulas:"
+  --mapM_ print unambig
+  --mapM_ print appliedrules
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) appliedrules
-  b <- maximizeFromTop s [] bitsForRules
+  b <- maximizeFromTop s  bitsForRules
   if b then
        do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
           putStrLn "These rules were not applied due to conflicts:"
@@ -219,14 +219,16 @@ disambiguate rules sentence = do
 
           bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
           putStrLn "\nThe following tag sequence was chosen:"
-          mapM_ putStrLn [ prTok t | (b, t) <- zip bs toks, b == Just True ]
+          let tags = [ prTok t | (b, t) <- zip bs toks, b == Just True ]
+          mapM_ putStrLn tags
+          return tags 
     else
        do putStrLn "No solution"
           conf <- conflict s
           print conf
-          return ()
+          return []
 
-  putStrLn "-----------\n"
+--  putStrLn "-----------\n"
 
   where prTok :: Token -> String
         prTok t = show (getInd t) ++ ": " ++ (unwords $ map show (getTags t))

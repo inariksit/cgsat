@@ -1,4 +1,4 @@
--- ^¿/¿<lquest>$
+^¿/¿<lquest>$
 ^DÓNDE/DÓNDE<adv><itg>$
 ^ESTÁ/ESTAR<vblex><pri><p3><sg>$
 ^JAIME/JAIME<np><ant>$?

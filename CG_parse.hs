@@ -110,6 +110,8 @@ transTag tag = case tag of
   AND tags     -> do ts <- mapM transTag tags
                      let allInOne = [concat (concat ts)]
                      return allInOne
+  EOS          -> return endToken
+  BOS          -> return startToken
   Named (SetName (UIdent name)) -> do
     env <- get
     case lookup name env of
@@ -143,8 +145,8 @@ transTagSet ts = case ts of
 
 transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
-  SelectIf tags conds -> liftM2 CGB.Select (transTagSet tags) (transCondSet conds)
-  RemoveIf tags conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
+  SelectIf tags _if conds -> liftM2 CGB.Select (transTagSet tags) (transCondSet conds)
+  RemoveIf tags _if conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
   SelectAlways tags   -> liftM2 CGB.Select (transTagSet tags) (return $ CGB.POS CGB.always)
   RemoveAlways tags   -> liftM2 CGB.Remove (transTagSet tags) (return $ CGB.POS CGB.always)
   MatchLemma lem rule -> do cgrule <- transRule rule
