@@ -4,8 +4,8 @@
 
 #SETS
 
-#LIST >>> = (">>>") ;
-#LIST <<< = ("<<<") ;
+LIST >>> = (>>>) ;
+LIST <<< = (<<<) ;
 
 LIST N = (n) ;
 LIST NP = (np) ;

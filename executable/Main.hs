@@ -11,6 +11,10 @@ main = do
   case args of
     [f1, f2]   -> do rules <- readFile f1 >>= parseRules
                      data' <- readFile f2 >>= parseData 
-                     mapM_ (disambiguate rules) data'
+                     mapM_ (disambiguate False rules) data'
+    ["-v", f1, f2]   -> do rules <- readFile f1 >>= parseRules
+                           data' <- readFile f2 >>= parseData 
+                           mapM_ (disambiguate True rules) data'
+
     ("test":_) -> CG_SAT.test
     _          -> putStrLn "usage: ./Main (<rules> <data> | test)"

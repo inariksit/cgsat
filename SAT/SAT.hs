@@ -133,7 +133,7 @@ maximizeFromTop s (r:rs) =
        do addClauseBit s [r]
           maximizeFromTop s rs
       else
-       do putStrLn $ "maximizeFromTop: clause " ++ show r ++ " conflicts, not added!"
+       do --putStrLn $ "maximizeFromTop: clause " ++ show r ++ " conflicts, not added!"
           maximizeFromTop s rs
 
 discardFromBottom :: Solver -> [Bit] -> [Bit] -> IO Bool

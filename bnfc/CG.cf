@@ -12,13 +12,14 @@ SetDef. Def ::= SetDecl ;
 Set. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
 
 SetName.  SetName ::= UIdent ;
+EOS.      SetName ::= "<<<" ;
+BOS.      SetName ::= ">>>" ;
 
 -- These definitions are only used in a SetDecl.
 Lemma.   Tag1 ::= String ; 
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
-EOS.     Tag1 ::= "<<<" ;
-BOS.     Tag1 ::= ">>>" ;
+
 coercions Tag 1 ;
 
 separator nonempty Tag "" ;
@@ -76,7 +77,7 @@ Barrier. Barrier ::= "BARRIER" TagSet ;
 
 
 
-token UIdent ((upper)(upper | letter | digit | '/' | '_' | '>' | '<' | '+' | '-' | '!' | '¿' | '¡')*) ;
+token UIdent ((upper|'>'|'<')(upper | letter | digit | '/' | '_' | '>' | '<' | '+' | '-' | '!' | '¿' | '¡')*) ;
 token Id ((letter) (upper | letter | digit |  '/' | '_' | '>' | '<' | '+' | '-' | '!' | '¿' | '¡')*) ;
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 

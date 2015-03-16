@@ -18,10 +18,12 @@ instance Ord Tag where
   Lem l `compare` Lem l' = l `compare` l'
   Tag t `compare` Tag t' = t `compare` t'
   foo   `compare` bar    = show foo `compare` show bar
+
+-- | Following the conventions of vislcg3
 instance Show Tag where
   show (WF str) = "\"<" ++ str ++ ">\""
   show (Lem str) = "\"" ++ str ++ "\""
-  show (Tag str) = "<" ++ str ++ ">"
+  show (Tag str) = str
 
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
 --  For example, 
@@ -155,10 +157,6 @@ rmSgIfPl = Remove sg (mkT "-1" pl)
 
 negTest   = Select verb (neg (mkT "-1" prep))
 negOrTest = Select verb (NEG (OR (mkC "-1" conj) (mkC "1" prep)))
-
-
-
-
 
 
 -- | Shows all analyses as string, each lemma+tags in one line

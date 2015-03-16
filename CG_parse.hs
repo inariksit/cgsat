@@ -96,10 +96,14 @@ split as = go as []
 ---- CG parsing
 
 transSetDecl :: SetDecl -> State Env (String, CGB.TagSet)
-transSetDecl (Set (SetName (UIdent name)) tags) = trace (show tags) $ do 
-  tl <- mapM transTag tags
-  let tagList = concat tl
-  return (name, tagList)
+transSetDecl (Set setname tags) = 
+  case setname of
+    EOS          -> return (">>>", endToken)
+    BOS          -> return ("<<<", startToken)
+    (SetName (UIdent name)) -> do 
+      tl <- mapM transTag tags
+      let tagList = concat tl
+      return (name, tagList)
 
                                       
 
@@ -110,13 +114,16 @@ transTag tag = case tag of
   AND tags     -> do ts <- mapM transTag tags
                      let allInOne = [concat (concat ts)]
                      return allInOne
-  EOS          -> return endToken
-  BOS          -> return startToken
-  Named (SetName (UIdent name)) -> do
-    env <- get
-    case lookup name env of
-      Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
-      Just ts -> (return ts :: State Env CGB.TagSet)
+
+  Named setname -> case setname of
+    (SetName (UIdent name)) -> do
+      env <- get
+      case lookup name env of
+        Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
+        Just ts -> (return ts :: State Env CGB.TagSet)
+    BOS -> return startToken
+    EOS -> return endToken
+  other -> error $ "wtf: " ++ show other
 
 
 transTagSet :: TagSet -> State Env CGB.TagSet

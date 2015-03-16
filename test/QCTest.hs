@@ -1,4 +1,4 @@
-module Main where
+module QCTest where
 
 import CG_base
 import CG_SAT (getContext,Token(..))
@@ -7,10 +7,10 @@ import SAT.SAT (Bit(..))
 import Control.Monad
 import Test.QuickCheck
 
-main :: IO ()
-main = do --verboseCheck checkRule
-          quickCheck checkGetContext
-          quickCheck checkToLists
+main' :: IO ()
+main' = do --verboseCheck checkRule
+           quickCheck checkGetContext
+           quickCheck checkToLists
 
 
 --check that getContext gives as many contexts as it is given conditions

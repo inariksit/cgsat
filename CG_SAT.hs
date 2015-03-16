@@ -24,6 +24,9 @@ getTags ((_,t),_) = t
 getBit :: Token -> Bit
 getBit (_,b) = b
 
+isBoundary :: Token -> Bool
+isBoundary tok = not $ null ([Lem "<<<", Lem ">>>"] `intersect` getTags tok)
+
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
 sameInd tok tok' = getInd tok == getInd tok'
@@ -195,8 +198,8 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 
 ---- Main stuff
 
-disambiguate :: [Rule] -> Sentence -> IO [String]
-disambiguate rules sentence = do
+disambiguate :: Bool -> [Rule] -> Sentence -> IO [String]
+disambiguate verbose rules sentence = do
   s <- newSolver
   let chunkedSent = addPosition sentence
   bitsForTags <- sequence [ newBit s | _ <- chunkedSent ]
@@ -204,38 +207,41 @@ disambiguate rules sentence = do
   let toks = zip chunkedSent bitsForTags
       unambig = anchor toks :: [[Bit]]
       appliedrules = [ nt x:c | (r,x) <- zip rules bitsForRules, c <- applyRule toks r ]
-  putStrLn "\ntokens:"
-  mapM_ print toks
-  --putStrLn "\nformulas:"
-  --mapM_ print unambig
-  --mapM_ print appliedrules
+  when verbose $ do
+    putStrLn "\ntokens:"
+    mapM_ print toks
+    -- putStrLn "\nformulas:"
+    -- mapM_ print unambig
+    -- mapM_ print appliedrules
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) appliedrules
   b <- maximizeFromTop s  bitsForRules
   if b then
        do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
-          putStrLn "These rules were not applied due to conflicts:"
-          mapM_ putStrLn [ show r | (b, r) <- zip rs rules, b /= Just True ]
+          when verbose $ do
+            putStrLn "These rules were not applied due to conflicts:"
+            mapM_ putStrLn [ show r | (b, r) <- zip rs rules, b /= Just True ]
 
           bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
-          putStrLn "\nThe following tag sequence was chosen:"
-          let tags = [ prTok t | (b, t) <- zip bs toks, b == Just True ]
-          mapM_ putStrLn tags
-          return tags 
+          let tags = [ prTok t | (b, t) <- zip bs toks
+                               , b == Just True
+                               , not $ isBoundary t ]
+          when verbose $ do
+            putStrLn "\nThe following tag sequence was chosen:"
+            mapM_ putStrLn tags
+          return tags
     else
        do putStrLn "No solution"
           conf <- conflict s
           print conf
           return []
 
---  putStrLn "-----------\n"
-
   where prTok :: Token -> String
-        prTok t = show (getInd t) ++ ": " ++ (unwords $ map show (getTags t))
+        prTok = showTags . getTags
 
 
 test :: IO ()
-test = mapM_ (disambiguate rls) CG_data.exs
+test = mapM_ (disambiguate True rls) CG_data.exs
 
   where rls = [rmVerbIfDet
              , rmNounIfPron
