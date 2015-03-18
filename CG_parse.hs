@@ -92,7 +92,7 @@ split as = go as []
                    in go newxs (newsent:ys)
 
         isPunct :: CGB.Analysis -> Bool
-        isPunct = tagsInAna [CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
+        isPunct = tagsInAna [CGB.Tag "sent", CGB.Lem "?"] --[CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
 
         tagsInAna :: [CGB.Tag] -> CGB.Analysis -> Bool
         tagsInAna tags as = or $ map ((not.null) . intersect tags) as
@@ -244,10 +244,11 @@ transLine x = case x of
 
 
 transAnalysis :: String -> Analysis -> [CGB.Tag]
-transAnalysis wf ana =
-  case ana of
-    (IdenA (Iden id) tags)  -> CGB.WF wf:CGB.Lem id:(map transTagA tags)
-    (PunctA (Punct id) tags) -> CGB.WF wf:CGB.Lem id:(map transTagA tags)
+transAnalysis wf ana = CGB.WF wf:transAna ana
+  where transAna ana = case ana of
+          IdenA (Iden id) tags   -> CGB.Lem id:(map transTagA tags)
+          PunctA (Punct id) tags -> CGB.Lem id:(map transTagA tags)
+          CompA ana1 ana2        -> transAna ana1 ++ transAna ana2
 
 transTagA :: TagA -> CGB.Tag
 transTagA (TagA (Iden id)) = CGB.Tag id

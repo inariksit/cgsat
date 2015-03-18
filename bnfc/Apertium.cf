@@ -11,12 +11,13 @@ NoAnalysis. Line ::= "^" Iden "/" "*" Iden "$" ;
 
 IdenA.   Analysis ::= Iden [TagA] ;
 PunctA.  Analysis ::= Punct [TagA] ;
+CompA.   Analysis ::= Analysis "+" Analysis ;
 
 separator nonempty Analysis "/" ;
 
 TagA.  TagA      ::= "<" Iden ">" ;
 separator TagA "" ;
  
-token Punct ["!?.,:¿¡'"] ; -- fails if I include “”
+token Punct ["!?.,:;¿¡-')("] ; -- fails if I include “”
 
-token Iden ( ["!?.,:¿¡'"]| (upper|letter|digit|'_'|' '|'\''|'*'|'+'|'-')+ | ('>')+ | ('<')+) ;
+token Iden ( ["!?.,:;¿¡')(-"]| (upper|letter|digit|'_'|' '|'\''|'*'|'-'|'.'|',')+ | ('>')+ | ('<')+) ;

@@ -164,8 +164,11 @@ showAnalysis :: Analysis -> String
 showAnalysis = concatMap showTags
   
 showTags :: [Tag] -> String
-showTags (l:as) = show l ++ '\n':'\t':analyses
+showTags ts@(l:as) = if notBoundary ts 
+                        then show l ++ '\n':'\t':analyses
+                        else ""
   where analyses = unwords $ map show as
+        notBoundary ts = null ([Lem "<<<", Lem ">>>"] `intersect` ts)
 
 
 
