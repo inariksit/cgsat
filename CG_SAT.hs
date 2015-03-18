@@ -203,9 +203,10 @@ disambiguate verbose rules sentence = do
     -- mapM_ print appliedrules
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) appliedrules
-  b <- maximize s [] bitsForRules
-  -- b <- maximizeFromTop s  bitsForRules
-  --b <- discardFromBottom s [] bitsForRules
+  --b <- maximize s [] bitsForRules
+  b <- maximizeFromTop s  bitsForRules -- 7095 out of 7667 are different
+  --b <- discardFromBottom s [] bitsForRules -- 7128 out of 7667 are different
+
   if b then
        do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
           when verbose $ do

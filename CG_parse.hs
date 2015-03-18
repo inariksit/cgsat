@@ -227,8 +227,8 @@ transCond c = case c of
 
 transPosition :: Position -> State Env CGB.Position
 transPosition pos = return $ case pos of
-  Exactly (Signed str) -> CGB.Exactly $ read str
-  AtLeastPre (Signed str) -> CGB.AtLeast $ read str
+  Exactly (Signed str)     -> CGB.Exactly $ read str
+  AtLeastPre (Signed str)  -> CGB.AtLeast $ read str
   AtLeastPost (Signed str) -> CGB.AtLeast $ read str
   AtLPostUnam (Signed str) -> CGB.AtLeast $ read str
 transBarrier :: Barrier -> State Env CGB.TagSet

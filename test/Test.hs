@@ -14,19 +14,20 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [f1, f2] -> do rules <- readRules f1
-                   data' <- readData f2
-                   result <- mapM (disambiguate False rules) data'
-                   goldst <- gold f1 f2
-                   let diff = [ (showSent r, showSent g) 
-                                 | (r,g) <- zip result goldst, r/=g ]
-                   mapM_ pr diff
-                   print (length result, length goldst)
-                   putStr "Sentences that differ from vislcg3: "
-                   print $ length diff
-                   --print [diffByWord r g | (r,g) <- zip result goldst, r/=g]
+    [r,d]      -> go r d False
+    [r,d,"-2"] -> go r d True
     _        -> do putStrLn "usage: ./test <rules> <data>"
-  where showSent   = map showAnalysis
+  where go r d isCG2 = do rules <- readRules r
+                          data' <- readData d
+                          result <- mapM (disambiguate False rules) data'
+                          goldst <- gold r d isCG2
+                          let diff = [ (showSent r, showSent g) 
+                                       | (r,g) <- zip result goldst, r/=g ]
+                          --mapM_ pr diff
+                          print (length result, length goldst)
+                          putStr "Sentences that differ from vislcg3: "
+                          print $ length diff
+        showSent   = map showAnalysis
         pr (rs,gs) = do putStrLn "\nResult by CG-SAT"
                         mapM_ putStrLn rs
                         putStrLn "\nGold standard"
@@ -35,15 +36,16 @@ main = do
 diffByWord :: Sentence -> Sentence -> [(Analysis,Analysis)]
 diffByWord s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2, a1/=a2 ] 
 
-gold :: FilePath -> FilePath -> IO [Sentence]
-gold rls dt = do
+gold :: FilePath -> FilePath -> Bool -> IO [Sentence]
+gold rls dt isCG2 = do
+  let cg2 = if isCG2 then "-2" else ""
   (_, Just out1, _, _) <-
       createProcess (proc "cat" [dt]){std_out=CreatePipe}
   (_, Just out2, _, _) <- 
       createProcess (proc "cg-conv" ["-a"]){std_in=UseHandle out1
                                           , std_out=CreatePipe}
   (_, Just out3, _, _) <- 
-      createProcess (proc "vislcg3" ["-2", "-g", rls]){std_in=UseHandle out2
+      createProcess (proc "vislcg3" [cg2, "-g", rls]){std_in=UseHandle out2
                                                      , std_out=CreatePipe}
   (_, Just out4, _, _) <- 
       createProcess (proc "cg-conv" ["-A"]){std_in=UseHandle out3

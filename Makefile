@@ -1,3 +1,5 @@
+testprog=dist/build/test-cgsat/test-cgsat
+
 default: grammars rest
 
 grammars:
@@ -14,6 +16,11 @@ rest:
 	cabal configure --enable-tests
 	cabal build
 
+test-pride:
+	$(testprog) data/eng_cg2.rlx data/pride.txt 2>/dev/null 
+
+test-story:
+	$(testprog) data/spa_cg3.rlx data/spa_data.txt 2>/dev/null 
 clean:
 	-rm -f CG/*.log CG/*.aux CG/*.hi CG/*.o CG/*.dvi
 	-rm -f CG/Doc.ps

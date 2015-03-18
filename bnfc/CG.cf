@@ -64,6 +64,7 @@ rules REMOVE ::= "REMOVE" MaybeName ;
 rules MaybeIF   ::= "IF" | "if" | ;
 rules MaybeName ::= ":" Id | ;
 
+--TODO  SELECT Inf IF (-1/0 ADV-NOT)(-1/1 VAUX-CAN);
 CNotPos.  Cond1 ::= "NOT" Position TagSet ;
 CPos.     Cond1 ::= Position TagSet ;
 CBarrier. Cond1 ::= Position TagSet Barrier ;
