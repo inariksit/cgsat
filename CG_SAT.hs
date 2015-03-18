@@ -51,39 +51,26 @@ tagsMatchRule tags tok = or $ map (\tagset -> isSubsetOf tagset tagsInAna) tagsI
 -- ((2,["bear",<vblex>,<pl>]),Lit v2)
 -- ((3,["sleep",<n>,<pl>]),Lit v4)
 -- ((3,["sleep",<vblex>,<sg>,<p3>]),Lit v5)
-addPosition :: [Analysis] -> [(Integer,[Tag])]
-addPosition as = concat $ go as 1
-   where go []     n = []
+chunk :: Sentence -> [(Integer,[Tag])]
+chunk sent = concat $ go sent 1
+   where go []    _n = []
          go (x:xs) n = map ((,) n) x : go xs (n+1)
 
-
+dechunk :: [Token] -> Sentence
+dechunk ts = (map.map) getTags (groupBy sameInd ts)
+  where toksByInd = groupBy sameInd ts :: [[Token]]
+        
+  
 --------------------------------------------------------------------------------
 
 -- | For each position, at least one analysis must be true.
---   Groups tokes by index and returns lists of variables 
+--   Group tokens by index and return a lists of variables 
 --   to be used in disjunction.
 anchor :: [Token] -> [[Bit]]
 anchor toks = (map.map) getBit (groupBy sameInd toks)
 
-{-
--- 2) Take all possible bigrams
-mkBigrams :: [Token] -> [Bit]
-mkBigrams toks = zipWith mkCombs pres posts --[toks] [toks]
-   where len = length toks
-         pres = take (len-1) $ groupBy sameInd toks
-         posts = tail $ groupBy sameInd toks
-         
 
-mkCombs :: [Token] -> [Token] -> Bit
-mkCombs pre post = foldr1 (:||:) combinations
-   where combinations = [bool1 :&&: bool2 | (_, bool1) <- pre, 
-                                             (_, bool2) <- post,
-                                             bool1 /= bool2]
-
---}
-
-
--- 4) Apply rules to tokens. 
+-- | Apply rules to tokens. 
 applyRule :: [Token] -> Rule -> [[Bit]]
 applyRule toks rule = --trace (show rule) $
   case rule of
@@ -198,15 +185,16 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 
 ---- Main stuff
 
-disambiguate :: Bool -> [Rule] -> Sentence -> IO [String]
+disambiguate :: Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguate verbose rules sentence = do
   s <- newSolver
-  let chunkedSent = addPosition sentence
+  let chunkedSent = chunk sentence
   bitsForTags <- sequence [ newBit s | _ <- chunkedSent ]
   bitsForRules <- sequence [ newBit s | _ <- rules ]
   let toks = zip chunkedSent bitsForTags
       unambig = anchor toks :: [[Bit]]
-      appliedrules = [ nt x:c | (r,x) <- zip rules bitsForRules, c <- applyRule toks r ]
+      appliedrules = [ nt x:c | (r,x) <- zip rules bitsForRules
+                               , c    <- applyRule toks r ]
   when verbose $ do
     putStrLn "\ntokens:"
     mapM_ print toks
@@ -223,21 +211,19 @@ disambiguate verbose rules sentence = do
             mapM_ putStrLn [ show r | (b, r) <- zip rs rules, b /= Just True ]
 
           bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
-          let tags = [ prTok t | (b, t) <- zip bs toks
-                               , b == Just True
-                               , not $ isBoundary t ]
+          let truetoks = [ t | (b, t) <- zip bs toks , b == Just True ]
           when verbose $ do
             putStrLn "\nThe following tag sequence was chosen:"
-            mapM_ putStrLn tags
-          return tags
+            mapM_ prTok truetoks
+          return (dechunk truetoks)
     else
        do putStrLn "No solution"
           conf <- conflict s
           print conf
           return []
 
-  where prTok :: Token -> String
-        prTok = showTags . getTags
+  where prTok :: Token -> IO ()
+        prTok = putStrLn . showTags . getTags
 
 
 test :: IO ()

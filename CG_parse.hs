@@ -1,4 +1,7 @@
-module CG_parse where
+module CG_parse ( parseRules
+                , parseData
+                , readRules
+                , readData ) where
 
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
@@ -24,32 +27,33 @@ import qualified CG_base as CGB
 type Env = [(String, CGB.TagSet)]
 
 
-test = False
+parseRules :: Bool -> String -> [CGB.Rule]
+parseRules test s = case pGrammar (CG.Par.myLexer s) of
+            CGErr.Bad err  -> error err
+            CGErr.Ok  tree -> let rules = evalState (parseCGRules tree) []
+                              in trace (if test then (unwords $ map pr rules) else "") $
+                              rights rules
+  where pr (Right rule)  = show rule
+        pr (Left string) = string
 
-parseRules :: String -> IO [CGB.Rule]
-parseRules s = case pGrammar (CG.Par.myLexer s) of
-            CGErr.Bad err  -> do putStrLn "parseRules: syntax error"
-                                 putStrLn err
-                                 exitFailure 
-            CGErr.Ok  tree -> do let rules = evalState (parseCGRules tree) []
-                                 when test (mapM_ pr rules)
-                                 return $ rights rules
-  where pr (Right rule) = putStrLn $ show rule
-        pr (Left string) = putStrLn string
-
-parseData :: String -> IO [CGB.Sentence]
+parseData :: String -> [CGB.Sentence]
 parseData s = case pText (Apertium.Par.myLexer s) of
-            AErr.Bad err  -> do putStr "parseData: "
-                                putStrLn err
-                                exitFailure 
-            AErr.Ok text  -> do return $ (split . transText) text
+            AErr.Bad err  -> error err
+            AErr.Ok text  -> split $ transText text
+
+--just because it's nice to use them  rules <- readRules foo
+readRules :: String -> IO [CGB.Rule]
+readRules fname = readFile fname >>= return . parseRules False
+
+readData :: String -> IO [CGB.Sentence]
+readData fname = readFile fname >>= return . parseData
 
 main :: IO ()
 main = do args <- getArgs
           case args of
-             [file1,file2] -> do readFile file1 >>= parseRules
-                                 readFile file2 >>= parseData
-                                 putStrLn "foo"
+             [file1,file2] -> do readFile file1 >>= return . parseRules True --verbose
+                                 readData file2
+                                 putStrLn "read rules and data"
              _             -> do putStrLn "Usage: CG_parse <rules> <data>"
                                  exitFailure
 
@@ -61,6 +65,7 @@ endToken   = [[CGB.Lem "<<<", CGB.Tag "<<<"]]
 
 parseCGRules :: Grammar -> State Env [Either String CGB.Rule]
 parseCGRules (Defs defs) = do mapM updateEnv defs 
+                              --in case the grammar doesn't specify boundaries 
                               modify ((">>>",startToken) :)
                               modify (("<<<",endToken) :)
                               env <- get

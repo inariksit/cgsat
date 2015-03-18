@@ -1,9 +1,10 @@
 module Main where
 
 import CG_base
-import CG_parse (parseData, parseRules)
+import CG_parse
 import CG_SAT
 import Control.Monad
+import Data.List
 import Data.Maybe
 import System.Environment
 import System.IO
@@ -13,22 +14,20 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [f1, f2] -> do rules <- readFile f1 >>= parseRules
-                   data' <- readFile f2 >>= parseData 
-                   result <- liftM (concat . reverse) $ 
-                             mapM (disambiguate False rules) data'
+    [f1, f2] -> do rules <- readRules f1
+                   data' <- readData f2
+                   result <- mapM (disambiguate False rules) data'
                    goldst <- gold f1 f2
                    let foo = zipWith (==) result goldst
-                   mapM_ putStrLn goldst
-                   mapM_ putStrLn result
-                   print $ length goldst
+                   mapM_ print (zip result goldst)
                    print $ length result
+                   print $ length goldst
                    print foo
                    putStrLn "the end"
     _        -> do putStrLn "usage: ./test <rules> <data>"
 
 
-gold :: FilePath -> FilePath -> IO [String]
+gold :: FilePath -> FilePath -> IO [Sentence]
 gold rls dt = do
   (_, Just out1, _, _) <-
       createProcess (proc "cat" [dt]){std_out=CreatePipe}
@@ -38,21 +37,14 @@ gold rls dt = do
   (_, Just out3, _, _) <- 
       createProcess (proc "vislcg3" ["-g", rls]){std_in=UseHandle out2
                                                , std_out=CreatePipe}
-  result <- hGetContents' out3
-  mapM_ hClose [out1,out2,out3]
-  return $ reverse $ splitByWords result
+  (_, Just out4, _, _) <- 
+      createProcess (proc "cg-conv" ["-A"]){std_in=UseHandle out3
+                                          , std_out=CreatePipe}
 
+  result <- hGetContents' out4
+  mapM_ hClose [out1,out2,out3,out4]
+  return (map (filter (not.null)) $ parseData result)
 
-splitByWords :: String -> [String]
-splitByWords str = go (lines str) []
-  where go []     ws = ws
-        go (l:ls) ws = let anas = takeWhile (startsWith '\t') ls
-                           newLs = dropWhile (startsWith '\t') ls
-                       in go newLs ((unlines (l:anas)):ws)
-
-startsWith :: Char -> String -> Bool
-startsWith y (x:xs) = x==y
-startsWith y []     = False
 
 -- Strict hGetContents
 hGetContents' :: Handle -> IO String
