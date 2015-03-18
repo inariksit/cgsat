@@ -1,21 +1,39 @@
 
 comment "#" ;
+comment "SETS" ;
 comment "CONSTRAINTS" ;
 comment "DELIMITERS" ;
+comment "SOFT-DELIMITERS" ;
 comment "SECTION" ;
+comment "AFTER-SECTIONS" ;
 
 Defs.  Grammar ::= [Def] ;
 terminator Def "" ;
 
-SetDef. Def ::= SetDecl ;
+--------------------------------------------------------------------------------
+-- Sets and lists can be defined at the beginning of the grammar
+-- Lists are bound by OR with just concatenation:
+--   LIST V  = vblex vbser vaux vbhaver vbdo ; --just tags
+-- 
+-- Sets use "OR" or "|":
+--   SET CLB = SENT | V-FIN | Subj ; --named lists
 
-Set. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
+SetDef. Def  ::= SetDecl ;
 
+Set.  SetDecl ::= "SET" SetName "=" TagSet ";" ;
+List. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
+
+-- Set names start with uppercase letter or number 
+-- (this is annoying, because 
 SetName.  SetName ::= UIdent ;
 EOS.      SetName ::= "<<<" ;
 BOS.      SetName ::= ">>>" ;
+_.        SetName ::= "$$" SetName ; --Subreadings; just read them as regular set names
 
--- These definitions are only used in a SetDecl.
+
+--------------------------------------------------------------------------------
+-- Tags can be wordforms or lemmas/wordforms, identifiers or named sets.
+
 Lemma.   Tag1 ::= String ; 
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
@@ -24,16 +42,27 @@ coercions Tag 1 ;
 
 separator nonempty Tag "" ;
 
+----------------------------------------------------------------------
+-- Rules: e.g.
+-- REMOVE Foo IF (-1 Bar) 
+
+-- More complex:
+-- REMOVE V-FIN IF (0 Inf OR V-FIN) ((1C* V-FIN BARRIER CLB) OR (-1C* V-FIN BARRIER CLB));
+--TODO templates
 
 RuleDef. Def ::= Rule ;
 
-SelectIf. Rule ::= "SELECT" TagSet MaybeIF [Cond] ";" ;
-RemoveIf. Rule ::= "REMOVE" TagSet MaybeIF [Cond] ";" ;
-SelectAlways. Rule ::= "SELECT" TagSet ";" ;
-RemoveAlways. Rule ::= "REMOVE" TagSet ";" ;
+SelectIf. Rule ::= SELECT TagSet MaybeIF [Cond] ";" ;
+RemoveIf. Rule ::= REMOVE TagSet MaybeIF [Cond] ";" ;
+SelectAlways. Rule ::= SELECT TagSet ";" ;
+RemoveAlways. Rule ::= REMOVE TagSet ";" ;
 MatchLemma. Rule ::= String Rule ;
 
-rules MaybeIF ::= "IF" |  ;
+rules SELECT ::= "SELECT" MaybeName ;
+rules REMOVE ::= "REMOVE" MaybeName ;
+
+rules MaybeIF   ::= "IF" | "if" | ;
+rules MaybeName ::= ":" Id | ;
 
 CNotPos.  Cond1 ::= "NOT" Position TagSet ;
 CPos.     Cond1 ::= Position TagSet ;
@@ -42,15 +71,11 @@ CNotBar.  Cond1 ::= "NOT" Position TagSet Barrier ;
 Linked.   Cond  ::= [Cond1] ;
 _.        Cond ::= "(" Cond ")" ; 
 
---force parentheses if no explisit LINK
---ListC.    CondSet ::= [Cond] ;
---_.        CondSet ::= "(" CondSet ")" ;
-
-
 
 separator nonempty Cond1 "LINK" ;
 separator nonempty Cond "" ;
 
+-- REMOVE V-FIN IF (0 Inf) (0 Inf OR V-FIN) ((1C* V-FIN BARRIER CLB) OR (-1C* V-FIN BARRIER CLB));
 
 TagSet.  TagSet  ::= TagSet1 ;
 _.       TagSet1 ::= "(" TagSet ")" ; -- you can add parentheses around any tag set
@@ -61,15 +86,18 @@ _.       TagSet1 ::= "(" TagSet ")" ; -- you can add parentheses around any tag 
 AND.     Tag1 ::= "(" [Tag] ")" ; 
 
 -- OR 
-OR.      TagSet1 ::= Tag "OR" TagSet1 ; 
+OR.      TagSet1 ::= Tag Or TagSet1 ; 
 Diff.    TagSet1 ::= TagSet1 "-" TagSet ;
 Cart.    TagSet1 ::= TagSet1 "+" TagSet ;
 All.     TagSet1 ::= "(*)" ;
 NilT.    TagSet1 ::= Tag ;
 
+rules Or ::= "OR" | "|" ;
+
 Exactly. Position ::= Signed ;
 AtLeastPre. Position ::= "*" Signed ;
 AtLeastPost. Position ::= Signed "*" ; 
+AtLPostUnam. Position ::= Signed "C*" ;
 _. Position ::= Position "C" ; --We're not interested in the unambiguous
 
 Barrier. Barrier ::= "BARRIER" TagSet ;
@@ -77,8 +105,13 @@ Barrier. Barrier ::= "BARRIER" TagSet ;
 
 
 
-token UIdent ((upper|'>'|'<')(upper | letter | digit | '/' | '_' | '>' | '<' | '+' | '-' | '!' | '¿' | '¡')*) ;
-token Id ((letter) (upper | letter | digit |  '/' | '_' | '>' | '<' | '+' | '-' | '!' | '¿' | '¡')*) ;
+token UIdent ((upper)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
+              |('>')+|('<')+
+	      |(digit)(upper - ["C"]|lower|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')+) ;
+token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
+              |('>')+|('<')+) ;
+	     -- |(digit)(upper|letter|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')+) ;
+
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 
 

@@ -101,14 +101,21 @@ split as = go as []
 ---- CG parsing
 
 transSetDecl :: SetDecl -> State Env (String, CGB.TagSet)
-transSetDecl (Set setname tags) = 
+transSetDecl (Set setname tagset) = 
+  case setname of
+    EOS          -> return (">>>", endToken)
+    BOS          -> return ("<<<", startToken)
+    (SetName (UIdent name)) -> do 
+      ts <- transTagSet tagset
+      return (name, ts)
+transSetDecl (List setname tags) = 
   case setname of
     EOS          -> return (">>>", endToken)
     BOS          -> return ("<<<", startToken)
     (SetName (UIdent name)) -> do 
       tl <- mapM transTag tags
-      let tagList = concat tl
-      return (name, tagList)
+      return (name, concat tl)
+
 
                                       
 
@@ -136,9 +143,9 @@ transTagSet ts = case ts of
   TagSet tagset  -> transTagSet tagset
   NilT tag       -> transTag tag
   All            -> return [[]]
-  OR tag tagset  -> do tags1 <- transTag tag
-                       tags2 <- transTagSet tagset
-                       return $ tags1 ++ tags2
+  OR tag _or tagset  -> do tags1 <- transTag tag
+                           tags2 <- transTagSet tagset
+                           return $ tags1 ++ tags2
 
   ----TODO all set operations!
 
@@ -157,10 +164,10 @@ transTagSet ts = case ts of
 
 transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
-  SelectIf tags _if conds -> liftM2 CGB.Select (transTagSet tags) (transCondSet conds)
-  RemoveIf tags _if conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
-  SelectAlways tags   -> liftM2 CGB.Select (transTagSet tags) (return $ CGB.POS CGB.always)
-  RemoveAlways tags   -> liftM2 CGB.Remove (transTagSet tags) (return $ CGB.POS CGB.always)
+  SelectIf _sl tags _if conds -> liftM2 CGB.Select (transTagSet tags) (transCondSet conds)
+  RemoveIf _sl tags _if conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
+  SelectAlways _sl tags   -> liftM2 CGB.Select (transTagSet tags) (return $ CGB.POS CGB.always)
+  RemoveAlways _sl tags   -> liftM2 CGB.Remove (transTagSet tags) (return $ CGB.POS CGB.always)
   MatchLemma lem rule -> do cgrule <- transRule rule
                             case cgrule of
                                CGB.Select ts c -> return $ CGB.Select (cart ts lem) c
@@ -223,7 +230,7 @@ transPosition pos = return $ case pos of
   Exactly (Signed str) -> CGB.Exactly $ read str
   AtLeastPre (Signed str) -> CGB.AtLeast $ read str
   AtLeastPost (Signed str) -> CGB.AtLeast $ read str
-
+  AtLPostUnam (Signed str) -> CGB.AtLeast $ read str
 transBarrier :: Barrier -> State Env CGB.TagSet
 transBarrier (Barrier ts) = transTagSet ts
 
@@ -249,6 +256,7 @@ transAnalysis wf ana = CGB.WF wf:transAna ana
           IdenA (Iden id) tags   -> CGB.Lem id:(map transTagA tags)
           PunctA (Punct id) tags -> CGB.Lem id:(map transTagA tags)
           CompA ana1 ana2        -> transAna ana1 ++ transAna ana2
+          CollA ana1 ana2        -> transAna ana1 ++ transAna ana2
 
 transTagA :: TagA -> CGB.Tag
 transTagA (TagA (Iden id)) = CGB.Tag id
