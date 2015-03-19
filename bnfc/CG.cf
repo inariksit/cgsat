@@ -37,6 +37,7 @@ _.        SetName ::= "$$" SetName ; --Subreadings; just read them as regular se
 Lemma.   Tag1 ::= String ; 
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
+_.       Tag1 ::= "+" Tag1 ;
 
 coercions Tag 1 ;
 
@@ -45,10 +46,6 @@ separator nonempty Tag "" ;
 ----------------------------------------------------------------------
 -- Rules: e.g.
 -- REMOVE Foo IF (-1 Bar) 
-
--- More complex:
--- REMOVE V-FIN IF (0 Inf OR V-FIN) ((1C* V-FIN BARRIER CLB) OR (-1C* V-FIN BARRIER CLB));
---TODO templates
 
 RuleDef. Def ::= Rule ;
 
@@ -69,14 +66,19 @@ CNotPos.  Cond1 ::= "NOT" Position TagSet ;
 CPos.     Cond1 ::= Position TagSet ;
 CBarrier. Cond1 ::= Position TagSet Barrier ;
 CNotBar.  Cond1 ::= "NOT" Position TagSet Barrier ;
-Linked.   Cond  ::= [Cond1] ;
+CLinked.  Cond  ::= [Cond1] ;
+CTempl.   Cond  ::= [Template] ;
 _.        Cond ::= "(" Cond ")" ; 
 
 
 separator nonempty Cond1 "LINK" ;
 separator nonempty Cond "" ;
 
--- REMOVE V-FIN IF (0 Inf) (0 Inf OR V-FIN) ((1C* V-FIN BARRIER CLB) OR (-1C* V-FIN BARRIER CLB));
+-- Template: REMOVE V-FIN IF (0 Inf) (0 Inf OR V-FIN) ((1C* V-FIN) OR (-1C* V-FIN));
+
+Templ.    Template ::= "(" Cond1 ")" ;
+separator nonempty Template "OR" ;
+
 
 TagSet.  TagSet  ::= TagSet1 ;
 _.       TagSet1 ::= "(" TagSet ")" ; -- you can add parentheses around any tag set
@@ -104,14 +106,15 @@ _. Position ::= Position "C" ; --We're not interested in the unambiguous
 Barrier. Barrier ::= "BARRIER" TagSet ;
 
 
-
+-- ("\,") OR ("\:") OR ("\;") 
 
 token UIdent ((upper)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
               |('>')+|('<')+
+	      |('\\')(','|':'|';')+
 	      |(digit)(upper - ["C"]|lower|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')+) ;
 token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
-              |('>')+|('<')+) ;
-	     -- |(digit)(upper|letter|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')+) ;
+              |('>')+|('<')+
+	      |('\\')(','|':'|';')+  ) ;
 
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 

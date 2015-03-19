@@ -187,17 +187,17 @@ transCond c = case c of
   CNotPos pos ts      -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
   CBarrier pos ts bar -> handleBar pos ts bar True
   CNotBar pos ts bar  -> handleBar pos ts bar False
-  Linked  (c:cs)      -> do
-    first@(CGB.C pos tags) <- transCond c
-    let base = getPos pos
-    
-    conds <- mapM transCond cs
-    return $ foldr1 CGB.AND (first:fixNumbering base conds [])
-  where fixNumbering base []                  res = res
-        fixNumbering base (CGB.C pos tags:cs) res = 
+  CTempl templs       -> do conds <- mapM (transCond . (\(Templ c) -> c)) templs
+                            return $ foldr1 CGB.OR conds
+  CLinked (c:cs)      -> do first@(CGB.C pos tags) <- transCond c
+                            let base = getPos pos
+                            conds <- mapM transCond cs
+                            return $ foldr1 CGB.AND (first:fixPos base conds [])
+  where fixPos base []                  res = res
+        fixPos base (CGB.C pos tags:cs) res = 
           let newBase = getPos pos
               newPos = changePos pos newBase
-          in fixNumbering newBase cs ((CGB.C newPos tags):res)
+          in fixPos newBase cs ((CGB.C newPos tags):res)
 
         getPos pos =
           case pos of
