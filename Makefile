@@ -19,14 +19,16 @@ rest:
 test-pride:
 	$(testprog) data/eng_cg2.rlx data/pride.txt 2>/dev/null 
 
-test-story:
+test-spanish:
 	$(testprog) data/spa_cg3.rlx data/spa_data.txt 2>/dev/null 
+	$(testprog) data/spa_cg3.rlx data/spa_pobres.txt 2>/dev/null 
 
 test-grammars:
-#	cat data/bre_cg2.rlx | ./CG/Test
 	cat data/eng_cg2.rlx | ./CG/Test | grep Successful
 	cat data/spa_cg3.rlx | ./CG/Test | grep Successful
 	cat data/hun_cg2.rlx | ./CG/Test | grep Successful
+	cat data/bre_cg2.rlx | ./CG/Test| grep Successful
+
 
 clean:
 	-rm -f CG/*.log CG/*.aux CG/*.hi CG/*.o CG/*.dvi

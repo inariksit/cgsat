@@ -14,16 +14,18 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [r,d]      -> go r d False
-    [r,d,"-2"] -> go r d True
+    [r,d]      -> go r d False False
+    [r,d,"-2"] -> go r d False True
+    [r,d,"-v"] -> go r d True False
+    [r,d,"-v", "-2"] -> go r d True True
     _        -> do putStrLn "usage: ./test <rules> <data>"
-  where go r d isCG2 = do rules <- readRules r
+  where go r d v is2 = do rules <- readRules r
                           data' <- readData d
                           result <- mapM (disambiguate False rules) data'
-                          goldst <- gold r d isCG2
+                          goldst <- gold r d is2
                           let diff = [ (diffByWord r g orig)
                                        | (r,g,orig) <- zip3 result goldst data', r/=g ]
-                          (mapM_ . mapM_) prDiff diff
+                          when v $ (mapM_ . mapM_) prDiff diff
                           print (length result, length goldst)
                           putStr "Sentences that differ from vislcg3: "
                           print $ length diff

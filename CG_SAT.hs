@@ -72,7 +72,7 @@ anchor toks = (map.map) getBit (groupBy sameInd toks)
 
 -- | Apply rules to tokens. 
 applyRule :: [Token] -> Rule -> [[Bit]]
-applyRule toks rule = trace (show rule) $
+applyRule toks rule = --trace (show rule) $
   case rule of
 -- a) condition(s) must not hold 
 --for each token, if getContext is empty, remove/select it
@@ -96,11 +96,10 @@ applyRule toks rule = trace (show rule) $
 
 applyRules :: Rule -> [[Condition]] -> [Token] -> [[Bit]]
 applyRules rule []         allToks = []
-applyRules rule (conds:cs) allToks = --trace (show rule ++ "\n") $ {-++ (show (map (\tok -> getContext tok allToks conds) allToks))) $ -}
-  applyRules rule cs allToks ++
+applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
   case rule of 
-    (Remove tags c) -> mkVars (chosen tags) nt 
-    (Select tags c) -> mkVars (chosen tags) id ++ mkVars (other tags) nt
+    (Remove tags _c) -> mkVars (chosen tags) nt 
+    (Select tags _c) -> mkVars (chosen tags) id ++ mkVars (other tags) nt
 
 
   where
@@ -116,17 +115,17 @@ applyRules rule (conds:cs) allToks = --trace (show rule ++ "\n") $ {-++ (show (m
      -- cause is e.g. "-1 is noun" and consequence is "remove verb"
      -- needed because the word at -1 could have many tags, and they could conflict.
         mkVars :: [(Token,[Token])] -> (Bit -> Bit) -> [[Bit]]
-        mkVars tctx neg' = [ neg' conseq:(map nt causes) | (l, ls) <- tctx
-                                                         , let conseq = getBit l
-                                                         , let causes = map getBit ls ]
+        mkVars tctx f = [ f conseq:(map nt causes) | (t, ts) <- tctx
+                                                    , let conseq = getBit t
+                                                    , let causes = map getBit ts ]
 
 
         -- chosen: analyses that have the wanted readings and context
         chosen :: TagSet -> [(Token,[Token])]
-        chosen tags = [(tok, concat context) | tok <- allToks
-                                             , tagsMatchRule tags tok
-                                             , let context = getContext tok allToks conds
-                                             , allCondsHold context]
+        chosen tags = [(tok, concat ctx) | tok <- allToks
+                                          , tagsMatchRule tags tok
+                                          , let ctx = getContext tok allToks conds
+                                          , allCondsHold ctx]
  
         -- other: analyses that don't have the wanted readings,
         -- but some word in the same location does have the wanted reading(s)
@@ -157,9 +156,9 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
     []     -> [[tok]] -- empty tags in condition = remove/select always
     [[]]   -> [[tok]] -- since we need a context, give the word itself
     (t:ts) -> case position of
-                (Exactly n) -> [filter (neg' . tagsMatchRule ctags) (exactly n tok)]
-                (AtLeast n) -> [filter (neg' . tagsMatchRule ctags) (atleast n tok)]
-                (Barrier n bs)  -> [filter (neg' . tagsMatchRule ctags) (barrier n bs tok)]
+                Exactly n -> [filter (neg' . tagsMatchRule ctags) (exactly n tok)]
+                AtLeast n -> [filter (neg' . tagsMatchRule ctags) (atleast n tok)]
+                Barrier n bs  -> [filter (neg' . tagsMatchRule ctags) (barrier n bs tok)]
 
   where neg' = if bool then id else not
 
@@ -188,24 +187,25 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 disambiguate :: Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguate verbose rules sentence = do
   s <- newSolver
-  let chunkedSent = chunk sentence
+  let chunkedSent = chunk sentence :: [(Integer,[Tag])]
   bitsForTags <- sequence [ newBit s | _ <- chunkedSent ]
   bitsForRules <- sequence [ newBit s | _ <- rules ]
-  let toks = zip chunkedSent bitsForTags
+  let toks = zip chunkedSent bitsForTags :: [Token]
       unambig = anchor toks :: [[Bit]]
       appliedrules = [ nt x:c | (r,x) <- zip rules bitsForRules
-                               , c    <- applyRule toks r ]
+                               , c    <- applyRule toks r
+                               , (not.null) c ]
   when verbose $ do
     putStrLn "\ntokens:"
     mapM_ print toks
-    putStrLn "\nformulas:"
-    mapM_ print unambig
-    mapM_ print appliedrules
+    -- putStrLn "\nformulas:"
+    -- mapM_ print unambig
+    -- mapM_ print appliedrules
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) appliedrules
-  b <- maximize s [] bitsForRules --7079 out of 7667 are different
-  --b <- maximizeFromTop s  bitsForRules -- 7078 out of 7667 are different
-  --b <- discardFromBottom s [] bitsForRules -- 7113 out of 7667 are different
+  --b <- maximize s [] bitsForRules --7087 out of 7667 are different
+  --b <- maximizeFromTop s  bitsForRules -- 7086 out of 7667 are different
+  b <- discardFromBottom s [] bitsForRules -- 7086 out of 7667 are different
 
   if b then
        do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
