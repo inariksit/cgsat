@@ -29,9 +29,9 @@ main = do
                           print $ length diff
         prDiff (a1,a2,s) = do putStrLn "Original sentence:"
                               putStrLn (showSentence s)
-                              putStrLn "\nResult by CG-SAT"
+                              putStrLn "\nDisambiguation by CG-SAT"
                               putStrLn $ showAnalysis a1
-                              putStrLn "\nResult by vislcg3"
+                              putStrLn "\nDisambiguation by vislcg3"
                               putStrLn $ showAnalysis a2
                               putStrLn "---------------\n"
 

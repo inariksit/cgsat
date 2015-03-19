@@ -196,8 +196,13 @@ transCond c = case c of
   CLinked (c:cs)      -> do first@(CGB.C pos tags) <- transCond c
                             let base = getPos pos
                             conds <- mapM transCond cs
-                            return $ foldr1 CGB.AND (first:fixPos base conds [])
-  where fixPos base []                  res = res
+                            let op = if isLink0 conds then CGB.OR else CGB.AND
+                            return $ foldr op first (fixPos base conds [])
+
+  where isLink0 []                 = True
+        isLink0 (CGB.C pos _ts:cs) = getPos pos == 0 && isLink0 cs
+
+        fixPos base []                  res = res
         fixPos base (CGB.C pos tags:cs) res = 
           let newBase = getPos pos
               newPos = changePos pos newBase

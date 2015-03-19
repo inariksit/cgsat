@@ -72,7 +72,7 @@ anchor toks = (map.map) getBit (groupBy sameInd toks)
 
 -- | Apply rules to tokens. 
 applyRule :: [Token] -> Rule -> [[Bit]]
-applyRule toks rule = --trace (show rule) $
+applyRule toks rule = trace (show rule) $
   case rule of
 -- a) condition(s) must not hold 
 --for each token, if getContext is empty, remove/select it
@@ -198,9 +198,9 @@ disambiguate verbose rules sentence = do
   when verbose $ do
     putStrLn "\ntokens:"
     mapM_ print toks
-    -- putStrLn "\nformulas:"
-    -- mapM_ print unambig
-    -- mapM_ print appliedrules
+    putStrLn "\nformulas:"
+    mapM_ print unambig
+    mapM_ print appliedrules
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) appliedrules
   b <- maximize s [] bitsForRules --7079 out of 7667 are different
