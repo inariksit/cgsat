@@ -93,13 +93,27 @@ toLists :: Condition -> [[Condition]]
 --for OR, we make a list of lists, all in sequence.
 --for AND, we need to make them parallel and put in a form with OR as the first constructor
 --ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
---just one level of nesting, should make this work for all inputs ... then again who writes millions of nested ands and ors
+
+--  (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 N OR Verb) 
+-- -> OR (AND (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 N))
+--       (AND (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 Verb))
 
 toLists cond = case cond of
-    (C _position      _tags)        -> [simpleList cond]
-    (OR  c1           c2)           -> toLists c1 ++ toLists c2 
-    (AND c1@(AND _ _) c2@(AND _ _)) -> [toListsAnd cond]
-    (AND c1           c2)           -> map toListsAnd $ AND <$> simpleList c1 <*> simpleList c2  
+    C   _pos       _tags -> [[cond]]
+    AND c1@(C _ _) c2    -> map (c1:) (toLists c2)
+    OR  c1@(C _ _) c2    -> [c1]:(toLists c2)
+    AND c2  c1@(C _ _)   -> map (c1:) (toLists c2)
+    OR  c2  c1@(C _ _)   -> [c1]:(toLists c2)
+    AND (AND c1 c2) (OR  c3 c4) -> toLists $ OR (AND c1 (AND c2 c3))
+                                                (AND c1 (AND c2 c4))
+    AND (OR  c3 c4) (AND c1 c2) -> toLists $ OR (AND c1 (AND c2 c3))
+                                                (AND c1 (AND c2 c4))
+    AND (OR  c1 c2) (OR  c3 c4) -> toLists $ OR (OR (AND c1 c3)
+                                                    (AND c1 c4))
+                                                (OR (AND c2 c3)
+                                                    (AND c2 c4))
+    AND c1@(AND _ _) c2@(AND _ _) -> [concat $ toLists c1 ++ toLists c2]
+    OR  c1 c2 -> toLists c1 ++ toLists c2 
   where toListsAnd (AND c1 c2) = concat (toLists c1 ++ toLists c2)
         toListsAnd c@(C _ _)   = [c]
 
