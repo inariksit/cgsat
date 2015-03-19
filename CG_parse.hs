@@ -121,7 +121,9 @@ transSetDecl (List setname tags) =
 
 transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
-  Lemma str    -> return [[CGB.Lem str]]
+  Lemma (Str s) -> case s of
+                   ('"':'<':_) -> return [[CGB.WF s]]
+                   _           -> return [[CGB.Lem s]]
   Tag (Id str) -> return [[CGB.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
                      let allInOne = [concat (concat ts)]
@@ -168,12 +170,14 @@ transRule rl = case rl of
   RemoveIf _sl tags _if conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
   SelectAlways _sl tags   -> liftM2 CGB.Select (transTagSet tags) (return $ CGB.POS CGB.always)
   RemoveAlways _sl tags   -> liftM2 CGB.Remove (transTagSet tags) (return $ CGB.POS CGB.always)
-  MatchLemma lem rule -> do cgrule <- transRule rule
-                            case cgrule of
-                               CGB.Select ts c -> return $ CGB.Select (cart ts lem) c
-                               CGB.Remove ts c -> return $ CGB.Remove (cart ts lem) c
+  MatchLemma (    lem) rl -> do cgrule <- transRule rl
+                                case cgrule of
+                                  CGB.Select ts c -> return $ CGB.Select (cart ts lem) c
+                                  CGB.Remove ts c -> return $ CGB.Remove (cart ts lem) c
   where cart :: CGB.TagSet -> String -> CGB.TagSet
-        cart ts str = [[CGB.Lem str,t] | t<-concat ts]
+        cart ts str = case str of
+           ('"':'<':_) -> [[CGB.WF  str,t] | t<-concat ts]
+           _           -> [[CGB.Lem str,t] | t<-concat ts]
 
 
 transCondSet :: [Cond] -> State Env CGB.Test

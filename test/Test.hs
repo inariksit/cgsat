@@ -21,20 +21,22 @@ main = do
                           data' <- readData d
                           result <- mapM (disambiguate False rules) data'
                           goldst <- gold r d isCG2
-                          let diff = [ (showSent r, showSent g) 
-                                       | (r,g) <- zip result goldst, r/=g ]
-                          --mapM_ pr diff
+                          let diff = [ (diffByWord r g orig)
+                                       | (r,g,orig) <- zip3 result goldst data', r/=g ]
+                          (mapM_ . mapM_) prDiff diff
                           print (length result, length goldst)
                           putStr "Sentences that differ from vislcg3: "
                           print $ length diff
-        showSent   = map showAnalysis
-        pr (rs,gs) = do putStrLn "\nResult by CG-SAT"
-                        mapM_ putStrLn rs
-                        putStrLn "\nGold standard"
-                        mapM_ putStrLn gs
+        prDiff (a1,a2,s) = do putStrLn "Original sentence:"
+                              putStrLn (showSentence s)
+                              putStrLn "\nResult by CG-SAT"
+                              putStrLn $ showAnalysis a1
+                              putStrLn "\nResult by vislcg3"
+                              putStrLn $ showAnalysis a2
+                              putStrLn "---------------\n"
 
-diffByWord :: Sentence -> Sentence -> [(Analysis,Analysis)]
-diffByWord s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2, a1/=a2 ] 
+diffByWord :: Sentence -> Sentence -> Sentence -> [(Analysis,Analysis,Sentence)]
+diffByWord s1 s2 orig = [ (a1, a2, orig) | (a1, a2) <- zip s1 s2, a1/=a2 ] 
 
 gold :: FilePath -> FilePath -> Bool -> IO [Sentence]
 gold rls dt isCG2 = do

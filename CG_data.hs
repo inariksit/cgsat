@@ -3,18 +3,18 @@ module CG_data where
 import CG_base
 
 -- Analyses
-the = ("the",[[Lem "the", Tag "det"]])
-bear = ("bear", [Lem "bear", Tag "n", Tag "sg"] : [[Lem "bear", Tag "vblex",y] | y <- [Tag "pl", Tag "fin"]])
+the = ("the",[[WF "the", Lem "the", Tag "det"]])
+bear = ("bear", [WF "bear", Lem "bear", Tag "n", Tag "sg"] : [[WF "bear", Lem "bear", Tag "vblex",y] | y <- [Tag "pl", Tag "fin"]])
 
-sleeps = ("sleeps",[[Lem "sleep", Tag "n", Tag "pl"],
-          [Lem "sleep", Tag "vblex",Tag "sg", Tag "p3"]])
+sleeps = ("sleeps",[[WF "sleeps", Lem "sleep", Tag "n", Tag "pl"],
+          [WF "sleeps",Lem "sleep", Tag "vblex",Tag "sg", Tag "p3"]])
 
-sleep = ("sleep",[[Lem "sleep", Tag "n" ,Tag "sg"],
-         [Lem "sleep", Tag "vblex",Tag "inf"],
-         [Lem "sleep", Tag "vblex",Tag "pres"]])
+sleep = ("sleep",[[WF "sleep", Lem "sleep", Tag "n" ,Tag "sg"],
+         [WF "sleep",Lem "sleep", Tag "vblex",Tag "inf"],
+         [WF "sleep",Lem "sleep", Tag "vblex",Tag "pres"]])
 
-in_ = ("in", [[Lem "in", Tag "prep"],
-       [Lem "in", Tag "adv"]])
+in_ = ("in", [[WF "in", Lem "in", Tag "prep"],
+       [WF "in", Lem "in", Tag "adv"]])
 
 they = ("they",[[Lem "they", Tag "pron", Tag "subj", Tag "nom", Tag "p3"]])
 
@@ -31,7 +31,7 @@ go = ("go",[[Lem "go", Tag "vblex", Tag "inf"], [Lem "go", Tag "vblex", Tag "pre
 to = ("to",[[Lem "to", Tag "prep"],
        [Lem "to", Tag "adv"]])
 
-house = ("house",[[Lem "house", Tag "vblex", Tag "inf"], [Lem "house", Tag "vblex", Tag "pres"], [Lem "house", Tag "n", Tag "sg"]])
+house = ("house",[[WF "house", Lem "house", Tag "vblex", Tag "inf"], [WF "house", Lem "house", Tag "vblex", Tag "pres"], [WF "house", Lem "house", Tag "n", Tag "sg"]])
 
 comma = (",",[[Lem ",", Tag "punct"]])
 

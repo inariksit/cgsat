@@ -160,15 +160,30 @@ negOrTest = Select verb (NEG (OR (mkC "-1" conj) (mkC "1" prep)))
 
 
 -- | Shows all analyses as string, each lemma+tags in one line
+showSentence :: Sentence -> String
+showSentence = concatMap showAnalysis
+
+-- concatMap showTags returns this:
+-- "<are>"
+--	"be" vblex pres"<be>"
+--	"are" n sg
+-- so need some trickery
 showAnalysis :: Analysis -> String
-showAnalysis = concatMap showTags
+showAnalysis (a:as) = unlines $ showTags a : map showTags as'
+  where as' = (map.filter) notWF as
+        notWF (WF _) = False
+        notWF _      = True   
+        
   
 showTags :: [Tag] -> String
-showTags ts@(l:as) = if notBoundary ts 
-                        then show l ++ '\n':'\t':analyses
-                        else ""
-  where analyses = unwords $ map show as
-        notBoundary ts = null ([Lem "<<<", Lem ">>>"] `intersect` ts)
+showTags ts@(wf:as) = 
+  if isBoundary ts 
+    then ""
+    else case wf of
+            (WF s) -> show wf ++ '\n':'\t':showA as
+            _      -> '\t':showA (wf:as)
+  where showA = unwords . map show
+        isBoundary ts = (not.null) ([Lem "<<<", Lem ">>>"] `intersect` ts)
 
 
 

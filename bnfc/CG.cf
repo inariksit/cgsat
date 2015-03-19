@@ -24,7 +24,6 @@ Set.  SetDecl ::= "SET" SetName "=" TagSet ";" ;
 List. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
 
 -- Set names start with uppercase letter or number 
--- (this is annoying, because 
 SetName.  SetName ::= UIdent ;
 EOS.      SetName ::= "<<<" ;
 BOS.      SetName ::= ">>>" ;
@@ -34,7 +33,7 @@ _.        SetName ::= "$$" SetName ; --Subreadings; just read them as regular se
 --------------------------------------------------------------------------------
 -- Tags can be wordforms or lemmas/wordforms, identifiers or named sets.
 
-Lemma.   Tag1 ::= String ; 
+Lemma.   Tag1 ::= Str ; 
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
 _.       Tag1 ::= "+" Tag1 ;
@@ -109,12 +108,13 @@ Barrier. Barrier ::= "BARRIER" TagSet ;
 -- ("\,") OR ("\:") OR ("\;") 
 
 token UIdent ((upper)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
-              |('>')+|('<')+
 	      |('\\')(','|':'|';')+
 	      |(digit)(upper - ["C"]|lower|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')+) ;
 token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
-              |('>')+|('<')+
-	      |('\\')(','|':'|';')+  ) ;
+--              |('>')+|('<')+
+	      |('\\')?(','|':'|';')+  ) ;
+
+token Str ('"' ((char - ["\""]))* '"') ;
 
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 

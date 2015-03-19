@@ -206,7 +206,7 @@ REMOVE ("így" adv) IF (NOT 1C Verb);
 SELECT ("ha" cnjcoo) IF (NOT 1 (sent));
 
 # Not necessarily @-1 (e.g. ?!)
-REMOVE ("mikor" itg) IF (NOT *1 ("?"));
+REMOVE ("<mikor>" itg) IF (NOT *1 ("?"));
 
 #########
 #  nem  #
