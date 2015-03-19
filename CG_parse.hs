@@ -170,7 +170,7 @@ transRule rl = case rl of
   RemoveIf _sl tags _if conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
   SelectAlways _sl tags   -> liftM2 CGB.Select (transTagSet tags) (return $ CGB.POS CGB.always)
   RemoveAlways _sl tags   -> liftM2 CGB.Remove (transTagSet tags) (return $ CGB.POS CGB.always)
-  MatchLemma (    lem) rl -> do cgrule <- transRule rl
+  MatchLemma (Str lem) rl -> do cgrule <- transRule rl
                                 case cgrule of
                                   CGB.Select ts c -> return $ CGB.Select (cart ts lem) c
                                   CGB.Remove ts c -> return $ CGB.Remove (cart ts lem) c

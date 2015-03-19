@@ -52,7 +52,7 @@ SelectIf. Rule ::= SELECT TagSet MaybeIF [Cond] ";" ;
 RemoveIf. Rule ::= REMOVE TagSet MaybeIF [Cond] ";" ;
 SelectAlways. Rule ::= SELECT TagSet ";" ;
 RemoveAlways. Rule ::= REMOVE TagSet ";" ;
-MatchLemma. Rule ::= String Rule ;
+MatchLemma. Rule ::= Str Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
 
 rules SELECT ::= "SELECT" MaybeName ;
 rules REMOVE ::= "REMOVE" MaybeName ;
@@ -111,16 +111,11 @@ _. Position ::= Position "C" ; --We're not interested in the unambiguous
 Barrier. Barrier ::= "BARRIER" TagSet ;
 
 
--- ("\,") OR ("\:") OR ("\;") 
-
 token UIdent ((upper)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
-	      |('\\')(','|':'|';')+
 	      |(digit)(upper - ["C"]|lower|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')+) ;
-token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
---              |('>')+|('<')+
-	      |('\\')?(','|':'|';')+  ) ;
+token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*) ;
 
-token Str ('"' ((char - ["\""]))* '"') ;
+token Str ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
 
 token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
 
