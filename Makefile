@@ -23,6 +23,9 @@ test-spanish:
 	$(testprog) data/spa_cg3.rlx data/spa_data.txt 2>/dev/null 
 	$(testprog) data/spa_cg3.rlx data/spa_pobres.txt 2>/dev/null 
 
+test-hungarian:
+	$(testprog) data/hun_cg2.rlx data/hun_data.txt -v 2>/dev/null
+
 test-grammars:
 	cat data/eng_cg2.rlx | ./CG/Test | grep Successful
 	cat data/spa_cg3.rlx | ./CG/Test | grep Successful
