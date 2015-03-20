@@ -154,7 +154,10 @@ transTagSet ts = case ts of
 
   ----TODO all set operations!
 
-  Diff All ts    -> error "TODO this should have effect on a higher level"
+  Diff All ts    -> do env <- get
+                       let allTags = concatMap snd env 
+                       rmTags <- transTagSet ts
+                       return $ allTags \\ rmTags
   Diff ts All    -> error "something except everything? are you a philosopher?"
   Diff ts1 ts2   -> do tags1 <- transTagSet ts1
                        tags2 <- transTagSet ts2
@@ -200,15 +203,14 @@ transCond c = case c of
   CLinked (c:cs)      -> do first@(CGB.C pos tags) <- transCond c
                             let base = getPos pos
                             conds <- mapM transCond cs
-                            let op = if isLink0 conds then CGB.OR else CGB.AND
-                            return $ foldr op first (fixPos base conds [])
+                            return $ foldr CGB.AND first (fixPos base conds [])
 
   where isLink0 []                 = True
         isLink0 (CGB.C pos _ts:cs) = getPos pos == 0 && isLink0 cs
 
         fixPos base []                  res = res
         fixPos base (CGB.C pos tags:cs) res = 
-          let newBase = getPos pos
+          let newBase = base + getPos pos
               newPos = changePos pos newBase
           in fixPos newBase cs ((CGB.C newPos tags):res)
 
@@ -259,6 +261,8 @@ transLine :: Line -> CGB.Analysis
 transLine x = case x of
   Line (Iden wform) anas    -> map (transAnalysis wform) anas
   LinePunct (Punct p) anas  -> map (transAnalysis p) anas
+  OnlyPunct (Punct ",")     -> [[CGB.WF ",", CGB.Lem ",", CGB.Tag "cm"]]
+  OnlyPunct (Punct ".")     -> [[CGB.WF ".", CGB.Lem ".", CGB.Tag "sent"]]
   OnlyPunct (Punct str)     -> [[CGB.WF str, CGB.Lem str, CGB.Tag "punct"]]
   NoAnalysis (Iden wform) _ -> [[CGB.WF wform]]
 

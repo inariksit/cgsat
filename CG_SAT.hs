@@ -116,7 +116,7 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
      -- needed because the word at -1 could have many tags, and they could conflict.
         mkVars :: [(Token,[Token])] -> (Bit -> Bit) -> [[Bit]]
 --      mkVars tctx f = [ f conseq:(map nt causes) | (t, ts) <- tctx
-        mkVars tctx f = [ [f conseq,nt cause] | (t, ts) <- tctx
+        mkVars tctx f = [ [nt cause,f conseq] | (t, ts) <- tctx
                                                , let conseq = getBit t
                                                , let causes = map getBit ts
                                                , cause <- causes ]
@@ -203,7 +203,7 @@ disambiguate verbose rules sentence = do
     let usedrules = [ show rule ++ "\n" ++ show btags
                       | (brl:btags) <- applied 
                       , (rule,bit) <- rlsBits
-                      , bit == nt brl ] -- brl is negated in the implication
+                      , bit == nt brl || bit == brl ] -- brl is negated in the implication
     
     putStrLn "\ntokens:"
     mapM_ print toks

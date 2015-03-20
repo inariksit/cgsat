@@ -183,11 +183,11 @@ showSentence = concatMap showAnalysis
 --	"are" n sg
 -- so need some trickery
 showAnalysis :: Analysis -> String
+showAnalysis []     = []
 showAnalysis (a:as) = unlines $ showTags a : map showTags as'
   where as' = (map.filter) notWF as
         notWF (WF _) = False
-        notWF _      = True   
-        
+        notWF _      = True        
   
 showTags :: [Tag] -> String
 showTags ts@(wf:as) = 
