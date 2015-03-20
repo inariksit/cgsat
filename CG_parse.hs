@@ -125,7 +125,7 @@ transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
   Lemma (Str s) -> case s of
                    ('"':'<':_) -> return [[CGB.WF (strip 2 s)]]
-                   ('"':    _) -> return [[CGB.WF (strip 1 s)]]
+                   ('"':    _) -> return [[CGB.Lem (strip 1 s)]]
                    _           -> return [[CGB.Lem s]]
   Tag (Id str) -> return [[CGB.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
