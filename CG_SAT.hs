@@ -115,9 +115,11 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
      -- cause is e.g. "-1 is noun" and consequence is "remove verb"
      -- needed because the word at -1 could have many tags, and they could conflict.
         mkVars :: [(Token,[Token])] -> (Bit -> Bit) -> [[Bit]]
-        mkVars tctx f = [ f conseq:(map nt causes) | (t, ts) <- tctx
-                                                    , let conseq = getBit t
-                                                    , let causes = map getBit ts ]
+--      mkVars tctx f = [ f conseq:(map nt causes) | (t, ts) <- tctx
+        mkVars tctx f = [ [f conseq,nt cause] | (t, ts) <- tctx
+                                               , let conseq = getBit t
+                                               , let causes = map getBit ts
+                                               , cause <- causes ]
 
 
         -- chosen: analyses that have the wanted readings and context
@@ -188,24 +190,34 @@ disambiguate :: Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguate verbose rules sentence = do
   s <- newSolver
   let chunkedSent = chunk sentence :: [(Integer,[Tag])]
-  bitsForTags <- sequence [ newBit s | _ <- chunkedSent ]
+  bitsForTags  <- sequence [ newBit s | _ <- chunkedSent ]
   bitsForRules <- sequence [ newBit s | _ <- rules ]
-  let toks = zip chunkedSent bitsForTags :: [Token]
+  let toks = zip chunkedSent bitsForTags
+      rlsBits = zip rules bitsForRules
       unambig = anchor toks :: [[Bit]]
-      appliedrules = [ nt x:c | (r,x) <- zip rules bitsForRules
-                               , c    <- applyRule toks r
-                               , (not.null) c ]
+      applied = [ nt x:c | (r,x) <- rlsBits
+                         , c     <- applyRule toks r
+                         , (not.null) c  ]
   when verbose $ do
+
+    let usedrules = [ show rule ++ "\n" ++ show btags
+                      | (brl:btags) <- applied 
+                      , (rule,bit) <- rlsBits
+                      , bit == nt brl ] -- brl is negated in the implication
+    
     putStrLn "\ntokens:"
     mapM_ print toks
-    -- putStrLn "\nformulas:"
-    -- mapM_ print unambig
-    -- mapM_ print appliedrules
+    putStrLn "\nformulas:"
+    mapM_ print unambig
+    mapM_ putStrLn usedrules
+
+
+  
   mapM_ (addClauseBit s) unambig
-  mapM_ (addClauseBit s) appliedrules
-  --b <- maximize s [] bitsForRules --7087 out of 7667 are different
-  --b <- maximizeFromTop s  bitsForRules -- 7086 out of 7667 are different
-  b <- discardFromBottom s [] bitsForRules -- 7086 out of 7667 are different
+  mapM_ (addClauseBit s) applied
+  b <- maximize s [] bitsForRules --6814 out of 7667 are different
+  --b <- maximizeFromTop s  bitsForRules -- 6813 out of 7667 are different
+  --b <- discardFromBottom s [] bitsForRules -- 6956 out of 7667 are different
 
   if b then
        do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
