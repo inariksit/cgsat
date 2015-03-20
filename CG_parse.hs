@@ -92,11 +92,13 @@ split as = go as []
                    in go newxs (newsent:ys)
 
         isPunct :: CGB.Analysis -> Bool
-        isPunct = tagsInAna [CGB.Tag "sent", CGB.Lem "?"] --[CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
+        isPunct = tagsInAna [CGB.Tag "sent", CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
 
         tagsInAna :: [CGB.Tag] -> CGB.Analysis -> Bool
         tagsInAna tags as = or $ map ((not.null) . intersect tags) as
 
+strip :: Int -> String -> String
+strip n = drop n . reverse . drop n . reverse
 
 ---- CG parsing
 
@@ -122,7 +124,8 @@ transSetDecl (List setname tags) =
 transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
   Lemma (Str s) -> case s of
-                   ('"':'<':_) -> return [[CGB.WF s]]
+                   ('"':'<':_) -> return [[CGB.WF (strip 2 s)]]
+                   ('"':    _) -> return [[CGB.WF (strip 1 s)]]
                    _           -> return [[CGB.Lem s]]
   Tag (Id str) -> return [[CGB.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
@@ -176,9 +179,10 @@ transRule rl = case rl of
                                   CGB.Remove ts c -> return $ CGB.Remove (cart ts lem) c
   where cart :: CGB.TagSet -> String -> CGB.TagSet
         cart ts str = case str of
-           ('"':'<':_) -> [[CGB.WF  str,t] | t<-concat ts]
-           _           -> [[CGB.Lem str,t] | t<-concat ts]
-
+           ('"':'<':_) -> [[CGB.WF  (strip 2 str), t] | t <- concat ts]
+           ('"':_    ) -> [[CGB.Lem (strip 1 str), t] | t <- concat ts]
+           _           -> [[CGB.Lem str        , t] | t <- concat ts]
+        
 
 transCondSet :: [Cond] -> State Env CGB.Test
 transCondSet cs = do
