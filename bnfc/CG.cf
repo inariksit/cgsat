@@ -25,8 +25,8 @@ List. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
 
 -- Set names start with uppercase letter or number 
 SetName.  SetName ::= UIdent ;
-EOS.      SetName ::= "<<<" ;
 BOS.      SetName ::= ">>>" ;
+EOS.      SetName ::= "<<<" ;
 _.        SetName ::= "$$" SetName ; --Subreadings; just read them as regular set names
 
 

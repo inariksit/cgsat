@@ -24,8 +24,8 @@ instance Show Tag where
   show (WF str) = "\"<" ++ str ++ ">\""
   show (Lem str) = "\"" ++ str ++ "\""
   show (Tag str) = str
-  show BOS       = ">>>"
-  show EOS       = "<<<"
+  show BOS       = "" --">>>"
+  show EOS       = "" -- "<<<"
 
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
 --  For example, 
@@ -193,13 +193,10 @@ showAnalysis (a:as) = unlines $ showTags a : map showTags as'
   
 showTags :: [Tag] -> String
 showTags ts@(wf:as) = 
-  if isBoundary ts 
-    then ""
-    else case wf of
-            (WF s) -> show wf ++ '\n':'\t':showA as
-            _      -> '\t':showA (wf:as)
+  case wf of
+    (WF s) -> show wf ++ '\n':'\t':showA as
+    _      -> '\t':showA (wf:as)
   where showA = unwords . map show
-        isBoundary ts = (not.null) ([WF "<<<", WF ">>>"] `intersect` ts)
 
 
 

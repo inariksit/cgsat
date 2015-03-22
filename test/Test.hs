@@ -21,14 +21,15 @@ main = do
     _        -> do putStrLn "usage: ./test <rules> <data>"
   where go r d v is2 = do rules <- readRules r
                           data' <- readData d
-                          result <- mapM (disambiguate False rules) data'
-                          goldst <- gold r d is2
+                          result <- mapM (disambiguate False rules) data' -- :: [Sentence]
+                          goldst <- gold r d is2  -- :: [Sentence]
                           let diff = [ (diffByWord r g orig)
-                                       | (r,g,orig) <- zip3 result goldst data', r/=g ]
+                                       | (r,g,orig) <- zip3 result goldst data' ]
+                                  --     , null $ intersect r g ]
                           when v $ (mapM_ . mapM_) prDiff diff
                           print (length result, length goldst)
                           putStr "Sentences that differ from vislcg3: "
-                          print $ length diff
+                          print $ length $ filter (not.null) diff
         prDiff (a1,a2,s) = do putStrLn "Original sentence:"
                               putStrLn (showSentence s)
                               putStrLn "\nDisambiguation by CG-SAT"
@@ -38,7 +39,9 @@ main = do
                               putStrLn "---------------\n"
 
 diffByWord :: Sentence -> Sentence -> Sentence -> [(Analysis,Analysis,Sentence)]
-diffByWord s1 s2 orig = [ (a1, a2, orig) | (a1, a2) <- zip s1 s2, a1/=a2 ] 
+diffByWord s1 s2 orig = [ (a1, a2, orig) | (a1, a2) <- zip s1 s2
+                                         , sort a1 /= sort a2 ]
+                                         --, null $ intersect a1 a2 ] 
 
 gold :: FilePath -> FilePath -> Bool -> IO [Sentence]
 gold rls dt isCG2 = do

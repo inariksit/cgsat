@@ -25,7 +25,11 @@ getBit :: Token -> Bit
 getBit (_,b) = b
 
 isBoundary :: Token -> Bool
-isBoundary tok = not $ null ([Lem "<<<", Lem ">>>"] `intersect` getTags tok)
+isBoundary tok = not $ null ([BOS,EOS] `intersect` getTags tok)
+
+-- we don't need to apply rules to tokens that are already unambiguous
+isUnique :: Token -> [Token] -> Bool
+isUnique tok toks = length (filter (sameInd tok) toks) == 1
 
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
@@ -58,7 +62,6 @@ chunk sent = concat $ go sent 1
 
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
-  where toksByInd = groupBy sameInd ts :: [[Token]]
         
   
 --------------------------------------------------------------------------------
@@ -115,7 +118,7 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
      -- cause is e.g. "-1 is noun" and consequence is "remove verb"
      -- needed because the word at -1 could have many tags, and they could conflict.
         mkVars :: [(Token,[Token])] -> (Bit -> Bit) -> [[Bit]]
---      mkVars tctx f = [ f conseq:(map nt causes) | (t, ts) <- tctx
+--        mkVars tctx f = [ f conseq:(map nt causes) | (t, ts) <- tctx
         mkVars tctx f = [ [nt cause,f conseq] | (t, ts) <- tctx
                                                , let conseq = getBit t
                                                , let causes = map getBit ts
@@ -125,6 +128,7 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
         -- chosen: analyses that have the wanted readings and context
         chosen :: TagSet -> [(Token,[Token])]
         chosen tags = [(tok, concat ctx) | tok <- allToks
+                                         -- , not $ isUnique tok allToks -- not sure if this has any effect
                                           , tagsMatchRule tags tok
                                           , let ctx = getContext tok allToks conds
                                           , allCondsHold ctx]
@@ -157,6 +161,8 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
   case ctags of
     []     -> [[tok]] -- empty tags in condition = remove/select always
     [[]]   -> [[tok]] -- since we need a context, give the word itself
+    -- []     -> [[]]
+    -- [[]]   -> [[]]
     (t:ts) -> case position of
                 Exactly n -> [filter (neg' . tagsMatchRule ctags) (exactly n tok)]
                 AtLeast n -> [filter (neg' . tagsMatchRule ctags) (atleast n tok)]
@@ -209,28 +215,48 @@ disambiguate verbose rules sentence = do
     mapM_ print toks
     putStrLn "\nformulas:"
     mapM_ print unambig
-    mapM_ putStrLn usedrules
+    --mapM_ putStrLn usedrules
 
 
   
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) applied
-  b <- maximize s [] bitsForRules --6814 out of 7667 are different
-  --b <- maximizeFromTop s  bitsForRules -- 6813 out of 7667 are different
-  --b <- discardFromBottom s [] bitsForRules -- 6956 out of 7667 are different
+  b <- maximize s [] bitsForRules 
+  --b <- maximizeFromTop s  bitsForRules
+  --b <- discardFromBottom s [] bitsForRules
 
   if b then
-       do rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
+       do 
+          rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
           when verbose $ do
+            let conflictingRules = [ show r | (b, r) <- zip rs rules, b /= Just True ]
             putStrLn "These rules were not applied due to conflicts:"
-            mapM_ putStrLn [ show r | (b, r) <- zip rs rules, b /= Just True ]
+            mapM_ putStrLn (take 2 conflictingRules) 
+            putStrLn $ "+ " ++ show ((length conflictingRules) - 2) ++ " others"
+          
+          let nonConflictingRules = [ r | (b, r) <- zip rs bitsForRules, b == Just True ]
+          b2 <- maximize s nonConflictingRules bitsForTags
 
-          bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
-          let truetoks = [ t | (b, t) <- zip bs toks , b == Just True ]
           when verbose $ do
-            putStrLn "\nThe following tag sequence was chosen:"
-            mapM_ prTok truetoks
-          return (dechunk truetoks)
+
+            let truerules = [ show rule ++ "\n" ++ show btags
+                            | (brl:btags) <- applied 
+                            , (b,(rule,bit)) <- zip rs rlsBits
+                            , bit == nt brl 
+                            , b == Just True]
+            putStrLn "\nThe following rules were used:"
+            mapM_ putStrLn truerules
+
+          if b2 then
+                do bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
+                   let truetoks = [ t | (b, t) <- zip bs toks , b == Just True ]
+                   when verbose $ do
+                     putStrLn "\nThe following tag sequence was chosen:"
+                     putStrLn $ showSentence (dechunk truetoks)
+                   return (dechunk truetoks)
+                else
+                  do putStrLn "No solution after trying to maximise tags"
+                     return []
     else
        do putStrLn "No solution"
           conf <- conflict s
