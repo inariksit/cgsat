@@ -237,7 +237,7 @@ REMOVE:np_a_fp A IF (0 NP LINK 0 (adj f pl)) (-1 Prep) (1C N) (NOT 1 FemPl) ;
 	# asignaba a Armenia territorios
 
 # eliminación del imperativo en competición con el presente del indicativo
-#REMOVE:imp_1 Imp IF (0 (vblex pri p3 sg) LINK 0 (vblex imp p2 sg)) ;
+REMOVE:imp_1 Imp IF (0 (vblex pri p3 sg) LINK 0 (vblex imp p2 sg)) ;
 REMOVE:imp_2 Imp IF (-1 ("que")) (0 Verb) ;
 
 # elección de subjuntivo después de "que"
