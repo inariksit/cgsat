@@ -7,7 +7,7 @@ import Data.List
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma and word form are also in tags.
-data Tag = Tag String | Lem String | WF String deriving (Eq,Read)
+data Tag = Tag String | Lem String | WF String | EOS | BOS deriving (Eq,Read)
 
 
 -- | Wordform should be first element in an analysis.
@@ -24,6 +24,8 @@ instance Show Tag where
   show (WF str) = "\"<" ++ str ++ ">\""
   show (Lem str) = "\"" ++ str ++ "\""
   show (Tag str) = str
+  show BOS       = ">>>"
+  show EOS       = "<<<"
 
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
 --  For example, 
@@ -197,7 +199,7 @@ showTags ts@(wf:as) =
             (WF s) -> show wf ++ '\n':'\t':showA as
             _      -> '\t':showA (wf:as)
   where showA = unwords . map show
-        isBoundary ts = (not.null) ([Lem "<<<", Lem ">>>"] `intersect` ts)
+        isBoundary ts = (not.null) ([WF "<<<", WF ">>>"] `intersect` ts)
 
 
 

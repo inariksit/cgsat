@@ -60,14 +60,11 @@ main = do args <- getArgs
 
 ---
 
-startToken = [[CGB.Lem ">>>", CGB.Tag ">>>"]]
-endToken   = [[CGB.Lem "<<<", CGB.Tag "<<<"]]
-
 parseCGRules :: Grammar -> State Env [Either String CGB.Rule]
 parseCGRules (Defs defs) = do mapM updateEnv defs 
                               --in case the grammar doesn't specify boundaries 
-                              modify ((">>>",startToken) :)
-                              modify (("<<<",endToken) :)
+                              modify ((">>>",bos) :)
+                              modify (("<<<",eos) :)
                               env <- get
                               return $ map (parseRules' env) defs
   where updateEnv :: Def -> State Env ()
@@ -88,7 +85,7 @@ split as = go as []
                        fromPunct   = dropWhile (not . isPunct) xs
                        punct = if null fromPunct then [] else head fromPunct 
                        newxs = if null fromPunct then [] else tail fromPunct
-                       newsent = startToken:beforePunct ++ punct:endToken:[]
+                       newsent = bos:beforePunct ++ punct:eos:[]
                    in go newxs (newsent:ys)
 
         isPunct :: CGB.Analysis -> Bool
@@ -96,6 +93,9 @@ split as = go as []
 
         tagsInAna :: [CGB.Tag] -> CGB.Analysis -> Bool
         tagsInAna tags as = or $ map ((not.null) . intersect tags) as
+
+bos = [[CGB.BOS]]
+eos = [[CGB.EOS]]
 
 strip :: Int -> String -> String
 strip n = drop n . reverse . drop n . reverse
@@ -105,15 +105,15 @@ strip n = drop n . reverse . drop n . reverse
 transSetDecl :: SetDecl -> State Env (String, CGB.TagSet)
 transSetDecl (Set setname tagset) = 
   case setname of
-    EOS          -> return (">>>", endToken)
-    BOS          -> return ("<<<", startToken)
+    BOS          -> return (">>>", bos)
+    EOS          -> return ("<<<", eos)
     (SetName (UIdent name)) -> do 
       ts <- transTagSet tagset
       return (name, ts)
 transSetDecl (List setname tags) = 
   case setname of
-    EOS          -> return (">>>", endToken)
-    BOS          -> return ("<<<", startToken)
+    BOS          -> return (">>>", bos)
+    EOS          -> return ("<<<", eos)
     (SetName (UIdent name)) -> do 
       tl <- mapM transTag tags
       return (name, concat tl)
@@ -138,10 +138,8 @@ transTag tag = case tag of
       case lookup name env of
         Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
         Just ts -> (return ts :: State Env CGB.TagSet)
-    BOS -> return startToken
-    EOS -> return endToken
-  other -> error $ "wtf: " ++ show other
-
+    BOS -> return bos
+    EOS -> return eos
 
 transTagSet :: TagSet -> State Env CGB.TagSet
 transTagSet ts = case ts of
@@ -262,7 +260,7 @@ transLine x = case x of
   Line (Iden wform) anas    -> map (transAnalysis wform) anas
   LinePunct (Punct p) anas  -> map (transAnalysis p) anas
   OnlyPunct (Punct ",")     -> [[CGB.WF ",", CGB.Lem ",", CGB.Tag "cm"]]
-  OnlyPunct (Punct ".")     -> [[CGB.WF ".", CGB.Lem ".", CGB.Tag "sent"]]
+  OnlyPunct (Punct ".")     -> [[CGB.WF ".", CGB.Lem ".", CGB.Tag "sent",CGB.EOS]]
   OnlyPunct (Punct str)     -> [[CGB.WF str, CGB.Lem str, CGB.Tag "punct"]]
   NoAnalysis (Iden wform) _ -> [[CGB.WF wform]]
 
@@ -271,6 +269,7 @@ transAnalysis :: String -> Analysis -> [CGB.Tag]
 transAnalysis wf ana = CGB.WF wf:transAna ana
   where transAna ana = case ana of
           IdenA (Iden id) tags   -> CGB.Lem id:(map transTagA tags)
+          PunctA (Punct ".") tags -> CGB.Lem ".":CGB.EOS:(map transTagA tags)
           PunctA (Punct id) tags -> CGB.Lem id:(map transTagA tags)
           CompA ana1 ana2        -> transAna ana1 ++ transAna ana2
           CollA ana1 ana2        -> transAna ana1 ++ transAna ana2
