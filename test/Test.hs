@@ -27,7 +27,8 @@ main = do
                                        | (r,g,orig) <- zip3 result goldst data' ]
                                   --     , null $ intersect r g ]
                           when v $ (mapM_ . mapM_) prDiff diff
-                          print (length result, length goldst)
+                          putStr "Sentences in the original: "
+                          print (length goldst)
                           putStr "Sentences that differ from vislcg3: "
                           print $ length $ filter (not.null) diff
         prDiff (a1,a2,s) = do putStrLn "Original sentence:"

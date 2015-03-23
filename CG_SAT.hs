@@ -28,8 +28,8 @@ isBoundary :: Token -> Bool
 isBoundary tok = not $ null ([BOS,EOS] `intersect` getTags tok)
 
 -- we don't need to apply rules to tokens that are already unambiguous
-isUnique :: Token -> [Token] -> Bool
-isUnique tok toks = length (filter (sameInd tok) toks) == 1
+isAmbig :: Token -> [Token] -> Bool
+isAmbig tok toks = length (filter (sameInd tok) toks) > 1
 
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
@@ -122,13 +122,16 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
         mkVars tctx f = [ [nt cause,f conseq] | (t, ts) <- tctx
                                                , let conseq = getBit t
                                                , let causes = map getBit ts
-                                               , cause <- causes ]
+                                               , cause <- causes 
+--                                               , cause /= conseq
+--                                               , cause /= Bool True --with this ~200 sentences get worse
+                                               ]
 
 
         -- chosen: analyses that have the wanted readings and context
         chosen :: TagSet -> [(Token,[Token])]
         chosen tags = [(tok, concat ctx) | tok <- allToks
-                                         -- , not $ isUnique tok allToks -- not sure if this has any effect
+                                          , isAmbig tok allToks --only apply rules to ambiguous tokens
                                           , tagsMatchRule tags tok
                                           , let ctx = getContext tok allToks conds
                                           , allCondsHold ctx]
@@ -159,16 +162,19 @@ getContext :: Token           -- ^ a single analysis
 getContext tok allToks []     = []
 getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
   case ctags of
-    []     -> [[tok]] -- empty tags in condition = remove/select always
-    [[]]   -> [[tok]] -- since we need a context, give the word itself
-    -- []     -> [[]]
-    -- [[]]   -> [[]]
+    []     -> [[dummyTok]] --empty conds = holds always
+    [[]]   -> [[dummyTok]] -- if I replace dummyTok with tok, ~150 sentences get worse in Pride
     (t:ts) -> case position of
+                Exactly 0 -> if neg' $ tagsMatchRule ctags tok 
+                               then [[dummyTok]] --if the condition at 0 is in the *same reading*
+                               else [filter (neg' . tagsMatchRule ctags) (exactly 0 tok)] --if the LINK 0 thing is in a different reading
                 Exactly n -> [filter (neg' . tagsMatchRule ctags) (exactly n tok)]
                 AtLeast n -> [filter (neg' . tagsMatchRule ctags) (atleast n tok)]
                 Barrier n bs  -> [filter (neg' . tagsMatchRule ctags) (barrier n bs tok)]
 
   where neg' = if bool then id else not
+
+        dummyTok = ((999,[]),Bool True) 
 
         --given word and n, return list of words that are n places away in original sentence
         exactly :: Integer -> Token -> [Token]
@@ -204,13 +210,13 @@ disambiguate verbose rules sentence = do
       applied = [ nt x:c | (r,x) <- rlsBits
                          , c     <- applyRule toks r
                          , (not.null) c  ]
-  when verbose $ do
-
-    let usedrules = [ show rule ++ "\n" ++ show btags
+  
+  let usedrules = [ show rule ++ "\n" ++ show btags
                       | (brl:btags) <- applied 
                       , (rule,bit) <- rlsBits
-                      , bit == nt brl || bit == brl ] -- brl is negated in the implication
-    
+                      , bit == nt brl ] -- brl is negated in the implication
+  when verbose $ do
+  
     putStrLn "\ntokens:"
     mapM_ print toks
     putStrLn "\nformulas:"
@@ -221,9 +227,9 @@ disambiguate verbose rules sentence = do
   
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) applied
-  b <- maximize s [] bitsForRules 
+  --b <- maximize s [] bitsForRules 
   --b <- maximizeFromTop s  bitsForRules
-  --b <- discardFromBottom s [] bitsForRules
+  b <- discardFromBottom s [] bitsForRules
 
   if b then
        do 
@@ -246,6 +252,10 @@ disambiguate verbose rules sentence = do
                             , b == Just True]
             putStrLn "\nThe following rules were used:"
             mapM_ putStrLn truerules
+            
+            print $ (sort truerules) == (sort usedrules)
+            print (length truerules) 
+            print (length usedrules)
 
           if b2 then
                 do bs <- sequence [ modelValueBit s x | x <- bitsForTags ]

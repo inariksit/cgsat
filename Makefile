@@ -20,8 +20,8 @@ test-pride:
 	$(testprog) data/eng_cg2.rlx data/pride.txt 2>/dev/null 
 
 test-spanish:
-	$(testprog) data/spa_cg3.rlx data/spa_data.txt 2>/dev/null 
-	$(testprog) data/spa_cg3.rlx data/spa_pobres.txt 2>/dev/null 
+	$(testprog) data/spa_cg3.rlx data/spa_data.txt -v 2>/dev/null 
+	$(testprog) data/spa_cg3.rlx data/spa_pobres.txt -v 2>/dev/null 
 
 test-hungarian:
 	$(testprog) data/hun_cg2.rlx data/hun_data.txt -v 2>/dev/null
