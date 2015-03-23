@@ -1,0 +1,123 @@
+%
+% File nodalida2015.tex
+%
+% Contact beata.megyesi@lingfil.uu.se
+%
+% Based on the instruction file for EACL 2014
+% which in turn was based on the instruction files for previous 
+% ACL and EACL conferences.
+
+\documentclass[11pt]{article}
+\usepackage{nodalida2015}
+\usepackage{times}
+\usepackage{mathptmx}
+%\usepackage{txfonts}
+\usepackage{url}
+\usepackage{latexsym}
+\usepackage{listings}
+\special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
+%\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
+
+\title{Towards ....}
+
+\author{Inari Listenmaa \\
+  Affiliation / Address line 1 \\
+  Affiliation / Address line 2 \\
+  Affiliation / Address line 3 \\
+  {\tt inari@chalmers.se} \\\And
+  Koen Claessen \\
+  Affiliation / Address line 1 \\
+  Affiliation / Address line 2 \\
+  Affiliation / Address line 3 \\
+  {\tt koen@chalmers.se} \\}
+
+\date{}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+We implement Constraint Grammar using a SAT solver.
+
+We experiment with different strategies to maximise the number of instances to apply rules;
+this will also lead to different orderings of the rules and ways of solving conflicts.
+
+
+\end{abstract}
+
+
+\section{Introduction}
+Constraint Grammar (CG) was first introduced by \cite{KarlssonTODO}. 
+It is a tool for disambiguating output by morphological analyser.
+
+
+\section{Related work}
+\label{sect:related}
+
+\cite{lager1998, lager2000}  CG and FSIG (Finite State Intersectional Grammar) inspired POS tagging using theorem prover.
+% What we do better: implement something that takes existing CG rules and applies them to text, trying to mimic/outperform current CG implementations.
+
+Transformation-Based Learning of Rules for CG tagging (the paper with rules where ordering didn't matter so much)
+
+
+
+\section{Implementation using SAT}
+\label{sect:pdf}
+
+SAT solving is based on a technique called unit propagation:
+a set of complex Boolean clauses is simplified, starting from unit
+clauses, which consist of just a single variable, and working up to a
+solution, where all variables in the set have a True or False value.
+
+SAT solving is used for many applications where constraints must be
+satisfied, such as software and hardware verification.
+Application of logic to POS tagging or shallow parsing isn't new;
+Lager~\shortcite{lager1998, lager2000} presents POS tagging rules as logic, and uses
+a theorem prover (DisLog, TODO cite) to implement small constraint rules.
+Inspired by the approach, our implementation tries to emulate the CG
+formalism in behaviour and features offered.
+
+We make each analysis a variable. For instance, the fifth line denotes
+a hypothesis that the correct analysis of the 3rd item in the sentence
+is \texttt{<V,Sg>}. We call this \texttt{v5}.
+
+\begin{lstlisting}
+((1,["<the>","the",det]),v0)
+((2,["<bear>","bear",n,sg]),v1)
+((2,["<bear>","bear",vblex,pl]),v2)
+((2,["<bear>","bear",vblex,fin]),v3)
+((3,["<sleeps>","sleep",n,pl]),v4)
+((3,["<sleeps>","sleep",vblex,sg,p3]),v5)
+\end{lstlisting}
+
+\subsection{Rule ordering}
+\label{ssec:ordering}
+
+Ordering and conflicts : the most important differences here
+
+\cite{koskenniemi92}
+\begin{quote}Rules in the CG formalism are typically [--] executed as successive groups.
+In finite-state syntax, rules are logically unordered.\end{quote}
+
+% VISLCG ad hoc ordering:
+% 1. SELECT before REMOVE.
+% 2. SELECT rules targetting more preferred tags before 
+%   rules targetting less preferred targets.
+% 3. REMOVE rules targetting less preferred tags before
+ %   rules targetting more preferred targets.
+% 4. By order of appearance in rule file.
+
+In CG3, the rules are applied in the order of appearance in the rule file.
+
+
+
+
+% \section*{Acknowledgments}
+
+% Do not number the acknowledgment section. Do not include this section
+% when submitting your paper for review.
+
+\bibliographystyle{acl}
+\bibliography{cg}
+
+
+\end{document}
