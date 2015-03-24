@@ -14,6 +14,7 @@
 %\usepackage{txfonts}
 \usepackage{url}
 \usepackage{latexsym}
+\usepackage{cite}
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
 %\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
 
@@ -38,7 +39,7 @@ this will also lead to different orderings of the rules and ways of solving conf
 
 
 \section{Introduction}
-Constraint Grammar (CG) was first introduced by \cite{KarlssonTODO}. 
+Constraint Grammar (CG) was first introduced by \cite{karlsson1995constraint}. 
 It is a tool for disambiguating output by morphological analyser.
 
 
@@ -46,7 +47,7 @@ It is a tool for disambiguating output by morphological analyser.
 \label{sect:related}
 
 Application of logic to POS tagging or shallow parsing isn't new;
-\cite{lager1998, lager2000} present constraint rules as 
+\cite{lager98, lager_nivre01} present constraint rules as 
 a disjunctive logic program.
 
 Our implementation is inspired by this approach,
@@ -54,7 +55,7 @@ but unlike Lager's our implementation tries to emulate the CG
 formalism in behaviour and features offered.
 % What we do better: implement something that takes existing CG rules and applies them to text, trying to mimic/outperform current CG implementations.
 
-Transformation-Based Learning of Rules for CG tagging (the paper with rules where ordering didn't matter so much)
+\cite{lager01transformation} showed rules where ordering didn't matter so much in the end.
 
 
 
@@ -93,7 +94,7 @@ at least one of the analyses is true. We add our first disjunctions:
 \item [] $v1$ \\ $v2 \vee v3$ \\ $v4 \vee v5$
 \end{itemize}
 
-The first 
+
 
 \subsection{Rule ordering}
 \label{ssec:ordering}
