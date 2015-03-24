@@ -14,22 +14,14 @@
 %\usepackage{txfonts}
 \usepackage{url}
 \usepackage{latexsym}
-\usepackage{listings}
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
 %\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
 
 \title{Towards ....}
 
-\author{Inari Listenmaa \\
-  Affiliation / Address line 1 \\
-  Affiliation / Address line 2 \\
-  Affiliation / Address line 3 \\
-  {\tt inari@chalmers.se} \\\And
-  Koen Claessen \\
-  Affiliation / Address line 1 \\
-  Affiliation / Address line 2 \\
-  Affiliation / Address line 3 \\
-  {\tt koen@chalmers.se} \\}
+\author{Inari Listenmaa \and Koen Claessen \\
+  Chalmers University of Technology, Gothenburg, Sweden \\
+  {\tt \{inari,koen\}@chalmers.se} }
 
 \date{}
 
@@ -53,14 +45,20 @@ It is a tool for disambiguating output by morphological analyser.
 \section{Related work}
 \label{sect:related}
 
-\cite{lager1998, lager2000}  CG and FSIG (Finite State Intersectional Grammar) inspired POS tagging using theorem prover.
+Application of logic to POS tagging or shallow parsing isn't new;
+\cite{lager1998, lager2000} present constraint rules as 
+a disjunctive logic program.
+
+Our implementation is inspired by this approach,
+but unlike Lager's our implementation tries to emulate the CG
+formalism in behaviour and features offered.
 % What we do better: implement something that takes existing CG rules and applies them to text, trying to mimic/outperform current CG implementations.
 
 Transformation-Based Learning of Rules for CG tagging (the paper with rules where ordering didn't matter so much)
 
 
 
-\section{Implementation using SAT}
+\section{Implementation using SAT solver}
 \label{sect:pdf}
 
 SAT solving is based on a technique called unit propagation:
@@ -70,24 +68,32 @@ solution, where all variables in the set have a True or False value.
 
 SAT solving is used for many applications where constraints must be
 satisfied, such as software and hardware verification.
-Application of logic to POS tagging or shallow parsing isn't new;
-Lager~\shortcite{lager1998, lager2000} presents POS tagging rules as logic, and uses
-a theorem prover (DisLog, TODO cite) to implement small constraint rules.
-Inspired by the approach, our implementation tries to emulate the CG
-formalism in behaviour and features offered.
 
-We make each analysis a variable. For instance, the fifth line denotes
-a hypothesis that the correct analysis of the 3rd item in the sentence
-is \texttt{<V,Sg>}. We call this \texttt{v5}.
+Let us demonstrate the approach with the example sentence 
+\emph{the bear sleeps}. After applying morphological tagger, we get the following analyses:
 
-\begin{lstlisting}
-((1,["<the>","the",det]),v0)
-((2,["<bear>","bear",n,sg]),v1)
-((2,["<bear>","bear",vblex,pl]),v2)
-((2,["<bear>","bear",vblex,fin]),v3)
-((3,["<sleeps>","sleep",n,pl]),v4)
-((3,["<sleeps>","sleep",vblex,sg,p3]),v5)
-\end{lstlisting}
+\begin{verbatim}
+"<the>"
+        "the" det
+"<bear>"
+        "bear" n sg
+        "bear" v pl
+"<sleeps>"
+        "sleep" n pl
+        "sleep" v sg p3
+\end{verbatim}
+
+We make each analysis a variable \texttt{v1}--\texttt{v5}. 
+For instance, \texttt{v3} is a hypothesis that the correct analysis 
+for the word form ``bear'' is \texttt{"bear" n pl}.
+Before applying rules, we must make sure that in each position
+at least one of the analyses is true. We add our first disjunctions:
+
+\begin{itemize}
+\item [] $v1$ \\ $v2 \vee v3$ \\ $v4 \vee v5$
+\end{itemize}
+
+The first 
 
 \subsection{Rule ordering}
 \label{ssec:ordering}
@@ -108,7 +114,7 @@ In finite-state syntax, rules are logically unordered.\end{quote}
 
 In CG3, the rules are applied in the order of appearance in the rule file.
 
-
+A typical CG rule sequence starts with stronger rules  
 
 
 % \section*{Acknowledgments}
