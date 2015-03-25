@@ -143,13 +143,8 @@ to be applied if none of the weaker rules has fired.
 
 Different strategies for maximising: ...
 
-\paragraph{Modifications to an existing CG to better disambiguate with our implementation.}
-With the new model, the semantics of SELECT change.
-In the traditional CG, SELECT means ``remove everything else''. 
-In SAT-based implementation, SELECT means ``this variable will have value true'' 
-
-
-Choosing SELECT is less permanent as it is in the traditional. The following example illustrates the interaction of rules to produce the desired outcome. We have two ambiguous words with the following analysis:
+\paragraph{Less rules needed to disambiguate.}
+The following example illustrates the interaction of rules to produce the desired outcome. We have an ambiguous passage in Spanish, with the following analyses:
 
 \begin{verbatim}
 "<la>"
@@ -161,43 +156,18 @@ Choosing SELECT is less permanent as it is in the traditional. The following exa
         "casar" vblex imp p2 sg
 \end{verbatim}
 
-We apply a rule which removes the imperative in favour of the present indicative\footnote{\texttt{REMOVE imp IF (0 pri LINK 0 imp) ;}}.
-For both VISLCG3 and our system, the rule removes \texttt{"casar" vblex imp p2 sg}, 
-other analyses stay in place. If we replace that rule with a version that selects the present indicative 
-version\footnote{\texttt{SELECT pri IF (0 pri LINK 0 imp) ;}}, this leads to the same result as the REMOVE rule: only the imperative reading is removed, but the noun reading isn't touched.
-
-
-What happens here? We get three clauses:
-
-\begin{itemize}
-\item [] $casaImp \Rightarrow casaPri$ \\
-            $casaPri \Rightarrow \neg casaImp$ \\
-            $casaPri \vee casaImp \Rightarrow \neg casaN$
-\end{itemize}
-
-Changed into disjunctions, the clauses will look like
-\begin{itemize}
-\item [] $\neg casaImp \vee casaPri$ \\
-            $\neg casaPri \vee \neg casaImp$ \\
-            $\neg casaPri \vee \neg casaImp \vee \neg casaN$
-\end{itemize}
-
-The first clause simplifies to $casaPri$, and using that as a new unit clause, the second clause simplifies to $\neg casaImp$. 
-For the third clause, we don't have any rule that would set the value of $casaN$, so the general maximisation step ensures that $casaN$ will be true. 
-
-The fully disambiguated sequence is ``la\texttt{:det} casa\texttt{:n}'', so we need some more rules.
 We add the following rules to disambiguate the word \emph{la}:
 \begin{itemize}
 \item [] \texttt{REMOVE prn IF (1 n) ;} \\
              \texttt{REMOVE det IF (1 vblex) ;}
 \end{itemize}
 
-In the standard CG, the rule that removes the pronoun would apply first, because it comes first in the rule file.
-The second rule will not fire, because it would remove the last reading for the word \emph{la}, and that is not allowed. To be more cautious, we could require the word at position +1 be disambiguated fully (\texttt{1C} instead of \texttt{1}), but in that case, neither of them would fire. The ambiguity between the remaining readings of \emph{casa} is left untouched by these rules.
-In contrast, with the clauses created by the SAT-based implementation, we disambiguate \emph{casa} for free, and ordering of the rules doesn't have an effect.
+Standard CG will apply first the rule that removes the pronoun reading, because it comes first in the rule file.
+The second rule will not fire, because it would remove the last reading for the word \emph{la}, and that is not allowed. To be more cautious, we could require the word at position +1 be disambiguated fully (\texttt{1C} instead of \texttt{1}), but in that case, neither of them would fire. The ambiguity between the readings of \emph{casa} is left untouched by these rules.
 
+With the SAT clauses, we get two solutions: ``la\texttt{:det} casa\texttt{:n}''  and ``la\texttt{:prn} casa\texttt{:v}''. The interaction of the rules regarding \emph{la}  disambiguates \emph{casa} for free, and ordering of the rules doesn't matter. Since we don't have other rules nor further context, we still get two solutions, but there are no illegal combinations (\texttt{det v} or \texttt{prn n}) in one solution.
 
-\paragraph{Flipping rules.}
+\paragraph{Rules can be flipped.}
 Since implications can be presented as disjunctions, we can 
 The representation of the implications as disjunctions 
 \begin{itemize}
@@ -209,6 +179,24 @@ With this experiment, we move even further away from a direct ``if this then tha
 
 \section{Results and evaluation}
 
+We took small constraint grammars (<500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. We compared the result of using VISLCG3 for the same task; table~\ref{table:results} shows the differences in results in both sentence and word level.
+
+\begin{table}
+  \centering
+  \begin{tabular}{|r|r|r|r|r|}
+     \hline
+    \textbf{Text} & \textbf{Diff words} & \textbf{Diff sentences} \\
+    \hline
+	Pride and Prejudice & todo & 5457/7667 \\  
+    \hline
+       Don Quijote & todo & 3k/6k  \\ 
+     \hline
+  \end{tabular}
+  \caption{Results for comparing SATCG and VISLCG3.}
+  \label{table:results}
+\end{table}
+
+These tendencies show also in a larger context with more complex rules.
 
 
 % \section*{Acknowledgments}
