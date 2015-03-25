@@ -19,7 +19,7 @@
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
 %\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
 
-\title{Towards ....}
+\title{Towards something :-D}
 
 \author{Inari Listenmaa \and Koen Claessen \\
   Chalmers University of Technology, Gothenburg, Sweden \\
@@ -41,10 +41,18 @@ this will also lead to different orderings of the rules and ways of solving conf
 
 \section{Introduction}
 Constraint Grammar (CG) was first introduced by \cite{karlsson1995constraint}. 
-It is a tool for disambiguating output by morphological analyser.
+It disambiguates output by morphological analyser, 
+and has been used for many tasks in computational linguistics, such as POS tagging,
+surface syntax and machine translation.
+The current state-of-the-art parser VISL CG-3 is implemented (...);
+in addition there are a number of finite-state based implementations \cite{nemeskey14}.
 
+We represent CG as a Boolean satisfiability problem using the 
+open-source SAT solver MiniSat \cite{een04sat}.
 Our implementation is inspired by approaches like \cite{lager98,lager_nivre01},
-but we try to emulate the CG formalism more closely, and use the same rule files.
+but we try to emulate the CG formalism more closely than the previous logic-based works.
+
+% NP-complete -- overkill for CG? But gives other benefits.
 
 \section{Related work}
 \label{sect:related}
@@ -52,14 +60,11 @@ but we try to emulate the CG formalism more closely, and use the same rule files
 Application of logic to POS tagging or shallow parsing isn't new;
 \cite{lager98,lager_nivre01} present constraint rules as 
 a disjunctive logic program.
+\cite{lindberg_eineborg98ilp,asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
+\cite{lager01transformation} discusses ordering of the CG rules.
 
-\cite{lindberg_eineborg98ilp,asfrent14}
-
-% What we do better: implement something that takes existing CG rules and applies them to text, trying to mimic/outperform current CG implementations.
-
-\cite{lager01transformation} showed rules where ordering didn't matter so much in the end.
-
-
+Works from the late 90s and early 00s mention that the method is very slow;
+however, advances in SAT solving technique
 
 \section{CG as a SAT problem}
 \label{sect:pdf}
@@ -68,63 +73,61 @@ SAT solving is based on a technique called unit propagation:
 a set of complex Boolean clauses is simplified, starting from unit
 clauses, which consist of just a single variable, and working up to a
 solution, where all variables in the set have a True or False value.
-
-SAT solving is used for many applications where constraints must be
-satisfied, such as software and hardware verification.
-
-Let us demonstrate the approach with the example sentence 
-\emph{the bear sleeps}. After applying morphological tagger, we get the following analyses:
-
-\begin{verbatim}
-"<the>"
-        "the" det
-"<bear>"
-        "bear" n sg
-        "bear" v pl
-"<sleeps>"
-        "sleep" n pl
-        "sleep" v sg p3
-\end{verbatim}
-
-We make each analysis a variable; let us call them \texttt{d1}, \texttt{n2}, \texttt{v2}, \texttt{n3} and \texttt{v3} by the proposed POS tag and the position in the sentence.
-For instance, \texttt{n2} is a hypothesis that the correct analysis 
-for the word form \emph{bear}' is \texttt{"bear" n pl}.
-Before applying rules, we must make sure that in each position
-at least one of the analyses is true. We add our first disjunctions:
+We model an ambiguous sentence as a set of clauses, where each analysis is a variable, 
+and constraint rules form clauses operating on those variables.
 
 \begin{itemize}
-\item [] $d1$ \\ $n2 \vee v2$ \\ $n3 \vee v3$
+\item The condition of being unambiguously tagged becomes less necessary.
+We add many clauses, knowing that some of them end up being false.
+\item Rules are unordered. 
+\item Rules interact with each other and disambiguate more than same rules in the standard implementation.
 \end{itemize}
 
-Let us add two rules:
-\begin{itemize}
-\item [] \texttt{REMOVE v IF -1 det} \\ 
-            \texttt{REMOVE n IF -1 n} 
-%             $d1 \Rightarrow \neg v2$ 
-%\item [] \texttt{REMOVE n IF -1 n} \\
-%              $n2   \Rightarrow \neg n3$
+% Let us demonstrate the approach with the example sentence 
+% \emph{the bear sleeps}. After applying morphological tagger, we get the following analyses:
 
-\end{itemize}
+% \begin{verbatim}
+% "<the>"
+%         "the" det
+% "<bear>"
+%         "bear" n sg
+%         "bear" v pl
+% "<sleeps>"
+%         "sleep" n pl
+%         "sleep" v sg p3
+% \end{verbatim}
 
-The rules are applied as implications: \emph{if ``the'' is a determiner, then ``bear'' cannot be a verb}. 
-The antecedent is 
+%We make each analysis a variable; let us call them \texttt{d1}, \texttt{n2}, \texttt{v2}, \texttt{n3} and \texttt{v3} by the proposed POS tag and the position in the sentence.
+%For instance, \texttt{n2} is a hypothesis that the correct analysis 
+%for the word form \emph{bear}' is \texttt{"bear" n pl}.
+%Before applying rules, we must make sure that in each position
+%at least one of the analyses is true. We add our first disjunctions:
+
+%\begin{itemize}
+%\item [] $d1$ \\ $n2 \vee v2$ \\ $n3 \vee v3$
+%\end{itemize}
+
+%Let us add two rules:
+%\begin{itemize}
+%\item [] \texttt{REMOVE v IF -1 det} \\ 
+%            \texttt{REMOVE n IF -1 n} 
+%\end{itemize}
+
+%The rules are applied as implications: \emph{if ``the'' is a determiner, then ``bear'' cannot be a verb}. 
  
 %\begin{itemize}
 %\item [] $d1 \Rightarrow \neg v2$ \\
 %           $n2   \Rightarrow \neg n3$
 %\end{itemize}
 
-The condition of being unambiguously tagged becomes less necessary as well.
-We add many clauses, knowing that some of them end up being false.
 
 \subsection{Rule ordering}
 \label{ssec:ordering}
 
-Ordering and conflicts : the most important differences here
+A typical CG rule sequence starts with weaker rules, and leaves stronger rules towards the end, 
+to be applied if none of the weaker rules has fired.
 
-%\cite{koskenniemi92}
-%\begin{quote}Rules in the CG formalism are typically [--] executed as successive groups.
-%In finite-state syntax, rules are logically unordered.\end{quote}
+Unordered rules are not new: finite-state implementations of CG \cite{koskenniemi92} also have logically unordered rules. 
 
 % VISLCG ad hoc ordering:
 % 1. SELECT before REMOVE.
@@ -136,14 +139,11 @@ Ordering and conflicts : the most important differences here
 
 In CG3, the rules are applied in the order of appearance in the rule file.
 
-A typical CG rule sequence starts with weaker rules, and leaves stronger rules towards the end, 
-to be applied if none of the weaker rules has fired.
-
-\subsection{Other experiments}
 
 Different strategies for maximising: ...
 
-\paragraph{Less rules needed to disambiguate.}
+\subsection{Rule interaction}
+
 The following example illustrates the interaction of rules to produce the desired outcome. We have an ambiguous passage in Spanish, with the following analyses:
 
 \begin{verbatim}
@@ -179,7 +179,7 @@ With this experiment, we move even further away from a direct ``if this then tha
 
 \section{Results and evaluation}
 
-We took small constraint grammars (<500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. We compared the result of using VISLCG3 for the same task; table~\ref{table:results} shows the differences in results in both sentence and word level.
+We took small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. We compared the result of using VISLCG3 for the same task; table~\ref{table:results} shows the differences in results in both sentence and word level.
 
 \begin{table}
   \centering
@@ -187,16 +187,17 @@ We took small constraint grammars (<500 rules) for Spanish and English, and disa
      \hline
     \textbf{Text} & \textbf{Diff words} & \textbf{Diff sentences} \\
     \hline
-	Pride and Prejudice & todo & 5457/7667 \\  
+	Pride and Prejudice & todo & 5k/7k \\  
     \hline
        Don Quijote & todo & 3k/6k  \\ 
      \hline
   \end{tabular}
-  \caption{Results for comparing SATCG and VISLCG3.}
+  \caption{Results for comparing CGSAT and VISLCG3.}
   \label{table:results}
 \end{table}
 
-These tendencies show also in a larger context with more complex rules.
+The tendency of needing less rules to disambiguate shows also in a larger context with more complex rules.
+In many of the differences, CGSAT disambiguated more. (TODO counts)
 
 
 % \section*{Acknowledgments}
