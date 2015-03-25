@@ -122,7 +122,7 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
                                             , tCombs <- sequence ctx  -- :: [[Token]]
                                             , let conseq = getBit t
                                             , let ants = map (nt . getBit) tCombs ] 
-       -- sequence: say we have rule REMOVE v IF (-1 det LINK 2 n)
+       -- sequence: say we have rule REMOVE v IF (-1 det) (1 n)
        -- and we get [ [(1,det)], [(3,n pl), (3,n sg)] ]
        -- we can't just put all of them in the list of antecedents,
        -- because that would require n pl and n sg be true at the same time.
@@ -201,63 +201,65 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 
 disambiguate :: Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguate verbose rules sentence = do
-  s <- newSolver
   let chunkedSent = chunk sentence :: [(Integer,[Tag])]
-  bitsForTags  <- sequence [ newBit s | _ <- chunkedSent ]
-  bitsForRules <- sequence [ newBit s | _ <- rules ]
-  let toks = zip chunkedSent bitsForTags
-      rlsBits = zip rules bitsForRules
-      allNotFalse = anchor toks :: [[Bit]]
-      isAmbig = any (\x -> length x > 1) allNotFalse 
-      applied = [ nt x:c | (r,x) <- rlsBits
-                         , c     <- applyRule toks r
-                         , (not.null) c  ]
+  if length chunkedSent == length sentence then return sentence -- not ambiguous
+   else
+   do s <- newSolver
+      bitsForTags  <- sequence [ newBit s | _ <- chunkedSent ]
+      --bitsForRules <- sequence [ newBit s | _ <- rules ]
+      let toks = zip chunkedSent bitsForTags
+          allNotFalse = anchor toks :: [[Bit]]
+          applied = [ applyRule toks rule | rule <- rules ] :: [[[Bit]]]
+                             -- , clause <- applyRule toks rule
+                             -- , not.null clause ]
+
+      bitsForInstances <- sequence [ newBit s | c <- applied ]
+
+
+      let addedClauses = [ nt b:cl | (b,cls) <- zip bitsForInstances applied
+                                   , cl <- cls
+                                   , (not.null) cl ]
   
-  let addedClauses = [ show rule ++ "\n" ++ show btags
-                      | (brl:btags) <- applied 
-                      , (rule,bit) <- rlsBits
-                      , bit == nt brl ] -- brl is negated in the implication
-  when (verbose && isAmbig) $ do
+      when verbose $ do
         putStrLn "\ntokens:"
         mapM_ print toks
-        putStrLn "\nformulas:"
+        putStrLn "\nfirst step, make sure all readings for a given word are not false:"
         mapM_ print allNotFalse
-        --mapM_ putStrLn addedClauses
+        putStrLn "\nclauses gotten by applying rules"
+        mapM_ print addedClauses
 
 
   
-  mapM_ (addClauseBit s) allNotFalse
-  mapM_ (addClauseBit s) applied
-  b <- maximize s [] bitsForRules 
-  --b <- maximizeFromTop s  bitsForRules
-  --b <- discardFromBottom s [] bitsForRules
+      mapM_ (addClauseBit s) allNotFalse
+      mapM_ (addClauseBit s) addedClauses
+      b <- maximize s [] bitsForInstances 
+      --b <- maximizeFromTop s  bitsForInstances
+      --b <- discardFromBottom s [] bitsForInstances
 
-  if b then
-       do 
-          rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
-          when (verbose && isAmbig) $ do
-            let confRules = [ show r | (b, r) <- zip rs rules, b /= Just True ]
-            putStrLn "These rules were not applied due to conflicts:"
-            mapM_ putStrLn (take 2 confRules) 
-            putStrLn $ "+ " ++ show ((length confRules) - 2) ++ " others"
-          
-          let nonConfRules = [ r | (b, r) <- zip rs bitsForRules, b == Just True ]
-          b2 <- maximize s nonConfRules bitsForTags
+      if b then
+           do is <- sequence [ modelValueBit s x | x <- bitsForInstances ]
+              when verbose $ do
+                let confInstances = [ show i | (b, i) <- zip is applied, b /= Just True ]
+                putStrLn "These clauses were omitted due to conflicts:"
+                mapM_ putStrLn (take 2 confInstances) 
+                putStrLn $ "+ " ++ show ((length confInstances) - 2) ++ " others"
 
-          when (verbose && isAmbig) $ do
-            let trueRules = [ show rule ++ "\n" ++ show btags
-                            | (brl:btags) <- applied 
-                            , (b,(rule,bit)) <- zip rs rlsBits
-                            , bit == nt brl 
-                            , b == Just True]
-            putStrLn "\nThe following rules were used:"
-            mapM_ putStrLn trueRules
+              let nonConfInstances = [ i | (b, i) <- zip is bitsForInstances, b == Just True ]
+              b2 <- maximize s nonConfInstances bitsForTags
+
+              when verbose $ do
+                -- let trueInstances = [ show rule ++ "\n" ++ show btags
+                --                    | (brl:btags) <- addedClauses 
+                --                    , () <- zip is applied
+                --                    , bit == nt brl 
+                --                    , b == Just True ]
+                putStrLn "\nThe following rules were used:"
+                -- mapM_ putStrLn trueInstances
             
-            print $ (sort trueRules) == (sort addedClauses)
-            print (length trueRules) 
-            print (length addedClauses)
+                -- print (length trueInstances) 
+                -- print (length addedClauses)
 
-          if b2 then
+              if b2 then
                 do bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
                    let truetoks = [ t | (b, t) <- zip bs toks , b == Just True ]
                    when verbose $ do
@@ -267,15 +269,11 @@ disambiguate verbose rules sentence = do
                 else
                   do putStrLn "No solution after trying to maximise tags"
                      return []
-    else
-       do putStrLn "No solution"
-          conf <- conflict s
-          print conf
-          return []
-
-  where prTok :: Token -> IO ()
-        prTok = putStrLn . showTags . getTags
-
+      else
+        do putStrLn "No solution"
+           conf <- conflict s
+           print conf
+           return []
 
 test :: IO ()
 test = mapM_ (disambiguate True rls) CG_data.exs
