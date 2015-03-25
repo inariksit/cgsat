@@ -179,17 +179,17 @@ With this experiment, we move even further away from a direct ``if this then tha
 
 \section{Results and evaluation}
 
-We took small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. We compared the result of using VISLCG3 for the same task; table~\ref{table:results} shows the differences in results in both sentence and word level.
+We took small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. Table~\ref{table:results} shows how much the results agree with the result given by VISL CG3 parser with the same grammar and text.
 
 \begin{table}
   \centering
-  \begin{tabular}{|r|r|r|r|r|}
+  \begin{tabular}{|l|c|c|}
      \hline
-    \textbf{Text} & \textbf{Diff words} & \textbf{Diff sentences} \\
+    \textbf{Text} & \textbf{Words} & \textbf{\% same analyses} \\
     \hline
-	Pride and Prejudice & todo & 5k/7k \\  
+	Pride and Prejudice & 153386 & 90.6 \\  
     \hline
-       Don Quijote & todo & 3k/6k  \\ 
+       Don Quijote & 186460 & 96.3  \\ 
      \hline
   \end{tabular}
   \caption{Results for comparing SATCG and VISLCG3.}
