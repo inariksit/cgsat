@@ -21,34 +21,63 @@ main = do
     [r,d,"-2","-v"] -> go r d True True
     [r,d,"-v2"] -> go r d True True
     [r,d,"-2v"] -> go r d True True
-    _        -> do putStrLn "usage: ./test <rules> <data>"
+    _           -> putStrLn "usage: ./test <rules> <data>"
   where go r d v is2 = do rules <- readRules r
-                          data' <- readData d
-                          result <- mapM (disambiguate False rules) data' -- :: [Sentence]
-                          goldst <- gold r d is2  -- :: [Sentence]
-                          let diff = [ (diffByWord r g orig)
-                                       | (r,g,orig) <- zip3 result goldst data' ]
-                                  --     , null $ intersect r g ]
-                          when v $ (mapM_ . mapM_) prDiff diff
-                          putStr "Sentences in the original: "
-                          print (length goldst)
-                          putStr "Sentences that differ from vislcg3: "
-                          print $ length $ filter (not.null) diff
-        prDiff (a1,a2,s) = do putStrLn "Original sentence:"
-                              putStrLn (showSentence s)
-                              putStrLn "\nDisambiguation by satcg"
-                              putStrLn $ showAnalysis a1
-                              putStrLn "\nDisambiguation by vislcg3"
-                              putStrLn $ showAnalysis a2
-                              putStrLn "---------------\n"
+                          text <- readData d
+                          resSAT <- mapM (disambiguate False rules) text -- :: [Sentence]
+                          resVISL <- vislcg3 r d is2  -- :: [Sentence]
+                          let diffBS = [ (orig, diff)
+                                          | (s,v,orig) <- zip3 resSAT resVISL text
+                                          , let diff = diffBySent s v
+                                          , (not.null) diff ]
+                              moreD = [ satDisMore
+                                          | (s,v) <- zip resSAT resVISL
+                                          , let satDisMore = moreDisamb s v
+                                          , (not.null) satDisMore ]
+                              
+                          when v $ do
+                            mapM_ prDiff diffBS
 
-diffByWord :: Sentence -> Sentence -> Sentence -> [(Analysis,Analysis,Sentence)]
-diffByWord s1 s2 orig = [ (a1, a2, orig) | (a1, a2) <- zip s1 s2
-                                         , sort a1 /= sort a2 ]
-                                         --, null $ intersect a1 a2 ] 
+                          let origwords = fromIntegral $ length $ concat text
+                              origsents = fromIntegral $ length resSAT
+                              diffsents = fromIntegral $ length diffBS
+                              diffwords = fromIntegral $ length $ concatMap snd diffBS
+                          putStr "(Sentences,words) in the original: "
+                          print (origsents,origwords)
+                          putStr "Different (sentences,words) from original: "
+                          print (diffsents,diffwords)
+                          putStr "% same sentences with vislcg3: "
+                          print $ 100 * ((origsents - diffsents) / origsents)
+                          putStr "% same words with vislcg3: "
+                          print $ 100 * ((origwords - diffwords) / origwords)
+                          putStr "(SAT disambiguates more/SAT disambiguates differently): "
+                          print (length moreD, diffwords)
+                          putStrLn ""
 
-gold :: FilePath -> FilePath -> Bool -> IO [Sentence]
-gold rls dt isCG2 = do
+        prDiff :: (Sentence, [(Analysis,Analysis)]) -> IO ()
+        prDiff (s,as) = do putStrLn "---------------\n"
+                           putStrLn "Original sentence:"
+                           putStrLn $ showSentence s
+                           mapM_ prAnas as
+        prAnas (a1,a2) = do putStrLn "\nDisambiguation by satcg"
+                            putStrLn $ showAnalysis a1
+                            putStrLn "\nDisambiguation by vislcg3"
+                            putStrLn $ showAnalysis a2
+
+
+diffBySent :: Sentence -> Sentence -> [(Analysis,Analysis)]
+diffBySent s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2
+                              , sort a1 /= sort a2 ]
+
+moreDisamb :: Sentence -> Sentence -> [(Analysis, Analysis)]
+moreDisamb s1 s2 =
+  [ (a1, a2) | (a1, a2) <- diffBySent s1 s2
+             , length a1 < length a2
+             , (not.null) $ intersect a1 a2 ]
+
+
+vislcg3 :: FilePath -> FilePath -> Bool -> IO [Sentence]
+vislcg3 rls dt isCG2 = do
   let cg2 = if isCG2 then "-2" else ""
   (_, Just out1, _, _) <-
       createProcess (proc "cat" [dt]){std_out=CreatePipe}
