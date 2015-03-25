@@ -30,7 +30,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-We implement Constraint Grammar using a SAT solver.
+We implement Constraint Grammar as a Boolean satisfiability problem.
 
 We experiment with different strategies to maximise the number of instances to apply rules;
 this will also lead to different orderings of the rules and ways of solving conflicts.
@@ -61,7 +61,7 @@ a disjunctive logic program.
 
 
 
-\section{Implementation using SAT solver}
+\section{CG as a SAT problem}
 \label{sect:pdf}
 
 SAT solving is based on a technique called unit propagation:
@@ -86,22 +86,33 @@ Let us demonstrate the approach with the example sentence
         "sleep" v sg p3
 \end{verbatim}
 
-We make each analysis a variable; let us call them \texttt{det1}, \texttt{n2}, \texttt{v2}, \texttt{n3} and \texttt{v3} by the proposed POS tag and the position in the sentence.
+We make each analysis a variable; let us call them \texttt{d1}, \texttt{n2}, \texttt{v2}, \texttt{n3} and \texttt{v3} by the proposed POS tag and the position in the sentence.
 For instance, \texttt{n2} is a hypothesis that the correct analysis 
-for the word form ``bear'' is \texttt{"bear" n pl}.
+for the word form \emph{bear}' is \texttt{"bear" n pl}.
 Before applying rules, we must make sure that in each position
 at least one of the analyses is true. We add our first disjunctions:
 
 \begin{itemize}
-\item [] $det1$ \\ $n2 \vee v2$ \\ $n3 \vee v3$
+\item [] $d1$ \\ $n2 \vee v2$ \\ $n3 \vee v3$
 \end{itemize}
 
-Let us add two rules
+Let us add two rules:
 \begin{itemize}
-\item [] \texttt{REMOVE v IF -1 det} \\ \texttt{REMOVE n IF -1 n}
+\item [] \texttt{REMOVE v IF -1 det} \\ 
+            \texttt{REMOVE n IF -1 n} 
+%             $d1 \Rightarrow \neg v2$ 
+%\item [] \texttt{REMOVE n IF -1 n} \\
+%              $n2   \Rightarrow \neg n3$
+
 \end{itemize}
 
-Instead of applying these rules 
+The rules are applied as implications: \emph{if ``the'' is a determiner, then ``bear'' cannot be a verb}. 
+The antecedent is 
+ 
+%\begin{itemize}
+%\item [] $d1 \Rightarrow \neg v2$ \\
+%           $n2   \Rightarrow \neg n3$
+%\end{itemize}
 
 The condition of being unambiguously tagged becomes less necessary as well.
 We add many clauses, knowing that some of them end up being false.
@@ -111,9 +122,9 @@ We add many clauses, knowing that some of them end up being false.
 
 Ordering and conflicts : the most important differences here
 
-\cite{koskenniemi92}
-\begin{quote}Rules in the CG formalism are typically [--] executed as successive groups.
-In finite-state syntax, rules are logically unordered.\end{quote}
+%\cite{koskenniemi92}
+%\begin{quote}Rules in the CG formalism are typically [--] executed as successive groups.
+%In finite-state syntax, rules are logically unordered.\end{quote}
 
 % VISLCG ad hoc ordering:
 % 1. SELECT before REMOVE.
@@ -125,22 +136,76 @@ In finite-state syntax, rules are logically unordered.\end{quote}
 
 In CG3, the rules are applied in the order of appearance in the rule file.
 
-A typical CG rule sequence starts with stronger rules  
+A typical CG rule sequence starts with weaker rules, and leaves stronger rules towards the end, 
+to be applied if none of the weaker rules has fired.
 
 \subsection{Other experiments}
 
 Different strategies for maximising: ...
 
-Modifications to an existing CG to better disambiguate with our implementation
+\paragraph{Modifications to an existing CG to better disambiguate with our implementation.}
+With the new model, the semantics of SELECT change.
+In the traditional CG, SELECT means ``remove everything else''. 
+In SAT-based implementation, SELECT means ``this variable will have value true'' 
 
-Flipping rules: 
+
+Choosing SELECT is less permanent as it is in the traditional. The following example illustrates the interaction of rules to produce the desired outcome. We have two ambiguous words with the following analysis:
+
+\begin{verbatim}
+"<la>"
+        "el" det def f sg
+        "lo" prn pro p3 f sg
+"<casa>"
+        "casa" n f sg
+        "casar" vblex pri p3 sg
+        "casar" vblex imp p2 sg
+\end{verbatim}
+
+We apply a rule which removes the imperative in favour of the present indicative\footnote{\texttt{REMOVE imp IF (0 pri LINK 0 imp) ;}}.
+For both VISLCG3 and our system, the rule removes \texttt{"casar" vblex imp p2 sg}, 
+other analyses stay in place. If we replace that rule with a version that selects the present indicative 
+version\footnote{\texttt{SELECT pri IF (0 pri LINK 0 imp) ;}}, this leads to the same result as the REMOVE rule: only the imperative reading is removed, but the noun reading isn't touched.
+
+
+What happens here? We get three clauses:
+
+\begin{itemize}
+\item [] $casaImp \Rightarrow casaPri$ \\
+            $casaPri \Rightarrow \neg casaImp$ \\
+            $casaPri \vee casaImp \Rightarrow \neg casaN$
+\end{itemize}
+
+Changed into disjunctions, the clauses will look like
+\begin{itemize}
+\item [] $\neg casaImp \vee casaPri$ \\
+            $\neg casaPri \vee \neg casaImp$ \\
+            $\neg casaPri \vee \neg casaImp \vee \neg casaN$
+\end{itemize}
+
+The first clause simplifies to $casaPri$, and using that as a new unit clause, the second clause simplifies to $\neg casaImp$. 
+For the third clause, we don't have any rule that would set the value of $casaN$, so the general maximisation step ensures that $casaN$ will be true. 
+
+The fully disambiguated sequence is ``la\texttt{:det} casa\texttt{:n}'', so we need some more rules.
+We add the following rules to disambiguate the word \emph{la}:
+\begin{itemize}
+\item [] \texttt{REMOVE prn IF (1 n) ;} \\
+             \texttt{REMOVE det IF (1 vblex) ;}
+\end{itemize}
+
+In the standard CG, the rule that removes the pronoun would apply first, because it comes first in the rule file.
+The second rule will not fire, because it would remove the last reading for the word \emph{la}, and that is not allowed. To be more cautious, we could require the word at position +1 be disambiguated fully (\texttt{1C} instead of \texttt{1}), but in that case, neither of them would fire. The ambiguity between the remaining readings of \emph{casa} is left untouched by these rules.
+In contrast, with the clauses created by the SAT-based implementation, we disambiguate \emph{casa} for free, and ordering of the rules doesn't have an effect.
+
+
+\paragraph{Flipping rules.}
+Since implications can be presented as disjunctions, we can 
+The representation of the implications as disjunctions 
 \begin{itemize}
 \item [] \texttt{REMOVE v IF -1 det} \\ $\rightarrow$ \texttt{REMOVE det IF 1 verb}   
 \item [] \texttt{REMOVE adv IF NOT 1C adj} \\ $\rightarrow$ \texttt{REMOVE (*) - Adj  IF -1 adv}  \\
 \end{itemize}
 
 With this experiment, we move even further away from a direct ``if this then that'' model of CG.
-% Not really CG anymore , but 
 
 \section{Results and evaluation}
 
