@@ -117,32 +117,33 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
      -- cause => consequence    translates into     Not cause || consequence.
      -- cause is e.g. "-1 is noun" and consequence is "remove verb"
      -- needed because the word at -1 could have many tags, and they could conflict.
-        mkVars :: [(Token,[Token])] -> (Bit -> Bit) -> [[Bit]]
---        mkVars tctx f = [ f conseq:(map nt causes) | (t, ts) <- tctx
-        mkVars tctx f = [ [nt cause,f conseq] | (t, ts) <- tctx
-                                               , let conseq = getBit t
-                                               , let causes = map getBit ts
-                                               , cause <- causes 
---                                               , cause /= conseq
---                                               , cause /= Bool True --with this ~200 sentences get worse
-                                               ]
+        mkVars :: [(Token,[[Token]])] -> (Bit -> Bit) -> [[Bit]]
+        mkVars tctx nt' = [ nt' conseq:ants | (t, ctx) <- tctx 
+                                            , let conseq = getBit t
+                                            , antCombs <- sequence ctx  -- :: [[Token]]
+                                            , let ants = map (nt . getBit) antCombs ] 
+       -- sequence: say we have rule REMOVE v IF (-1 det LINK 2 n)
+       -- and we get [ [(1,det)], [(3,n pl), (3,n sg)] ]
+       -- we can't just put all of them in the list of antecedents,
+       -- because that would require n pl and n sg be true at the same time.
+       -- Instead we make combinations [(1,det) , (3,n sg)] and [(1,det) , (3,n pl)]
 
 
         -- chosen: analyses that have the wanted readings and context
-        chosen :: TagSet -> [(Token,[Token])]
-        chosen tags = [(tok, concat ctx) | tok <- allToks
-                                          , isAmbig tok allToks --only apply rules to ambiguous tokens
-                                          , tagsMatchRule tags tok
-                                          , let ctx = getContext tok allToks conds
-                                          , allCondsHold ctx]
+        chosen :: TagSet -> [(Token,[[Token]])]
+        chosen tags = [(tok, ctx) | tok <- allToks
+                                  , isAmbig tok allToks --only apply rules to ambiguous tokens
+                                  , tagsMatchRule tags tok
+                                  , let ctx = getContext tok allToks conds
+                                  , allCondsHold ctx]
  
         -- other: analyses that don't have the wanted readings,
         -- but some word in the same location does have the wanted reading(s)
-        other :: TagSet -> [(Token,[Token])]
-        other tags = [(tok, concat context) | tok <- allWithReading tags
-                                            , not (tagsMatchRule tags tok)
-                                            , let context = getContext tok allToks conds]
-                                           -- , allCondsHold context]
+        other :: TagSet -> [(Token,[[Token]])]
+        other tags = [(tok, context) | tok <- allWithReading tags
+                                     , not (tagsMatchRule tags tok)
+                                     , let context = getContext tok allToks conds]
+                                     -- , allCondsHold context]
                                 --no need to check allCondsHold; it comes from allWithReadings
 
  
@@ -166,7 +167,7 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
     [[]]   -> [[dummyTok]] -- if I replace dummyTok with tok, ~150 sentences get worse in Pride
     (t:ts) -> case position of
                 Exactly 0 -> if neg' $ tagsMatchRule ctags tok 
-                               then [[dummyTok]] --if the condition at 0 is in the *same reading*
+                               then [[dummyTok]] --if the condition at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
                                else [filter (neg' . tagsMatchRule ctags) (exactly 0 tok)] --if the LINK 0 thing is in a different reading
                 Exactly n -> [filter (neg' . tagsMatchRule ctags) (exactly n tok)]
                 AtLeast n -> [filter (neg' . tagsMatchRule ctags) (atleast n tok)]
@@ -207,6 +208,7 @@ disambiguate verbose rules sentence = do
   let toks = zip chunkedSent bitsForTags
       rlsBits = zip rules bitsForRules
       unambig = anchor toks :: [[Bit]]
+      isAmbig = any (\x -> length x > 1) unambig 
       applied = [ nt x:c | (r,x) <- rlsBits
                          , c     <- applyRule toks r
                          , (not.null) c  ]
@@ -215,36 +217,34 @@ disambiguate verbose rules sentence = do
                       | (brl:btags) <- applied 
                       , (rule,bit) <- rlsBits
                       , bit == nt brl ] -- brl is negated in the implication
-  when verbose $ do
-  
-    putStrLn "\ntokens:"
-    mapM_ print toks
-    putStrLn "\nformulas:"
-    mapM_ print unambig
-    --mapM_ putStrLn usedrules
+  when (verbose && isAmbig) $ do
+        putStrLn "\ntokens:"
+        mapM_ print toks
+        putStrLn "\nformulas:"
+        mapM_ print unambig
+        --mapM_ putStrLn usedrules
 
 
   
   mapM_ (addClauseBit s) unambig
   mapM_ (addClauseBit s) applied
-  --b <- maximize s [] bitsForRules 
+  b <- maximize s [] bitsForRules 
   --b <- maximizeFromTop s  bitsForRules
-  b <- discardFromBottom s [] bitsForRules
+  --b <- discardFromBottom s [] bitsForRules
 
   if b then
        do 
           rs <- sequence [ modelValueBit s x | x <- bitsForRules ]
-          when verbose $ do
-            let conflictingRules = [ show r | (b, r) <- zip rs rules, b /= Just True ]
+          when (verbose && isAmbig) $ do
+            let confRules = [ show r | (b, r) <- zip rs rules, b /= Just True ]
             putStrLn "These rules were not applied due to conflicts:"
-            mapM_ putStrLn (take 2 conflictingRules) 
-            putStrLn $ "+ " ++ show ((length conflictingRules) - 2) ++ " others"
+            mapM_ putStrLn (take 2 confRules) 
+            putStrLn $ "+ " ++ show ((length confRules) - 2) ++ " others"
           
-          let nonConflictingRules = [ r | (b, r) <- zip rs bitsForRules, b == Just True ]
-          b2 <- maximize s nonConflictingRules bitsForTags
+          let nonConfRules = [ r | (b, r) <- zip rs bitsForRules, b == Just True ]
+          b2 <- maximize s nonConfRules bitsForTags
 
-          when verbose $ do
-
+          when (verbose && isAmbig) $ do
             let truerules = [ show rule ++ "\n" ++ show btags
                             | (brl:btags) <- applied 
                             , (b,(rule,bit)) <- zip rs rlsBits
