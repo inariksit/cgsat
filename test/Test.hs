@@ -17,7 +17,10 @@ main = do
     [r,d]      -> go r d False False
     [r,d,"-2"] -> go r d False True
     [r,d,"-v"] -> go r d True False
-    [r,d,"-v", "-2"] -> go r d True True
+    [r,d,"-v","-2"] -> go r d True True
+    [r,d,"-2","-v"] -> go r d True True
+    [r,d,"-v2"] -> go r d True True
+    [r,d,"-2v"] -> go r d True True
     _        -> do putStrLn "usage: ./test <rules> <data>"
   where go r d v is2 = do rules <- readRules r
                           data' <- readData d
@@ -33,7 +36,7 @@ main = do
                           print $ length $ filter (not.null) diff
         prDiff (a1,a2,s) = do putStrLn "Original sentence:"
                               putStrLn (showSentence s)
-                              putStrLn "\nDisambiguation by CG-SAT"
+                              putStrLn "\nDisambiguation by satcg"
                               putStrLn $ showAnalysis a1
                               putStrLn "\nDisambiguation by vislcg3"
                               putStrLn $ showAnalysis a2
