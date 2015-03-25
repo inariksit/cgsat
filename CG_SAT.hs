@@ -118,10 +118,10 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
      -- cause is e.g. "-1 is noun" and consequence is "remove verb"
      -- needed because the word at -1 could have many tags, and they could conflict.
         mkVars :: [(Token,[[Token]])] -> (Bit -> Bit) -> [[Bit]]
-        mkVars tctx nt' = [ nt' conseq:ants | (t, ctx) <- tctx 
+        mkVars tctx nt' = [ nt' conseq:ants | (t, ctx) <- tctx -- :: (Token,[[Token]])
+                                            , tCombs <- sequence ctx  -- :: [[Token]]
                                             , let conseq = getBit t
-                                            , antCombs <- sequence ctx  -- :: [[Token]]
-                                            , let ants = map (nt . getBit) antCombs ] 
+                                            , let ants = map (nt . getBit) tCombs ] 
        -- sequence: say we have rule REMOVE v IF (-1 det LINK 2 n)
        -- and we get [ [(1,det)], [(3,n pl), (3,n sg)] ]
        -- we can't just put all of them in the list of antecedents,
@@ -207,13 +207,13 @@ disambiguate verbose rules sentence = do
   bitsForRules <- sequence [ newBit s | _ <- rules ]
   let toks = zip chunkedSent bitsForTags
       rlsBits = zip rules bitsForRules
-      unambig = anchor toks :: [[Bit]]
-      isAmbig = any (\x -> length x > 1) unambig 
+      allNotFalse = anchor toks :: [[Bit]]
+      isAmbig = any (\x -> length x > 1) allNotFalse 
       applied = [ nt x:c | (r,x) <- rlsBits
                          , c     <- applyRule toks r
                          , (not.null) c  ]
   
-  let usedrules = [ show rule ++ "\n" ++ show btags
+  let addedClauses = [ show rule ++ "\n" ++ show btags
                       | (brl:btags) <- applied 
                       , (rule,bit) <- rlsBits
                       , bit == nt brl ] -- brl is negated in the implication
@@ -221,12 +221,12 @@ disambiguate verbose rules sentence = do
         putStrLn "\ntokens:"
         mapM_ print toks
         putStrLn "\nformulas:"
-        mapM_ print unambig
-        --mapM_ putStrLn usedrules
+        mapM_ print allNotFalse
+        --mapM_ putStrLn addedClauses
 
 
   
-  mapM_ (addClauseBit s) unambig
+  mapM_ (addClauseBit s) allNotFalse
   mapM_ (addClauseBit s) applied
   b <- maximize s [] bitsForRules 
   --b <- maximizeFromTop s  bitsForRules
@@ -245,17 +245,17 @@ disambiguate verbose rules sentence = do
           b2 <- maximize s nonConfRules bitsForTags
 
           when (verbose && isAmbig) $ do
-            let truerules = [ show rule ++ "\n" ++ show btags
+            let trueRules = [ show rule ++ "\n" ++ show btags
                             | (brl:btags) <- applied 
                             , (b,(rule,bit)) <- zip rs rlsBits
                             , bit == nt brl 
                             , b == Just True]
             putStrLn "\nThe following rules were used:"
-            mapM_ putStrLn truerules
+            mapM_ putStrLn trueRules
             
-            print $ (sort truerules) == (sort usedrules)
-            print (length truerules) 
-            print (length usedrules)
+            print $ (sort trueRules) == (sort addedClauses)
+            print (length trueRules) 
+            print (length addedClauses)
 
           if b2 then
                 do bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
