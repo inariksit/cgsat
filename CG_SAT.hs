@@ -106,20 +106,16 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
 
 
   where
-        --getContext must return something for mkVars to work;
-        -- if the TagSet part in Condition is null,
-        -- getContext returns just the word itself as the context.
+        -- check if getContext has returned non-empty context for each condition
         allCondsHold :: [[Token]] -> Bool
         allCondsHold ts | null conds = True 
                         | otherwise  = all (not.null) ts
 
 
-     -- cause => consequence    translates into     Not cause || consequence.
-     -- cause is e.g. "-1 is noun" and consequence is "remove verb"
-     -- needed because the word at -1 could have many tags, and they could conflict.
+     -- `foo => bar' translates into `nt foo || bar'
         mkVars :: [(Token,[[Token]])] -> (Bit -> Bit) -> [[Bit]]
         mkVars tctx nt' = [ nt' conseq:ants | (t, ctx) <- tctx -- :: (Token,[[Token]])
-                                            , tCombs <- sequence ctx  -- :: [[Token]]
+                                            , tCombs <- sequence ctx -- :: [[Token]]
                                             , let conseq = getBit t
                                             , let ants = map (nt . getBit) tCombs ] 
        -- sequence: say we have rule REMOVE v IF (-1 det) (1 n)
@@ -139,21 +135,16 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
  
         -- other: analyses that don't have the wanted readings,
         -- but some word in the same location does have the wanted reading(s)
-        other :: TagSet -> [(Token,[[Token]])]
-        other tags = [(tok, context) | tok <- allWithReading tags
-                                     , not (tagsMatchRule tags tok)
-                                     , let context = getContext tok allToks conds]
-                                     -- , allCondsHold context]
-                                --no need to check allCondsHold; it comes from allWithReadings
-
- 
-        -- all words that have the desired reading in one of their analyses. e.g.
         --      allToks = [(1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl])]
         --      tags    = [V]
-        -- ====> `chosen tags' will return (2,[V,Sg)
-        -- ====> (2,[V,Sg]) and (2,[N,Pl]) are returned
-        allWithReading tags = intersectBy sameInd allToks wantedToks
-          where wantedToks = map fst $ chosen tags
+        -- ====> `chosen tags' will return (2,[V,Sg])
+        -- ====> `other tags'  will return (2,[N,Pl])
+        other :: TagSet -> [(Token,[[Token]])]
+        other tags =  [ (tok, ctx) | tok <- allToks
+                                   , (wantedTok, ctx) <- chosen tags
+                                   , sameInd tok wantedTok
+                                   , not $ tagsMatchRule tags tok ]
+
 
 
 getContext :: Token           -- ^ a single analysis
