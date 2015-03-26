@@ -101,7 +101,7 @@ for free, and ordering of the rules doesn't matter.
 
 The most important differences between the traditional and the SAT-based approach are summarised below:
 
-\paragraph{Condition of being unambiguously tagged becomes irrelevant.}
+\paragraph{Condition of being unambiguously tagged is irrelevant.}
 Rather than waiting for a word to get disambiguated, the SAT solver starts by 
 making assumptions (e.g. ``\emph{casa} is a noun'') and working under them,
 discarding the assumption if it doesn't lead to a model that satisfies all constraints.
@@ -121,7 +121,18 @@ This means that the rules can be flipped: compare the rules below to the ones in
 SAT-based approach gives identical results with both sets of rules,
 whereas the standard CG would remove one reading from \emph{casa} and leave \emph{la} ambiguous.
 
-\todo{Testing this property with more text, more complex rules and a larger rule set. }
+
+Rules with more conditions translate into many rules; rules with negation become complements (\texttt{(*)-X} for \texttt{NOT X}). Rules which require the condition to be unambiguously tagged, don't have an equivalent flip in the standard CG.
+% We did not expect much practical benefits, save for realising that some rules are bad by having to think further what it implies,
+Out of interest, we manually flipped a small grammar and tested it against the original.
+\todo{The results show (the English just shows it's crap in the first place, 84\% to 85\% for a random 100-sentence text) }
+%\begin{itemize}
+%\item []          \texttt{SL Inf IF (-2 V-MOD) (-1 "not");} \\
+%$\rightarrow$\texttt{SL V-MOD   IF (1 "not") (2 INF);} \\
+%$\rightarrow$\texttt{SL "not" IF (-1 V-MOD) (1 Inf);}
+%\item []           \texttt{SL Foo IF (NOT 1 Bar)} \\
+%$\rightarrow$\texttt{SL (*)-Foo if (-1 Bar)}
+%\end{itemize}
 
 \paragraph{Rules are unordered.}
 A typical CG rule sequence starts with rules that are either very common, or have a complex condition to fulfil.
