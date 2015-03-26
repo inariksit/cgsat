@@ -74,8 +74,8 @@ anchor toks = (map.map) getBit (groupBy sameInd toks)
 
 
 -- | Apply rules to tokens. 
-applyRule :: [Token] -> Rule -> [[Bit]]
-applyRule toks rule = --trace (show rule) $
+applyRule :: Rule -> [Token] -> [[Bit]]
+applyRule rule toks = --trace (show rule) $
   case rule of
 -- a) condition(s) must not hold 
 --for each token, if getContext is empty, remove/select it
@@ -114,15 +114,15 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
 
      -- `foo => bar' translates into `nt foo || bar'
         mkVars :: [(Token,[[Token]])] -> (Bit -> Bit) -> [[Bit]]
-        mkVars tctx nt' = [ nt' conseq:ants | (t, ctx) <- tctx -- :: (Token,[[Token]])
-                                            , tCombs <- sequence ctx -- :: [[Token]]
-                                            , let conseq = getBit t
-                                            , let ants = map (nt . getBit) tCombs ] 
-       -- sequence: say we have rule REMOVE v IF (-1 det) (1 n)
-       -- and we get [ [(1,det)], [(3,n pl), (3,n sg)] ]
-       -- we can't just put all of them in the list of antecedents,
-       -- because that would require n pl and n sg be true at the same time.
-       -- Instead we make combinations [(1,det) , (3,n sg)] and [(1,det) , (3,n pl)]
+        mkVars tctx nt' = [ conseq:ants | (t, ctx) <- tctx -- (Token,[[Token]])
+                                        , tCombs <- sequence ctx -- :: [[Token]]
+                                        , let conseq = nt' (getBit t)
+                                        , let ants = map (nt . getBit) tCombs ] 
+     -- sequence: say we have rule REMOVE v IF (-1 det) (1 n)
+     -- and we get [ [(1,det)], [(3,n pl), (3,n sg)] ]
+     -- we can't just put all of them in the list of antecedents
+     -- because that would require n pl and n sg be true at the same time.
+     -- Instead we make combinations [(1,det), (3,n sg)] and [(1,det), (3,n pl)]
 
 
         -- chosen: analyses that have the wanted readings and context
@@ -155,10 +155,10 @@ getContext tok allToks []     = []
 getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
   case ctags of
     []     -> [[dummyTok]] --empty conds = holds always
-    [[]]   -> [[dummyTok]] -- if I replace dummyTok with tok, ~150 sentences get worse in Pride
+    [[]]   -> [[dummyTok]] 
     (t:ts) -> case position of
                 Exactly 0 -> if neg' $ tagsMatchRule ctags tok 
-                               then [[dummyTok]] --if the condition at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
+                               then [[tok]] --if the condition at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
                                else [filter (neg' . tagsMatchRule ctags) (exactly 0 tok)] --if the LINK 0 thing is in a different reading
                 Exactly n -> [filter (neg' . tagsMatchRule ctags) (exactly n tok)]
                 AtLeast n -> [filter (neg' . tagsMatchRule ctags) (atleast n tok)]
@@ -197,20 +197,23 @@ disambiguate verbose rules sentence = do
    else
    do s <- newSolver
       bitsForTags  <- sequence [ newBit s | _ <- chunkedSent ]
-      --bitsForRules <- sequence [ newBit s | _ <- rules ]
+      bitsForRules <- sequence [ newBit s | _ <- rules ]
       let toks = zip chunkedSent bitsForTags
+          rlsBits = zip rules bitsForRules
           allNotFalse = anchor toks :: [[Bit]]
-          applied = [ applyRule toks rule | rule <- rules ] :: [[[Bit]]]
-                             -- , clause <- applyRule toks rule
-                             -- , not.null clause ]
+          applied = [ {- nt x: -} cl | (r,x) <- rlsBits
+                              , cl    <- applyRule r toks
+                              , (not.null) cl ]
 
-      bitsForInstances <- sequence [ newBit s | c <- applied ]
+      -- one bitForRule for each [[Bit]]
+      -- one bitForInstance for each [Bit]
+      -- if I combine both, many things end up being true -- why?
+
+      bitsForInstances <- sequence [ newBit s | _ <- concat applied ]
 
 
-      let addedClauses = [ nt b:cl | (b,cls) <- zip bitsForInstances applied
-                                   , cl <- cls
-                                   , (not.null) cl ]
-  
+      let addedClauses = zipWith (:) (map nt bitsForInstances) applied
+
       when verbose $ do
         putStrLn "\ntokens:"
         mapM_ print toks
@@ -236,8 +239,9 @@ disambiguate verbose rules sentence = do
                 putStrLn $ "+ " ++ show ((length confInstances) - 2) ++ " others"
 
               let nonConfInstances = [ i | (b, i) <- zip is bitsForInstances, b == Just True ]
+              --b3 <- solveOne s nonConfInstances bitsForTags
+              --print b3
               b2 <- maximize s nonConfInstances bitsForTags
-
               when verbose $ do
                 -- let trueInstances = [ show rule ++ "\n" ++ show btags
                 --                    | (brl:btags) <- addedClauses 
