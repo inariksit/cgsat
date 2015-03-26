@@ -125,7 +125,7 @@ whereas the standard CG would remove one reading from \emph{casa} and leave \emp
 
 \paragraph{Rules are unordered.}
 A typical CG rule sequence starts with rules that are either very common, or have a complex condition to fulfil.
-Stronger rules appear towards the end, to be applied if none of the weaker rules has fired. 
+Stronger rules appear towards the end, to be applied if none of the weaker rules has. 
 For a rule set such as following, this order is crucial:
 
 \begin{itemize}
@@ -133,17 +133,16 @@ For a rule set such as following, this order is crucial:
              \texttt{REMOVE Year ;}
 \end{itemize}
 
-Finite-state implementations of CG \cite{koskenniemi92} \footnote{\todo{Inari: check Tapanainen 1996 if there's anything about ordering}} also have logically unordered rules. 
-
-To make up for the lack of sequential order, we have experimented with different strategies of maximising and solving conflicts:
+To replace the sequential order, we have experimented with different strategies:
 \begin{itemize}
-\item Number of rules used
-\item Number of instances when a rule is applied
-\item 
+\item Maximise number of rules used---assume if someone has written a rule, it is worth applying. Didn't give the best results.
+\item Maximise number of instances when a rule is applied---\todo{comment about this too}
 \end{itemize}
 
+% Finite-state implementations of CG \cite{koskenniemi92} also have logically unordered rules. 
+% \todo{Inari: check if Tapanainen 1996 discuss ordering}
 
-
+These three features are likely to change the way that rules are written. \todo{more speculation, examples}
 
 
 \section{Related work}
@@ -160,20 +159,21 @@ and \cite{lager_nivre01}, which reconstructs 4 different formalisms from a logic
 \paragraph{Time}
 
 SAT is NP-complete, whereas the current implementations of CG are polynomial, 
-but with advances in SAT solving techniques, the performance isn't as catastrophically bad as in 90s-00s.
+but with advances in SAT solving techniques, 
+the performance is much more feasible than in the previous works done in 90s--00s.
 We used the open-source SAT solver MiniSat \cite{een04sat}.
-We do foreach sentence: foreach rule; 
+%We do foreach sentence: foreach rule; 
 %whereas VISL CG3 has foreach rule: foreach sentence.
-the size of the SAT problem is dependent of the sentence (???).
+%the size of the SAT problem is dependent of the sentence (???)
 
-The table below shows
-Note also that this is a first proof-of-concept implementation and could be optimised.
+Table~\ref{table:time} shows the execution time compared to VISL CG3.
+SATCG is just a first proof-of-concept implementation and can be optimised.
 
 \begin{table}
   \centering
   \begin{tabular}{|l|c|c|}
      \hline
-	         & Quijote      & Pride \\ \hline
+	         & \textbf{Don Quijote}  & \textbf{Pride and Prejudice} \\ \hline
   VISL CG3 & 0m10.745s & 0m4.811s \\ \hline
   SATCG    & 2m53.708s & 0m55.705s \\ \hline
   \end{tabular}
@@ -199,12 +199,13 @@ We took small constraint grammars (\textless{}500 rules) for Spanish and English
   \label{table:results}
 \end{table}
 
-The tendency of needing less rules to disambiguate shows also in a larger context with more complex rules.
-SATCG disambiguated more 17 \% of the cases for Pride and Prejudice, and 28 \% of the cases for Don Quijote.
+The tendency of needing less rules to disambiguate shows also in a larger context with more complex rules. 
+SATCG disambiguated more 17 \% of the cases for Pride and Prejudice, and 28 \% of the cases for Don Quijote. \todo{Analysis of those cases}
 
 \paragraph{Removing rules}
 
-In this experiment, we test the performance of the two implementations by working with a smaller grammar and comparing the result to 
+In this experiment, we test the performance of the two implementations by working with a smaller grammar. We compare how much removing the rules affects the result, gold standard being for each implementation the result given by the full rule set.
+\todo{Perform this experiment}
 
 % \section*{Acknowledgments}
 
