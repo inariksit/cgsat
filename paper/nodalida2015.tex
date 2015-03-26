@@ -19,7 +19,7 @@
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
 %\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
 
-\title{Towards something :-D}
+\title{Exploring Constraint Grammar as a SAT problem}
 
 \author{Inari Listenmaa \and Koen Claessen \\
   Chalmers University of Technology, Gothenburg, Sweden \\
@@ -29,100 +29,102 @@
 
 \begin{document}
 \maketitle
-\begin{abstract}
-We implement Constraint Grammar as a Boolean satisfiability problem.
 
-We experiment with different strategies to maximise the number of instances to apply rules;
-this will also lead to different orderings of the rules and ways of solving conflicts.
-
-
-\end{abstract}
+%\begin{abstract}
+%We implement Constraint Grammar as a Boolean satisfiability problem.
+%We experiment with different strategies to maximise the number of instances to apply rules;
+%this will also lead to different orderings of the rules and ways of solving conflicts.
+%\end{abstract}
 
 
 \section{Introduction}
-Constraint Grammar (CG) was first introduced by \cite{karlsson1995constraint}. 
-It disambiguates output by morphological analyser, 
-and has been used for many tasks in computational linguistics, such as POS tagging,
-surface syntax and machine translation.
-The current state-of-the-art parser VISL CG-3 is implemented (...);
-in addition there are a number of finite-state based implementations \cite{nemeskey14}.
+%Constraint Grammar (CG) was first introduced by \cite{karlsson1995constraint}. 
+%It disambiguates output by morphological analyser, 
+%and has been used for many tasks in computational linguistics, such as POS tagging,
+%surface syntax and machine translation.
+%The current state-of-the-art parser VISL CG-3 is implemented (...);
+%in addition there are a number of finite-state based implementations \cite{nemeskey14}.
 
-We represent CG as a Boolean satisfiability problem using the 
-open-source SAT solver MiniSat \cite{een04sat}.
-Our implementation is inspired by approaches like \cite{lager98,lager_nivre01},
-but we try to emulate the CG formalism more closely than the previous logic-based works.
+We represent Constraint Grammar \cite{karlsson1995constraint} 
+as a Boolean satisfiability (SAT) problem.
+%This increases the computational complexity, 
+%but we are exploring ways in which it could simplify the grammar writing:
+%our experiments show that less rules are needed, and features like ordering of the rules
+%and requirement of being unambiguously tagged become irrelevant.
+% Our implementation is inspired by \cite{lager98,lager_nivre01},
+%but we try to emulate the CG formalism more closely than the previous logic-based works.
+Let us demonstrate our approach with the following example in Spanish.
 
-% NP-complete -- overkill for CG? But gives other benefits.
+\begin{verbatim}
+"<la>"
+        "el" det def f sg
+        "lo" prn pro p3 f sg
+"<casa>"
+        "casa" n f sg
+        "casar" vblex pri p3 sg
+\end{verbatim}
 
-\section{Related work}
-\label{sect:related}
-
-Application of logic to POS tagging or shallow parsing isn't new;
-\cite{lager98,lager_nivre01} present constraint rules as 
-a disjunctive logic program.
-\cite{lindberg_eineborg98ilp,asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
-\cite{lager01transformation} discusses ordering of the CG rules.
-
-Works from the late 90s and early 00s mention that the method is very slow;
-however, advances in SAT solving technique
-
-\section{CG as a SAT problem}
-\label{sect:pdf}
-
-SAT solving is based on a technique called unit propagation:
-a set of complex Boolean clauses is simplified, starting from unit
-clauses, which consist of just a single variable, and working up to a
-solution, where all variables in the set have a True or False value.
-We model an ambiguous sentence as a set of clauses, where each analysis is a variable, 
-and constraint rules form clauses operating on those variables.
+The ambiguous passage can be either a noun phrase, \emph{la\texttt{:det} casa\texttt{:n}} 
+`the house'  or a verb phrase \emph{la\texttt{:prn} casa\texttt{:v}} `(he/she) marries her'. 
+We add the following rules:
 
 \begin{itemize}
-\item The condition of being unambiguously tagged becomes less necessary.
-We add many clauses, knowing that some of them end up being false.
+\item [] \texttt{REMOVE prn IF (1 n) ;} \\
+             \texttt{REMOVE det IF (1 vblex) ;}
+\end{itemize}
+
+Standard CG will apply one\footnote{To be more cautious, we could require the word at position +1 be disambiguated fully (\texttt{1C} instead of \texttt{1}), but in that case, 
+neither of the rules would be applied.} of the rules to the word \emph{la}; 
+either the one that comes first, or by some other heuristic. 
+The second rule will not fire, because it would remove the last reading. 
+Both readings of \emph{casa} are left untouched by these rules.
+
+SAT solver 
+performs a search, 
+and starts building possible models that satisfy both constraints. 
+In addition to the given constraints, we have default rules to emulate
+the CG principles: an analysis is true if no rule affects it,
+and at least one analysis for each word is true---the notion of ``last'' is not applicable.
+With these constraints, we get two solutions: \texttt{det n} and \texttt{prn v}. 
+The interaction of the rules regarding \emph{la}  disambiguates \emph{casa} 
+for free, and ordering of the rules doesn't matter. 
+%Without more context or additional rules we cannot fully disambiguate the passage,
+%but unlike with standard CG, we get only legal combinations in one solution.
+
+%If we add a word, \emph{la casa grande} `the big house' 
+%and a rule that removes verb if followed by an adjective
+%\texttt{REMOVE (vblex) IF (1 (adj)) ;}
+%we will get a unique solution with \texttt{det n adj}.
+%Standard CG will also remove the verb reading, 
+%but the choice of the word \emph{la} doesn't contribute to
+
+The most important differences between the traditional and the SAT-based approach are summarised below:
+
+\begin{itemize}
+\item The condition of being unambiguously tagged becomes irrelevant.
+Rather than waiting for a word to get disambiguated, the SAT solver starts by 
+making assumptions (e.g. ``\emph{casa} is a noun'') and working under them,
+discarding the assumption if it doesn't lead to a model that satisfies all constraints.
+
 \item Rules are unordered. 
 \item Rules interact with each other and disambiguate more than same rules in the standard implementation.
 \end{itemize}
 
-% Let us demonstrate the approach with the example sentence 
-% \emph{the bear sleeps}. After applying morphological tagger, we get the following analyses:
+%\section{CG as a SAT problem}
+%\label{sect:satcg}
 
-% \begin{verbatim}
-% "<the>"
-%         "the" det
-% "<bear>"
-%         "bear" n sg
-%         "bear" v pl
-% "<sleeps>"
-%         "sleep" n pl
-%         "sleep" v sg p3
-% \end{verbatim}
-
-%We make each analysis a variable; let us call them \texttt{d1}, \texttt{n2}, \texttt{v2}, \texttt{n3} and \texttt{v3} by the proposed POS tag and the position in the sentence.
-%For instance, \texttt{n2} is a hypothesis that the correct analysis 
-%for the word form \emph{bear}' is \texttt{"bear" n pl}.
-%Before applying rules, we must make sure that in each position
-%at least one of the analyses is true. We add our first disjunctions:
-
-%\begin{itemize}
-%\item [] $d1$ \\ $n2 \vee v2$ \\ $n3 \vee v3$
-%\end{itemize}
-
-%Let us add two rules:
-%\begin{itemize}
-%\item [] \texttt{REMOVE v IF -1 det} \\ 
-%            \texttt{REMOVE n IF -1 n} 
-%\end{itemize}
-
-%The rules are applied as implications: \emph{if ``the'' is a determiner, then ``bear'' cannot be a verb}. 
- 
-%\begin{itemize}
-%\item [] $d1 \Rightarrow \neg v2$ \\
-%           $n2   \Rightarrow \neg n3$
-%\end{itemize}
+%SAT solving is based on a technique called unit propagation:
+%a set of complex Boolean clauses is simplified, starting from unit
+%clauses, which consist of just a single variable, and working up to a
+%solution, where all variables in the set have a True or False value.
+%We model an ambiguous sentence as a set of clauses, where each analysis is a variable, 
+%and constraint rules form clauses operating on those variables.
 
 
-\subsection{Rule ordering}
-\label{ssec:ordering}
+
+
+\section{Rule ordering}
+\label{sec:ordering}
 
 A typical CG rule sequence starts with weaker rules, and leaves stronger rules towards the end, 
 to be applied if none of the weaker rules has fired.
@@ -142,30 +144,7 @@ In CG3, the rules are applied in the order of appearance in the rule file.
 
 Different strategies for maximising: ...
 
-\subsection{Rule interaction}
 
-The following example illustrates the interaction of rules to produce the desired outcome. We have an ambiguous passage in Spanish, with the following analyses:
-
-\begin{verbatim}
-"<la>"
-        "el" det def f sg
-        "lo" prn pro p3 f sg
-"<casa>"
-        "casa" n f sg
-        "casar" vblex pri p3 sg
-        "casar" vblex imp p2 sg
-\end{verbatim}
-
-We add the following rules to disambiguate the word \emph{la}:
-\begin{itemize}
-\item [] \texttt{REMOVE prn IF (1 n) ;} \\
-             \texttt{REMOVE det IF (1 vblex) ;}
-\end{itemize}
-
-Standard CG will apply first the rule that removes the pronoun reading, because it comes first in the rule file.
-The second rule will not fire, because it would remove the last reading for the word \emph{la}, and that is not allowed. To be more cautious, we could require the word at position +1 be disambiguated fully (\texttt{1C} instead of \texttt{1}), but in that case, neither of them would fire. The ambiguity between the readings of \emph{casa} is left untouched by these rules.
-
-With the SAT clauses, we get two solutions: ``la\texttt{:det} casa\texttt{:n}''  and ``la\texttt{:prn} casa\texttt{:v}''. The interaction of the rules regarding \emph{la}  disambiguates \emph{casa} for free, and ordering of the rules doesn't matter. Since we don't have other rules nor further context, we still get two solutions, but there are no illegal combinations (\texttt{det v} or \texttt{prn n}) in one solution.
 
 \paragraph{Rules can be flipped.}
 Since implications can be presented as disjunctions, we can 
@@ -177,8 +156,30 @@ The representation of the implications as disjunctions
 
 With this experiment, we move even further away from a direct ``if this then that'' model of CG.
 
+\section{Related work}
+\label{sect:related}
+
+Application of logic to POS tagging or shallow parsing isn't new;
+\cite{lager98,lager_nivre01} present constraint rules as 
+a disjunctive logic program.
+\cite{lindberg_eineborg98ilp,asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
+\cite{lager01transformation} discusses ordering of the CG rules.
+
+
 \section{Results and evaluation}
 
+\paragraph{Time}
+
+SAT is NP-complete, whereas the current implementations of CG are polynomial, 
+but with advances in SAT solving techniques, the performance isn't as catastrophically bad as in 90s-00s.
+We used the open-source SAT solver MiniSat \cite{een04sat}.
+We do foreach sentence: foreach rule; 
+%whereas VISL CG3 has foreach rule: foreach sentence.
+the size of the SAT problem is dependent of the sentence (???).
+TODO: time it comparing it to VISL CG3.
+Note also that this is a first proof-of-concept implementation and could be optimised.
+
+\paragraph{Performance against VISL CG3}
 We took small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. Table~\ref{table:results} shows how much the results agree with the result given by VISL CG3 parser with the same grammar and text.
 
 \begin{table}
@@ -197,8 +198,11 @@ We took small constraint grammars (\textless{}500 rules) for Spanish and English
 \end{table}
 
 The tendency of needing less rules to disambiguate shows also in a larger context with more complex rules.
-In many of the differences, SATCG disambiguated more. (TODO counts)
+SATCG disambiguated more 17 % of the cases for P&P, 
 
+\paragraph{Removing rules}
+
+In this experiment, we test the performance of the two implementations by working with a smaller grammar and comparing the result to 
 
 % \section*{Acknowledgments}
 
