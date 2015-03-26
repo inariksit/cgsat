@@ -197,62 +197,57 @@ disambiguate verbose rules sentence = do
    else
    do s <- newSolver
       bitsForTags  <- sequence [ newBit s | _ <- chunkedSent ]
-      bitsForRules <- sequence [ newBit s | _ <- rules ]
       let toks = zip chunkedSent bitsForTags
-          rlsBits = zip rules bitsForRules
           allNotFalse = anchor toks :: [[Bit]]
-          applied = [ {- nt x: -} cl | (r,x) <- rlsBits
-                              , cl    <- applyRule r toks
-                              , (not.null) cl ]
+          applied = [ (rl, cl) | rl  <- rules
+                               , cl <- applyRule rl toks
+                               , (not.null) cl ] 
 
-      -- one bitForRule for each [[Bit]]
-      -- one bitForInstance for each [Bit]
-      -- if I combine both, many things end up being true -- why?
-
-      bitsForInstances <- sequence [ newBit s | _ <- concat applied ]
+      bitsForClauses <- sequence [ newBit s | _ <- applied ]
 
 
-      let addedClauses = zipWith (:) (map nt bitsForInstances) applied
+      let clauses = [ nt b:cl | (_, cl) <- applied
+                              , b <- bitsForClauses ]
 
       when verbose $ do
         putStrLn "\ntokens:"
         mapM_ print toks
         putStrLn "\nfirst step, make sure all readings for a given word are not false:"
         mapM_ print allNotFalse
-        putStrLn "\nclauses gotten by applying rules"
-        mapM_ print addedClauses
+        --putStrLn "\nclauses gotten by applying rules"
+        --mapM_ print applied
 
 
   
       mapM_ (addClauseBit s) allNotFalse
-      mapM_ (addClauseBit s) addedClauses
-      b <- maximize s [] bitsForInstances 
-      --b <- maximizeFromTop s  bitsForInstances
-      --b <- discardFromBottom s [] bitsForInstances
+      mapM_ (addClauseBit s) clauses
+      b <- maximize s [] bitsForClauses 
+      --b <- maximizeFromTop s  bitsForClauses
+      --b <- discardFromBottom s [] bitsForClauses
 
       if b then
-           do is <- sequence [ modelValueBit s x | x <- bitsForInstances ]
+           do cs <- sequence [ modelValueBit s x | x <- bitsForClauses ]
               when verbose $ do
-                let confInstances = [ show i | (b, i) <- zip is applied, b /= Just True ]
+                let conf = [ show rl ++ "\n* " ++ show cl 
+                              | (b, (rl,cl)) <- zip cs applied
+                              , b /= Just True ]
                 putStrLn "These clauses were omitted due to conflicts:"
-                mapM_ putStrLn (take 2 confInstances) 
-                putStrLn $ "+ " ++ show ((length confInstances) - 2) ++ " others"
+                mapM_ putStrLn (take 2 conf) 
+                putStrLn $ "+ " ++ show ((length conf) - 2) ++ " others"
 
-              let nonConfInstances = [ i | (b, i) <- zip is bitsForInstances, b == Just True ]
-              --b3 <- solveOne s nonConfInstances bitsForTags
+              let nonconf = [ c | (Just True, c) <- zip cs bitsForClauses ]
+              --b3 <- solveOne s nonconf bitsForTags
               --print b3
-              b2 <- maximize s nonConfInstances bitsForTags
+              b2 <- maximize s nonconf bitsForTags
               when verbose $ do
-                -- let trueInstances = [ show rule ++ "\n" ++ show btags
-                --                    | (brl:btags) <- addedClauses 
-                --                    , () <- zip is applied
-                --                    , bit == nt brl 
-                --                    , b == Just True ]
-                putStrLn "\nThe following rules were used:"
-                -- mapM_ putStrLn trueInstances
+                let trueClauses = [ show rl ++ "\n* " ++ show cl 
+                                     | (b, (rl,cl)) <- zip cs applied
+                                     , b == Just True ] 
+                putStrLn "\nThe following clauses were used:"
+                mapM_ putStrLn trueClauses
             
-                -- print (length trueInstances) 
-                -- print (length addedClauses)
+                print (length trueClauses) 
+                print (length bitsForClauses)
 
               if b2 then
                 do bs <- sequence [ modelValueBit s x | x <- bitsForTags ]
