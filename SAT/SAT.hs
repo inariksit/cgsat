@@ -153,9 +153,6 @@ discardFromBottom s as rs =
                             then (length ys - 1) --remove rules one by one
                             else minimum indices
               newRs = take smallest rs
-          -- putStrLn $ "length of conflicting: " ++ show (length ys) ++ show ys
-          -- putStrLn $ "      apply elemIndex: " ++ show (length indices) ++ show indices
-          -- putStrLn $ "       remaining list: " ++ show newRs
           discardFromBottom s as newRs
 
 --------------------------------------------------------------------------------

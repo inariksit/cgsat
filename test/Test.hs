@@ -71,7 +71,7 @@ diffBySent s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2
 
 moreDisamb :: Sentence -> Sentence -> [(Analysis, Analysis)]
 moreDisamb s1 s2 =
-  [ (a1, a2) | (a1, a2) <- diffBySent s1 s2
+  [ (a1, a2) | (a1, a2) <- zip s1 s2
              , length a1 < length a2
              , (not.null) $ intersect a1 a2 ]
 
