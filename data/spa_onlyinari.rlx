@@ -23,7 +23,7 @@ LIST Imp = (imp) ;
 LIST Inf = (inf) ;
 LIST Past = (pii) ;
 LIST Cond = (cni) ;
-SET PastCondP1 = (pii p1) OR (cni p1) ;
+SET PastCondSubjP1 = (Subj OR Past OR Cond) + (p1)  ;
 
 # Pronoms
 LIST Prn = (prn) ;
@@ -153,16 +153,15 @@ SELECT:inari_s_preadv PreAdv IF (1C PP) ;
 SELECT:inari_s_adv_pp Verb IF (-1 Adv_PreAdv) ;
 
 # Disambiguate between readings of lo (detnt|prn pro p3 (nt|sg))
-#REMOVE:inari_r_detnt (detnt) IF (1C Verb - PP) ;
+REMOVE:inari_r_detnt (detnt) IF (1C Verb - PP) ; # lo veo
 SELECT:inari_s_detnt (detnt) IF (1 A OR Adv OR PP) ; # lo nuevo / lo más
-SELECT:inari_s_detnt (detnt) IF (-1 Det) ; # de lo
 
 # la casa era nueva / él vino ayer     # becomes worse with SELECT
 REMOVE:inari_r_noun N    IF (-1 N OR Prn) ;
 REMOVE:inari_r_verb Verb IF (-1 A OR Det) ;
 
-# la casa (era|sería) nueva / yo era joven
-REMOVE:inari_r_pr_cn_p1 PastCondP1 IF (-1C N) ; 
+# all verb forms that are ambiguous between 1st and 3rd person 
+REMOVE:inari_r_pr_cn_p1 PastCondSubjP1 IF (-1C N) ; 
 
 # desambiguació (adj|prn) itg
 # qué decir? / qué tal / qué le diría
@@ -171,7 +170,9 @@ SELECT:inari_s_prn_2 Prn IF (0 A) (-1 Prep) ; # de qué?
 
 #REMOVE:inari_imp_1 (imp p2) IF (0 (vblex pri p3 sg)) ;
 SELECT:inari_s_pri_1 (pri p3) IF (0 (vblex imp p2 sg)) ;
-SELECT:inari_s_subj Subj IF (0 Imp) (-1 ("que")) ;
+SELECT:inari_s_subj Subj IF (0 Imp) (-1* CnjSub) ;
+#SELECT:inari_s_subj Subj IF (0 Imp) (-2 CnjSub) (-1 N) ;
+SELECT:inari_s_cnjsub CnjSub IF (0 Rel) (*1 Subj BARRIER Cnj_Rel_End) ;
 # elección de subjuntivo después de "que"
 
 

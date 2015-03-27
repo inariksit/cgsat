@@ -10,11 +10,19 @@ import System.Environment
 import System.IO
 import System.Process
 
+ambiguous = "data/ambiguous/es.tagged.ambiguous"
+apertium = "data/apertium-spa.spa.rlx"
+flipped = "data/spa_cg3_flip.rlx"
+nonflipped = "data/spa_onlyinari.rlx"
+
 main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ["gold"] -> gold "data/spa_cg3.rlx" "data/ambiguous/es.tagged.ambiguous" 
+    ["gold","flip"] -> gold flipped ambiguous
+    ["gold","mini"] -> gold "/tmp/jugarcg" ambiguous
+    ["gold","orig"] -> gold apertium ambiguous
+    ["gold"] -> gold nonflipped ambiguous
     [r,d,"-gold"] -> gold r d
     [r,d]      -> go r d False
     [r,d,"-2"] -> go r d True
@@ -39,14 +47,10 @@ main = do
                                           | (sat,visl,orig) <- zip3 s v tx
                                           , let diff = diffBySent sat visl
                                           , (not.null) diff ]
-                              moreD = [ satDisMore
-                                          | (sat,visl) <- zip s v 
-                                          , let satDisMore = moreDisamb sat visl
-                                          , (not.null) satDisMore ]
-                              lessD = [ satDisLess
-                                          | (sat,visl) <- zip s v 
-                                          , let satDisLess = lessDisamb sat visl
-                                          , (not.null) satDisLess ]
+                              moreD = length $ filter (not.null) $ zipWith moreDisamb s v
+                              lessD = length $ filter (not.null) $ zipWith lessDisamb s v
+                              diffD = length $ filter (not.null) $ zipWith noIntersect s v
+                              restD = length $ filter (not.null) $ zipWith diffBySent s v
                                                       
                               
                           when (length diffBS < 100) $ mapM_ prDiff diffBS
@@ -63,10 +67,8 @@ main = do
                           print $ 100 * ((origsents - diffsents) / origsents)
                           putStr "% same words: "
                           print $ 100 * ((origwords - diffwords) / origwords)
-                          putStr "(SAT disambiguates more/SAT disambiguates differently): "
-                          print (length moreD, diffwords)
-                          putStr "(SAT disambiguates less/SAT disambiguates differently): "
-                          print (length moreD, diffwords)
+                          putStr "Disambiguates (more,less,disjoint,rest,all): "
+                          print (moreD, lessD, diffD,restD,diffwords)
                           putStrLn ""
 
         prDiff :: (Sentence, [(Analysis,Analysis)]) -> IO ()
@@ -95,6 +97,14 @@ lessDisamb s1 s2 =
   [ (a1, a2) | (a1, a2) <- zip s1 s2
              , length a1 > length a2
              , (not.null) $ intersect a1 a2 ]
+
+diffDisamb :: Sentence -> Sentence -> [(Analysis, Analysis)]
+diffDisamb s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2
+                              , sort a1 /= sort a2 ]
+
+noIntersect :: Sentence -> Sentence -> [(Analysis, Analysis)]
+noIntersect s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2
+                           , null $ intersect a1 a2 ]
 
 vislcg3 :: FilePath -> FilePath -> Bool -> IO [Sentence]
 vislcg3 rls dt isCG2 = do

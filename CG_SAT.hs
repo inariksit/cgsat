@@ -77,24 +77,8 @@ anchor toks = (map.map) getBit (groupBy sameInd toks)
 applyRule :: Rule -> [Token] -> [[Bit]]
 applyRule rule toks = --trace (show rule) $
   case rule of
--- a) condition(s) must not hold 
---for each token, if getContext is empty, remove/select it
-    (Remove tags (NEG conds)) -> [nt (getBit tok) | tok <- toks
-                                                    , tagsMatchRule tags tok
-                                                    , null (ctxt tok conds)]:[]
-
-    (Select tags (NEG conds)) -> [getBit tok | tok <- toks
-                                              , tagsMatchRule tags tok
-                                              , null (ctxt tok conds)]:[]
-                              ++ [nt (getBit tok) | tok <- toks
-                                                    , tagsMatchRule tags tok
-                                                    , (not.null) (ctxt tok conds)]:[]
-
--- b) general case, there can be nested ANDs, ORs or just plain rules
-    (Remove tags (POS conds)) -> applyRules rule (toLists conds) toks
-    (Select tags (POS conds)) -> applyRules rule (toLists conds) toks
-
-  where ctxt tok conds = concatMap (getContext tok toks) (toLists conds)
+    (Remove tags conds) -> applyRules rule (toLists conds) toks
+    (Select tags conds) -> applyRules rule (toLists conds) toks
 
 
 applyRules :: Rule -> [[Condition]] -> [Token] -> [[Bit]]

@@ -46,12 +46,9 @@ type Analysis = [[Tag]]
 type Sentence = [Analysis]
 
 
--- | Rule is either remove or select a list of tags, with contextual test
-data Rule = Remove TagSet Test | Select TagSet Test deriving (Show)
+-- | Rule is either remove or select a list of tags, with contextual tests
+data Rule = Remove TagSet Condition | Select TagSet Condition deriving (Show)
 
--- | Test is a condition with a possible NEG, to implement CG3's NEGATE
---   NEGATE negates the whole result, NOT just a single clause.
-data Test = NEG Condition | POS Condition deriving (Show)
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
@@ -87,9 +84,6 @@ data Position = Exactly Integer
 Everything inside the outer list is constructed by OR (or just C).
 Everything inside an inner list is constructed by AND.
 -}
-
-
-
 toLists :: Condition -> [[Condition]]
 
 --for OR, we make a list of lists, all in sequence.
@@ -125,24 +119,22 @@ toLists cond = case cond of
         simpleList c           = [c]
 
 
--- Shorthand for writing positive tests without barriers
--- TODO better parser
-mkT :: String -> TagSet -> Test
-mkT str tags = POS $ mkC str tags
-
+-- Shorthand for writing conditions without barriers
 mkC :: String -> TagSet -> Condition
 mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) (True, tags)
              | otherwise       = C (Exactly $ read str)          (True, tags)
-
-neg :: Test -> Test
-neg (POS t) = (NEG t)
-neg (NEG t) = (POS t)
 
 lemmaBear :: Condition
 lemmaBear = mkC "0" [[Lem "bear"]]
 always = mkC "0" []
 andTest = AND lemmaBear always
 
+hasBoundary :: Rule -> Bool
+hasBoundary rule = case rule of
+  (Select _t c) -> findBoundary c
+  (Remove _t c) -> findBoundary c
+  where findBoundary c = or $ map hasB (concat (toLists c))
+        hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat tags
 
 -- Sets of tags
 verb = (map . map) Tag [["vblex"],["vbser"],["vbmod"]]
@@ -156,23 +148,23 @@ pl   = [[Tag "pl"]]
 cnjcoo  = [[Tag "cnjcoo"]]
 
 -- Rules
-rmParticle = Remove [[Tag "particle"]] (POS always)
-slVerbAlways = Select verb (POS always)
-slNounIfBear = Select [[Lem "bear", n] | n <- concat noun] (POS always)
+rmParticle = Remove [[Tag "particle"]] always
+slVerbAlways = Select verb  always
+slNounIfBear = Select [[Lem "bear", n] | n <- concat noun]  always
 
-rmVerbIfDet = Remove verb (mkT "-1" det)
-rmAdvIfDet = Remove adv (mkT "1" det)
-rmNounIfPron = Remove noun (mkT "-1" [[Tag "pron"]])
-slPrepIfDet = Select prep (mkT "1" det)
-slNounAfterConj = Select noun (mkT "-1" conj)
+rmVerbIfDet = Remove verb (mkC "-1" det)
+rmAdvIfDet = Remove adv (mkC "1" det)
+rmNounIfPron = Remove noun (mkC "-1" [[Tag "pron"]])
+slPrepIfDet = Select prep (mkC "1" det)
+slNounAfterConj = Select noun (mkC "-1" conj)
 
-slCCifCC = Select cnjcoo (POS (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo)))
+slCCifCC = Select cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
 
-rmPlIfSg = Remove pl (POS (C (Exactly (-1)) (True,sg)))
-rmSgIfPl = Remove sg (mkT "-1" pl)
+rmPlIfSg = Remove pl (C (Exactly (-1)) (True,sg))
+rmSgIfPl = Remove sg (mkC "-1" pl)
 
-negTest   = Select verb (neg (mkT "-1" prep))
-negOrTest = Select verb (NEG (OR (mkC "-1" conj) (mkC "1" prep)))
+negTest   = Select verb (mkC "-1" prep)
+negOrTest = Select verb (OR (mkC "-1" conj) (mkC "1" prep))
 
 
 -- | Shows all analyses as string, each lemma+tags in one line

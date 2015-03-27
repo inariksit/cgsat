@@ -18,8 +18,9 @@ LIST Vblex = (vblex) ;
 LIST Vbmod = (vbmod) ;
 LIST Vbhaver = (vbhaver) ;
 LIST Copula = (vbser);
-LIST Pron = (prn) ;
+LIST Prn = (prn) ;
 LIST Prep = (pr) ;
+LIST Despues = "después de" "Después de" "antes de" "Antes de" "tras" "Tras" ;
 LIST CnjCoo = (cnjcoo) ;
 # quantes vegades s'executa cada regla?
 # había sido inventado por los griegos mientras que los españoles aseguraban
@@ -33,13 +34,16 @@ SET CM = (cm) OR (lpar) OR (rpar) OR ("<;>") ;
 
 SET V = Vblex + Vbmod + Vbhaver + Copula ;
 SET Verb = Vblex OR Vbmod OR Vbhaver OR Copula ;
-SET Word = N + NP + A + Det + PreAdv + Adv + V + Pron + Prep + CnjCoo + CnjSub + CnjAdv + Rel + Interj ;
-SET NP_Member = N + A + Det + PreAdv + Adv + Pron ; # Pron es distinto al resto...
+SET Word = N + NP + A + Det + PreAdv + Adv + V + Prn + Prep + CnjCoo + CnjSub + CnjAdv + Rel + Interj ;
+SET NP_Member = N + A + Det + PreAdv + Adv + Prn ; # Prn es distinto al resto...
 #SET NOT_NP_Member = Word - NP_Member;
 SET NOT_NP_Member = Vblex OR Vbmod OR Vbhaver OR Copula OR Prep OR CnjCoo OR CnjSub OR CnjAdv OR Rel OR Interj ;
 
 LIST Imp = (imp) ;
 LIST Inf = (inf) ;
+LIST Past = (pii) ;
+LIST Cond = (cni) ;
+SET PastCondP1 = (pii p1) OR (cni p1) ;
 
 LIST PP = (pp) ;
 LIST PRS = (prs) ;
@@ -50,6 +54,8 @@ LIST P3 = (p3) ;
 LIST Def = (def) ;
 
 LIST Enc = (enc) ;
+
+LIST Este = "Este" "este" ;
 
 LIST Masc = m mf ;
 LIST Fem = f mf ;
@@ -83,10 +89,9 @@ SET NO_Adj_PP = Word - Adj_PP ;
 
 SET Adv_PreAdv = Adv OR PreAdv ;
 
-SET Verb = Vblex OR Vbmod OR Vbhaver OR Copula ;
 SET Verb_Prep = Verb OR Prep ;
 SET Cnj_Rel = CnjCoo OR CnjSub OR CnjAdv OR Rel ;
-SET Cnj_Rel_End = >>> OR CnjCoo OR CnjSub OR CnjAdv OR Rel ;
+SET Cnj_Rel_End = >>> OR ("sent") OR CM OR Cnj_Rel ;
 
 SET Barrera_Final_SN = <<< OR Prep OR Det OR CnjSub OR CnjAdv OR Verb OR Rel OR Pro ;	# Verb és perillós per la ambigüitat, però en general, prolífic
 SET Barrera_Final_Estrict_SN = <<< OR Prep OR Det OR CnjSub OR CnjAdv OR Rel OR Pro ;
@@ -135,19 +140,25 @@ SET VPred = ("considerar") OR ("Considerar") OR ("creer") OR ("Creer") OR ("opin
 
 SECTION
 
-REMOVE:r_cog_1 Cog IF (-1 DetDef) (0 Cog) ;
-REMOVE:r_cog_2 Cog IF (-1 DetInd) (0 Cog) ;
-REMOVE:r_ant_1 Ant IF (-1 DetDef) (0 Ant) ;
-REMOVE:r_ant_2 Ant IF (-1 DetInd) (0 Ant) ;
+REMOVE:r_cog_1 Cog IF (-1 DetDef) ;
+REMOVE:r_cog_2 Cog IF (-1 DetInd) ;
+REMOVE:r_ant_1 Ant IF (-1 DetDef) ;
+REMOVE:r_ant_2 Ant IF (-1 DetInd)  ;
 
-SELECT:este_2 Det IF (0 ("este") + $$MascSg) (-1 Verb_Prep) (1 A + $$MascSg) (2 N + $$MascSg) ;
+SELECT:este_2 Este + $$MascSg + Det IF (-1 Verb_Prep) (1 A + $$MascSg) (2 N + $$MascSg) ;
 	# de este bonito estado
-SELECT:este_1 Det IF (0 ("este") + $$MascSg) (-1 Verb_Prep) (1 N + $$MascSg) ;
+SELECT:este_1 Este + $$MascSg + Det IF (-1 Verb_Prep) (1 N + $$MascSg) ;
 	# de este estado
 SELECT:este_2 Det IF (0 ("Este") + $$MascSg) (-1 >>>) (1 A + $$MascSg) (2 N + $$MascSg) ;
 	# Este bonito estado
 SELECT:este_1 Det IF (0 ("Este") + $$MascSg) (-1 >>>) (1 N + $$MascSg) ;
 	# Este estado
+
+REMOVE:inari_r_det Det IF (1C Verb) ; # (el novio) la casa
+REMOVE:inari_r_pro Pro IF (NOT 1C Verb) ;  # la (nueva) casa (en que vivo)
+
+
+
 
 # Tio estas ligita al la (mis)difinoj de accionista__n, albañil__n, gilipollas__n kaj reh/én__n
 #SELECT:n_mf_1 Masc IF (0C N LINK NOT 0 Defensa) (-1C Vblex OR Prep OR ("como")) (NOT -1 PP) (1 <<< OR Prep) ;
@@ -156,8 +167,8 @@ SELECT:este_1 Det IF (0 ("Este") + $$MascSg) (-1 >>>) (1 N + $$MascSg) ;
 	## cogieron tres rehenes.
 
 # se referirán, desde entonces, a los indígenas del Magreb como pueblos líbicos, aunque
-REMOVE:r_verb_1 Vblex (0 Vblex + Pers) (*1C Vblex + Pers BARRIER Cnj_Rel) ;
-# SELECT:r_verb_2 Vblex (0 Vblex + Pers) (-1C Pro) ; No: podría recurrir a ellas para hacer
+REMOVE:r_verb_1 Vblex + Pers IF (*1C Vblex + Pers BARRIER Cnj_Rel) ;
+# SELECT:r_verb_2 Vblex + Pers IF (-1C Pro) ; No: podría recurrir a ellas para hacer
 
 # preposiciones / verbos
 # no tratamos "cabo" porque es muy infrecuente (+ nombre!, como "bajo", que también es adj)
@@ -189,9 +200,9 @@ REMOVE:debidoa_2b ("a") (0 ("debido a") OR ("Debido a")) (-1 >>>) ;
 REMOVE:debidoa_3b ("a") (0 ("debido a") OR ("Debido a")) (-1C PP) ;
 #SELECT:bajo_ms Prep (0 ("bajo") OR ("Bajo")) (-1C N) (NOT -1 MascSg ) (1C N) (NOT 1 MascSg) ;
 	# elaborada bajo presidencia
-SELECT:pr_cnjadv_1 Prep (0 ("después de") OR ("Después de") OR ("antes de") OR ("Antes de") OR ("tras") OR ("Tras")) (1 Det OR Pron LINK NOT 0 Enc) ;
-SELECT:pr_cnjadv_2 Prep (0 ("después de") OR ("Después de") OR ("antes de") OR ("Antes de") OR ("tras") OR ("Tras")) (1C A) ;
-SELECT:pr_cnjadv_3 CnjAdv (0 ("después de") OR ("Después de") OR ("antes de") OR ("Antes de") OR ("tras") OR ("Tras")) (1C Inf OR Enc) ;
+SELECT:pr_cnjadv_1 Prep + Despues IF (1 Det OR Prn LINK NOT 0 Enc) ;
+SELECT:pr_cnjadv_2 Prep + Despues IF (1C A) ;
+SELECT:pr_cnjadv_3 CnjAdv + Despues IF (1C Inf OR Enc) ;
 
 SELECT:que_1 CnjSub (0 ("que")) (-1C Inf OR Enc) ;
 SELECT:que_2 CnjSub (0 ("que")) (-1C Vblex LINK NOT 0 PP) ;
@@ -202,6 +213,38 @@ SELECT:que_5 CnjSub (0 ("que")) (-2 ("tan") OR ("Tan")) (-1 A OR Adv) ;
 
 REMOVE:r_adv Adv (0 Adv) (-1C N) (1C N) ;
 	# manifestantes bajo jurisdicción
+
+# Disambiguate between readings of e.g. mal and bien (n, adj, (pre)adv)
+SELECT:inari_s_mal_adj A IF (-1C Det) (0 A LINK 0 Adv) (1C N) ; # un mal día
+SELECT:inari_s_mal_n  N IF (-1C Det) (0 A LINK 0 N) (NOT 1C N) ; # el mal en persona
+SELECT:inari_s_ir_ser Ir  IF (1 Adv) ; # le fue (bien|mal)
+SELECT:inari_s_ser_ir Ser IF (1 PreAdv) ; # no es que fuera mal hecho
+
+
+# está mal (.|y no me gusta|, pero ...|en mi opinión|la casa nueva)  
+SELECT:inari_s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det) ;
+# está mal hecho
+SELECT:inari_s_preadv PreAdv IF (1 PP) ;
+
+# works even if we can't disambiguate between adv and preadv
+SELECT:inari_s_adv_pp Verb IF (-1 Adv_PreAdv) ;
+
+# Disambiguate between readings of lo (detnt|prn pro p3 (nt|sg))
+
+REMOVE:inari_r_detnt (detnt) IF (1 Verb) ;
+#SELECT:inari_s_detnt (detnt) IF (NOT 1 Verb) ;
+
+
+# la casa era nueva / él vino ayer
+REMOVE:inari_r_noun N    IF (-1C N OR Prn) ;
+REMOVE:inari_r_verb Verb IF (-1 A OR Det) ;
+# SELECT:s_verb Verb IF (-1C N OR Prn) ;
+# SELECT:s_noun N    IF (-1 A OR Det) ;
+REMOVE:inari_r_pr_cn_p1 PastCondP1 IF (-1C N) ; # la casa (era|sería) nueva
+
+SELECT:inari_s_prn_1 Prn IF (1 Verb) ; # y qué decir?
+SELECT:inari_s_prn_2 Prn IF (0 Prn LINK 0 A) (-1 Prep) ; # de qué?
+# /Inari
 
 REMOVE:nom_verb1 N (-1C Pro) (0 N LINK 0 Verb) (1 ("que")) ;
 REMOVE:nom_verb2 N (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 N LINK 0 Verb) ;
@@ -236,8 +279,11 @@ REMOVE:np_a_mp A IF (0 NP LINK 0 (adj m pl)) (-1 Prep) (1C N) (NOT 1 MascPl) ;
 REMOVE:np_a_fp A IF (0 NP LINK 0 (adj f pl)) (-1 Prep) (1C N) (NOT 1 FemPl) ;
 	# asignaba a Armenia territorios
 
+REMOVE:n_a N IF (-1 Det) (0 N LINK 0 A) (1 N) ; # la anciana china
+
 # eliminación del imperativo en competición con el presente del indicativo
 REMOVE:imp_1 Imp IF (0 (vblex pri p3 sg) LINK 0 (vblex imp p2 sg)) ;
+#SELECT:imp_11 (pri) IF (0 (vblex pri p3 sg) LINK 0 (vblex imp p2 sg)) ;
 REMOVE:imp_2 Imp IF (-1 ("que")) (0 Verb) ;
 
 # elección de subjuntivo después de "que"
@@ -262,8 +308,8 @@ SELECT:subj5 PRS (*-1 ("ser") LINK 1 Adv_PreAdv LINK 1 A LINK 1 ("que")) (0C Ver
 #SELECT:tanto_1 Adv IF (0 ("tanto")) (1C N) (2 ("como")) ;
 #SUBSTITUTE:tanto_1 ("tanto") ("tanto_same") TARGET ("tanto") IF (0 ("tanto")) (1C N) (2 ("como")) ;
 
-SELECT:pp_1 PP IF (-1 ("haber") OR ("Haber")) (0 PP) ;
-SELECT:pp_2 PP IF (-1 ("ser") OR ("ser")) (0 PP) (*1 ("por") BARRIER (Cnj_Rel_End)) ;
+SELECT:pp_1 PP IF (-1 ("haber") OR ("Haber")) ;
+SELECT:pp_2 PP IF (-1 ("ser") OR ("ser")) (*1 ("por") BARRIER (Cnj_Rel_End)) ;
 
 # seguir, estar + ger
 SELECT:ger Ger IF (-1 ("estar") OR ("Estar") OR ("seguir") OR ("Seguir")) (0 Ger) ;
@@ -271,9 +317,9 @@ SELECT:ger Ger IF (-1 ("estar") OR ("Estar") OR ("seguir") OR ("Seguir")) (0 Ger
 # doble negación (eo)
 SET No = ("no") OR ("No") ;
 SET AdvNeg = ("nunca") OR ("Nunca") OR ("jamás") OR ("Jamás") ;
-SET PronNeg = ("nada") OR ("Nada") OR ("nadie") OR ("Nadie") OR ("ninguno") OR ("Ninguno") ;
+SET PrnNeg = ("nada") OR ("Nada") OR ("nadie") OR ("Nadie") OR ("ninguno") OR ("Ninguno") ;
 SET DetNeg = ("ninguno") OR ("Ninguno") ;
-REMOVE:dob_neg_1 No IF (0 No) (1 Verb) (*2 AdvNeg OR PronNeg BARRIER Cnj_Rel) ;
+REMOVE:dob_neg_1 No IF (0 No) (1 Verb) (*2 AdvNeg OR PrnNeg BARRIER Cnj_Rel) ;
 # SUBSTITUTE:dob_neg_2 ("nada") ("algo") TARGET ("nada") IF (*-2 AdvNeg LINK 1 Verb BARRIER Cnj_Rel) (0 ("nada")) ;
 # SUBSTITUTE:dob_neg_3 ("nadie") ("alguien") TARGET ("nadie") IF (*-2 AdvNeg LINK 1 Verb BARRIER Cnj_Rel) (0 ("nadie")) ;
 # SUBSTITUTE:dob_neg_4 ("ninguno") ("alguno") TARGET ("ninguno") IF (*-2 AdvNeg LINK 1 Verb BARRIER Cnj_Rel) (0 ("ninguno")) ;

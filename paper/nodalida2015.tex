@@ -62,7 +62,8 @@ Let us demonstrate our approach with the following example in Spanish.
         "lo" prn pro p3 f sg
 "<casa>"
         "casa" n f sg
-        "casar" vblex pri p3 sg
+        "casar" v pri p3 sg
+        "casar" v imp p2 sg
 \end{verbatim}
 
 The ambiguous passage can be either a noun phrase, \emph{la\texttt{:det} casa\texttt{:n}} 
@@ -71,14 +72,14 @@ We add the following rules:
 
 \begin{itemize}
 \item [] \texttt{REMOVE prn IF (1 n) ;} \\
-             \texttt{REMOVE det IF (1 vblex) ;}
+             \texttt{REMOVE det IF (1 v) ;}
 \end{itemize}
 
 Standard CG will apply one\footnote{To be more cautious, we could require the word at position +1 be disambiguated fully (\texttt{1C} instead of \texttt{1}), but in that case, 
 neither of the rules would be applied.} of the rules to the word \emph{la}; 
 either the one that comes first, or by some other heuristic. 
 The second rule will not fire, because it would remove the last reading. 
-Both readings of \emph{casa} are left untouched by these rules.
+All readings of \emph{casa} are left untouched by these rules.
 
 SAT solver 
 performs a search, 
@@ -94,7 +95,7 @@ for free, and ordering of the rules doesn't matter.
 
 %If we add a word, \emph{la casa grande} `the big house' 
 %and a rule that removes verb if followed by an adjective
-%\texttt{REMOVE (vblex) IF (1 (adj)) ;}
+%\texttt{REMOVE (v) IF (1 (adj)) ;}
 %we will get a unique solution with \texttt{det n adj}.
 %Standard CG will also remove the verb reading, 
 %but the choice of the word \emph{la} doesn't contribute to
@@ -115,7 +116,7 @@ This means that the rules can be flipped: compare the rules below to the ones in
 
 \begin{itemize}
 \item [] \texttt{REMOVE n IF (-1 prn) ;} \\
-             \texttt{REMOVE vblex IF (-1 det) ;}
+             \texttt{REMOVE v IF (-1 det) ;}
 \end{itemize}
 
 SAT-based approach gives identical results with both sets of rules,
@@ -146,8 +147,9 @@ For a rule set such as following, this order is crucial:
 
 To replace the sequential order, we have experimented with different strategies:
 \begin{itemize}
-\item Maximise number of rules used---assume if someone has written a rule, it is worth applying. Didn't give the best results.
-\item Maximise number of instances when a rule is applied---\todo{comment about this too}
+\item Maximise number of rules used---assume if someone has written a rule, it is worth applying. Downside is that if a rule leads to a conflict in one case, it won't be applied anywhere.
+\item Maximise number of instances when a rule is applied---This gave better results. Assume that whenever we can apply a rule, we should do it.
+\item Maximise number of true analyses---With this heuristic, the solution \texttt{prn v} would be chosen, because there happens to be two analyses with \texttt{v}, and choosing that, 3 analyses are true, since there is no rule to disambiguate between imperative and indicative. We want analyses to be true by default
 \end{itemize}
 
 % Finite-state implementations of CG \cite{koskenniemi92} also have logically unordered rules. 
@@ -193,6 +195,8 @@ SATCG is just a first proof-of-concept implementation and can be optimised.
 \end{table}
 
 \paragraph{Performance against VISL CG3}
+
+\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged}
 We took small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. Table~\ref{table:results} shows how much the results agree with the result given by VISL CG3 parser with the same grammar and text.
 
 \begin{table}

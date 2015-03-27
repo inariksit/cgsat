@@ -172,8 +172,8 @@ transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
   SelectIf _sl tags _if conds -> liftM2 CGB.Select (transTagSet tags) (transCondSet conds)
   RemoveIf _sl tags _if conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
-  SelectAlways _sl tags   -> liftM2 CGB.Select (transTagSet tags) (return $ CGB.POS CGB.always)
-  RemoveAlways _sl tags   -> liftM2 CGB.Remove (transTagSet tags) (return $ CGB.POS CGB.always)
+  SelectAlways _sl tags   -> liftM2 CGB.Select (transTagSet tags) (return CGB.always)
+  RemoveAlways _sl tags   -> liftM2 CGB.Remove (transTagSet tags) (return CGB.always)
   MatchLemma (Str lem) rl -> do cgrule <- transRule rl
                                 case cgrule of
                                   CGB.Select ts c -> return $ CGB.Select (cart ts lem) c
@@ -182,13 +182,13 @@ transRule rl = case rl of
         cart ts str = case str of
            ('"':'<':_) -> [[CGB.WF  (strip 2 str), t] | t <- concat ts]
            ('"':_    ) -> [[CGB.Lem (strip 1 str), t] | t <- concat ts]
-           _           -> [[CGB.Lem str        , t] | t <- concat ts]
+           _           -> [[CGB.Lem str          , t] | t <- concat ts]
         
 
-transCondSet :: [Cond] -> State Env CGB.Test
+transCondSet :: [Cond] -> State Env CGB.Condition
 transCondSet cs = do
   conds <- mapM transCond cs
-  return $ CGB.POS $ foldr1 CGB.AND conds
+  return $ foldr1 CGB.AND conds
 
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
