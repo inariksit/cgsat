@@ -14,43 +14,58 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [r,d]      -> go r d False False
-    [r,d,"-2"] -> go r d False True
-    [r,d,"-v"] -> go r d True False
-    [r,d,"-v","-2"] -> go r d True True
-    [r,d,"-2","-v"] -> go r d True True
-    [r,d,"-v2"] -> go r d True True
-    [r,d,"-2v"] -> go r d True True
+    ["gold"] -> gold "data/spa_cg3.rlx" "data/ambiguous/es.tagged.ambiguous" 
+    [r,d,"-gold"] -> gold r d
+    [r,d]      -> go r d False
+    [r,d,"-2"] -> go r d True
     _           -> putStrLn "usage: ./test <rules> <data>"
-  where go r d v is2 = do rules <- readRules r
-                          text <- readData d
+  where gold rls dat = do rules <- readRules rls
+                          text <- readData dat
+                          resSAT <- mapM (disambiguate False rules) text
+                          resVISL <- vislcg3 rls dat False  -- :: [Sentence]
+                          gold <- readData "data/gold/es.tagged"
+                          putStrLn "SAT-CG in comparison to gold standard"
+                          prAll resSAT gold text
+                          putStrLn "\nVISLCG3 in comparison to gold standard"
+                          prAll resVISL gold text
+
+        go rl dt is2 = do rules <- readRules rl
+                          text <- readData dt
                           resSAT <- mapM (disambiguate False rules) text -- :: [Sentence]
-                          resVISL <- vislcg3 r d is2  -- :: [Sentence]
-                          let diffBS = [ (orig, diff)
-                                          | (s,v,orig) <- zip3 resSAT resVISL text
-                                          , let diff = diffBySent s v
+                          resVISL <- vislcg3 rl dt is2  -- :: [Sentence]
+                          prAll resSAT resVISL text
+                          
+        prAll s v tx = do let diffBS = [ (orig, diff)
+                                          | (sat,visl,orig) <- zip3 s v tx
+                                          , let diff = diffBySent sat visl
                                           , (not.null) diff ]
                               moreD = [ satDisMore
-                                          | (s,v) <- zip resSAT resVISL
-                                          , let satDisMore = moreDisamb s v
+                                          | (sat,visl) <- zip s v 
+                                          , let satDisMore = moreDisamb sat visl
                                           , (not.null) satDisMore ]
+                              lessD = [ satDisLess
+                                          | (sat,visl) <- zip s v 
+                                          , let satDisLess = lessDisamb sat visl
+                                          , (not.null) satDisLess ]
+                                                      
                               
-                          when v $ do
-                            mapM_ prDiff diffBS
+                          when (length diffBS < 100) $ mapM_ prDiff diffBS
 
-                          let origwords = fromIntegral $ length $ concat text
-                              origsents = fromIntegral $ length resSAT
+                          let origwords = fromIntegral $ length $ concat tx
+                              origsents = fromIntegral $ length s
                               diffsents = fromIntegral $ length diffBS
                               diffwords = fromIntegral $ length $ concatMap snd diffBS
                           putStr "(Sentences,words) in the original: "
                           print (origsents,origwords)
                           putStr "Different (sentences,words) from original: "
                           print (diffsents,diffwords)
-                          putStr "% same sentences with vislcg3: "
+                          putStr "% same sentences: "
                           print $ 100 * ((origsents - diffsents) / origsents)
-                          putStr "% same words with vislcg3: "
+                          putStr "% same words: "
                           print $ 100 * ((origwords - diffwords) / origwords)
                           putStr "(SAT disambiguates more/SAT disambiguates differently): "
+                          print (length moreD, diffwords)
+                          putStr "(SAT disambiguates less/SAT disambiguates differently): "
                           print (length moreD, diffwords)
                           putStrLn ""
 
@@ -75,6 +90,11 @@ moreDisamb s1 s2 =
              , length a1 < length a2
              , (not.null) $ intersect a1 a2 ]
 
+lessDisamb :: Sentence -> Sentence -> [(Analysis, Analysis)]
+lessDisamb s1 s2 =
+  [ (a1, a2) | (a1, a2) <- zip s1 s2
+             , length a1 > length a2
+             , (not.null) $ intersect a1 a2 ]
 
 vislcg3 :: FilePath -> FilePath -> Bool -> IO [Sentence]
 vislcg3 rls dt isCG2 = do
