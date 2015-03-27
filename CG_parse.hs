@@ -164,7 +164,7 @@ transTagSet ts = case ts of
 
   Cart ts1 ts2   -> do tags1 <- transTagSet ts1   
                        tags2 <- transTagSet ts2
-                       let combs = [[x,y] | x<-concat tags1, y<-concat tags2]
+                       let combs = map concat $ sequence [tags1, tags2]
                        return combs
 
 
