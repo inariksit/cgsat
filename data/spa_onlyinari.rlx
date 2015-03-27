@@ -1,0 +1,177 @@
+# exemple ambigüitat fins i tot per a un parlant: "noble húngaro" (hungara nobelo / nobla hungaro), "viejos fanáticos" (maljunaj fanatikuloj / fanatikaj maljunuloj)
+DELIMITERS = "<.>" "<!>" "<?>" "<...>" "<¶>" "<:>";
+SOFT-DELIMITERS = "<,>" "<;>";
+SETS
+LIST >>> = >>> ;
+LIST <<< = <<< ;
+LIST N = (n) ;
+LIST NP = (np) ;
+LIST A = (adj) ;
+LIST Det = (det) ;
+LIST Num = (num) ;
+LIST Adv = (adv) ;
+LIST PreAdv = (preadv) ;
+
+# Verbs
+LIST Vblex = (vblex) ;
+LIST Vbmod = (vbmod) ;
+LIST Vbhaver = (vbhaver) ;
+LIST Copula = (vbser);
+
+LIST Subj = prs pis ;
+LIST Imp = (imp) ;
+LIST Inf = (inf) ;
+LIST Past = (pii) ;
+LIST Cond = (cni) ;
+SET PastCondP1 = (pii p1) OR (cni p1) ;
+
+# Pronoms
+LIST Prn = (prn) ;
+
+# Preposicions
+LIST Prep = (pr) ;
+LIST Despues = "después de" "Después de" "antes de" "Antes de" "tras" "Tras" ;
+
+# Conjuncions
+LIST CnjCoo = (cnjcoo) ;
+# quantes vegades s'executa cada regla?
+# había sido inventado por los griegos mientras que los españoles aseguraban
+# elimina españoles adj, però no griegos adj; si se suprimeix la segona part de la frase, sí se suprimeix griegos adj
+LIST CnjSub = (cnjsub) ;
+LIST CnjAdv = (cnjadv) ;
+
+
+LIST Rel = (rel) ;		# PROBLEMA: està malparit en eo-es i eo-ca: prn.rel i rel.adv (es-ca: rel.adv, rel.an, rel.nn, rel.aa)
+LIST Interj = (ij) ;
+SET CM = (cm) OR (lpar) OR (rpar) OR ("<;>") ;
+SET V = Vblex + Vbmod + Vbhaver + Copula ;
+SET Verb = Vblex OR Vbmod OR Vbhaver OR Copula ;
+SET Word = N + NP + A + Det + PreAdv + Adv + V + Prn + Prep + CnjCoo + CnjSub + CnjAdv + Rel + Interj ;
+SET NP_Member = N + A + Det + PreAdv + Adv + Prn ; # Prn es distinto al resto...
+#SET NOT_NP_Member = Word - NP_Member;
+SET NOT_NP_Member = Vblex OR Vbmod OR Vbhaver OR Copula OR Prep OR CnjCoo OR CnjSub OR CnjAdv OR Rel OR Interj ;
+
+LIST PP = (pp) ;
+LIST PRS = (prs) ;
+LIST Ger = (ger) ;
+LIST P3 = (p3) ;
+LIST Def = (def) ;
+LIST Enc = (enc) ;
+LIST Este = "Este" "este" ;
+LIST Masc = m mf ;
+LIST Fem = f mf ;
+LIST Sg = sg sp ;
+LIST Pl = pl sp ;
+SET MascSg = (m sg) OR (m sp) OR (mf sg) OR (mf sp) ;
+SET MascPl = (m pl) OR (m sp) OR (mf pl) OR (mf sp) ;
+SET FemSg = (f sg) OR (f sp) OR (mf sg) OR (mf sp) ;
+SET FemPl = (f pl) OR (f sp) OR (mf pl) OR (mf sp) ;
+SET MascSg2 = (m sg) OR (m sp) OR (mf sg) OR (mf sp) ;
+SET MascPl2 = (m pl) OR (m sp) OR (mf pl) OR (mf sp) ;
+SET FemSg2 = (f sg) OR (f sp) OR (mf sg) OR (mf sp) ;
+SET FemPl2 = (f pl) OR (f sp) OR (mf pl) OR (mf sp) ;
+SET Pers = (p1) OR (p2) OR (p3) ;
+SET Ref = (prn pro ref) ;
+SET Pro = (prn pro) ;
+SET Ant = (np ant) ;
+SET Cog = (np cog) ;
+SET Ant_Cog = Ant OR Cog ;
+SET DetDef = (det def) ;
+SET DetInd = (det ind) ;
+SET Noun_Adj = N OR A ;
+SET Noun_Adj_PP = N OR A OR PP ;
+SET Adj_PP = A OR PP ;
+SET NO_Adj_PP = Word - Adj_PP ;
+SET Adv_PreAdv = Adv OR PreAdv ;
+SET Verb_Prep = Verb OR Prep ;
+SET Cnj_Rel = CnjCoo OR CnjSub OR CnjAdv OR Rel ;
+SET Cnj_Rel_End = >>> OR ("sent") OR CM OR Cnj_Rel ;
+SET Barrera_Final_SN = <<< OR Prep OR Det OR CnjSub OR CnjAdv OR Verb OR Rel OR Pro ;	# Verb és perillós per la ambigüitat, però en general, prolífic
+SET Barrera_Final_Estrict_SN = <<< OR Prep OR Det OR CnjSub OR CnjAdv OR Rel OR Pro ;
+SET Barrera_Inicial_SN = >>> OR Prep OR CnjSub OR CnjAdv OR Verb OR Rel ;	# Verb és perillós per la ambigüitat, però en general, prolífic
+SET Barrera_Inicial_Estrict_SN = >>> OR Prep OR CnjSub OR CnjAdv OR Rel ;
+SET Limite_Barrera_Inicial_SN = ("ser") OR ("Ser") OR ("estar") OR ("Estar") OR ("parecer") OR ("Parecer") OR ("haber") OR ("Haber") ;
+#SET como = ("como") ;
+#SET para = ("para") ;
+
+# Negacions
+SET No = ("no") OR ("No") ;
+SET AdvNeg = ("nunca") OR ("Nunca") OR ("jamás") OR ("Jamás") ;
+SET PrnNeg = ("nada") OR ("Nada") OR ("nadie") OR ("Nadie") OR ("ninguno") OR ("Ninguno") ;
+SET DetNeg = ("ninguno") OR ("Ninguno") ;
+
+# Paraules
+SET Defensa = ("defensa") OR ("Defensa") ;
+SET Como = ("como") OR ("Como") ;
+SET Podar = ("podar") OR ("Podar") ;
+SET Poder = ("poder") OR ("Poder") ;
+SET Salar = ("salar") OR ("Salar") ;
+SET Soler = ("soler") OR ("Soler") ;
+SET Crear = ("crear") OR ("Crear") ;
+SET Creer = ("creer") OR ("Creer") ;
+SET Sentir = ("sentir") OR ("Sentir") ;
+SET Sentar = ("sentar") OR ("Sentar") ;
+SET Ser = ("ser") OR ("Ser") ;
+SET Ir = ("ir") OR ("Ir") ;
+SET Fundar = ("fundar") OR ("Fundar") ;
+SET Fundir = ("fundir") OR ("Fundir") ;
+SET Ser = ("ser") OR ("Ser") ;
+SET Estar = ("estar") OR ("Estar");
+SET Haber = ("haber") OR ("Haber") ;
+# adjetivos ambíguos que sólo pueden anteceder el nombre ("gran" o "buen" no son ambiguos)
+SET PreAdj = ("mal") OR ("Mal") ;
+# adjetivos ambiguos que se anteponen a menudo
+SET AdjPrefAmb = ("bajo") OR ("alto") OR ("joven") OR ("viejo") OR ("medio") OR ("dicho") OR ("menor") OR ("mayor") OR ("doble") OR ("triple") OR ("posible") OR ("cierto") ;
+SET VerboSubj = ("querer") OR ("Querer") OR ("desear") OR ("Desear") OR ("proponer") OR ("Proponer") OR ("gustar") OR ("Gustar") OR ("placer") OR ("Placer") OR ("exigir") OR ("Exigir") OR ("reclamar") OR ("Reclamar") OR ("pedir") OR ("Pedir") OR ("esperar") OR ("Esperar") ;
+# verbos Vblex que típicamente tienen predicativo
+SET VPred = ("considerar") OR ("Considerar") OR ("creer") OR ("Creer") OR ("opinar") OR ("Opinar") OR ("sentir") OR ("Sentir") OR ("hallar") OR ("Hallar") OR ("permanecer") OR ("Permanecer") OR ("continuar") OR ("Continuar") OR ("mantener") OR ("Mantener") OR ("resultar") OR ("Resultar") OR ("volver") OR ("Volver") ;
+
+###############################################################################
+#  Morphological disambiguation
+#
+SECTION
+
+# REMOVE:inari_r_det Det IF (1C Verb) ; # (el novio) la casa
+# REMOVE:inari_r_pro Pro IF (NOT 1C Verb) ;  # la (nueva) casa (en que vivo)
+
+SELECT:inari_s_pro Pro IF (1C Verb) ; # (el novio) la casa
+SELECT:inari_s_det Det IF (NOT 1C Verb) ;  # la (nueva) casa (en que vivo)
+
+# Disambiguate between readings of e.g. mal and bien (n, adj, (pre)adv)
+SELECT:inari_s_a_adv A IF (-1C Det) (0 N OR Adv) (1C N) ; # un mal día
+SELECT:inari_s_n_adj N IF (-1C Det) (0 A OR Adv) (NOT 1C N) ; # el mal en persona
+
+SELECT:inari_s_ir_ser Ir  IF (1C Adv) ; # le fue (bien|mal)
+SELECT:inari_s_ser_ir Ser IF (1C PreAdv) ; # no es que fuera mal hecho
+
+# está mal (.|y no me gusta|, pero ...|en mi opinión|la casa nueva)  
+SELECT:inari_s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det) ;
+# está mal hecho
+SELECT:inari_s_preadv PreAdv IF (1C PP) ;
+
+# works even if we can't disambiguate between adv and preadv
+SELECT:inari_s_adv_pp Verb IF (-1 Adv_PreAdv) ;
+
+# Disambiguate between readings of lo (detnt|prn pro p3 (nt|sg))
+#REMOVE:inari_r_detnt (detnt) IF (1C Verb - PP) ;
+SELECT:inari_s_detnt (detnt) IF (1 A OR Adv OR PP) ; # lo nuevo / lo más
+SELECT:inari_s_detnt (detnt) IF (-1 Det) ; # de lo
+
+# la casa era nueva / él vino ayer     # becomes worse with SELECT
+REMOVE:inari_r_noun N    IF (-1 N OR Prn) ;
+REMOVE:inari_r_verb Verb IF (-1 A OR Det) ;
+
+# la casa (era|sería) nueva / yo era joven
+REMOVE:inari_r_pr_cn_p1 PastCondP1 IF (-1C N) ; 
+
+# desambiguació (adj|prn) itg
+# qué decir? / qué tal / qué le diría
+SELECT:inari_s_prn_1 Prn IF (0 A) (1 Verb OR Adv OR Prn) ; 
+SELECT:inari_s_prn_2 Prn IF (0 A) (-1 Prep) ; # de qué?
+
+#REMOVE:inari_imp_1 (imp p2) IF (0 (vblex pri p3 sg)) ;
+SELECT:inari_s_pri_1 (pri p3) IF (0 (vblex imp p2 sg)) ;
+SELECT:inari_s_subj Subj IF (0 Imp) (-1 ("que")) ;
+# elección de subjuntivo después de "que"
+
+
