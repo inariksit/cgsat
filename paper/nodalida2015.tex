@@ -16,12 +16,14 @@
 \usepackage{latexsym}
 \usepackage{cite}
 \usepackage{authordate1-4}
+\usepackage{multirow}
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
 %\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
 
 \usepackage{color}
 \newcommand{\todo}[1]{{\color{cyan}\textbf{[TODO: }#1\textbf{]}}}
-
+\usepackage{tikz}
+\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;}
 \title{Exploring Constraint Grammar as a SAT problem}
 
 \author{Inari Listenmaa \and Koen Claessen \\
@@ -121,12 +123,12 @@ This means that the rules can be flipped: compare the rules below to the ones in
 
 SAT-based approach gives identical results with both sets of rules,
 whereas the standard CG would remove one reading from \emph{casa} and leave \emph{la} ambiguous.
+Testing this property with more complex rules and larger rule sets than remains to be done.
 
-
-Rules with more conditions translate into many rules; rules with negation become complements (\texttt{(*)-X} for \texttt{NOT X}). Rules which require the condition to be unambiguously tagged, don't have an equivalent flip in the standard CG.
+%Rules with more conditions translate into many rules; rules with negation become complements (\texttt{(*)-X} for \texttt{NOT X}). Rules which require the condition to be unambiguously tagged, don't have an equivalent flip in the standard CG.
 % We did not expect much practical benefits, save for realising that some rules are bad by having to think further what it implies,
-Out of interest, we manually flipped a small grammar and tested it against the original.
-\todo{The results show (the English just shows it's crap in the first place, 84\% to 85\% for a random 100-sentence text) }
+%Out of interest, we manually flipped a small grammar and tested it against the original.
+% \todo{The results show  }
 %\begin{itemize}
 %\item []          \texttt{SL Inf IF (-2 V-MOD) (-1 "not");} \\
 %$\rightarrow$\texttt{SL V-MOD   IF (1 "not") (2 INF);} \\
@@ -138,19 +140,26 @@ Out of interest, we manually flipped a small grammar and tested it against the o
 \paragraph{Rules are unordered.}
 A typical CG rule sequence starts with rules that are either very common, or have a complex condition to fulfil.
 Stronger rules appear towards the end, to be applied if none of the weaker rules has. 
-For a rule set such as following, this order is crucial:
+%For a rule set such as following, this order is crucial:
 
-\begin{itemize}
-\item [] \texttt{SELECT Year IF (-1 Seasons OR Months) ;} \\
-             \texttt{REMOVE Year ;}
-\end{itemize}
+%\begin{itemize}
+%\item [] \texttt{SELECT Year IF (-1 Seasons OR Months) ;} \\
+ %            \texttt{REMOVE Year ;}
+%\end{itemize}
 
 To replace the sequential order, we have experimented with different strategies:
 \begin{itemize}
-\item Maximise number of rules used---assume if someone has written a rule, it is worth applying. Downside is that if a rule leads to a conflict in one case, it won't be applied anywhere.
-\item Maximise number of instances when a rule is applied---This gave better results. Assume that whenever we can apply a rule, we should do it.
-\item Maximise number of true analyses---With this heuristic, the solution \texttt{prn v} would be chosen, because there happens to be two analyses with \texttt{v}, and choosing that, 3 analyses are true, since there is no rule to disambiguate between imperative and indicative. We want analyses to be true by default
+\item Maximise number of rules used---assume if someone has written a rule, it is worth applying. We discarded this strategy, because it was too strong: if a rule leads to a conflict in one case, it was not be applied anywhere.
+\item [\checkmark] Maximise number of instances when a rule is applied---assume that whenever we can apply a rule, we should do it. 
+\item Maximise number of true analyses---Without this heuristic, both solutions to our example \emph{la casa} are as likely. With this heuristic,  the example would be disambiguated as \texttt{prn v}, because there happens to be two analyses with \texttt{v}, and choosing that, 3 analyses are true, since there is no rule to disambiguate between imperative and indicative.
+% We want analyses to be true by default, but still disambiguate as much as possible.
+%We have a rule to maximise the number of true analyses; then we take a solution that has the least. 
+\item [\checkmark] Maximise rules, minimise number of true analyses---To combat the previous, we want each solution to contain as many true analyses as possible, to ensure that analyses untouched by rules are kept true. After having multiple solutions which all ensure , we pick the one that disambiguates the most.
+
 \end{itemize}
+
+The heuristics worked with examples in the order of tens of rules, but moving to hundreds of rules, the rules interact more, the results are more mixed. 
+Rule sets in order of thousands of rules remains to be tested.
 
 % Finite-state implementations of CG \cite{koskenniemi92} also have logically unordered rules. 
 % \todo{Inari: check if Tapanainen 1996 discuss ordering}
@@ -184,11 +193,13 @@ SATCG is just a first proof-of-concept implementation and can be optimised.
 
 \begin{table}
   \centering
-  \begin{tabular}{|l|c|c|}
+  \begin{tabular}{|l|l|c|c|}
      \hline
-	         & \textbf{Don Quijote}  & \textbf{Pride and Prejudice} \\ \hline
-  VISL CG3 & 0m10.745s & 0m4.811s \\ \hline
-  SATCG    & 2m53.708s & 0m55.705s \\ \hline
+	        \textbf{Text} & \textbf{\# words, rules} & \textbf{VISLCG3} &  \textbf{SATCG} \\ \hline
+    \multirow{2}{*}{\textbf{Don Quijote}} & 186460 words  & 10.7s &  2m53.708s \\ 
+		                                           & 261 rules & & \\ \hline
+    \multirow{2}{*}{\textbf{Pride and}}  & 153386 words & 4.811s & 55.705s \\ 
+                         {\textbf{Prejudice}}                   & 99 rules & \\ \hline
   \end{tabular}
   \caption{Comparing time between SATCG and VISL CG3.}
   \label{table:time}
@@ -196,31 +207,85 @@ SATCG is just a first proof-of-concept implementation and can be optimised.
 
 \paragraph{Performance against VISL CG3}
 
-\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged}
-We took small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. Table~\ref{table:results} shows how much the results agree with the result given by VISL CG3 parser with the same grammar and text.
 
+We took a tagged gold standard corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged} of 21865 words for Spanish, 
+and a small constraint grammar\footnote{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}, produced independently of the authors.
+% We ignored substitute rules, but kept subreadings and unification, even though our implementation doesn't handle them.
+We only took select and remove rules (no substitute/iff), after which the constraint grammar had 261 rules.
+With this setup, we took the text of the tagged corpus with all ambiguities, and ran both VISLCG3 and our implementation with the same grammar. 
+
+% small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. Table~\ref{table:results} shows how much the results agree with the result given by VISL CG3 parser with the same grammar and text.
+
+%\begin{table}
+% \centering
+%  \begin{tabular}{|l|c|c|}
+%     \hline
+%    \textbf{Text} & \textbf{Words} & \textbf{\% same analyses} \\
+%    \hline
+%	Pride and Prejudice & 153386 & 90.6 \\  
+%    \hline
+%       Don Quijote & 186460 & 96.3  \\ 
+%     \hline
+%  \end{tabular}
+%  \caption{Comparing analyses between SATCG and VISLCG3.}
+%  \label{table:results}
+%\end{table}
+% The tendency of needing less rules to disambiguate shows also in a larger context with more complex rules. 
+% SATCG disambiguated more 17 \% of the cases for Pride and Prejudice, and 28 \% of the cases for Don Quijote. \todo{Analysis of those cases}
+
+\paragraph{Removing rules}
 \begin{table}
   \centering
   \begin{tabular}{|l|c|c|}
      \hline
-    \textbf{Text} & \textbf{Words} & \textbf{\% same analyses} \\
-    \hline
-	Pride and Prejudice & 153386 & 90.6 \\  
-    \hline
-       Don Quijote & 186460 & 96.3  \\ 
-     \hline
+    \textbf{\# rules} & \textbf{SATCG} & \textbf{VISLCG3} \\
+    \hline 
+	19 &  83.15 & 83.33 \\ \hline  % 19 out of 23 preselected by authors
+	18 &  83.19 & 83.04 \\ \hline  % 18 out of 19
+	17 &  83.201 & 83.03 \\ \hline   % 17 out of 18/19, no diff
+	16 &  83.197 & 83.030 \\ \hline  % 16 out of 17/18, no diff
+	15 &  83.188 & 83.022\\ \hline  % 15 out of 16/17. Tie with SATCG, chose to retain the rule that gave better results for VISLCG3.
+	14 &  83.180 & 83.005 \\ \hline  
+	13 &  & \\ \hline  
+	12 &  & \\ \hline  
+	11 &  & \\ \hline  
+	10 &  & \\ \hline  
+	2   & 80.23 & 79.97 \\ \hline
+	1   & 76.69 & 76.62 \\ \hline
+	0   & &  \\ \hline
   \end{tabular}
-  \caption{Comparing analyses between SATCG and VISL CG3.}
+  \caption{}
   \label{table:results}
 \end{table}
+In this experiment, we took 19 rules written by the authors, which give 83.15 \% correct results with SATCG and 83.33 \% with VISLCG3.
+Then we removed rules one by one, keeping rules with most significant gain 
 
-The tendency of needing less rules to disambiguate shows also in a larger context with more complex rules. 
-SATCG disambiguated more 17 \% of the cases for Pride and Prejudice, and 28 \% of the cases for Don Quijote. \todo{Analysis of those cases}
 
-\paragraph{Removing rules}
-
-In this experiment, we test the performance of the two implementations by working with a smaller grammar. We compare how much removing the rules affects the result, gold standard being for each implementation the result given by the full rule set.
+test the performance of the two implementations by working with a smaller grammar. We compare how much removing the rules affects the result, gold standard being for each implementation the result given by the full rule set.
 \todo{Perform this experiment}
+
+
+%5195:
+%Select [[det],[detnt],[rel,aa]] (C (Exactly 1) (False,[[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]]))
+%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly 1) (True,[[vblex],[vbmod],[vbhaver],[vbser],[adv],[prn,pro]])))
+%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly (-1)) (True,[[pr]])))
+%Select [[adv]] (C (Exactly 1) (True,[[],["sent"],[cm],[lpar],[rpar],["<;>"],[cnjcoo],[cnjsub],[cnjadv],[rel],[pr],[det],[detnt],[rel,aa]]))
+%Select [[preadv]] (C (Exactly 1) (True,[[pp]]))
+%Remove [[prs,p1],[pis,p1],[pii,p1],[cni,p1]] (C (Exactly (-1)) (True,[[n],[p3]]))
+%Remove [[vblex],[vbmod],[vbhaver],[vbser]] (C (Exactly (-1)) (True,[[vblex]]))
+%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (AND (C (Exactly 0) (True,[[pr]])) (C (Exactly 1) (True,[[inf]])))
+%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (C (Exactly (-1)) (True,[[pr]]))
+%6432:
+%Select [[prn,pro],[prn,itg],[prn,tn]] (C (Exactly 1) (True,[[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]]))
+%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly 1) (True,[[vblex],[vbmod],[vbhaver],[vbser],[adv],[prn,pro]])))
+%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly (-1)) (True,[[pr]])))
+%Select [[adv]] (C (Exactly 1) (True,[[],["sent"],[cm],[lpar],[rpar],["<;>"],[cnjcoo],[cnjsub],[cnjadv],[rel],[pr],[det],[detnt],[rel,aa]]))
+%Select [[preadv]] (C (Exactly 1) (True,[[pp]]))
+%Remove [[prs,p1],[pis,p1],[pii,p1],[cni,p1]] (C (Exactly (-1)) (True,[[n],[p3]]))
+%Remove [[vblex],[vbmod],[vbhaver],[vbser]] (C (Exactly (-1)) (True,[[vblex]]))
+%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (AND (C (Exactly 0) (True,[[pr]])) (C (Exactly 1) (True,[[inf]])))
+%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (C (Exactly (-1)) (True,[[pr]]))
+
 
 % \section*{Acknowledgments}
 
