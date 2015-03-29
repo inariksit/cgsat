@@ -65,7 +65,7 @@ optiComp rls dat n = do r <- readRules rls
                         res <- loop (filter (\x -> length x==n) $ subseq r) t g []
                         
                         putStrLn "optimal rule sequence:"
-                        mapM_ pr (take 3 (reverse (sortBy (\x y -> fst x `compare` fst y) res)))
+                        mapM_ pr (take 20 (reverse (sortBy (\x y -> fst x `compare` fst y) res)))
 
 loop :: [[Rule]] -> [Sentence] -> [Sentence] -> [(Float, [Rule])] -> IO [(Float, [Rule])]
 loop []     t g scores = return scores
