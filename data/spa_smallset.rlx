@@ -139,95 +139,74 @@ SET VPred = ("considerar") OR ("Considerar") OR ("creer") OR ("Creer") OR ("opin
 SECTION
 
 
-# Even benefit; raises accuracy 6%
-#### Pronom / Det
-SELECT:inari_s_pro PrnIndep IF (1C VerbFin) ; # (el novio) la casa
-SELECT:inari_s_det Det IF (NOT 1C VerbFin) ;  # la casa (en que vivo)
+############## 
+# Pronom / Det
 
-# No effect wtf?
-# Disambiguate between readings of lo (detnt|prn pro p3 (nt|sg))
-SELECT:inari_s_detnt (detnt) IF (1 A OR PP) ; # lo nuevo / lo hecho
-SELECT:inari_s_detnt (detnt) IF (1 Adv LINK 1 A OR PP) ; # lo más probable
+SELECT:inari_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
+    # la casa (en que vivo)
+SELECT:inari_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
+    # (el novio) la casa
 
-# Benefits more VISLCG3
-REMOVE:inari_r_predet Predet IF (NOT 1 Det) ;
+# todos son iguales / todos los días
+REMOVE:inari_r_predet Predet IF (NOT 1 Det) ; # TOP 12
 
-# Benefits quite even
+
 # desambiguació (adj|prn) itg
 # qué decir? / qué tal / qué le diría
-SELECT:inari_s_prn_1 Prn IF (0 A) (1C Verb OR Adv OR Pro) ; 
-SELECT:inari_s_prn_2 Prn IF (0 A) (-1C Prep) ; # de qué?
+# Tie for TOP 15/16 for SATCG; chose as TOP 15 one that was less significant for VISLCG3
+SELECT:inari_s_prn_1 Prn IF (0 A) (1C Verb OR Adv OR Pro) ; # TOP 15
+SELECT:inari_s_prn_2 Prn IF (0 A) (-1C Prep) ; # de qué?  # TOP 16
 
 
-### Prep
+######
+# Prep
 
-# Benefit seems even
-SELECT:inari_s_prep Prep IF (-1 Verb) (1 N) ;
+# Benefit seems even 
+SELECT:inari_s_prep Prep IF (-1 Verb) (1 N) ; # TOP 14
 
 
-### N / A / Adv
+############# 
+# N / A / Adv
 
-# Benefit VISLCG3 more
 # Disambiguate between n, adj
-SELECT:inari_s_a_adv A IF (-1C Det) (1C N) ; # un mal día
-SELECT:inari_s_n_adj N IF (-1C Det OR A OR Num OR Prep) (NOT 1 N) ;
+SELECT:inari_s_a_adv A IF (-1C Det) (1C N) ; # TOP 13
+           # un mal día
+SELECT:inari_s_n_adj N IF (-1C Det OR A OR Num OR Prep) (NOT 1 N) ; # TOP 2
            # el mal en persona
 	   # las cinco españolas
 
 
-# Benefit seems quite even
-# está mal (.|y no me gusta|, pero ...|en mi opinión|la casa nueva)  
-SELECT:inari_s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det) ;
-# está mal hecho
-SELECT:inari_s_preadv PreAdv IF (1C PP) ;
+SELECT:inari_s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det) ; # TOP 6
+           # está mal (.|y no me gusta|, pero ...|en mi opinión|la nueva casa)  
+SELECT:inari_s_preadv PreAdv IF (1C PP) ; # TOP 18
+           # está mal hecho
 
-
-# Benefit VISLCG3 more
 # la casa era nueva / él vino ayer     # becomes worse with SELECT
-REMOVE:inari_r_noun N    IF (-1 N OR Prn) ;
-REMOVE:inari_r_verb Verb IF (-1 A OR Det) ;
+REMOVE:inari_r_noun N    IF (-1 N OR Prn) ; # TOP 4
+REMOVE:inari_r_verb Verb IF (-1 A OR Det) ; # TOP 19 (Removing this from 19 rules gives 83.15 -> 83.19) # but still this combined with TOP 1 is the second best combo for 2 rules
 
 ### Verbs
 
-# Benefits SAT-CG more
 # all verb forms that are ambiguous between 1st and 3rd person 
-REMOVE:inari_r_pr_cn_p1 PastCondSubjP1 IF (-1 N OR P3) ; 
+# REMOVE:inari_r_pr_cn_p1 PastCondSubjP1 IF (-1 N OR P3) ; # TOP 10
 
-
-# Benefit VISLCG3 more
 # eliminación del imperativo en competición con el presente del indicativo
-SELECT:inari_s_pri_1 (pri p3) IF (0 (vblex imp p2 sg)) ;
+SELECT:s_pri_1 (pri p3) IF (0 (vblex imp p2 sg)) ; # TOP 3
 
-REMOVE:inari_r_imp Imp IF (0 Subj) (-1* CnjSub) ;
-
-
-# que is relative if the verb following it is indicative
-SELECT:inari_s_relque CnjSub IF (1 Subj OR Imp) ;
-SELECT:inari_s_relque CnjSub IF (2 Subj OR Imp) ;
-SELECT:inari_s_relque Rel IF (1 VerbInd) ;
-SELECT:inari_s_relque Rel IF (2 VerbInd) ;
-
-# Benefit VISL-CG3 more
-#SELECT:inari_s_relque CnjSub IF (1* Subj OR Imp BARRIER Cnj_Rel_End) ;
-#SELECT:inari_s_relque Rel IF (1* VerbInd BARRIER Cnj_Rel_End) ;
-
-# Ambiguity between ir and ser
-# Benefit VISLCG3 more
-SELECT:inari_s_ir_ser Ir  IF (1 Adv) ; # le fue (bien|mal)
-SELECT:inari_s_ser_ir Ser IF (1 PreAdv) ; # no es que fuera mal hecho
-SELECT:inari_s_ser_ir Ser IF (1 Det LINK 1 N OR A) ; # fueron los ganadores
+REMOVE:inari_r_imp Imp IF (0 Subj) (-1* CnjSub) ; # TOP 9
 
 
-# Benefits quite evenly
-REMOVE:inari_r_v_pro Verb IF (1 Pro) ; # para él / así lo veo
+# para él / así lo veo
+REMOVE:inari_r_v_pro Verb IF (1 Pro) ; # TOP 17
 
-# Benefits SAT-CG  more
-REMOVE:inari_r_v_v Verb IF (-1C Vblex) ; # comen sano
+# comen sano
+REMOVE:inari_r_v_v Verb IF (-1C Vblex) ;  # TOP 7
 
-# Benefits SAT-CG more
-REMOVE:inari_r_vfin_prep VerbFin IF (0 Prep) (1 Inf) ; # para estar
+# para estar
+REMOVE:inari_r_vfin_prep VerbFin IF (0 Prep) (1 Inf) ; # TOP 5
 
-REMOVE:inari_r_vfin_prep VerbFin IF (-1 Prep) ; # de entre
+# de entre
+REMOVE:inari_r_vfin_prep VerbFin IF (-1 Prep) ; # TOP 11
 
 
 
