@@ -12,16 +12,21 @@ import System.Process
 
 ambiguous = "data/ambiguous/es.tagged.ambiguous"
 apertium = "data/apertium-spa.spa.rlx"
-flipped = "data/spa_cg3_flip.rlx"
-nonflipped = "data/spa_onlyinari.rlx"
+flipped = "data/spa_smallset_flip.rlx"
+nonflipped = "data/spa_smallset.rlx"
+mini = "/tmp/jugarcg"
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
     ["gold","flip"] -> gold flipped ambiguous
-    ["gold","mini"] -> gold "/tmp/jugarcg" ambiguous
+    ["gold","mini"] -> gold mini ambiguous
     ["gold","orig"] -> gold apertium ambiguous
+    ["gold","opti"] -> opti nonflipped ambiguous
+    ["gold","optiBySz"] -> optiBySz nonflipped ambiguous
+    ["mini","opti"] -> opti mini ambiguous
+    ["mini","optiBySz"] -> optiBySz mini ambiguous
     ["gold"] -> gold nonflipped ambiguous
     [r,d,"-gold"] -> gold r d
     [r,d]      -> go r d False
@@ -30,23 +35,52 @@ main = do
   where gold rls dat = do rules <- readRules rls
                           text <- readData dat
                           resSAT <- mapM (disambiguate False rules) text
-                          resVISL <- vislcg3 rls dat False  -- :: [Sentence]
+                          resVISL <- vislcg3 rls dat True  -- :: [Sentence]
                           gold <- readData "data/gold/es.tagged"
                           putStrLn "SAT-CG in comparison to gold standard"
                           prAll resSAT gold text
                           putStrLn "\nVISLCG3 in comparison to gold standard"
                           prAll resVISL gold text
 
+        optiBySz rl dt = do r <- readRules rl
+                            t <- readData dt
+                            g <- readData "data/gold/es.tagged"
+                            let seqs = groupBy (\x y -> length x == length y) (subseq r)
+                            results <- sequence [ loop rset t g [] | rset <- seqs ]
+                            putStrLn "Best rule set for each size:"
+                            mapM_ (mapM_ pr . take 3 . (sortBy (\x y -> fst x `compare` fst y))) results
+        opti rls dat = do r <- readRules rls
+                          t <- readData dat
+                          g <- readData "data/gold/es.tagged"
+                          res <- loop (subseq r) t g []
+                          putStrLn "optimal rule sequence:"
+                          mapM_ pr (take 3 res)
+
+        loop :: [[Rule]] -> [Sentence] -> [Sentence] -> [(Int, [Rule])] -> IO [(Int, [Rule])]
+        loop []     t g scores = return scores
+        loop (r:rs) t g scores = do
+          res <- mapM (disambiguate False r) t
+          let diffwords = length $ concat  $ zipWith diffBySent res g
+          when ((length scores) `mod` 100 == 0) $ print (length scores) 
+          loop rs t g ((diffwords,r):scores)
+                  -- if diffwords < best
+                  --   then do print "changed best"
+                  --           print diffwords
+                  --           print best
+                  --           loop rs t g (diffwords,r)
+                  --   else loop rs t g (best,brs)
+        pr (score,rs) = do putStrLn $ (show score) ++ ":"
+                           mapM_ print rs
+        subseq x = sortBy (\x y -> length x `compare` length y) (subsequences x)
         go rl dt is2 = do rules <- readRules rl
                           text <- readData dt
                           resSAT <- mapM (disambiguate False rules) text -- :: [Sentence]
                           resVISL <- vislcg3 rl dt is2  -- :: [Sentence]
                           prAll resSAT resVISL text
                           
-        prAll s v tx = do let diffBS = [ (orig, diff)
-                                          | (sat,visl,orig) <- zip3 s v tx
-                                          , let diff = diffBySent sat visl
-                                          , (not.null) diff ]
+        prAll s v tx = do let diffBS = [ (orig, diff)                                                                               | (sat,visl,orig) <- zip3 s v tx
+                                           , let diff = diffBySent sat visl
+                                           , (not.null) diff ]
                               moreD = length $ filter (not.null) $ zipWith moreDisamb s v
                               lessD = length $ filter (not.null) $ zipWith lessDisamb s v
                               diffD = length $ filter (not.null) $ zipWith noIntersect s v
@@ -78,7 +112,7 @@ main = do
                            mapM_ prAnas as
         prAnas (a1,a2) = do putStrLn "\nDisambiguation by satcg"
                             putStrLn $ showAnalysis a1
-                            putStrLn "\nDisambiguation by vislcg3"
+                            putStrLn "\nDisambiguation by vislcg3" 
                             putStrLn $ showAnalysis a2
 
 
