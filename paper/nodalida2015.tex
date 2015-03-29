@@ -61,7 +61,7 @@ Let us demonstrate our approach with the following example in Spanish.
 \begin{verbatim}
 "<la>"
         "el" det def f sg
-        "lo" prn pro p3 f sg
+        "lo" prn p3 f sg
 "<casa>"
         "casa" n f sg
         "casar" v pri p3 sg
@@ -69,7 +69,7 @@ Let us demonstrate our approach with the following example in Spanish.
 \end{verbatim}
 
 The ambiguous passage can be either a noun phrase, \emph{la\texttt{:det} casa\texttt{:n}} 
-`the house'  or a verb phrase \emph{la\texttt{:prn} casa\texttt{:v}} `(he/she) marries her'. 
+`the house'  or a verb phrase \emph{la\texttt{:prn} casa\texttt{:v pri p3}} `(he/she) marries her'. 
 We add the following rules:
 
 \begin{itemize}
@@ -89,8 +89,8 @@ and starts building possible models that satisfy both constraints.
 In addition to the given constraints, we have default rules to emulate
 the CG principles: an analysis is true if no rule affects it,
 and at least one analysis for each word is true---the notion of ``last'' is not applicable.
-With these constraints, we get two solutions: \texttt{det n} and \texttt{prn v}. 
-The interaction of the rules regarding \emph{la}  disambiguates \emph{casa} 
+With these constraints, we get two solutions: \texttt{det, n} and \texttt{prn, v pri p3, v imp p2}. 
+The interaction of the rules regarding \emph{la}  disambiguates the POS of \emph{casa} 
 for free, and ordering of the rules doesn't matter. 
 %Without more context or additional rules we cannot fully disambiguate the passage,
 %but unlike with standard CG, we get only legal combinations in one solution.
@@ -108,6 +108,31 @@ The most important differences between the traditional and the SAT-based approac
 Rather than waiting for a word to get disambiguated, the SAT solver starts by 
 making assumptions (e.g. ``\emph{casa} is a noun'') and working under them,
 discarding the assumption if it doesn't lead to a model that satisfies all constraints.
+
+\paragraph{Rules are unordered.}
+A typical CG rule sequence starts with rules that are either very common, or have a complex condition to fulfil.
+Stronger rules appear towards the end, to be applied if none of the weaker rules has. 
+%For a rule set such as following, this order is crucial:
+
+%\begin{itemize}
+%\item [] \texttt{SELECT Year IF (-1 Seasons OR Months) ;} \\
+ %            \texttt{REMOVE Year ;}
+%\end{itemize}
+
+To replace the sequential order, we have experimented with different strategies:
+\begin{itemize}
+\item Maximise number of rules used---We discarded this strategy, because it was too strong: if a rule leads to a conflict in one case, it was not be applied anywhere.
+\item Emulate sequential order---Enter clauses produced by each rule one by one, and assume the solver state reached so far is correct; if a conflict is introduced by new clauses, discard them and move on to next.
+\item [\checkmark] Maximise number of rule applications---If there is a conflict, find the smallest number of rule applications to discard so that the conflict is solved.
+\end{itemize}
+
+%combined with the following
+%\begin{itemize}
+%\item Maximise number of true analyses---Without this heuristic, both solutions to our example %\emph{la casa} are as likely. With this heuristic,  the example would be disambiguated as \texttt{prn v}, because there happens to be two analyses with \texttt{v}, and choosing that, 3 analyses are true, since there is no rule to disambiguate between imperative and indicative.
+% We want analyses to be true by default, but still disambiguate as much as possible.
+%We have a rule to maximise the number of true analyses; then we take a solution that has the least. 
+%\item Minimise number of true analyses---To combat the previous, we want each solution to contain as many true analyses as possible, to ensure that analyses untouched by rules are kept true. %After having multiple solutions which all ensure , we pick the one that disambiguates the most.
+%\end{itemize}
 
 
 \paragraph{Rules disambiguate more.}
@@ -137,27 +162,6 @@ Testing this property with more complex rules and larger rule sets than remains 
 %$\rightarrow$\texttt{SL (*)-Foo if (-1 Bar)}
 %\end{itemize}
 
-\paragraph{Rules are unordered.}
-A typical CG rule sequence starts with rules that are either very common, or have a complex condition to fulfil.
-Stronger rules appear towards the end, to be applied if none of the weaker rules has. 
-%For a rule set such as following, this order is crucial:
-
-%\begin{itemize}
-%\item [] \texttt{SELECT Year IF (-1 Seasons OR Months) ;} \\
- %            \texttt{REMOVE Year ;}
-%\end{itemize}
-
-To replace the sequential order, we have experimented with different strategies:
-\begin{itemize}
-\item Maximise number of rules used---assume if someone has written a rule, it is worth applying. We discarded this strategy, because it was too strong: if a rule leads to a conflict in one case, it was not be applied anywhere.
-\item [\checkmark] Maximise number of instances when a rule is applied---assume that whenever we can apply a rule, we should do it. 
-\item Maximise number of true analyses---Without this heuristic, both solutions to our example \emph{la casa} are as likely. With this heuristic,  the example would be disambiguated as \texttt{prn v}, because there happens to be two analyses with \texttt{v}, and choosing that, 3 analyses are true, since there is no rule to disambiguate between imperative and indicative.
-% We want analyses to be true by default, but still disambiguate as much as possible.
-%We have a rule to maximise the number of true analyses; then we take a solution that has the least. 
-\item [\checkmark] Maximise rules, minimise number of true analyses---To combat the previous, we want each solution to contain as many true analyses as possible, to ensure that analyses untouched by rules are kept true. After having multiple solutions which all ensure , we pick the one that disambiguates the most.
-
-\end{itemize}
-
 The heuristics worked with examples in the order of tens of rules, but moving to hundreds of rules, the rules interact more, the results are more mixed. 
 Rule sets in order of thousands of rules remains to be tested.
 
@@ -180,7 +184,7 @@ and \cite{lager_nivre01}, which reconstructs 4 different formalisms from a logic
 
 \paragraph{Time}
 
-SAT is NP-complete, whereas the current implementations of CG are polynomial, 
+SAT is NP-complete, whereas the standard implementations of CG are polynomial, 
 but with advances in SAT solving techniques, 
 the performance is much more feasible than in the previous works done in 90s--00s.
 We used the open-source SAT solver MiniSat \cite{een04sat}.
@@ -195,13 +199,13 @@ SATCG is just a first proof-of-concept implementation and can be optimised.
   \centering
   \begin{tabular}{|l|l|c|c|}
      \hline
-	        \textbf{Text} & \textbf{\# words, rules} & \textbf{VISLCG3} &  \textbf{SATCG} \\ \hline
-    \multirow{2}{*}{\textbf{Don Quijote}} & 186460 words  & 10.7s &  2m53.708s \\ 
+	        \textbf{Text} & \textbf{\# words, rules} &  \textbf{SATCG} & \textbf{VISLCG3} \\ \hline
+    \multirow{2}{*}{\textbf{Don Quijote}} & 186460 words  &  2m53.7s & 10.7s \\ 
 		                                           & 261 rules & & \\ \hline
-    \multirow{2}{*}{\textbf{Pride and}}  & 153386 words & 4.811s & 55.705s \\ 
+    \multirow{2}{*}{\textbf{Pride and}}  & 153386 words& 55.7s  & 4.8s \\ 
                          {\textbf{Prejudice}}                   & 99 rules & \\ \hline
   \end{tabular}
-  \caption{Comparing time between SATCG and VISL CG3.}
+  \caption{Comparing execution times between SATCG and VISLCG3.}
   \label{table:time}
 \end{table}
 
@@ -248,43 +252,25 @@ With this setup, we took the text of the tagged corpus with all ambiguities, and
 	14 &  83.180 & 83.005 \\ \hline  % Tie with 15 for SATCG.
 	13 &  83.159 & 82.951 \\ \hline  % 13 out of 15 
 	12 &  83.134 & 82.884\\ \hline  % 12 out of 14
-	11 &  & \\ \hline  
-	10 &  & \\ \hline  
-	2   & 80.23 & 79.97 \\ \hline
-	1   & 76.69 & 76.62 \\ \hline
-	0   & &  \\ \hline
+	11 &  83.089 & 82.847\\ \hline  
+	10 &  83.051 & 82.802\\ \hline  
+	9  & 82.997 & 82.802 \\ \hline
+	8  & 82.906 & 82.681 \\ \hline  % REMOVE:r_imp Imp IF (0 Subj) (-1* CnjSub) ; 
+	7  & 82.743 & 82.594 \\ \hline  % SELECT:s_pro PrnIndep IF (1C VerbFin) ;
+	6  & 82.556 & 82.398\\ \hline  %  REMOVE:r_v_v Verb IF (-1C Vblex) ;
+	5  & 82.327 & 82.028 \\ \hline % SELECT:s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det)
+	4  & 82.065 & 82.028 \\ \hline % REMOVE:r_vfin_prep VerbFin IF (0 Prep) (1 Inf) 
+	3  & 81.387 & 81.233 \\ \hline % REMOVE:r_noun N    IF (-1 N OR Prn)
+	2  & 80.23 & 79.97 \\ \hline % SELECT:s_pri_1 (pri p3) IF (0 (vblex imp p2 sg))
+	1  & 76.69 & 76.62 \\ \hline 
+	0  & 70.70 & 70.70 \\ \hline
   \end{tabular}
-  \caption{}
-  \label{table:results}
+  \caption{Result of removing rules one by one, and how close to the gold standard they get.}
+  \label{table:results_remove}
 \end{table}
 In this experiment, we took 19 rules written by the authors, which give 83.15 \% correct results with SATCG and 83.33 \% with VISLCG3.
-Then we removed rules one by one, keeping rules with most significant gain 
+Then we removed rules one by one; after getting a score for $n$ rules, we took the combination of $n-1$ rules for which SATCG gives the best score, and we ran the rule set with VISLCG3 for comparison. Table~\ref{table:results_remove} shows the percentages compared to the gold standard for both systems.
 
-
-test the performance of the two implementations by working with a smaller grammar. We compare how much removing the rules affects the result, gold standard being for each implementation the result given by the full rule set.
-\todo{Perform this experiment}
-
-
-%5195:
-%Select [[det],[detnt],[rel,aa]] (C (Exactly 1) (False,[[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]]))
-%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly 1) (True,[[vblex],[vbmod],[vbhaver],[vbser],[adv],[prn,pro]])))
-%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly (-1)) (True,[[pr]])))
-%Select [[adv]] (C (Exactly 1) (True,[[],["sent"],[cm],[lpar],[rpar],["<;>"],[cnjcoo],[cnjsub],[cnjadv],[rel],[pr],[det],[detnt],[rel,aa]]))
-%Select [[preadv]] (C (Exactly 1) (True,[[pp]]))
-%Remove [[prs,p1],[pis,p1],[pii,p1],[cni,p1]] (C (Exactly (-1)) (True,[[n],[p3]]))
-%Remove [[vblex],[vbmod],[vbhaver],[vbser]] (C (Exactly (-1)) (True,[[vblex]]))
-%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (AND (C (Exactly 0) (True,[[pr]])) (C (Exactly 1) (True,[[inf]])))
-%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (C (Exactly (-1)) (True,[[pr]]))
-%6432:
-%Select [[prn,pro],[prn,itg],[prn,tn]] (C (Exactly 1) (True,[[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]]))
-%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly 1) (True,[[vblex],[vbmod],[vbhaver],[vbser],[adv],[prn,pro]])))
-%Select [[prn]] (AND (C (Exactly 0) (True,[[adj]])) (C (Exactly (-1)) (True,[[pr]])))
-%Select [[adv]] (C (Exactly 1) (True,[[],["sent"],[cm],[lpar],[rpar],["<;>"],[cnjcoo],[cnjsub],[cnjadv],[rel],[pr],[det],[detnt],[rel,aa]]))
-%Select [[preadv]] (C (Exactly 1) (True,[[pp]]))
-%Remove [[prs,p1],[pis,p1],[pii,p1],[cni,p1]] (C (Exactly (-1)) (True,[[n],[p3]]))
-%Remove [[vblex],[vbmod],[vbhaver],[vbser]] (C (Exactly (-1)) (True,[[vblex]]))
-%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (AND (C (Exactly 0) (True,[[pr]])) (C (Exactly 1) (True,[[inf]])))
-%Remove [[pri],[prs],[imp],[pii],[cni],[pis],[ifi],[fti]] (C (Exactly (-1)) (True,[[pr]]))
 
 
 % \section*{Acknowledgments}
