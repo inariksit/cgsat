@@ -24,7 +24,7 @@
 \newcommand{\todo}[1]{{\color{cyan}\textbf{[TODO: }#1\textbf{]}}}
 \usepackage{tikz}
 \def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;}
-\title{Exploring Constraint Grammar as a SAT problem}
+\title{Constraint Grammar as a SAT problem}
 
 \author{Inari Listenmaa \and Koen Claessen \\
   Chalmers University of Technology, Gothenburg, Sweden \\
@@ -35,11 +35,7 @@
 \begin{document}
 \maketitle
 
-%\begin{abstract}
-%We implement Constraint Grammar as a Boolean satisfiability problem.
-%We experiment with different strategies to maximise the number of instances to apply rules;
-%this will also lead to different orderings of the rules and ways of solving conflicts.
-%\end{abstract}
+%\begin{abstract} \end{abstract}
 
 
 \section{Introduction}
@@ -52,10 +48,35 @@
 
 We represent Constraint Grammar \cite{karlsson1995constraint} 
 as a Boolean satisfiability (SAT) problem.
+Applying logic to reductionist grammars has been explored earlier by 
+\cite{lager98,lager_nivre01}, but it was never adopted for use---logic programming was simply 
+too slow to be used for tagging or parsing. 
+However, modern SAT solvers are fast and used for many applications where constraints must be
+satisfied, such as software and hardware verification.
+%SAT solving is based on a technique called unit propagation:
+%a set of complex Boolean clauses is simplified, starting from unit
+%clauses, which consist of just a single variable, and working up to a
+%solution, where all variables in the set have a True or False value.
+
+It is attractive to model CG in terms of logic:
+these techniques are well-studied, and they capture more dependencies between the tags than the standard CG.
+
 %This increases the computational complexity, 
 %but we are exploring ways in which it could simplify the grammar writing:
 %our experiments show that less rules are needed, and features like ordering of the rules
 %and requirement of being unambiguously tagged become irrelevant.
+
+
+% Uncomment for full paper
+% \section{Related work}
+% \label{sect:related}
+
+% Our work is inspired by \cite{lager98}, which presents constraint rules as a disjunctive logic program,
+% and \cite{lager_nivre01}, which reconstructs 4 different formalisms from a logical point of view.
+% \cite{lindberg_eineborg98ilp,asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
+% \cite{lager01transformation} discusses ordering of the CG rules.
+
+\section{CG as a SAT problem}
 Let us demonstrate our approach with the following example in Spanish.
 
 \begin{verbatim}
@@ -83,8 +104,7 @@ either the one that comes first, or by some other heuristic.
 The second rule will not fire, because it would remove the last reading. 
 All readings of \emph{casa} are left untouched by these rules.
 
-SAT solver 
-performs a search, 
+SAT solver performs a search, 
 and starts building possible models that satisfy both constraints. 
 In addition to the given constraints, we have default rules to emulate
 the CG principles: an analysis is true if no rule affects it,
@@ -113,16 +133,17 @@ discarding the assumption if it doesn't lead to a model that satisfies all const
 %A typical CG rule sequence starts with rules that are either very common, or have a complex %condition to fulfil.
 %Stronger rules appear towards the end, to be applied if none of the weaker rules has. 
 %For a rule set such as following, this order is crucial:
-
 %\begin{itemize}
 %\item [] \texttt{SELECT Year IF (-1 Seasons OR Months) ;} \\
  %            \texttt{REMOVE Year ;}
 %\end{itemize}
 
-%To replace the sequential order, 
 We have experimented with different strategies:
 \begin{itemize}
-\item Maximise number of rules used---We discarded this strategy, because it was too strong: if a rule leads to a conflict in one case, it was not be applied anywhere.
+\item Maximise
+% \footnote{Something about local maximum}
+%The algorithm commits to a subset of clauses (e.g. \emph{all words must have more than 0 true analyses}), and tries to maximise the number of true variables without changing that subset. So it is a local maximum as regards to the given set of clauses. 
+number of rules used---We discarded this strategy, because it was too strong: if a rule leads to a conflict in one case, it was not be applied anywhere.
 \item Emulate sequential order---Enter clauses produced by each rule one by one, and assume the solver state reached so far is correct; if a conflict is introduced by new clauses, discard them and move on to next.
 \item [\checkmark] Maximise number of rule applications---If there is a conflict, find the smallest number of rule applications to discard so that the conflict is solved.
 \end{itemize}
@@ -145,7 +166,7 @@ Larger rule sets (thousands of rules) are yet to be tested.
 % Rules interact with each other and disambiguate more than same rules in the standard implementation. 
 In standard CG, the rules only tell to remove readings for the word which is tagged as 
 \texttt{prn} or \texttt{det}. The SAT-based implementation interprets the rules as ``noun and pronoun together are illegal'', and is free to take action that concerns also the following word.
-This means that the rules can be flipped: compare the rules below to the ones in the example.
+This means that the rules are logically flipped: compare the rules below to the ones in the example.
 
 \begin{itemize}
 \item [] \texttt{REMOVE n IF (-1 prn) ;} \\
@@ -154,7 +175,7 @@ This means that the rules can be flipped: compare the rules below to the ones in
 
 SAT-based approach gives identical results with both sets of rules,
 whereas the standard CG would remove one reading from \emph{casa} and leave \emph{la} ambiguous.
-Testing this property with more complex rules and larger rule sets than remains to be done.
+Testing this property with more complex rules and larger rule sets remains to be done.
 
 %Rules with more conditions translate into many rules; rules with negation become complements (\texttt{(*)-X} for \texttt{NOT X}). Rules which require the condition to be unambiguously tagged, don't have an equivalent flip in the standard CG.
 % We did not expect much practical benefits, save for realising that some rules are bad by having to think further what it implies,
@@ -172,103 +193,82 @@ Testing this property with more complex rules and larger rule sets than remains 
 These three features are likely to change the way that rules are written. \todo{more speculation, examples}
 
 
-\section{Related work}
-\label{sect:related}
-
-Our work is inspired by \cite{lager98}, which presents constraint rules as a disjunctive logic program,
-and \cite{lager_nivre01}, which reconstructs 4 different formalisms from a logical point of view.
-\cite{lindberg_eineborg98ilp,asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
-\cite{lager01transformation} discusses ordering of the CG rules.
-
 
 \section{Results and evaluation}
 
 \paragraph{Time}
 
-SAT is NP-complete, whereas the standard implementations of CG are polynomial, 
-but with advances in SAT solving techniques, 
-the performance is much more feasible than in the previous works done in 90s--00s.
+The worst-case complexity of SAT is exponential, whereas the standard implementations 
+of CG are polynomial, but with advances in SAT solving techniques, the performance 
+in the average case is much more feasible than in the previous works done in 90s--00s.
 We used the open-source SAT solver MiniSat \cite{een04sat}.
 %We do foreach sentence: foreach rule; 
-%whereas VISL CG3 has foreach rule: foreach sentence.
-%the size of the SAT problem is dependent of the sentence (???)
+%whereas VISL-CG3 has foreach rule: foreach sentence.
+%the size of the SAT problem is dependent of the number of rules
 
-Table~\ref{table:time} shows the execution time compared to VISL CG3.
+Table~\ref{table:time} shows the execution time compared to VISL-CG3. 
+The number of rules in the grammar is 
+Maximisation is the most costly operation
+Also, some of the time is explained simply by
 SATCG is just a first proof-of-concept implementation and can be optimised.
 
 \begin{table}
   \centering
   \begin{tabular}{|l|l|c|c|}
      \hline
-   \textbf{\# words} & \textbf{\# rules} &  \textbf{SATCG} & \textbf{VISLCG3} \\ \hline
-              153,386    & 99    & 55.7s     & 4.8s \\  %\hline
-                186,460  & 261  &  2m53.7s & 10.7s \\\hline
+   \textbf{\# words} & \textbf{\# rules} &  \textbf{SATCG} & \textbf{VISL-CG3} \\ \hline
+              153,386    & 99    & 55.7s     & 4.8s \\  \hline	                         
+                186,460  & 19    &  13.7s      & 4.2s\\ %\hline
+                186,460  & 130  &  1m14.1s & 6.1s \\ %\hline
+                186,460  & 261  &  2m53.7s & 10.7s \\ \hline
   \end{tabular}
   \caption{Execution times.}
   \label{table:time}
 \end{table}
 
-\paragraph{Performance against VISL CG3}
+\paragraph{Performance against VISL-CG3}
 
 
-We took a tagged gold standard corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged} of 21865 words for Spanish, 
+We took a tagged corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged} of 21865 words for Spanish, 
 and a small constraint grammar\footnote{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}, produced independently of the authors.
 % We ignored substitute rules, but kept subreadings and unification, even though our implementation doesn't handle them.
 We only took select and remove rules (no substitute/iff), after which the constraint grammar had 261 rules.
-With this setup, we took the text of the tagged corpus with all ambiguities, and ran both VISLCG3 and our implementation with the same grammar. 
+With this setup, we took the text of the tagged corpus with all ambiguities, and ran both VISL-CG3 and our implementation with the same grammar. 
+Treating the chosen tagset as the gold standard, the disambiguation by SATCG achieves 75.09 \% correct result and VISL-CG3 75.80 \%.
 
-% small constraint grammars (\textless{}500 rules) for Spanish and English, and disambiguated a number of texts from Project Gutenberg. Table~\ref{table:results} shows how much the results agree with the result given by VISL CG3 parser with the same grammar and text.
-
-%\begin{table}
-% \centering
-%  \begin{tabular}{|l|c|c|}
-%     \hline
-%    \textbf{Text} & \textbf{Words} & \textbf{\% same analyses} \\
-%    \hline
-%	Pride and Prejudice & 153386 & 90.6 \\  
-%    \hline
-%       Don Quijote & 186460 & 96.3  \\ 
-%     \hline
-%  \end{tabular}
-%  \caption{Comparing analyses between SATCG and VISLCG3.}
-%  \label{table:results}
-%\end{table}
-% The tendency of needing less rules to disambiguate shows also in a larger context with more complex rules. 
-% SATCG disambiguated more 17 \% of the cases for Pride and Prejudice, and 28 \% of the cases for Don Quijote. \todo{Analysis of those cases}
-
-\paragraph{Removing rules}
-\begin{table}
-  \centering
-  \begin{tabular}{|l|c|c|}
-     \hline
-    \textbf{\# rules} & \textbf{SATCG} & \textbf{VISLCG3} \\
-    \hline 
-	19 &  83.15 & 83.33 \\ \hline  % 19 out of 23 preselected by authors
-	18 &  83.19 & 83.04 \\ \hline  % 18 out of 19
-	17 &  83.201 & 83.03 \\ \hline   % 17 out of 18/19, no diff
-	16 &  83.197 & 83.030 \\ \hline  % 16 out of 17/18, no diff
-	15 &  83.188 & 83.022\\ \hline  % 15 out of 16/17. Tie with 14 for SATCG, chose to retain the rule that gave better results for VISLCG3.
-	14 &  83.180 & 83.005 \\ \hline  % Tie with 15 for SATCG.
-	13 &  83.159 & 82.951 \\ \hline  % 13 out of 15 
-	12 &  83.134 & 82.884\\ \hline  % 12 out of 14
-	11 &  83.089 & 82.847\\ \hline  
-	10 &  83.051 & 82.802\\ \hline  
-	9  & 82.997 & 82.802 \\ \hline
-	8  & 82.906 & 82.681 \\ \hline  % REMOVE:r_imp Imp IF (0 Subj) (-1* CnjSub) ; 
-	7  & 82.743 & 82.594 \\ \hline  % SELECT:s_pro PrnIndep IF (1C VerbFin) ;
-	6  & 82.556 & 82.398\\ \hline  %  REMOVE:r_v_v Verb IF (-1C Vblex) ;
-	5  & 82.327 & 82.028 \\ \hline % SELECT:s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det)
-	4  & 82.065 & 82.028 \\ \hline % REMOVE:r_vfin_prep VerbFin IF (0 Prep) (1 Inf) 
-	3  & 81.387 & 81.233 \\ \hline % REMOVE:r_noun N    IF (-1 N OR Prn)
-	2  & 80.23 & 79.97 \\ \hline % SELECT:s_pri_1 (pri p3) IF (0 (vblex imp p2 sg))
-	1  & 76.69 & 76.62 \\ \hline 
-	0  & 70.70 & 70.70 \\ \hline
-  \end{tabular}
-  \caption{Result of removing rules one by one, and how close to the gold standard they get.}
-  \label{table:results_remove}
-\end{table}
-In this experiment, we took 19 rules written by the authors, which give 83.15 \% correct results with SATCG and 83.33 \% with VISLCG3.
-Then we removed rules one by one; after getting a score for $n$ rules, we took the combination of $n-1$ rules for which SATCG gives the best score, and we ran the rule set with VISLCG3 for comparison. Table~\ref{table:results_remove} shows the percentages compared to the gold standard for both systems.
+% \paragraph{Removing rules}
+% \begin{table}
+%   \centering
+%   \begin{tabular}{|l|c|c|}
+%      \hline
+%     \textbf{\# rules} & \textbf{SATCG} & \textbf{VISL-CG3} \\
+%     \hline 
+% 	19 &  83.15 & 83.33 \\ \hline  % 19 out of 23 preselected by authors
+% 	18 &  83.19 & 83.04 \\ \hline  % 18 out of 19
+% 	17 &  83.201 & 83.03 \\ \hline   % 17 out of 18/19, no diff
+% 	16 &  83.197 & 83.030 \\ \hline  % 16 out of 17/18, no diff
+% 	15 &  83.188 & 83.022\\ \hline  % 15 out of 16/17. Tie with 14 for SATCG, chose to retain the rule that gave better results for VISL-CG3.
+% 	14 &  83.180 & 83.005 \\ \hline  % Tie with 15 for SATCG.
+% 	13 &  83.159 & 82.951 \\ \hline  % 13 out of 15 
+% 	12 &  83.134 & 82.884\\ \hline  % 12 out of 14
+% 	11 &  83.089 & 82.847\\ \hline  
+% 	10 &  83.051 & 82.802\\ \hline  
+% 	9  & 82.997 & 82.802 \\ \hline
+% 	8  & 82.906 & 82.681 \\ \hline  % REMOVE:r_imp Imp IF (0 Subj) (-1* CnjSub) ; 
+% 	7  & 82.743 & 82.594 \\ \hline  % SELECT:s_pro PrnIndep IF (1C VerbFin) ;
+% 	6  & 82.556 & 82.398\\ \hline  %  REMOVE:r_v_v Verb IF (-1C Vblex) ;
+% 	5  & 82.327 & 82.028 \\ \hline % SELECT:s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det)
+% 	4  & 82.065 & 82.028 \\ \hline % REMOVE:r_vfin_prep VerbFin IF (0 Prep) (1 Inf) 
+% 	3  & 81.387 & 81.233 \\ \hline % REMOVE:r_noun N    IF (-1 N OR Prn)
+% 	2  & 80.23 & 79.97 \\ \hline % SELECT:s_pri_1 (pri p3) IF (0 (vblex imp p2 sg))
+% 	1  & 76.69 & 76.62 \\ \hline 
+% 	0  & 70.70 & 70.70 \\ \hline
+%   \end{tabular}
+%   \caption{Result of removing rules one by one, and how close to the gold standard they get.}
+%   \label{table:results_remove}
+% \end{table}
+% In this experiment, we took 19 rules written by the authors, which give 83.15 \% correct results with SATCG and 83.33 \% with VISL-CG3.
+% Then we removed rules one by one; after getting a score for $n$ rules, we took the combination of $n-1$ rules for which SATCG gives the best score, and we ran the rule set with VISL-CG3 for comparison. Table~\ref{table:results_remove} shows the percentages compared to the gold standard for both systems.
 
 
 
