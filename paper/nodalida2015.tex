@@ -104,8 +104,8 @@ Let us demonstrate our approach with the following example in Spanish.
         "casar" v imp p2 sg
 \end{verbatim}
 
-The ambiguous passage can be either a noun phrase, \emph{la\texttt{:det} casa\texttt{:n}} 
-`the house'  or a verb phrase \emph{la\texttt{:prn} casa\texttt{:v pri p3}} `(he/she) marries her'. 
+The ambiguous passage can be either a noun phrase, \emph{la}\texttt{<det>} \emph{casa}\texttt{<n>} 
+`the house'  or a verb phrase \texttt{la<prn>}  \emph{casa}\texttt{<v><pri><p3>} `(he/she) marries her'. 
 We add the following rules:
 
 \begin{itemize}
@@ -123,17 +123,20 @@ SAT solver performs a search,
 and starts building possible models that satisfy both constraints. 
 In addition to the given constraints, we have default rules to emulate
 the CG principles: an analysis is true if no rule affects it,
-and at least one analysis for each word is true---the notion of ``last'' is not applicable.
-With these constraints, we get two solutions: 
+and at least one analysis for each word is true---the notion of
+``last'' is not applicable.
+
+With these constraints, we get two solutions. The interaction of the rules regarding \emph{la}  disambiguates the POS of \emph{casa} for free, and ordering of the rules doesn't matter. 
+
 \begin{enumerate}
-\item []
+\item [\texttt{1)}]
 \begin{verbatim}
 "<la>"
         "el" det def f sg
 "<casa>"
         "casa" n f sg
 \end{verbatim}
-\item [and]
+\item [\texttt{2)}]
 \begin{verbatim}
 "<la>"
         "lo" prn p3 f sg
@@ -142,9 +145,7 @@ With these constraints, we get two solutions:
         "casar" v imp p2 sg
 \end{verbatim}
 \end{enumerate} 
-% \texttt{det, n} and \texttt{prn, v pri p3, v imp p2}. 
-The interaction of the rules regarding \emph{la}  disambiguates the POS of \emph{casa} 
-for free, and ordering of the rules doesn't matter. 
+
 %Without more context or additional rules we cannot fully disambiguate the passage,
 %but unlike with standard CG, we get only legal combinations in one solution.
 
@@ -155,7 +156,7 @@ for free, and ordering of the rules doesn't matter.
 %Standard CG will also remove the verb reading, 
 %but the choice of the word \emph{la} doesn't contribute to
 
-The most important differences between the traditional and the SAT-based approach are summarised below:
+\noindent The most important differences between the traditional and the SAT-based approach are summarised below:
 
 \paragraph{Condition of being unambiguously tagged is irrelevant.}
 Rather than waiting for a word to get disambiguated, the SAT solver starts by 
@@ -184,7 +185,7 @@ Larger rule sets are yet to be tested.
 Considering our example phrase and rules, standard CG implementation
 can only remove readings for the word which is tagged as \texttt{prn} or
 \texttt{det}. The SAT-based implementation interprets the rules as
-``determiner and verb together are illegal'', and is free to take action that concerns also the word in the condition \texttt{(1 n)} or \texttt{(1 v)}.
+``determiner and verb together are illegal'', and is free to take action that concerns also the word in the condition (\texttt{1 n} or \texttt{1 v}).
 This means that the rules are logically flipped: \texttt{REMOVE prn IF
   (1 n)} translates into the same logical formula as  \texttt{REMOVE n
   IF (-1 prn)}. A rule with more conditions can be written as many
@@ -217,7 +218,9 @@ or selected. \\
 We predict that less rules are needed; whether this holds in
 the order of thousands of rules remains to be tested.
 Getting rid of ordering could ease the task of the grammar writer,
-removing the responsibility to estimate the best sequence of rule applications.
+since it removes the need to estimate the best sequence of rule
+applications.
+
 However, the implementation should not be too different from the
 existing ones---our preliminary evaluation against VISL CG-3 shows
 promising results in this regard.
@@ -243,7 +246,7 @@ the function was called 147,253 times, and with 19 rules, 132,255 times.
 %needed less than 14.
 The difference in the execution times suggests that there are other
 reasons for the worse performance---this is to be expected,
-SATCG is just a first proof-of-concept implementation with no optimisations.
+SATCG is currently just a naive proof-of-concept implementation with no optimisations.
 
 \begin{table}
   \centering
@@ -266,11 +269,12 @@ We took a tagged corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches
 and a small constraint grammar\footnote{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}, produced independently of the authors.
 % We ignored substitute rules, but kept subreadings and unification, even though our implementation doesn't handle them.
 We only took select and remove rules (no substitute/iff), after which the constraint grammar had 261 rules.
-With this setup, we took the text of the tagged corpus with all ambiguities, and ran both VISL CG-3 and our implementation with the same grammar. 
-Treating the chosen tagset as the gold standard, the disambiguation by
+With this setup, we took the text of the tagged corpus with all
+ambiguities, and ran both SATCG and VISL CG-3 with the same grammar. 
+Treating the corpus as the gold standard, the disambiguation by
 SATCG achieves 75.09 \% correct result and VISL CG-3 75.80 \%.
-Similar patterns were observed with small (\textless{}20) rule sets written by
-the authors; depending on the subset, SATCG and VISL CG-3 had
+Similar patterns were observed with small (\textless{}20) rule sets
+written by the authors; depending on the subset, SATCG and VISL CG-3 had
 a difference of at most $\Mypm$ 1.5 \%. 
 Introducing rules one by one up to 19, the
 performance improved in a very similar rate, with less than 0.5 \%
