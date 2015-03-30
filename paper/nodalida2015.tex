@@ -45,13 +45,12 @@
 
 We represent Constraint Grammar \cite{karlsson1995constraint} 
 as a Boolean satisfiability (SAT) problem.
+This is attractive from several reasons: formal logic is
+well-studied, and serves as an abstract language to reason about the
+properties of CG. Constraint rules encoded in logic capture richer
+dependencies between the tags than standard CG.
 
-Formal logic is well-studied and has an old tradition.
-The rules encoded in logic capture richer dependencies between the
-tags than normal reductionist grammars.
-
-Applying logic to reductionist grammars has been explored earlier by 
-\cite{lager98,lager_nivre01}, but it was never adopted for use.
+Applying logic to reductionist grammars has been explored earlier by \cite{lager98,lager_nivre01}, but it was never adopted for use.
 % ; logic programming was too slow to be used for tagging or parsing. 
 Since those works, SAT solving techniques have improved significantly, and 
 they are used in domains such as microprocessor design and computational 
