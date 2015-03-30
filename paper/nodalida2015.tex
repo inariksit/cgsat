@@ -23,7 +23,10 @@
 \usepackage{color}
 \newcommand{\todo}[1]{{\color{cyan}\textbf{[TODO: }#1\textbf{]}}}
 \usepackage{tikz}
-\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;}
+\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) --
+  (.25,.15) -- cycle;}
+\newcommand{\Mypm}{\mathbin{\tikz [x=1.4ex,y=1.4ex,line width=.1ex] \draw (0.0,0) -- (1.0,0) (0.5,0.08) -- (0.5,0.92) (0.0,0.5) -- (1.0,0.5);}}%
+
 \title{Constraint Grammar as a SAT problem}
 
 % \author{Inari Listenmaa \and Koen Claessen \\
@@ -219,7 +222,7 @@ removing the responsibility to estimate the best sequence of rule applications.
 However, the implementation should not be too different from the
 existing ones---our preliminary evaluation against VISL CG-3 shows
 promising results in this regard.
-
+\pagebreak
 
 \section{Results and evaluation}
 
@@ -269,12 +272,13 @@ Treating the chosen tagset as the gold standard, the disambiguation by
 SATCG achieves 75.09 \% correct result and VISL CG-3 75.80 \%.
 Similar patterns were observed with small (\textless{}20) rule sets written by
 the authors; depending on the subset, SATCG and VISL CG-3 had
-a difference of at most 1.5 \%. Introducing rules one by one up to 19, the
+a difference of at most $\Mypm$ 1.5 \%. 
+Introducing rules one by one up to 19, the
 performance improved in a very similar rate, with less than 0.5 \%
-difference between implementations at each new rule.
+difference between the systems at each new rule.
 
-Additional tests could include plugging SATCG into Apertium
-translation pipeline, and comparing the translation quality.
+% Additional tests could include plugging SATCG into Apertium
+% translation pipeline, and comparing the translation quality.
 
 % \paragraph{Removing rules}
 % \begin{table}
