@@ -1,6 +1,7 @@
 
 comment "#" ;
 comment "SETS" ;
+comment "SUBREADINGS" ;
 comment "CONSTRAINTS" ;
 comment "DELIMITERS" ;
 comment "SOFT-DELIMITERS" ;
@@ -60,30 +61,23 @@ rules REMOVE ::= "REMOVE" MaybeName ;
 rules MaybeIF   ::= "IF" | "if" | ;
 rules MaybeName ::= ":" Id | ;
 
---TODO  SELECT Inf IF (-1/0 ADV-NOT)(-1/1 VAUX-CAN);
+--TODO subreading:  SELECT Inf IF (-1/0 ADV-NOT)(-1/1 VAUX-CAN);
 CNotPos.  Cond1 ::= "NOT" Position TagSet ;
 CPos.     Cond1 ::= Position TagSet ;
 CBarrier. Cond1 ::= Position TagSet Barrier ;
 CNotBar.  Cond1 ::= "NOT" Position TagSet Barrier ;
 CLinked.  Cond  ::= [Cond1] ;
 CTempl.   Cond  ::= [Template] ;
---CLinkZ.   Cond  ::= [LinkZero] ; --bad idea, 7 r/r
 _.        Cond ::= "(" Cond ")" ; 
 
 
 separator nonempty Cond1 "LINK" ;
 separator nonempty Cond "" ;
 
--- Template: REMOVE V-FIN IF (0 Inf) (0 Inf OR V-FIN) ((1C* V-FIN) OR (-1C* V-FIN));
--- Same semantics but using LINK 0 instead of OR: 
--- REMOVE Imp IF (0 (vblex pri p3 sg) LINK 0 (vblex imp p2 sg)) ;
-
+-- Template: REMOVE V-FIN IF (0 Inf) ((1C* V-FIN) OR (-1C* V-FIN));
+-- OR separates here conditions, not tagsets.
 Templ.    Template ::= "(" Cond1 ")" ;
 separator nonempty Template "OR" ;
-
--- LinkZ.    LinkZero ::= "(" Cond1 ")" ;
--- separator nonempty LinkZero "LINK 0" ;
-
 
 TagSet.  TagSet  ::= TagSet1 ;
 _.       TagSet1 ::= "(" TagSet ")" ; -- you can add parentheses around any tag set

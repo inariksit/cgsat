@@ -101,7 +101,8 @@ solveOne s as xs =
 
 maximize :: Solver -> [Bit] -> [Bit] -> IO Bool
 maximize s as rs =
-  do b <- solveBit s as
+  do --putStrLn "maximize: start"
+     b <- solveBit s as
      if not b then
        do return False
       else
@@ -114,10 +115,11 @@ maximize s as rs =
                      , b /= Just False
                      ]
                    let xs' = [ x | (x,Just False) <- xs `zip` bs ]
-                   addClauseBit s (nt a : xs') 
+                   addClauseBit s (nt a : xs')
+                   --putStrLn "maximize: opti"
                    b <- solveBit s (a:as)
                    if not b then
-                     do putStr $ show n ++ ", "
+                     do --putStr $ show n ++ ", "
                         return True
                     else
                      do opti (n+1) xs'

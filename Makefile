@@ -3,8 +3,8 @@ testprog=dist/build/test-cgsat/test-cgsat
 default: grammars rest
 
 grammars:
-	bnfc -d bnfc/Apertium.cf
-	bnfc -d bnfc/CG.cf
+#	bnfc -d bnfc/Apertium.cf
+#	bnfc -d bnfc/CG.cf
 	happy -gca CG/Par.y
 	alex -g CG/Lex.x
 	happy -gca Apertium/Par.y
@@ -13,7 +13,7 @@ grammars:
 	ghc --make Apertium/Test.hs -o Apertium/Test
 
 rest:
-	cabal configure --enable-tests
+	cabal configure --enable-tests --enable-library-profiling --enable-executable-profiling
 	cabal build
 
 test-pride:
@@ -30,7 +30,7 @@ test-grammars:
 	cat data/eng_cg2.rlx | ./CG/Test | grep Successful
 	cat data/spa_cg3.rlx | ./CG/Test | grep Successful
 	cat data/hun_cg2.rlx | ./CG/Test | grep Successful
-	cat data/bre_cg2.rlx | ./CG/Test| grep Successful
+	cat data/bre_cg2.rlx | ./CG/Test | grep Successful
 
 
 clean:

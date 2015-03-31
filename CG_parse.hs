@@ -189,8 +189,8 @@ transRule rl = case rl of
            ('"':_    ) -> [[CGB.Lem (strip 1 str), t] | t <- concat ts]
            _           -> [[CGB.Lem str          , t] | t <- concat ts]
 
-        getName (MaybeName_1 (Id id)) = id
-        getName MaybeName_2           = ""
+        getName (MaybeName_1 (Id id)) = CGB.Name id
+        getName MaybeName_2           = CGB.NoName
         
 
 transCondSet :: [Cond] -> State Env CGB.Condition
@@ -204,8 +204,8 @@ transCond c = case c of
   CNotPos pos ts      -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
   CBarrier pos ts bar -> handleBar pos ts bar True
   CNotBar pos ts bar  -> handleBar pos ts bar False
-  CTempl templs       -> do conds <- mapM (transCond . (\(Templ c) -> c)) templs
-                            return $ foldr1 CGB.OR conds
+  CTempl templs       -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
+                            return $ foldr1 CGB.OR cs
   CLinked (c:cs)      -> do first@(CGB.C pos tags) <- transCond c
                             let base = getPos pos
                             conds <- mapM transCond cs
@@ -252,6 +252,7 @@ transPosition pos = return $ case pos of
   AtLeastPre (Signed str)  -> CGB.AtLeast $ read str
   AtLeastPost (Signed str) -> CGB.AtLeast $ read str
   AtLPostUnam (Signed str) -> CGB.AtLeast $ read str
+
 transBarrier :: Barrier -> State Env CGB.TagSet
 transBarrier (Barrier ts) = transTagSet ts
 

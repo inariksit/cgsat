@@ -56,10 +56,7 @@ instance Arbitrary Condition where
                  tags <- listOf arbitrary
                  return $ C pos (bool, tags)
 
-instance Arbitrary Test where
-  arbitrary = frequency [(1, liftM NEG arbitrary)
-                        ,(4, liftM POS arbitrary)]
 
 instance Arbitrary Rule where
-  arbitrary = frequency [(1, liftM2 Select arbitrary arbitrary)
-                        ,(1, liftM2 Remove arbitrary arbitrary)]
+  arbitrary = frequency [(1, liftM2 (Select NoName) arbitrary arbitrary)
+                        ,(1, liftM2 (Remove NoName) arbitrary arbitrary)]

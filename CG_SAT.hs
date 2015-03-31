@@ -1,3 +1,5 @@
+{-# LANGUAGE DoAndIfThenElse #-} 
+
 module CG_SAT where 
 
 
@@ -75,7 +77,7 @@ anchor toks = (map.map) getBit (groupBy sameInd toks)
 
 -- | Apply rules to tokens. 
 applyRule :: Rule -> [Token] -> [[Bit]]
-applyRule rule toks = --trace (show rule) $
+applyRule rule toks =  {-# SCC "applyRule" #-} --trace (show rule) $
   case rule of
     (Remove _name tags conds) -> applyRules rule (toLists conds) toks
     (Select _name tags conds) -> applyRules rule (toLists conds) toks
@@ -83,7 +85,7 @@ applyRule rule toks = --trace (show rule) $
 
 applyRules :: Rule -> [[Condition]] -> [Token] -> [[Bit]]
 applyRules rule []         allToks = []
-applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
+applyRules rule (conds:cs) allToks =  {-# SCC "applyRules" #-} applyRules rule cs allToks ++
   case rule of 
     (Remove _n tags _c) -> mkVars (chosen tags) nt 
     (Select _n tags _c) -> mkVars (chosen tags) id ++ mkVars (other tags) nt
@@ -136,7 +138,7 @@ getContext :: Token           -- ^ a single analysis
                -> [Condition] -- ^ list of conditions grouped by AND
                -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext tok allToks []     = []
-getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
+getContext tok allToks ((C position (bool,ctags)):cs) =  {-# SCC "getContexts" #-} getContext tok allToks cs ++
   case ctags of
     []     -> [[dummyTok]] --empty conds = holds always
     [[]]   -> [[dummyTok]] 
@@ -175,7 +177,7 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 ---- Main stuff
 
 disambiguate :: Bool -> [Rule] -> Sentence -> IO Sentence
-disambiguate verbose rules sentence = do
+disambiguate verbose rules sentence =  {-# SCC "disambiguate" #-} do
   let chunkedSent = chunk sentence :: [(Integer,[Tag])]
   if length chunkedSent == length sentence then return sentence -- not ambiguous
    else
@@ -252,17 +254,18 @@ disambiguate verbose rules sentence = do
 test :: IO ()
 test = mapM_ (disambiguate True rls) CG_data.exs
 
-  where rls = [rmVerbIfDet
-             , rmNounIfPron
-             , slNounAfterConj
-             , slCCifCC             
-             , slPrepIfDet 
-             , rmAdvIfDet 
-             , rmPlIfSg
-             , rmSgIfPl
-             , slNounIfBear 
-             , slVerbAlways --conflicts with anything that selects other than V 
-             , negTest      --should conflict
-             , negOrTest    --should conflict
-             , rmParticle ]
+  where rls = [-- rmVerbIfDet
+             -- , rmNounIfPron
+             -- , slNounAfterConj
+             -- , slCCifCC             
+             -- , slPrepIfDet 
+             -- , rmAdvIfDet 
+             -- , rmPlIfSg
+             -- , rmSgIfPl
+             -- , slNounIfBear 
+             -- , slVerbAlways --conflicts with anything that selects other than V 
+             -- , negTest      --should conflict
+             -- , negOrTest    --should conflict
+             -- , rmParticle
+             ]
 

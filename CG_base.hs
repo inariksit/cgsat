@@ -48,14 +48,15 @@ type Sentence = [Analysis]
 
 -- | Rule is either remove or select a list of tags, with contextual tests
 data Rule = Remove Name TagSet Condition | Select Name TagSet Condition
-type Name = String
+data Name = Name String | NoName
 
 instance Show Rule where
-  show (Remove name tags cond) = "REMOVE:" ++ name ++ " " ++
-                                  show tags ++ " " ++ show cond 
-  show (Select name tags cond) = "SELECT:" ++ name ++ " " ++
-                                  show tags ++ " " ++ show cond 
-  
+  show (Remove (Name nm) tags cond) = "REMOVE:" ++ nm ++ " " ++
+                                       show tags ++ " " ++ show cond 
+  show (Remove  NoName   tags cond) = "REMOVE " ++ show tags ++ " " ++ show cond 
+  show (Select (Name nm) tags cond) = "SELECT:" ++ nm ++ " " ++
+                                       show tags ++ " " ++ show cond 
+  show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " " ++ show cond 
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
@@ -101,7 +102,7 @@ toLists :: Condition -> [[Condition]]
 -- -> OR (AND (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 N))
 --       (AND (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 Verb))
 
-toLists cond = case cond of
+toLists cond = {-# SCC "toLists" #-} case cond of
     C   _pos       _tags -> [[cond]]
     AND c1@(C _ _) c2    -> map (c1:) (toLists c2)
     OR  c1@(C _ _) c2    -> [c1]:(toLists c2)
@@ -155,23 +156,23 @@ pl   = [[Tag "pl"]]
 cnjcoo  = [[Tag "cnjcoo"]]
 
 -- Rules
-rmParticle = Remove "r_part" [[Tag "particle"]] always
-slVerbAlways = Select "s_verb" verb  always
-slNounIfBear = Select "s_bear_n" [[Lem "bear", n] | n <- concat noun]  always
+-- rmParticle = Remove "r_part" [[Tag "particle"]] always
+-- slVerbAlways = Select "s_verb" verb  always
+-- slNounIfBear = Select "s_bear_n" [[Lem "bear", n] | n <- concat noun]  always
 
-rmVerbIfDet = Remove "r_verb_det" verb (mkC "-1" det)
-rmAdvIfDet = Remove "r_adv_det" adv (mkC "1" det)
-rmNounIfPron = Remove "" noun (mkC "-1" [[Tag "pron"]])
-slPrepIfDet = Select "" prep (mkC "1" det)
-slNounAfterConj = Select "" noun (mkC "-1" conj)
+-- rmVerbIfDet = Remove "r_verb_det" verb (mkC "-1" det)
+-- rmAdvIfDet = Remove "r_adv_det" adv (mkC "1" det)
+-- rmNounIfPron = Remove "" noun (mkC "-1" [[Tag "pron"]])
+-- slPrepIfDet = Select "" prep (mkC "1" det)
+-- slNounAfterConj = Select "" noun (mkC "-1" conj)
 
-slCCifCC = Select "" cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
+-- slCCifCC = Select "" cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
 
-rmPlIfSg = Remove "" pl (C (Exactly (-1)) (True,sg))
-rmSgIfPl = Remove "" sg (mkC "-1" pl)
+-- rmPlIfSg = Remove "" pl (C (Exactly (-1)) (True,sg))
+-- rmSgIfPl = Remove "" sg (mkC "-1" pl)
 
-negTest   = Select "" verb (mkC "-1" prep)
-negOrTest = Select "" verb (OR (mkC "-1" conj) (mkC "1" prep))
+-- negTest   = Select "" verb (mkC "-1" prep)
+-- negOrTest = Select "" verb (OR (mkC "-1" conj) (mkC "1" prep))
 
 
 -- | Shows all analyses as string, each lemma+tags in one line

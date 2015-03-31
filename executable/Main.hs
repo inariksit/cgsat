@@ -13,9 +13,9 @@ main = do
     [f1, f2]   -> do rules <- readRules f1
                      data' <- readData f2 
                      mapM_ (disambiguate False rules) data'
-    ["-v", f1, f2]   -> do rules <- readRules f1
-                           data' <- readData f2 
-                           mapM_ (disambiguate True rules) data'
+    [f1, f2, "v"]   -> do rules <- readRules f1
+                          data' <- readData f2 
+                          mapM_ (disambiguate True rules) data'
 
     ("test":_) -> CG_SAT.test
-    _          -> putStrLn "usage: ./Main (<rules> <data> | test)"
+    _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"

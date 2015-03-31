@@ -26,7 +26,8 @@ LIST Inf = (inf) ;
 LIST Pres = (pri) ;
 LIST Past = (pii) ;
 LIST Cond = (cni) ;
-SET PastCondSubjP1 = (Subj OR Past OR Cond) + (p1)  ;
+LIST PastCondSubj = past cond subj ;
+SET PastCondSubjP1 = PastCondSubj + (p1)  ;
 
 LIST VerbFin = pri prs imp pii cni pis ifi fti;
 LIST VerbInd = pri imp pii ifi fti ;
@@ -63,6 +64,7 @@ SET NOT_NP_Member = Vblex OR Vbmod OR Vbhaver OR Copula OR Prep OR CnjCoo OR Cnj
 LIST PP = (pp) ;
 LIST PRS = (prs) ;
 LIST Ger = (ger) ;
+LIST P1 = (p1) ;
 LIST P3 = (p3) ;
 LIST Def = (def) ;
 LIST Enc = (enc) ;

@@ -297,7 +297,7 @@ REMOVE ("aztán" adv);  # I think it's not an adv
 REMOVE ("látta" n sg nom) - Anp - Poss;
 
 # Remove the archaic "fő" reading when "fej" is available
-REMOVE ("fö") IF (0 ("fej"));
+REMOVE ("fő") IF (0 ("fej"));
 
 # Remove the familiar form "anyjuk", if it is not preceded by an <ij>
 REMOVE ("anyjuk") IF (NOT *-1 (ij) BARRIER (cm));
