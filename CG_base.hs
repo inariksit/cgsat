@@ -47,8 +47,15 @@ type Sentence = [Analysis]
 
 
 -- | Rule is either remove or select a list of tags, with contextual tests
-data Rule = Remove TagSet Condition | Select TagSet Condition deriving (Show)
+data Rule = Remove Name TagSet Condition | Select Name TagSet Condition
+type Name = String
 
+instance Show Rule where
+  show (Remove name tags cond) = "REMOVE:" ++ name ++ " " ++
+                                  show tags ++ " " ++ show cond 
+  show (Select name tags cond) = "SELECT:" ++ name ++ " " ++
+                                  show tags ++ " " ++ show cond 
+  
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
@@ -131,8 +138,8 @@ andTest = AND lemmaBear always
 
 hasBoundary :: Rule -> Bool
 hasBoundary rule = case rule of
-  (Select _t c) -> findBoundary c
-  (Remove _t c) -> findBoundary c
+  (Select _n _t c) -> findBoundary c
+  (Remove _n _t c) -> findBoundary c
   where findBoundary c = or $ map hasB (concat (toLists c))
         hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat tags
 
@@ -148,23 +155,23 @@ pl   = [[Tag "pl"]]
 cnjcoo  = [[Tag "cnjcoo"]]
 
 -- Rules
-rmParticle = Remove [[Tag "particle"]] always
-slVerbAlways = Select verb  always
-slNounIfBear = Select [[Lem "bear", n] | n <- concat noun]  always
+rmParticle = Remove "r_part" [[Tag "particle"]] always
+slVerbAlways = Select "s_verb" verb  always
+slNounIfBear = Select "s_bear_n" [[Lem "bear", n] | n <- concat noun]  always
 
-rmVerbIfDet = Remove verb (mkC "-1" det)
-rmAdvIfDet = Remove adv (mkC "1" det)
-rmNounIfPron = Remove noun (mkC "-1" [[Tag "pron"]])
-slPrepIfDet = Select prep (mkC "1" det)
-slNounAfterConj = Select noun (mkC "-1" conj)
+rmVerbIfDet = Remove "r_verb_det" verb (mkC "-1" det)
+rmAdvIfDet = Remove "r_adv_det" adv (mkC "1" det)
+rmNounIfPron = Remove "" noun (mkC "-1" [[Tag "pron"]])
+slPrepIfDet = Select "" prep (mkC "1" det)
+slNounAfterConj = Select "" noun (mkC "-1" conj)
 
-slCCifCC = Select cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
+slCCifCC = Select "" cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
 
-rmPlIfSg = Remove pl (C (Exactly (-1)) (True,sg))
-rmSgIfPl = Remove sg (mkC "-1" pl)
+rmPlIfSg = Remove "" pl (C (Exactly (-1)) (True,sg))
+rmSgIfPl = Remove "" sg (mkC "-1" pl)
 
-negTest   = Select verb (mkC "-1" prep)
-negOrTest = Select verb (OR (mkC "-1" conj) (mkC "1" prep))
+negTest   = Select "" verb (mkC "-1" prep)
+negOrTest = Select "" verb (OR (mkC "-1" conj) (mkC "1" prep))
 
 
 -- | Shows all analyses as string, each lemma+tags in one line

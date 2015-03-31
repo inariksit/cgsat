@@ -27,7 +27,7 @@ List. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
 SetName.  SetName ::= UIdent ;
 BOS.      SetName ::= ">>>" ;
 EOS.      SetName ::= "<<<" ;
-_.        SetName ::= "$$" SetName ; --Subreadings; just read them as regular set names
+_.        SetName ::= "$$" SetName ; -- Unification; just read them as regular set names
 
 
 --------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ _.        SetName ::= "$$" SetName ; --Subreadings; just read them as regular se
 Lemma.   Tag1 ::= Str ; 
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
-_.       Tag1 ::= "+" Tag1 ;
+_.       Tag1 ::= "+" Tag1 ; -- Subreadings; ignore
 
 coercions Tag 1 ;
 

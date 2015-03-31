@@ -75,7 +75,6 @@ loop (r:rs) t g scores = do
                    , let dif = diffBySent sat gold
                    , (not.null) dif ]
       orig = fromIntegral $ length (concat t)
-     -- orig = fromIntegral $ wordCount t
       difbw = fromIntegral $ length (concat diff)
       perc = 100 * ((orig-difbw) / orig) :: Float
   when ((length scores) `mod` 100 == 0) $ print (length scores) 

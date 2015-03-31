@@ -106,7 +106,7 @@ maximize s as rs =
        do return False
       else
        do a <- newBit s
-          let opti xs =
+          let opti n xs =
                 do bs <- sequence [ modelValueBit s x | x <- xs ]
                    sequence_
                      [ addClauseBit s [nt a, x]
@@ -117,10 +117,11 @@ maximize s as rs =
                    addClauseBit s (nt a : xs') 
                    b <- solveBit s (a:as)
                    if not b then
-                     do return True
+                     do putStr $ show n ++ ", "
+                        return True
                     else
-                     do opti xs'
-           in opti rs
+                     do opti (n+1) xs'
+           in opti 1 rs
 
 --------------------------------------------------------------------------------
 

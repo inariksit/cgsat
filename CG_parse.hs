@@ -170,19 +170,27 @@ transTagSet ts = case ts of
 
 transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
-  SelectIf _sl tags _if conds -> liftM2 CGB.Select (transTagSet tags) (transCondSet conds)
-  RemoveIf _sl tags _if conds -> liftM2 CGB.Remove (transTagSet tags) (transCondSet conds)
-  SelectAlways _sl tags   -> liftM2 CGB.Select (transTagSet tags) (return CGB.always)
-  RemoveAlways _sl tags   -> liftM2 CGB.Remove (transTagSet tags) (return CGB.always)
-  MatchLemma (Str lem) rl -> do cgrule <- transRule rl
-                                case cgrule of
-                                  CGB.Select ts c -> return $ CGB.Select (cart ts lem) c
-                                  CGB.Remove ts c -> return $ CGB.Remove (cart ts lem) c
+  SelectIf (SELECT_1 nm) tags _if conds ->
+    liftM2 (CGB.Select (getName nm)) (transTagSet tags) (transCondSet conds)
+  RemoveIf (REMOVE_1 nm) tags _if conds ->
+    liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (transCondSet conds)
+  SelectAlways (SELECT_1 nm) tags ->
+    liftM2 (CGB.Select (getName nm)) (transTagSet tags) (return CGB.always)
+  RemoveAlways (REMOVE_1 nm) tags ->
+    liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (return CGB.always)
+  MatchLemma (Str lem) rl -> 
+    do cgrule <- transRule rl
+       case cgrule of
+         CGB.Select n ts c -> return $ CGB.Select n (cart ts lem) c
+         CGB.Remove n ts c -> return $ CGB.Remove n (cart ts lem) c
   where cart :: CGB.TagSet -> String -> CGB.TagSet
         cart ts str = case str of
            ('"':'<':_) -> [[CGB.WF  (strip 2 str), t] | t <- concat ts]
            ('"':_    ) -> [[CGB.Lem (strip 1 str), t] | t <- concat ts]
            _           -> [[CGB.Lem str          , t] | t <- concat ts]
+
+        getName (MaybeName_1 (Id id)) = id
+        getName MaybeName_2           = ""
         
 
 transCondSet :: [Cond] -> State Env CGB.Condition

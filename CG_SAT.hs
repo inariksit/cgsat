@@ -77,16 +77,16 @@ anchor toks = (map.map) getBit (groupBy sameInd toks)
 applyRule :: Rule -> [Token] -> [[Bit]]
 applyRule rule toks = --trace (show rule) $
   case rule of
-    (Remove tags conds) -> applyRules rule (toLists conds) toks
-    (Select tags conds) -> applyRules rule (toLists conds) toks
+    (Remove _name tags conds) -> applyRules rule (toLists conds) toks
+    (Select _name tags conds) -> applyRules rule (toLists conds) toks
 
 
 applyRules :: Rule -> [[Condition]] -> [Token] -> [[Bit]]
 applyRules rule []         allToks = []
 applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
   case rule of 
-    (Remove tags _c) -> mkVars (chosen tags) nt 
-    (Select tags _c) -> mkVars (chosen tags) id ++ mkVars (other tags) nt
+    (Remove _n tags _c) -> mkVars (chosen tags) nt 
+    (Select _n tags _c) -> mkVars (chosen tags) id ++ mkVars (other tags) nt
 
 
   where
@@ -216,7 +216,7 @@ disambiguate verbose rules sentence = do
                               | (b, (rl,cl)) <- zip cs applied
                               , b /= Just True ]
                 putStrLn "These clauses were omitted due to conflicts:"
-                mapM_ putStrLn (take 2 conf) 
+                mapM_ putStrLn (conf) 
                 putStrLn $ "+ " ++ show ((length conf) - 2) ++ " others"
 
               let nonconf = [ c | (Just True, c) <- zip cs bitsForClauses ]
