@@ -1,4 +1,3 @@
-# exemple ambigüitat fins i tot per a un parlant: "noble húngaro" (hungara nobelo / nobla hungaro), "viejos fanáticos" (maljunaj fanatikuloj / fanatikaj maljunuloj)
 DELIMITERS = "<.>" "<!>" "<?>" "<...>" "<¶>" "<:>";
 SOFT-DELIMITERS = "<,>" "<;>";
 SETS
@@ -99,39 +98,8 @@ SET Barrera_Final_Estrict_SN = <<< OR Prep OR Det OR CnjSub OR CnjAdv OR Rel OR 
 SET Barrera_Inicial_SN = >>> OR Prep OR CnjSub OR CnjAdv OR Verb OR Rel ;	# Verb és perillós per la ambigüitat, però en general, prolífic
 SET Barrera_Inicial_Estrict_SN = >>> OR Prep OR CnjSub OR CnjAdv OR Rel ;
 SET Limite_Barrera_Inicial_SN = ("ser") OR ("Ser") OR ("estar") OR ("Estar") OR ("parecer") OR ("Parecer") OR ("haber") OR ("Haber") ;
-#SET como = ("como") ;
-#SET para = ("para") ;
 
-# Negacions
-SET No = ("no") OR ("No") ;
-SET AdvNeg = ("nunca") OR ("Nunca") OR ("jamás") OR ("Jamás") ;
-SET PrnNeg = ("nada") OR ("Nada") OR ("nadie") OR ("Nadie") OR ("ninguno") OR ("Ninguno") ;
-SET DetNeg = ("ninguno") OR ("Ninguno") ;
 
-# Paraules
-SET Defensa = ("defensa") OR ("Defensa") ;
-SET Como = ("como") OR ("Como") ;
-SET Podar = ("podar") OR ("Podar") ;
-SET Poder = ("poder") OR ("Poder") ;
-SET Salar = ("salar") OR ("Salar") ;
-SET Soler = ("soler") OR ("Soler") ;
-SET Crear = ("crear") OR ("Crear") ;
-SET Creer = ("creer") OR ("Creer") ;
-SET Sentir = ("sentir") OR ("Sentir") ;
-SET Sentar = ("sentar") OR ("Sentar") ;
-SET Ser = ("ser") OR ("Ser") ;
-SET Ir = ("ir") OR ("Ir") ;
-SET Fundar = ("fundar") OR ("Fundar") ;
-SET Ser = ("ser") OR ("Ser") ;
-SET Estar = ("estar") OR ("Estar");
-SET Haber = ("haber") OR ("Haber") ;
-# adjetivos ambíguos que sólo pueden anteceder el nombre ("gran" o "buen" no son ambiguos)
-SET PreAdj = ("mal") OR ("Mal") ;
-# adjetivos ambiguos que se anteponen a menudo
-SET AdjPrefAmb = ("bajo") OR ("alto") OR ("joven") OR ("viejo") OR ("medio") OR ("dicho") OR ("menor") OR ("mayor") OR ("doble") OR ("triple") OR ("posible") OR ("cierto") ;
-SET VerboSubj = ("querer") OR ("Querer") OR ("desear") OR ("Desear") OR ("proponer") OR ("Proponer") OR ("gustar") OR ("Gustar") OR ("placer") OR ("Placer") OR ("exigir") OR ("Exigir") OR ("reclamar") OR ("Reclamar") OR ("pedir") OR ("Pedir") OR ("esperar") OR ("Esperar") ;
-# verbos Vblex que típicamente tienen predicativo
-SET VPred = ("considerar") OR ("Considerar") OR ("creer") OR ("Creer") OR ("opinar") OR ("Opinar") OR ("sentir") OR ("Sentir") OR ("hallar") OR ("Hallar") OR ("permanecer") OR ("Permanecer") OR ("continuar") OR ("Continuar") OR ("mantener") OR ("Mantener") OR ("resultar") OR ("Resultar") OR ("volver") OR ("Volver") ;
 
 ###############################################################################
 #  Morphological disambiguation
@@ -169,7 +137,7 @@ SELECT:inari_s_prep Prep IF (-1 Verb) (1 N) ; # TOP 14
 # N / A / Adv
 
 # Disambiguate between n, adj
-SELECT:inari_s_a_adv A IF (-1C Det) (1C N) ; # TOP 13
+SELECT:inari_s_a_adv A IF (-1C Det)  (1C N) ; # TOP 13
            # un mal día
 SELECT:inari_s_n_adj N IF (-1C Det OR A OR Num OR Prep) (NOT 1 N) ; # TOP 2
            # el mal en persona
@@ -188,7 +156,7 @@ REMOVE:inari_r_verb Verb IF (-1 A OR Det) ; # TOP 19 (Removing this from 19 rule
 ### Verbs
 
 # all verb forms that are ambiguous between 1st and 3rd person 
-# REMOVE:inari_r_pr_cn_p1 PastCondSubjP1 IF (-1 N OR P3) ; # TOP 10
+REMOVE:inari_r_pr_cn_p1 PastCondSubjP1 IF (-1 N OR P3) ; # TOP 10
 
 # eliminación del imperativo en competición con el presente del indicativo
 SELECT:s_pri_1 (pri p3) IF (0 (vblex imp p2 sg)) ; # TOP 3
