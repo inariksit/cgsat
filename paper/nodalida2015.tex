@@ -27,7 +27,7 @@
   (.25,.15) -- cycle;}
 \newcommand{\Mypm}{\mathbin{\tikz [x=1.4ex,y=1.4ex,line width=.1ex] \draw (0.0,0) -- (1.0,0) (0.5,0.08) -- (0.5,0.92) (0.0,0.5) -- (1.0,0.5);}}%
 
-\title{Constraint Grammar as a SAT problem}
+\title{Constraint Grammars as a SAT problem}
 
 % \author{Inari Listenmaa \and Koen Claessen \\
 %  Chalmers University of Technology, Gothenburg, Sweden \\
@@ -43,7 +43,7 @@
 
 \section{Introduction}
 
-We represent Constraint Grammar \cite{karlsson1995constraint} 
+We represent Constraint Grammars (CG) \cite{karlsson1995constraint} 
 as a Boolean satisfiability (SAT) problem.
 This is attractive from several reasons: formal logic is
 well-studied, and serves as an abstract language to reason about the
@@ -119,7 +119,7 @@ either the one that comes first, or by some other heuristic.
 The second rule will not fire, because it would remove the last reading. 
 All readings of \emph{casa} are left untouched by these rules.
 
-SAT solver performs a search, 
+The SAT solver performs a search, 
 and starts building possible models that satisfy both constraints. 
 In addition to the given constraints, we have default rules to emulate
 the CG principles: an analysis is true if no rule affects it,
@@ -214,14 +214,14 @@ or selected. \\
 %\end{itemize}
 
 
-\noindent These three features might change the way that rules are written. 
+\noindent These three features influence the way that rules are written. 
 We predict that less rules are needed; whether this holds in
 the order of thousands of rules remains to be tested.
 Getting rid of ordering could ease the task of the grammar writer,
 since it removes the need to estimate the best sequence of rule
 applications.
 
-However, the implementation should not be too different from the
+However, the results using our approach should not be too different from the
 existing ones---our preliminary evaluation against VISL CG-3 shows
 promising results in this regard.
 \pagebreak
@@ -232,7 +232,7 @@ promising results in this regard.
 
 The worst-case complexity of SAT is exponential, whereas the standard
 implementations of CG are polynomial, but with advances in SAT solving
-techniques, the performance in the average case is much more feasible than in the previous works done in 90s--00s.
+techniques, the performance in the average case in practice is much more feasible than in the previous works done in 90s--00s.
 We used the open-source SAT solver MiniSat \cite{een04sat}.
 
 Table~\ref{table:time} shows the execution time compared to VISL CG-3. 
@@ -317,6 +317,9 @@ difference between the systems at each new rule.
 % In this experiment, we took 19 rules written by the authors, which give 83.15 \% correct results with SATCG and 83.33 \% with VISL CG-3.
 % Then we removed rules one by one; after getting a score for $n$ rules, we took the combination of $n-1$ rules for which SATCG gives the best score, and we ran the rule set with VISL CG-3 for comparison. Table~\ref{table:results_remove} shows the percentages compared to the gold standard for both systems.
 
+\section{Conclusions}
+
+SAT-solvers are nowadays powerful enough to be used for dealing with Constraint Grammars. A logic-based approach to CG has possible advantages over more traditional approaches; a SAT-solver may disambiguate more words, and may do so more precisely. Also, the SAT-solver requires less rules, and these rules are simpler. The ordering of rules is something we found was incompatible with a logic-based approach. We compensate this by maximising rule applications. Whether this is an advantage or disadvantage remains to be seen. Our initial experimental results are promising.
 
 
 % \section*{Acknowledgments}
