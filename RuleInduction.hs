@@ -75,7 +75,7 @@ speculateRules total rs (ls0,gs0) (ls,gs) =
     do return rs
    else
     do putStr ("sents: " ++ rjust 5 (show (length ls')))
-       putStr (", cands: " ++ rjust 5 (show (M.size rs')))
+       putStr (", cands: " ++ rjust 5 (show (length rsSorted)))
        hFlush stdout
        putStrLn ( ", best: " ++ rjust 5 (show (round sc))
                ++ " (" ++ showPercent (sc / fromIntegral total) ++ ")"
@@ -90,8 +90,8 @@ speculateRules total rs (ls0,gs0) (ls,gs) =
 			   ]
 
   rs' = speculateRule rs ls' gs'
-  rsSorted = map snd $ take 5000 $ reverse $ sort [ (n,r) | (r,n) <- M.toList rs' ]
-  r   = snd $ maximum [ (score 100.0 (rs ++ [r]) ls' gs', r) | r <- rsSorted ]
+  rsSorted = map snd $ takeWhile (\(n,_) -> n >= 12) $ reverse $ sort [ (n,r) | (r,n) <- M.toList rs' ]
+  r   = snd $ maximum [ (score 1000.0 (rs ++ [r]) ls' gs', r) | r <- rsSorted ]
   sc  = score 0.0 (rs ++ [r]) ls0 gs0
 
 rjust :: Int -> String -> String
