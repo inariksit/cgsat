@@ -9,8 +9,9 @@ import Data.Maybe
 import System.Environment
 import System.IO
 import System.Process
+import Text.Printf
 
-ambiguous = "data/es.tagged.ambiguous"
+ambiguous = "data/es.tagged.ambiguous.bak"
 apertium = "data/apertium-spa.spa.rlx"
 small = "data/spa_smallset.rlx"
 golddata = "data/es.tagged"
@@ -38,9 +39,10 @@ main = do
 
 gold rls dat = do rules <- readRules rls
                   text <- readData dat
+                  gold <- readData golddata
+
                   resSAT <- mapM (disambiguate False rules) text
                   resVISL <- vislcg3 rls dat True
-                  gold <- readData golddata
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 100 --change if you want different output
                   prAll resSAT gold text verbose
@@ -79,7 +81,7 @@ loop []     t g scores = return scores
 loop (r:rs) t g scores = do
   res <- mapM (disambiguate False r) t
   let diff =  [dif | (sat,gold) <- zip res g
-                   , let dif = diffBySent sat gold
+                   , let dif = precision sat gold
                    , (not.null) dif ]
       orig = fromIntegral $ length (concat t)
       difbw = fromIntegral $ length (concat diff)
@@ -87,33 +89,49 @@ loop (r:rs) t g scores = do
   when ((length scores) `mod` 100 == 0) $ print (length scores) 
   loop rs t g ((perc,r):scores)
 
-  
+prAll :: [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO ()
 prAll s v tx verbose = do
-  let diffsents = [ (orig, diff) | (test, goldst, orig) <- zip3 s v tx
-                                 , let diff = diffBySent test goldst
+
+  let sentsSameLength = [ s' | (s', v') <- zip s v, length s' == length v' ]
+
+  let diffsentsPrec = [ (orig, diff) | (test, goldst, orig) <- zip3 s v tx
+                                 , length test == length goldst -- take only sentences that have same number of analyses
+                                 , let diff = precision test goldst
                                  , (not.null) diff ]
-      diffwords = concatMap snd diffsents :: [(Analysis,Analysis)]
+      diffwordsPrec = concatMap snd diffsentsPrec :: [(Analysis,Analysis)]
+
+
+      diffsentsRec = [ (orig, diff) | (test, goldst, orig) <- zip3 s v tx
+                                 , length test == length goldst
+                                 , let diff = recall test goldst
+                                 , (not.null) diff ]
+      diffwordsRec = concatMap snd diffsentsRec :: [(Analysis,Analysis)]
+
       
-  when verbose $ mapM_ prDiff diffsents
+  when verbose $ mapM_ prDiff diffsentsPrec
 
-  let origwlen = length $ concat tx
-      origslen = length s
-      diffslen = length diffsents
-      diffwlen = length diffwords
+  let origwlen = length $ concat sentsSameLength
+      origslen = length sentsSameLength
+      diffslenPrec = length diffsentsPrec
+      diffwlenPrec = length diffwordsPrec
 
-      moreD = length $ filter (\(tst,gld) -> length tst < length gld)  diffwords
-      lessD = length $ filter (\(tst,gld) -> length tst > length gld) diffwords
-      diffD = length $ filter (\(tst,gld) -> null $ intersect tst gld) diffwords
+      diffslenRec = length diffsentsRec
+      diffwlenRec = length diffwordsRec
+
+      moreD = length $ filter (\(tst,gld) -> length tst < length gld)  diffwordsPrec
+      lessD = length $ filter (\(tst,gld) -> length tst > length gld) diffwordsPrec
+      diffD = length $ filter (\(tst,gld) -> null $ intersect tst gld) diffwordsPrec
+
+      prec = 100 * (fromIntegral origwlen - fromIntegral diffwlenPrec) / fromIntegral origwlen
+      rec  = 100 * (fromIntegral origwlen - fromIntegral diffwlenRec) / fromIntegral origwlen
   putStr "(Sentences,words) in the original: "
   print (origslen,origwlen)
   putStr "Different (sentences,words) from original: "
-  print (diffslen,diffwlen)
-  putStr "% same sentences: "
-  print $ 100 * ((fromIntegral origslen - fromIntegral diffslen) / fromIntegral origslen)
-  putStr "% same words: "
-  print $ 100 * ((fromIntegral origwlen - fromIntegral diffwlen) / fromIntegral origwlen)
+  print (diffslenPrec,diffwlenPrec)
+  printf "Precision %.2f, " (prec::Float)
+  printf "recall %.2f \n"  (rec::Float)
   putStr "Disambiguates (more,less,disjoint,all): "
-  print (moreD, lessD, diffD, diffwlen)
+  print (moreD, lessD, diffD, diffwlenPrec)
   putStrLn ""
 
   where prDiff (s,as) = do putStrLn "---------------\n"
@@ -126,9 +144,13 @@ prAll s v tx verbose = do
                             putStrLn $ showAnalysis a2
 
 
-diffBySent :: Sentence -> Sentence -> [(Analysis,Analysis)]
-diffBySent s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2
+precision :: Sentence -> Sentence -> [(Analysis,Analysis)]
+precision s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2
                               , sort a1 /= sort a2 ]
+
+recall :: Sentence -> Sentence -> [(Analysis,Analysis)]
+recall cand gold = [ (a1, a2) | (a1, a2) <- zip cand gold
+                              , null $ a1 `intersect` a2 ]
 
 vislcg3 :: FilePath -> FilePath -> Bool -> IO [Sentence]
 vislcg3 rls dt isCG2 = do
