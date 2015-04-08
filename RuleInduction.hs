@@ -13,6 +13,9 @@ file, gold :: FilePath
 file = "data/es.tagged.ambiguous"
 gold = "data/es.tagged"
 
+evens (x:y:xs) = x : evens xs
+evens xs       = xs
+
 main =
   do s1 <- readFile file
      s2 <- readFile gold
@@ -20,7 +23,7 @@ main =
          ls2 = parse s2
      putStrLn ("Sentences:  " ++ show (length ls1))
      
-     let ls12 = take 700
+     let ls12 = evens
                 [ (l1,l2)
                 | (l1,l2) <- ls1 `zip` ls2
                 , length l1 == length l2
@@ -120,7 +123,7 @@ speculateRuleWord ww1 ww2 =
  
   spec :: (Word,Word) -> (Word,Word) -> [Rule]
   spec ((_,is1),(_,[g])) ((_,is2),_) =
-    [ (sort lhs, sort rhs)
+    [ (lhs, rhs)
     | g `elem` is1
     , let is1' = is1 \\ [g]
     , not (null is1')
