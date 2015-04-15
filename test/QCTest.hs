@@ -3,7 +3,7 @@ module QCTest where
 import CG_base
 import CG_SAT (getContext,Token(..))
 import MiniSat
-import SAT.SAT (Bit(..))
+import SAT
 import Control.Monad
 import Test.QuickCheck
 
@@ -41,8 +41,8 @@ allTags = concat $ verb ++ noun ++ det ++ adv ++ conj ++ prep ++ sg ++ pl ++ cnj
 instance Arbitrary Tag where
   arbitrary = elements allTags
 
-instance Arbitrary Bit where
-  arbitrary = elements [Lit (MkLit n) | n <- [1..50]]
+instance Arbitrary SAT.Lit where
+  arbitrary = elements [SAT.Lit (MiniSat.MkLit n) | n <- [1..50]]
 
 instance Arbitrary Position where
   arbitrary = elements $ [Exactly n | n <- [-5..5]] ++
