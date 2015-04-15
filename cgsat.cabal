@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, SAT.SAT
+  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse
   other-modules:       CG.ErrM, Apertium.ErrM,
                        Apertium.Abs, Apertium.Lex, Apertium.Par,
                        CG.Abs, CG.Lex, CG.Par, CG.Print
@@ -25,6 +25,7 @@ library
   build-depends:       base >=4.6 && <4.7,
                        containers >=0.5 && <0.6,
                        minisat >=0.1 && <0.2,
+                       satplus,
                        mtl >=2.1 && <2.2,
                        array >=0.4 && <0.5
 
@@ -44,6 +45,7 @@ executable cgsat
                        cgsat,
                        mtl,
                        minisat,
+                       satplus,
                        array >=0.4 && <0.5,
                        containers
   default-language:    Haskell2010
@@ -55,6 +57,7 @@ executable test-cgsat
                        cgsat,
                        mtl,
                        minisat,
+                       satplus,
                        array,
                        containers,
                        process
@@ -67,11 +70,13 @@ executable profiling
                        -threaded
                        -fprof-auto
                        -caf-all
+                       -prof
                        "-with-rtsopts=-N -p -s -h -i0.1"
   build-depends:       base >= 4.5 && < 5,
                        cgsat,
                        mtl,
                        minisat,
+                       satplus,
                        array >=0.4 && <0.5,
                        containers
 
@@ -82,5 +87,6 @@ Test-Suite qctest
   build-depends:       base,
                        cgsat,
                        minisat,
+                       satplus,
                        QuickCheck
   default-language:    Haskell2010
