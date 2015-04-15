@@ -132,7 +132,7 @@ prAll s v tx verbose = do
       prec = 100 * (fromIntegral origwlen - fromIntegral diffwlenPrec) / fromIntegral origwlen
       rec  = 100 * (fromIntegral origwlen - fromIntegral diffwlenRec) / fromIntegral origwlen
       univ = 100 * (universaldiff / fromIntegral origwlen)
-      diffslenPrec = 9999
+
   putStrLn $ "Original: " ++ show origslen ++ " sentences, " 
                           ++ show origwlen ++ " words"
   putStrLn $ "Different words from original: " ++ show diffwlenPrec
