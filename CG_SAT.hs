@@ -34,7 +34,10 @@ isBoundary tok = not $ null ([BOS,EOS] `intersect` getTags tok)
 
 -- we don't need to apply rules to tokens that are already unambiguous
 isAmbig :: Token -> [Token] -> Bool
-isAmbig tok toks = length (filter (sameInd tok) toks) > 1
+isAmbig tok toks = atLeast 2 (filter (sameInd tok) toks) 
+  where atLeast 0 _  = True
+        atLeast _ [] = False
+        atLeast k (x:xs) = atLeast (k-1) xs
 
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
@@ -48,6 +51,11 @@ tagsMatchRule :: [[Tag]] -> Token -> Bool
 tagsMatchRule tags tok = or $ map (\tagset -> isSubsetOf tagset tagsInAna) tagsInRule
   where tagsInAna  = fromList $ getTags tok :: Set Tag
         tagsInRule = map fromList tags :: [Set Tag]
+
+tagsDontMatchRule :: [[Tag]] -> Token -> Bool
+tagsDontMatchRule tags tok = and $ map (\tagset -> null $ tagset `intersect` tagsInAna) tagsInRule
+  where tagsInAna  = getTags tok :: [Tag]
+        tagsInRule = tags :: [[Tag]]
 
 
 -- | Input: sentence, as in list of analyses.
@@ -90,11 +98,11 @@ applyRules :: Rule -> [[Condition]] -> [Token] -> [[Lit]]
 applyRules rule []         allToks = []
 applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
   case rule of 
-    (Remove _n tags _c) -> mkVars (chosen tags) neg 
-    (Select _n tags _c) -> mkVars (chosen tags) id ++ mkVars (other tags) neg
+    (Remove _n tags _c) -> let chosen = remove tags in mkVars chosen neg 
+    (Select _n tags _c) -> let (chosen,other) = select tags in mkVars chosen id ++ mkVars other neg
 
 
-  where
+  where 
         -- check if getContext has returned non-empty context for each condition
         allCondsHold :: [[Token]] -> Bool
         allCondsHold ts | null conds = True 
@@ -113,27 +121,33 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
      -- because that would require n pl and n sg be true at the same time.
      -- Instead we make combinations [(1,det), (3,n sg)] and [(1,det), (3,n pl)]
 
+        remove :: TagSet -> [(Token,[[Token]])]
+        remove tags = [ (tok, ctx) | tok <- allToks
+                                   , isAmbig tok allToks --only apply rules to ambiguous tokens
+                                   , tagsMatchRule tags tok
+                                   , let ctx = getContext tok allToks conds
+                                   , allCondsHold ctx]
 
-        -- chosen: analyses that have the wanted readings and context
-        chosen :: TagSet -> [(Token,[[Token]])]
-        chosen tags = [(tok, ctx) | tok <- allToks
-                                  , isAmbig tok allToks --only apply rules to ambiguous tokens
-                                  , tagsMatchRule tags tok
-                                  , let ctx = getContext tok allToks conds
-                                  , allCondsHold ctx]
+        select :: TagSet -> ([(Token,[[Token]])], [(Token,[[Token]])]) --(chosen,other)
+        select tags = (chosen, other)
+             -- chosen: analyses that have the wanted readings and context
  
-        -- other: analyses that don't have the wanted readings,
-        -- but some word in the same location does have the wanted reading(s)
-        --      allToks = [(1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl])]
-        --      tags    = [V]
-        -- ====> `chosen tags' will return (2,[V,Sg])
-        -- ====> `other tags'  will return (2,[N,Pl])
-        other :: TagSet -> [(Token,[[Token]])]
-        other tags =  [ (tok, ctx) | tok <- allToks
-                                   , (wantedTok, ctx) <- chosen tags
-                                   , sameInd tok wantedTok
-                                   , not $ tagsMatchRule tags tok ]
+            -- other: analyses that don't have the wanted readings,
+            -- but some word in the same location does have the wanted reading(s).
+            --      allToks = [(1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl])]
+            --      tags    = [V]
+            --      chosen  = (2,[V,Sg]), other = (2,[N,Pl])
+          where chosen = remove tags
+                other  = [ (tok, ctx) | tok <- allToks
+                                      , (wantedTok, ctx) <- chosen
+                                      , sameInd tok wantedTok
+--                                      , tok /= wantedTok ]
+                                      , tagsDontMatchRule tags tok ]
+--                                      , not $ tagsMatchRule tags tok ]
 
+        
+
+ 
 
 
 getContext :: Token           -- ^ a single analysis
@@ -232,7 +246,7 @@ disambiguate verbose rules sentence = do
 
 
               lt <- count s litsForTags
-              b2 <- solveMinimize s [lc .>= k] lt
+              b2 <- solveMaximize s [lc .>= k] lt
               when verbose $ do
                 let trueClauses = [ show rl ++ "\n* " ++ show cl 
                                      | (True, (rl,cl)) <- zip cs applied ] 
