@@ -15,6 +15,8 @@ ambiguous = "data/es.tagged.ambiguous.bak"
 apertium = "data/apertium-spa.spa.rlx"
 small = "data/spa_smallset.rlx"
 golddata = "data/es.tagged"
+rusgr = undefined
+rustext = undefined
 
 main :: IO ()
 main = do
@@ -25,6 +27,7 @@ main = do
     ["gold","opti"] -> opti small ambiguous
     ["gold","obs"]  -> optiBySz small ambiguous
     ["gold"]        -> gold small ambiguous --using small as default grammar
+    ["goldrus"]     -> gold rusgr rustext
 
     [r,"gold"]      -> gold r ambiguous --specify grammar
 
@@ -89,33 +92,37 @@ loop (r:rs) t g scores = do
   when ((length scores) `mod` 100 == 0) $ print (length scores) 
   loop rs t g ((perc,r):scores)
 
+snd4 (_,b,_,_) = b
+trd4 (_,_,c,_) = c
+fth4 (_,_,_,d) = d
+
 prAll :: [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO ()
 prAll s v tx verbose = do
 
-  let sentsSameLength = [ s' | (s', v') <- zip s v, length s' == length v' ]
+  let sentsSameLen = [ (s', v', orig) | (s', v', orig) <- zip3 s v tx
+                                      , length s' == length v' ]
+      -- take only sentences that have same number of analyses
+   
+      precRec = [ (orig, prec, rec, univ) 
+                    | (test, goldst, orig) <- sentsSameLen
+                    , let prec = precision test goldst
+                    , let rec = recall test goldst 
+                    , let univ = [ 1.0 / anas 
+                                    | (tw, gw) <- zip test goldst
+                                    , (not.null) (tw `intersect` gw)
+                                    , let anas = fromIntegral $ length tw ]
+                ]
 
-  let diffsentsPrec = [ (orig, diff) | (test, goldst, orig) <- zip3 s v tx
-                                 , length test == length goldst -- take only sentences that have same number of analyses
-                                 , let diff = precision test goldst
-                                 , (not.null) diff ]
-      diffwordsPrec = concatMap snd diffsentsPrec :: [(Analysis,Analysis)]
+      diffwordsPrec = concatMap snd4 precRec :: [(Analysis,Analysis)]
+      diffwordsRec = concatMap trd4 precRec :: [(Analysis,Analysis)]
 
+      universaldiff = sum $ concatMap fth4 precRec
 
-      diffsentsRec = [ (orig, diff) | (test, goldst, orig) <- zip3 s v tx
-                                 , length test == length goldst
-                                 , let diff = recall test goldst
-                                 , (not.null) diff ]
-      diffwordsRec = concatMap snd diffsentsRec :: [(Analysis,Analysis)]
+  when verbose $ mapM_ prDiff precRec
 
-      
-  when verbose $ mapM_ prDiff diffsentsPrec
-
-  let origwlen = length $ concat sentsSameLength
-      origslen = length sentsSameLength
-      diffslenPrec = length diffsentsPrec
+  let origwlen = length $ concatMap (\(a,_,_) -> a) sentsSameLen
+      origslen = length sentsSameLen
       diffwlenPrec = length diffwordsPrec
-
-      diffslenRec = length diffsentsRec
       diffwlenRec = length diffwordsRec
 
       moreD = length $ filter (\(tst,gld) -> length tst < length gld)  diffwordsPrec
@@ -124,20 +131,24 @@ prAll s v tx verbose = do
 
       prec = 100 * (fromIntegral origwlen - fromIntegral diffwlenPrec) / fromIntegral origwlen
       rec  = 100 * (fromIntegral origwlen - fromIntegral diffwlenRec) / fromIntegral origwlen
-  putStr "(Sentences,words) in the original: "
-  print (origslen,origwlen)
-  putStr "Different (sentences,words) from original: "
-  print (diffslenPrec,diffwlenPrec)
-  printf "Precision %.2f, " (prec::Float)
-  printf "recall %.2f \n"  (rec::Float)
+      univ = 100 * (universaldiff / fromIntegral origwlen)
+      diffslenPrec = 9999
+  putStrLn $ "Original: " ++ show origslen ++ " sentences, " 
+                          ++ show origwlen ++ " words"
+  putStrLn $ "Different words from original: " ++ show diffwlenPrec
+  printf "Precision %.2f, " (prec :: Float)
+  printf "recall %.2f \n" (rec :: Float)
+  
+  printf "General diff %.2f \n" (univ :: Float)
+  
   putStr "Disambiguates (more,less,disjoint,all): "
   print (moreD, lessD, diffD, diffwlenPrec)
   putStrLn ""
 
-  where prDiff (s,as) = do putStrLn "---------------\n"
-                           putStrLn "Original sentence:"
-                           putStrLn $ showSentence s
-                           mapM_ prAnas as
+  where prDiff (s,as,_,_) = do putStrLn "---------------\n"
+                               putStrLn "Original sentence:"
+                               putStrLn $ showSentence s
+                               mapM_ prAnas as
         prAnas (a1,a2) = do putStrLn "\nDisambiguation by satcg"
                             putStrLn $ showAnalysis a1
                             putStrLn "\nDisambiguation by vislcg3" 
