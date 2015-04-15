@@ -13,7 +13,7 @@ grammars:
 	ghc --make Apertium/Test.hs -o Apertium/Test
 
 rest:
-	cabal configure --enable-tests --enable-library-profiling --enable-executable-profiling
+	cabal configure --enable-tests --enable-library-profiling --enable-executable-profiling --user
 	cabal build
 
 test-pride:
