@@ -33,7 +33,7 @@ main = do
 
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
-                  resSAT <- mapM (disambiguate False rules) text -- :: [Sentence]
+                  resSAT <- mapM (disambiguate False False rules) text -- :: [Sentence]
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 
@@ -44,7 +44,7 @@ gold rls dat = do rules <- readRules rls
                   text <- readData dat
                   gold <- readData golddata
 
-                  resSAT <- mapM (disambiguate False rules) text
+                  resSAT <- mapM (disambiguate False False rules) text
                   resVISL <- vislcg3 rls dat True
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 100 --change if you want different output
@@ -82,7 +82,7 @@ pr (score,rs) = do putStrLn $ (show score) ++ ":"
 loop :: [[Rule]] -> [Sentence] -> [Sentence] -> [(Float, [Rule])] -> IO [(Float, [Rule])]
 loop []     t g scores = return scores
 loop (r:rs) t g scores = do
-  res <- mapM (disambiguate False r) t
+  res <- mapM (disambiguate False False r) t
   let diff =  [dif | (sat,gold) <- zip res g
                    , let dif = precision sat gold
                    , (not.null) dif ]
