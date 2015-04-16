@@ -30,7 +30,7 @@ getLit :: Token -> Lit
 getLit (_,b) = b
 
 isBoundary :: Token -> Bool
-isBoundary tok = not $ null ([BOS,EOS] `intersect` getTags tok)
+isBoundary ((_,ts),_) = not $ null ([BOS,EOS] `intersect` ts)
 
 -- we don't need to apply rules to tokens that are already unambiguous
 isAmbig :: Token -> [Token] -> Bool
@@ -41,21 +41,34 @@ isAmbig tok toks = atLeast 2 (filter (sameInd tok) toks)
 
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
-sameInd tok tok' = getInd tok == getInd tok'
+sameInd ((i,_),_) ((i',_),_) = i == i'
 
 
 --Rule     has [[Tag]].
 --Analysis has [Tag].
 --At least one complete sublist in the rule must be found in the analysis.
+-- tagsMatchRule :: [[Tag]] -> Token -> Bool
+-- tagsMatchRule tags tok = or $ map (\tagset -> isSubsetOf tagset tagsInAna) tagsInRule
+--   where tagsInAna  = fromList $ getTags tok :: Set Tag
+--         tagsInRule = map fromList tags :: [Set Tag]
+
+-- tagsMatchRule :: [[Tag]] -> Token -> Bool
+-- tagsMatchRule tagsInRule ((_, tagsInAna), _) =
+--   any (\tags -> (not.null) $ tags `intersect` tagsInAna) tagsInRule
+
 tagsMatchRule :: [[Tag]] -> Token -> Bool
-tagsMatchRule tags tok = or $ map (\tagset -> isSubsetOf tagset tagsInAna) tagsInRule
-  where tagsInAna  = fromList $ getTags tok :: Set Tag
-        tagsInRule = map fromList tags :: [Set Tag]
+tagsMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
+  where go []       ta = False
+        go (tr:trs) ta = if all (\t -> t `elem` ta) tr 
+                           then True
+                           else go trs ta
 
 tagsDontMatchRule :: [[Tag]] -> Token -> Bool
-tagsDontMatchRule tags tok = and $ map (\tagset -> null $ tagset `intersect` tagsInAna) tagsInRule
-  where tagsInAna  = getTags tok :: [Tag]
-        tagsInRule = tags :: [[Tag]]
+tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
+  where go []       ta = False
+        go (tr:trs) ta = if all (\t -> t `notElem` ta) tr 
+                           then True
+                           else go trs ta
 
 
 -- | Input: sentence, as in list of analyses.
@@ -185,8 +198,8 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
         barrier n btags tok | barinds==[] = atleast n tok
                             | n < 0     = between mindist n tok
                             | otherwise = between n mindist tok
-           where barinds = [ getInd tok | tok <- allToks
-                                        , tagsMatchRule btags tok ]
+           where barinds = [ ind | tok@((ind,_),_) <- allToks
+                                 , tagsMatchRule btags tok ]
                  dists   = map (\i -> i - getInd tok) barinds :: [Integer]
                  mindist = minimum dists
                  
@@ -197,8 +210,8 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 -- how to emulate ordering:
 -- Maximise all instances of applying rule one; then commit to those; then maximise instances of rule 2, and so on.
 
-disambiguate :: Bool -> [Rule] -> Sentence -> IO Sentence
-disambiguate verbose rules sentence = do
+disambiguate :: Bool -> Bool -> [Rule] -> Sentence -> IO Sentence
+disambiguate verbose debug rules sentence = do
   let chunkedSent = chunk sentence :: [(Integer,[Tag])]
   if length chunkedSent == length sentence then return sentence -- not ambiguous
    else
@@ -220,7 +233,7 @@ disambiguate verbose rules sentence = do
       let clauses = [ neg b:cl | (_, cl) <- applied
                                , b <- litsForClauses ]
 
-      when verbose $ do
+      when debug $ do
         putStrLn "\ntokens:"
         mapM_ print toks
         putStrLn "\nfirst step, make sure all readings for a given word are not false:"
@@ -237,7 +250,7 @@ disambiguate verbose rules sentence = do
       if b then
            do cs <- sequence [ modelValue s x | x <- litsForClauses ]
               k <- U.modelValue s lc --number of true lits in lits for clauses
-              when verbose $ do
+              when debug $ do
                 let conf = [ show rl ++ "\n* " ++ show cl 
                               | (False, (rl,cl)) <- zip cs applied ]
                 putStrLn "These clauses were omitted due to conflicts:"
@@ -247,7 +260,7 @@ disambiguate verbose rules sentence = do
 
               lt <- count s litsForTags
               b2 <- solveMaximize s [lc .>= k] lt
-              when verbose $ do
+              when debug $ do
                 let trueClauses = [ show rl ++ "\n* " ++ show cl 
                                      | (True, (rl,cl)) <- zip cs applied ] 
                 putStrLn "\nThe following clauses were used:"
@@ -260,7 +273,7 @@ disambiguate verbose rules sentence = do
                 do bs <- sequence [ modelValue s x | x <- litsForTags ]
                    let truetoks = [ t | (True, t) <- zip bs toks ]
                    when verbose $ do
-                     putStrLn "\nThe following tag sequence was chosen:"
+                     --putStrLn "\nThe following tag sequence was chosen:"
                      putStrLn $ showSentence (dechunk truetoks)
                    return (dechunk truetoks)
                 else
@@ -273,7 +286,7 @@ disambiguate verbose rules sentence = do
            return []
 
 test :: IO ()
-test = mapM_ (disambiguate True rls) CG_data.exs
+test = mapM_ (disambiguate True False rls) CG_data.exs
 
   where rls = [-- rmVerbIfDet
              -- , rmNounIfPron
