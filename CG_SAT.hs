@@ -47,15 +47,6 @@ sameInd ((i,_),_) ((i',_),_) = i == i'
 --Rule     has [[Tag]].
 --Analysis has [Tag].
 --At least one complete sublist in the rule must be found in the analysis.
--- tagsMatchRule :: [[Tag]] -> Token -> Bool
--- tagsMatchRule tags tok = or $ map (\tagset -> isSubsetOf tagset tagsInAna) tagsInRule
---   where tagsInAna  = fromList $ getTags tok :: Set Tag
---         tagsInRule = map fromList tags :: [Set Tag]
-
--- tagsMatchRule :: [[Tag]] -> Token -> Bool
--- tagsMatchRule tagsInRule ((_, tagsInAna), _) =
---   any (\tags -> (not.null) $ tags `intersect` tagsInAna) tagsInRule
-
 tagsMatchRule :: [[Tag]] -> Token -> Bool
 tagsMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
   where go []       ta = False
@@ -65,9 +56,9 @@ tagsMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
 
 tagsDontMatchRule :: [[Tag]] -> Token -> Bool
 tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
-  where go []       ta = False
-        go (tr:trs) ta = if all (\t -> t `notElem` ta) tr 
-                           then True
+  where go []       ta = True
+        go (tr:trs) ta = if any (\t -> t `elem` ta) tr 
+                           then False
                            else go trs ta
 
 
@@ -102,22 +93,21 @@ anchor toks = (map.map) getLit (groupBy sameInd toks)
 -- | Apply rules to tokens. 
 applyRule :: Rule -> [Token] -> [[Lit]]
 applyRule rule toks = --trace (show rule) $
-  case rule of
-    (Remove _name tags conds) -> applyRules rule (toLists conds) toks
-    (Select _name tags conds) -> applyRules rule (toLists conds) toks
-
-
-applyRules :: Rule -> [[Condition]] -> [Token] -> [[Lit]]
-applyRules rule []         allToks = []
-applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
   case rule of 
-    (Remove _n tags _c) -> let chosen = remove tags in mkVars chosen neg 
-    (Select _n tags _c) -> let (chosen,other) = select tags in mkVars chosen id ++ mkVars other neg
+    (Remove _name tags conds) -> go False tags (toLists conds) toks
+    (Select _name tags conds) -> go True tags (toLists conds) toks
 
+    
+go :: Bool -> TagSet -> [[Condition]] -> [Token] -> [[Lit]]
+go isSelect tags []         allToks = []
+go isSelect tags (conds:cs) allToks = --trace (show conds) $
+  if isSelect 
+    then let (ch,ot) = select tags in mkVars ch id ++ mkVars ot neg
+    else let chosen  = remove tags in mkVars chosen neg 
+  ++ go isSelect tags cs allToks
 
-  where 
         -- check if getContext has returned non-empty context for each condition
-        allCondsHold :: [[Token]] -> Bool
+  where allCondsHold :: [[Token]] -> Bool
         allCondsHold ts | null conds = True 
                         | otherwise  = all (not.null) ts
 
@@ -141,9 +131,9 @@ applyRules rule (conds:cs) allToks = applyRules rule cs allToks ++
                                    , let ctx = getContext tok allToks conds
                                    , allCondsHold ctx]
 
-        select :: TagSet -> ([(Token,[[Token]])], [(Token,[[Token]])]) --(chosen,other)
+        select :: TagSet -> ([(Token,[[Token]])], [(Token,[[Token]])])
         select tags = (chosen, other)
-             -- chosen: analyses that have the wanted readings and context
+            -- chosen: analyses that have the wanted readings and context
  
             -- other: analyses that don't have the wanted readings,
             -- but some word in the same location does have the wanted reading(s).

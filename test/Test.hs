@@ -33,7 +33,10 @@ main = do
 
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
-                  resSAT <- mapM (disambiguate False False rules) text -- :: [Sentence]
+                  let is2 = "2" `elem` o
+                      verbose = "v" `elem` o
+                      debug = "d" `elem` o
+                  resSAT <- mapM (disambiguate verbose debug rules) text -- :: [Sentence]
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 

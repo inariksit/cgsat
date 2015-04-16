@@ -62,11 +62,12 @@ instance Show Rule where
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
---   (Bool, [Tag]) emulates set negation NOT in CG3.
+--   (Bool, TagSet) emulates set negation NOT in CG3.
 --   NOT foo === intersection with foo and the candidate is empty
 data Condition = C Position (Bool, TagSet)
-               | AND Condition Condition
-               | OR Condition Condition deriving (Show)
+               | AND Condition Condition 
+               | OR Condition Condition  deriving (Show)
+
 
 -- | Position can be exact or at least.
 -- | The meaning of numbers is 
@@ -80,7 +81,7 @@ data Position = Exactly Integer
 
 
 
-
+toLists :: Condition -> [[Condition]]
 {-    
      OR
     /  \
@@ -93,18 +94,13 @@ data Position = Exactly Integer
 
 Everything inside the outer list is constructed by OR (or just C).
 Everything inside an inner list is constructed by AND.
+
+for OR, we make a list of lists, all in sequence.
+for AND, we need to make them parallel and put in a form with OR as the first constructor
+ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
 -}
-toLists :: Condition -> [[Condition]]
 
---for OR, we make a list of lists, all in sequence.
---for AND, we need to make them parallel and put in a form with OR as the first constructor
---ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
-
---  (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 N OR Verb) 
--- -> OR (AND (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 N))
---       (AND (NOT -2 Verb) (NOT -2 Prep) (-1C Pro) (0 Verb))
-
-toLists cond = {-# SCC "toLists" #-} case cond of
+toLists cond = case cond of
     C   _pos       _tags -> [[cond]]
     AND c1@(C _ _) c2    -> map (c1:) (toLists c2)
     OR  c1@(C _ _) c2    -> [c1]:(toLists c2)
@@ -120,13 +116,6 @@ toLists cond = {-# SCC "toLists" #-} case cond of
                                                     (AND c2 c4))
     AND c1@(AND _ _) c2@(AND _ _) -> [concat $ toLists c1 ++ toLists c2]
     OR  c1 c2 -> toLists c1 ++ toLists c2 
-  where toListsAnd (AND c1 c2) = concat (toLists c1 ++ toLists c2)
-        toListsAnd c@(C _ _)   = [c]
-
-        simpleList :: Condition -> [Condition]
-        simpleList (AND c1 c2) = simpleList c1 ++ simpleList c2
-        simpleList (OR c1 c2)  = simpleList c1 ++ simpleList c2
-        simpleList c           = [c]
 
 
 -- Shorthand for writing conditions without barriers
@@ -137,13 +126,12 @@ mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) (True, tags)
 lemmaBear :: Condition
 lemmaBear = mkC "0" [[Lem "bear"]]
 always = mkC "0" []
-andTest = AND lemmaBear always
 
 hasBoundary :: Rule -> Bool
 hasBoundary rule = case rule of
   (Select _n _t c) -> findBoundary c
   (Remove _n _t c) -> findBoundary c
-  where findBoundary c = or $ map hasB (concat (toLists c))
+  where findBoundary c = any hasB (concat (toLists c))
         hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat tags
 
 -- Sets of tags
@@ -158,23 +146,23 @@ pl   = [[Tag "pl"]]
 cnjcoo  = [[Tag "cnjcoo"]]
 
 -- Rules
--- rmParticle = Remove "r_part" [[Tag "particle"]] always
--- slVerbAlways = Select "s_verb" verb  always
--- slNounIfBear = Select "s_bear_n" [[Lem "bear", n] | n <- concat noun]  always
+rmParticle = Remove NoName [[Tag "particle"]] always
+slVerbAlways = Select NoName verb  always
+slNounIfBear = Select NoName [[Lem "bear", n] | n <- concat noun]  always
 
--- rmVerbIfDet = Remove "r_verb_det" verb (mkC "-1" det)
--- rmAdvIfDet = Remove "r_adv_det" adv (mkC "1" det)
--- rmNounIfPron = Remove "" noun (mkC "-1" [[Tag "pron"]])
--- slPrepIfDet = Select "" prep (mkC "1" det)
--- slNounAfterConj = Select "" noun (mkC "-1" conj)
+rmVerbIfDet = Remove NoName verb (mkC "-1" det)
+rmAdvIfDet = Remove NoName adv (mkC "1" det)
+rmNounIfPron = Remove NoName noun (mkC "-1" [[Tag "pron"]])
+slPrepIfDet = Select NoName prep (mkC "1" det)
+slNounAfterConj = Select NoName noun (mkC "-1" conj)
 
--- slCCifCC = Select "" cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
+slCCifCC = Select NoName cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
 
--- rmPlIfSg = Remove "" pl (C (Exactly (-1)) (True,sg))
--- rmSgIfPl = Remove "" sg (mkC "-1" pl)
+rmPlIfSg = Remove NoName pl (C (Exactly (-1)) (True,sg))
+rmSgIfPl = Remove NoName sg (mkC "-1" pl)
 
--- negTest   = Select "" verb (mkC "-1" prep)
--- negOrTest = Select "" verb (OR (mkC "-1" conj) (mkC "1" prep))
+negTest   = Select NoName verb (mkC "-1" prep)
+negOrTest = Select NoName verb (OR (mkC "-1" conj) (mkC "1" prep))
 
 
 -- | Shows all analyses as string, each lemma+tags in one line

@@ -211,10 +211,7 @@ transCond c = case c of
                             conds <- mapM transCond cs
                             return $ foldr CGB.AND first (fixPos base conds [])
 
-  where isLink0 []                 = True
-        isLink0 (CGB.C pos _ts:cs) = getPos pos == 0 && isLink0 cs
-
-        fixPos base []                  res = res
+  where fixPos base []                  res = res
         fixPos base (CGB.C pos tags:cs) res = 
           let newBase = base + getPos pos
               newPos = changePos pos newBase
@@ -244,6 +241,7 @@ transCond c = case c of
                           CGB.AtLeast i -> i
              btags <- transBarrier bar
              liftM (CGB.C $ CGB.Barrier int btags) (transTagSet' bool ts)
+
 
 
 transPosition :: Position -> State Env CGB.Position

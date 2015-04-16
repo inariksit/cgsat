@@ -26,7 +26,7 @@ happy = ("happy",[[Lem "happy", Tag "adj"]])
 
 and_ = ("and",[[Lem "and", Tag "cnjcoo"]])
 
-go = ("go",[[Lem "go", Tag "vblex", Tag "inf"], [Lem "go", Tag "vblex", Tag "pres"], [Lem "go", Tag "n", Tag "sg"]])
+go_ = ("go",[[Lem "go", Tag "vblex", Tag "inf"], [Lem "go", Tag "vblex", Tag "pres"], [Lem "go", Tag "n", Tag "sg"]])
 
 to = ("to",[[Lem "to", Tag "prep"],
        [Lem "to", Tag "adv"]])
@@ -49,7 +49,7 @@ ex1 = [ snd they
       , snd both_
       , snd happy
       , snd and_
-      , snd go
+      , snd go_
       , snd to
       , snd the
       , snd house ]
@@ -61,7 +61,7 @@ ex2 = [ snd both_
       , snd sleep
       , snd comma
       , snd they
-      , snd go
+      , snd go_
       , snd and_
       , snd sleep ]
 
