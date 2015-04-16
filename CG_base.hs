@@ -13,10 +13,12 @@ data Tag = Tag String | Lem String | WF String | EOS | BOS deriving (Eq,Read)
 -- | Wordform should be first element in an analysis.
 instance Ord Tag where
   WF l `compare` WF l' = l `compare` l'
-  WF l `compare` _      = LT
-  _     `compare` WF l  = GT
+  WF _ `compare` _      = LT
+  _     `compare` WF _  = GT
   Lem l `compare` Lem l' = l `compare` l'
   Tag t `compare` Tag t' = t `compare` t'
+  Lem _ `compare` Tag _  = LT
+  Tag _ `compare` Lem _  = GT
   foo   `compare` bar    = show foo `compare` show bar
 
 -- | Following the conventions of vislcg3
