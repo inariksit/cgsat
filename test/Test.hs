@@ -22,6 +22,7 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
+    ["shuffle"]     -> shuffle small ambiguous
     ["opticomp",n]  -> optiComp small ambiguous (read n)
     ["gold","orig"] -> gold apertium ambiguous
     ["gold","opti"] -> opti small ambiguous
@@ -36,71 +37,33 @@ main = do
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
-                  resSAT <- mapM (disambiguate verbose debug rules) text -- :: [Sentence]
+                  resSAT <- mapM (disambiguateWithOrder verbose debug rules) text -- :: [Sentence]
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 
-                  prAll resSAT resVISL text verbose
+                  prAll "" resSAT resVISL text verbose
     _          -> putStrLn "usage: ./test <rules> <data> (or something else, check the source code test/Test.hs >__>)"
 
 gold rls dat = do rules <- readRules rls
                   text <- readData dat
                   gold <- readData golddata
 
-                  resSAT <- mapM (disambiguate False False rules) text
+                  resSAT <- mapM (disambiguateWithOrder False False rules) text
                   resVISL <- vislcg3 rls dat True
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 100 --change if you want different output
-                  prAll resSAT gold text verbose
+                  prAll "SAT" resSAT gold text verbose
                   putStrLn "\nVISLCG3 in comparison to gold standard"
-                  prAll resVISL gold text verbose
+                  prAll "VISL" resVISL gold text verbose
 
-optiBySz rl dt = do r <- readRules rl
-                    t <- readData dt
-                    g <- readData golddata
-                    let seqs = groupBy (\x y -> length x == length y) (subsequences r)
-                    res <- sequence [ loop rset t g [] | rset <- seqs ]
-                    putStrLn "Best rule set for each size:"
-                    mapM_ (mapM_ pr . (sortBy (\x y -> fst x `compare` fst y))) res
 
-opti rls dat = do r <- readRules rls
-                  t <- readData dat
-                  g <- readData golddata
-                  res <- loop (subsequences r) t g []
-                  putStrLn "optimal rule sequence:"
-                  mapM_ pr (take 3 (sortBy (\x y -> fst x `compare` fst y) res))
-
-optiComp rls dat n = do r <- readRules rls
-                        t <- readData dat
-                        g <- readData golddata
-                        let nrules = filter (\x -> length x==n) $ subsequences r
-                        res <- loop nrules t g []
-                        
-                        putStrLn "optimal rule sequence:"
-                        mapM_ pr (reverse (sortBy (\x y -> fst x `compare` fst y) res))
-
-pr (score,rs) = do putStrLn $ (show score) ++ ":"
-                   mapM_ print rs
-
-loop :: [[Rule]] -> [Sentence] -> [Sentence] -> [(Float, [Rule])] -> IO [(Float, [Rule])]
-loop []     t g scores = return scores
-loop (r:rs) t g scores = do
-  res <- mapM (disambiguate False False r) t
-  let diff =  [dif | (sat,gold) <- zip res g
-                   , let dif = precision sat gold
-                   , (not.null) dif ]
-      orig = fromIntegral $ length (concat t)
-      difbw = fromIntegral $ length (concat diff)
-      perc = 100 * ((orig-difbw) / orig) :: Float
-  when ((length scores) `mod` 100 == 0) $ print (length scores) 
-  loop rs t g ((perc,r):scores)
 
 snd4 (_,b,_,_) = b
 trd4 (_,_,c,_) = c
 fth4 (_,_,_,d) = d
 
-prAll :: [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO ()
-prAll s v tx verbose = do
+prAll :: String -> [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO ()
+prAll str s v tx verbose = do
 
   let sentsSameLen = [ (s', v', orig) | (s', v', orig) <- zip3 s v tx
                                       , length s' == length v' ]
@@ -128,9 +91,9 @@ prAll s v tx verbose = do
       diffwlenPrec = length diffwordsPrec
       diffwlenRec = length diffwordsRec
 
-      moreD = length $ filter (\(tst,gld) -> length tst < length gld)  diffwordsPrec
-      lessD = length $ filter (\(tst,gld) -> length tst > length gld) diffwordsPrec
-      diffD = length $ filter (\(tst,gld) -> null $ intersect tst gld) diffwordsPrec
+      moreD = length $ filter (\(t,g) -> length t < length g) diffwordsPrec
+      lessD = length $ filter (\(t,g) -> length t > length g) diffwordsPrec
+      diffD = length $ filter (\(t,g) -> null $ intersect t g) diffwordsPrec
 
       prec = 100 * (fromIntegral origwlen - fromIntegral diffwlenPrec) / fromIntegral origwlen
       rec  = 100 * (fromIntegral origwlen - fromIntegral diffwlenRec) / fromIntegral origwlen
@@ -142,7 +105,8 @@ prAll s v tx verbose = do
   printf "Precision %.2f, " (prec :: Float)
   printf "recall %.2f \n" (rec :: Float)
   
-  printf "General diff %.2f \n" (univ :: Float)
+  putStr str
+  printf " General diff %.2f \n" (univ :: Float)
   
   putStr "Disambiguates (more,less,disjoint,all): "
   print (moreD, lessD, diffD, diffwlenPrec)
@@ -196,3 +160,71 @@ hGetContents' hdl = do e <- hIsEOF hdl
 
 --wordCount :: [Sentence] -> Int
 wordCount s = length $ map (filter (\x -> null $ [BOS,EOS] `intersect` x)) $ concat s
+
+
+--------------------------------------------------------------------------------
+
+--shuffle :: [Rule] -> IO ()
+shuffle r d = do
+  rls <- readRules r
+  sequence_ [ do mkRuleFile ps fname ; putStrLn (fname ++ "\n---------") ; gold fname d ; putStrLn "----------\n\n"
+               | (n, ps) <- zip [0..] (permutations rls)
+               , let fname = "/tmp/permWithoutOrder" ++ show n ]
+
+
+mkRuleFile :: [Rule] -> FilePath -> IO ()
+mkRuleFile rules fp = do
+  lists <- readFile "data/spa_pre.rlx"
+  writeFile fp lists
+  rules <- sequence [ grep name | rl <- rules
+                       , let name = head $ words $ show rl ]
+  appendFile fp (unwords rules)
+
+  where
+    grep name = do
+      (_, Just out, _, _) <-
+        createProcess (proc "grep" [name,"data/spa_smallset.rlx"]){std_out=CreatePipe}
+      line <- hGetContents' out
+      hClose out
+      return line
+--------------------------------------------------------------------------------
+
+optiBySz rl dt = do r <- readRules rl
+                    t <- readData dt
+                    g <- readData golddata
+                    let seqs = groupBy (\x y -> length x == length y) (subsequences r)
+                    res <- sequence [ loop rset t g [] | rset <- seqs ]
+                    putStrLn "Best rule set for each size:"
+                    mapM_ (mapM_ pr . (sortBy (\x y -> fst x `compare` fst y))) res
+
+opti rls dat = do r <- readRules rls
+                  t <- readData dat
+                  g <- readData golddata
+                  res <- loop (subsequences r) t g []
+                  putStrLn "optimal rule sequence:"
+                  mapM_ pr (take 3 (sortBy (\(x,_) (y,_) -> x `compare` y) res))
+
+optiComp rls dat n = do r <- readRules rls
+                        t <- readData dat
+                        g <- readData golddata
+                        let nrules = filter (\x -> length x==n) $ subsequences r
+                        res <- loop nrules t g []
+                        
+                        putStrLn "optimal rule sequence:"
+                        mapM_ pr (reverse (sortBy (\x y -> fst x `compare` fst y) res))
+
+pr (score,rs) = do putStrLn $ (show score) ++ ":"
+                   mapM_ print rs
+
+loop :: [[Rule]] -> [Sentence] -> [Sentence] -> [(Float, [Rule])] -> IO [(Float, [Rule])]
+loop []     t g scores = return scores
+loop (r:rs) t g scores = do
+  res <- mapM (disambiguate False False r) t
+  let diff =  [dif | (sat,gold) <- zip res g
+                   , let dif = precision sat gold
+                   , (not.null) dif ]
+      orig = fromIntegral $ length (concat t)
+      difbw = fromIntegral $ length (concat diff)
+      perc = 100 * ((orig-difbw) / orig) :: Float
+  when ((length scores) `mod` 100 == 0) $ print (length scores) 
+  loop rs t g ((perc,r):scores)

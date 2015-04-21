@@ -39,6 +39,7 @@ isAmbig tok toks = atLeast 2 (filter (sameInd tok) toks)
         atLeast _ [] = False
         atLeast k (x:xs) = atLeast (k-1) xs
 
+
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
 sameInd ((i,_),_) ((i',_),_) = i == i'
@@ -211,13 +212,13 @@ disambiguate verbose debug rules sentence = do
    do s <- newSolver
 
       --literal for each analysis
-      litsForTags  <- sequence [ newLit s | _ <- chunkedSent ]
+      litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
 
-      let toks = zip chunkedSent litsForTags
+      let toks = zip chunkedSent litsForAnas
           allNotFalse = anchor toks :: [[Lit]]
           applied = [ (rl, cl) | rl  <- rules
-                               , cl <- applyRule rl toks
-                               , (not.null) cl ] 
+                               , cl <- applyRule rl toks 
+                               , (not.null) cl ] :: [(Rule, [Lit])]
 
       --literal for each instance when a rule is applied
       litsForClauses <- sequence [ newLit s | _ <- applied ]
@@ -251,7 +252,7 @@ disambiguate verbose debug rules sentence = do
                 putStrLn $ "+ " ++ show ((length conf) - 2) ++ " others"
 
 
-              lt <- count s litsForTags
+              lt <- count s litsForAnas
               b2 <- solveMaximize s [lc .>= k] lt
               when debug $ do
                 let trueClauses = [ show rl ++ "\n* " ++ show cl 
@@ -263,7 +264,7 @@ disambiguate verbose debug rules sentence = do
                 print (length litsForClauses)
 
               if b2 then
-                do bs <- sequence [ modelValue s x | x <- litsForTags ]
+                do bs <- sequence [ modelValue s x | x <- litsForAnas ]
                    let truetoks = [ t | (True, t) <- zip bs toks ]
                    when verbose $ do
                      --putStrLn "\nThe following tag sequence was chosen:"
@@ -278,21 +279,99 @@ disambiguate verbose debug rules sentence = do
            print conf
            return []
 
-test :: IO ()
-test = mapM_ (disambiguate True False rls) CG_data.exs
+disambiguateWithOrder :: Bool -> Bool -> [Rule] -> Sentence -> IO Sentence
+disambiguateWithOrder verbose debug rules sentence = do
+  let chunkedSent = chunk sentence :: [(Integer,[Tag])]
+  if length chunkedSent == length sentence then return sentence -- not ambiguous
+   else
+   do s <- newSolver
 
-  where rls = [-- rmVerbIfDet
-             -- , rmNounIfPron
-             -- , slNounAfterConj
-             -- , slCCifCC             
-             -- , slPrepIfDet 
-             -- , rmAdvIfDet 
-             -- , rmPlIfSg
-             -- , rmSgIfPl
-             -- , slNounIfBear 
-             -- , slVerbAlways --conflicts with anything that selects other than V 
-             -- , negTest      --should conflict
-             -- , negOrTest    --should conflict
-             -- , rmParticle
+      --literal for each analysis
+      litsForAnas <- sequence [ newLit s | _ <- chunkedSent ]
+
+      let toks = zip chunkedSent litsForAnas
+          allNotFalse = anchor toks :: [[Lit]]
+
+      sequence_ [ addClause s cl | cl <- allNotFalse ]
+
+      let appliedRaw = [ (rl, cl) | rl <- rules
+                                  , cl <- applyRule rl toks
+                                  , not $ null cl
+                             ] :: [(Rule, [Lit])]
+     
+      litsForInsts <- sequence [ newLit s | _ <- map snd appliedRaw ] :: IO [Lit]
+
+      -- add literal to identify the instance
+      let applied = [ (rl, neg lit:cl) 
+                      | (lit, (rl,cl)) <- zip litsForInsts appliedRaw ]
+      --mapM_ print applied
+      let onlyClauses = (map.map) snd $ groupBy (\x y -> fst x==fst y) applied :: [[[Lit]]]
+
+      when debug $ do
+        putStrLn "\ntokens:"
+        mapM_ print toks
+        putStrLn "\nfirst step, make sure all readings for a given word are not false:"
+        print allNotFalse
+        -- putStrLn "\nrules that are possibly triggered:"
+        -- mapM_ putStrLn [ show rl ++ "\n* " ++ show cls | (rl, cls) <- zip rules applied ]
+
+      bs <- sequence [ do k <- count s insts :: IO Unary
+                          b <- solveMaximize s [] k
+                          is <- sequence [ modelValue s x | x <- insts ] 
+                          sequence_ [ addClause s [cl] | (True, cl) <- zip is insts ]
+                          return b
+                  | cls <- onlyClauses
+                  , let insts = map (neg . head) cls ]
+      when debug $ print bs
+
+      when debug $ do 
+       cs <- sequence [ modelValue s x | x <- litsForInsts ]
+       putStrLn "\nUsed clauses:"
+       -- mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
+       --                    | (rl,cls) <- applied 
+       --                    , (True,cl) <- zip cs (concatMap snd applied) ] 
+                         
+       -- putStrLn "\nUnused clauses:"
+       -- mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
+       --                    | (rl,cls) <- applied 
+       --                    , (False,cl) <- zip cs (concatMap snd applied) ] 
+
+      la <- count s litsForAnas
+      --b <- solveMaximize s [] la
+      --b <- solveMinimize s [] la
+      --b <- solve s []
+
+      if and bs && not (null bs) then
+                do as <- sequence [ modelValue s x | x <- litsForAnas ]
+                   let truetoks = [ t | (True, t) <- zip as toks ]
+                   when verbose $ do
+                     --putStrLn "\nThe following tag sequence was chosen:"
+                     putStrLn $ showSentence (dechunk truetoks)
+                   return (dechunk truetoks)
+      else 
+        if not (and bs) then 
+                        do when debug $ do putStrLn "No solution"
+                                           conf <- conflict s
+                                           print conf
+                           return sentence
+          else do when debug $ putStrLn "No rules triggered"
+                  return sentence
+
+test :: IO ()
+test = mapM_ (disambiguateWithOrder True True rls) CG_data.exs
+
+  where rls = [rmVerbIfDet
+             , rmNounIfPron
+             , slNounAfterConj
+             , slCCifCC             
+             , slPrepIfDet 
+             , rmAdvIfDet 
+             , rmPlIfSg
+             , rmSgIfPl
+             , slNounIfBear 
+             , slVerbAlways --conflicts with anything that selects other than V 
+             , negTest      --should conflict
+             , negOrTest    --should conflict
+             , rmParticle
              ]
 

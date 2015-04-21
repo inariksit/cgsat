@@ -49,8 +49,8 @@ type Sentence = [Analysis]
 
 
 -- | Rule is either remove or select a list of tags, with contextual tests
-data Rule = Remove Name TagSet Condition | Select Name TagSet Condition
-data Name = Name String | NoName
+data Rule = Remove Name TagSet Condition | Select Name TagSet Condition deriving (Eq)
+data Name = Name String | NoName deriving (Eq)
 
 instance Show Rule where
   show (Remove (Name nm) tags cond) = "REMOVE:" ++ nm ++ " " ++
@@ -66,7 +66,7 @@ instance Show Rule where
 --   NOT foo === intersection with foo and the candidate is empty
 data Condition = C Position (Bool, TagSet)
                | AND Condition Condition 
-               | OR Condition Condition  deriving (Show)
+               | OR Condition Condition  deriving (Show,Eq)
 
 
 -- | Position can be exact or at least.
