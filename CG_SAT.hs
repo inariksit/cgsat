@@ -231,7 +231,7 @@ disambiguate verbose debug rules sentence = do
         putStrLn "\ntokens:"
         mapM_ print toks
         putStrLn "\nfirst step, make sure all readings for a given word are not false:"
-        mapM_ print allNotFalse
+        print allNotFalse
         --putStrLn "\nclauses gotten by applying rules"
         --mapM_ print applied
 
@@ -307,6 +307,9 @@ disambiguateWithOrder verbose debug rules sentence = do
       --mapM_ print applied
       let onlyClauses = (map.map) snd $ groupBy (\x y -> fst x==fst y) applied :: [[[Lit]]]
 
+      sequence_ [ addClause s cls | cls <- concat onlyClauses ]
+
+
       when debug $ do
         putStrLn "\ntokens:"
         mapM_ print toks
@@ -318,34 +321,47 @@ disambiguateWithOrder verbose debug rules sentence = do
       bs <- sequence [ do k <- count s insts :: IO Unary
                           b <- solveMaximize s [] k
                           is <- sequence [ modelValue s x | x <- insts ] 
-                          sequence_ [ addClause s [cl] | (True, cl) <- zip is insts ]
+                          --putStrLn "\nmaximising"
+                          --putStrLn "true:"
+                          --mapM_ putStrLn [ show lit | (True, lit) <- zip is insts ]
+                          --putStrLn "\nfalse:"
+                          --mapM_ putStrLn [ show lit | (False, lit) <- zip is insts ]
+
+                          sequence_ [ addClause s [lit] -- >> addClause s [c]
+                                       | (True, lit, c) <- zip3 is insts cs]
                           return b
                   | cls <- onlyClauses
-                  , let insts = map (neg . head) cls ]
+                  , let insts = map (neg . head) cls
+                  , let cs = map (!! 1) cls ]
       when debug $ print bs
+
 
       when debug $ do 
        cs <- sequence [ modelValue s x | x <- litsForInsts ]
        putStrLn "\nUsed clauses:"
-       -- mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
-       --                    | (rl,cls) <- applied 
-       --                    , (True,cl) <- zip cs (concatMap snd applied) ] 
+       mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
+                          | (True, (rl,cl)) <- zip cs applied 
+                      ]
                          
-       -- putStrLn "\nUnused clauses:"
-       -- mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
-       --                    | (rl,cls) <- applied 
-       --                    , (False,cl) <- zip cs (concatMap snd applied) ] 
+       putStrLn "\nUnused clauses:"
+       mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
+                          | (False, (rl,cl)) <- zip cs applied 
+                      ]
 
       la <- count s litsForAnas
-      --b <- solveMaximize s [] la
+      b <- solveMaximize s [] la
       --b <- solveMinimize s [] la
       --b <- solve s []
 
-      if and bs && not (null bs) then
+      if b && and bs && not (null bs) then
                 do as <- sequence [ modelValue s x | x <- litsForAnas ]
                    let truetoks = [ t | (True, t) <- zip as toks ]
-                   when verbose $ do
-                     --putStrLn "\nThe following tag sequence was chosen:"
+                   let alltoks = [ ((i,(WF t:((Lem (sc++l)):ts))),lit) | (b, ((i,(WF t:Lem l:ts)),lit)) <- zip as toks 
+                                           , let sc = if b then "" else "; " ]
+                   when (verbose && debug) $ do
+                     putStrLn "\nThe following tag sequence was chosen:"
+                     putStrLn $ showSentence (dechunk alltoks)
+                   when (verbose && (not debug)) $  
                      putStrLn $ showSentence (dechunk truetoks)
                    return (dechunk truetoks)
       else 

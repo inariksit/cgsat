@@ -9,52 +9,65 @@ import Data.Maybe
 import System.Environment
 import System.IO
 import System.Process
+import System.Random
+import System.Random.Shuffle
 import Text.Printf
 
-ambiguous = "data/es.tagged.ambiguous.bak"
+ambiguous = "data/es.tagged.ambiguous"
 apertium = "data/apertium-spa.spa.rlx"
 small = "data/spa_smallset.rlx"
-golddata = "data/es.tagged"
+esgold = "data/es.tagged"
+espre = "data/spa_pre.rlx"
 rusgr = undefined
 rustext = undefined
+engr = "data/eng_cg2.rlx"
+entext = "data/en.tagged.ambiguous"
+engold = "data/en.tagged"
+enpre = "data/en_pre.rlx"
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ["shuffle"]     -> shuffle small ambiguous
+    ["shuffle"]     -> shuffle_ small ambiguous esgold espre
+    [r,"shuffle"]   -> shuffle_ r ambiguous esgold espre
+    ["enshuffle"]   -> shuffle_ engr entext engold enpre
+    ["reverse"]     -> rev small ambiguous esgold espre
+    [r,"reverse"]   -> rev r ambiguous esgold espre
+    ["enreverse"]   -> rev engr entext engold enpre
     ["opticomp",n]  -> optiComp small ambiguous (read n)
-    ["gold","orig"] -> gold apertium ambiguous
-    ["gold","opti"] -> opti small ambiguous
+    ["gold","orig"] -> gold apertium ambiguous esgold
+    ["gold","opti"] -> opti small ambiguous 
     ["gold","obs"]  -> optiBySz small ambiguous
-    ["gold"]        -> gold small ambiguous --using small as default grammar
-    ["goldrus"]     -> gold rusgr rustext
-
-    [r,"gold"]      -> gold r ambiguous --specify grammar
+    ["gold"]        -> gold small ambiguous esgold --using small as default grammar
+    ["goldrus"]     -> gold rusgr rustext undefined
+    ["engold"]     -> gold engr entext engold
+    [r,"gold"]      -> gold r ambiguous esgold --specify grammar
 
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
-                  resSAT <- mapM (disambiguateWithOrder verbose debug rules) text -- :: [Sentence]
-                  let is2 = "2" `elem` o
-                      verbose = "v" `elem` o
+                      disam = if "o" `elem` o then disambiguateWithOrder                                                         else disambiguate
+                  resSAT <- mapM (disam verbose debug rules) text -- :: [Sentence]
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 
                   prAll "" resSAT resVISL text verbose
+                  putStrLn ""
     _          -> putStrLn "usage: ./test <rules> <data> (or something else, check the source code test/Test.hs >__>)"
 
-gold rls dat = do rules <- readRules rls
-                  text <- readData dat
-                  gold <- readData golddata
+gold rl dt g = do rules <- readRules rl
+                  text <- readData dt
+                  gold <- readData g
 
                   resSAT <- mapM (disambiguateWithOrder False False rules) text
-                  resVISL <- vislcg3 rls dat True
+                  resVISL <- vislcg3 rl dt True
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 100 --change if you want different output
                   prAll "SAT" resSAT gold text verbose
                   putStrLn "\nVISLCG3 in comparison to gold standard"
                   prAll "VISL" resVISL gold text verbose
+                  putStrLn ""
 
 
 
@@ -62,7 +75,7 @@ snd4 (_,b,_,_) = b
 trd4 (_,_,c,_) = c
 fth4 (_,_,_,d) = d
 
-prAll :: String -> [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO ()
+prAll :: String -> [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO [Float]
 prAll str s v tx verbose = do
 
   let sentsSameLen = [ (s', v', orig) | (s', v', orig) <- zip3 s v tx
@@ -111,6 +124,7 @@ prAll str s v tx verbose = do
   putStr "Disambiguates (more,less,disjoint,all): "
   print (moreD, lessD, diffD, diffwlenPrec)
   putStrLn ""
+  return [prec,rec,univ]
 
   where prDiff (s,as,_,_) = do putStrLn "---------------\n"
                                putStrLn "Original sentence:"
@@ -165,33 +179,44 @@ wordCount s = length $ map (filter (\x -> null $ [BOS,EOS] `intersect` x)) $ con
 --------------------------------------------------------------------------------
 
 --shuffle :: [Rule] -> IO ()
-shuffle r d = do
+shuffle_ r d g pre = do
   rls <- readRules r
-  sequence_ [ do mkRuleFile ps fname ; putStrLn (fname ++ "\n---------") ; gold fname d ; putStrLn "----------\n\n"
-               | (n, ps) <- zip [0..] (permutations rls)
-               , let fname = "/tmp/permWithoutOrder" ++ show n ]
+  seed <- newStdGen
+  sequence_ [ do mkRuleFile ps fname r pre
+                 putStrLn (fname ++ "\n---------") 
+                 gold fname d g
+                 putStrLn "----------\n\n"
+               | (n, ps) <- zip [0..] (take 100 $ shuffles rls seed)
+               , let fname = "/tmp/permFull" ++ show n ]
+  where shuffles xs seed = let (_,newSeed) = random seed :: (Int,StdGen) 
+                           in shuffle' xs (length xs) seed : shuffles (reverse xs) newSeed
+
+rev r d g pre = do
+  rls <- readRules r
+  sequence_ [ do mkRuleFile ps fname r pre
+                 putStrLn (fname ++ "\n---------") 
+                 gold fname d g
+                 putStrLn "----------\n\n"
+               | (n, ps) <- zip [0..] [rls, reverse rls]
+               , let fname = "/tmp/rev" ++ show n ]
 
 
-mkRuleFile :: [Rule] -> FilePath -> IO ()
-mkRuleFile rules fp = do
-  lists <- readFile "data/spa_pre.rlx"
+mkRuleFile :: [Rule] -> FilePath -> FilePath -> FilePath -> IO ()
+mkRuleFile rules fp orig pre = do
+  lists <- readFile pre
   writeFile fp lists
-  rules <- sequence [ grep name | rl <- rules
+  rules <- sequence [ putStr name >> grep name | rl <- rules
                        , let name = head $ words $ show rl ]
   appendFile fp (unwords rules)
 
   where
-    grep name = do
-      (_, Just out, _, _) <-
-        createProcess (proc "grep" [name,"data/spa_smallset.rlx"]){std_out=CreatePipe}
-      line <- hGetContents' out
-      hClose out
-      return line
+    grep name = readProcess "egrep" [("\\<"++name++"\\>"), orig] []
+
 --------------------------------------------------------------------------------
 
 optiBySz rl dt = do r <- readRules rl
                     t <- readData dt
-                    g <- readData golddata
+                    g <- readData esgold
                     let seqs = groupBy (\x y -> length x == length y) (subsequences r)
                     res <- sequence [ loop rset t g [] | rset <- seqs ]
                     putStrLn "Best rule set for each size:"
@@ -199,14 +224,14 @@ optiBySz rl dt = do r <- readRules rl
 
 opti rls dat = do r <- readRules rls
                   t <- readData dat
-                  g <- readData golddata
+                  g <- readData esgold
                   res <- loop (subsequences r) t g []
                   putStrLn "optimal rule sequence:"
                   mapM_ pr (take 3 (sortBy (\(x,_) (y,_) -> x `compare` y) res))
 
 optiComp rls dat n = do r <- readRules rls
                         t <- readData dat
-                        g <- readData golddata
+                        g <- readData esgold
                         let nrules = filter (\x -> length x==n) $ subsequences r
                         res <- loop nrules t g []
                         
