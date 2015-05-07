@@ -3,6 +3,7 @@ module CG_base where
 import Control.Applicative
 import Data.List
 
+
 -- | All kinds of morphological tags are in the same data type: e.g.  Prep, P1, Conditional.
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
@@ -27,8 +28,33 @@ instance Show Tag where
   show (Lem str) = "\"" ++ str ++ "\""
   show (Tag str) = str
   show BOS       = "" --">>>"
-  show EOS       = "" -- "<<<"
+  show EOS       = "" --"<<<"
 
+
+
+data TagSet =
+   TS [[Tag]]
+ | Or TagSet TagSet
+ | Diff TagSet TagSet
+ | Cart TagSet TagSet
+ | All
+  deriving (Eq,Ord,Read)
+
+instance Show TagSet where
+  show (TS tags) = showTagset tags
+  show (Or (TS ts1) ts2) = showTagset ts1 ++ " OR " ++ show ts2
+  show (Diff (TS ts1) ts2) = showTagset ts1 ++ " - " ++ show ts2
+  show (Cart (TS ts1) ts2) = showTagset ts1 ++ " + " ++ show ts2
+  show All = "(*)"
+  show x = "TODO"
+
+showTagset :: [[Tag]] -> String
+showTagset [[x]] = show x
+showTagset xs    = concatMap show' xs
+  where show' [y] = show y
+        show' ys  = "(" ++ unwords (map show ys) ++ ")"
+
+toTags :: TagSet -> [[Tag]]
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
 --  For example, 
 --    LIST DefArt = (det def) ;
@@ -37,8 +63,13 @@ instance Show Tag where
 --  translate into
 --    defArt = [[Tag "det", Tag "def"]]
 --    dem    = [[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]]
---  See the datatype for Test.
-type TagSet = [[Tag]]
+
+toTags (TS tags) = tags
+toTags (Or ts1 ts2) = toTags ts1 ++ toTags ts2
+toTags (Diff ts1 ts2) = toTags ts1 \\ toTags ts2 
+toTags (Cart ts1 ts2) = map concat $ sequence [(toTags ts1), (toTags ts2)]
+toTags All = [[]] --matches all
+toTags _ = [[]] --TODO!!!!
 
 -- | Analysis is just list of tags: for instance the word form "alusta" would get
 -- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
@@ -54,11 +85,11 @@ data Name = Name String | NoName deriving (Eq)
 
 instance Show Rule where
   show (Remove (Name nm) tags cond) = "REMOVE:" ++ nm ++ " " ++
-                                       show tags ++ " " ++ show cond 
-  show (Remove  NoName   tags cond) = "REMOVE " ++ show tags ++ " " ++ show cond 
+                                       show tags ++ " IF " ++ show cond 
+  show (Remove  NoName   tags cond) = "REMOVE " ++ show tags ++ " IF " ++ show cond 
   show (Select (Name nm) tags cond) = "SELECT:" ++ nm ++ " " ++
-                                       show tags ++ " " ++ show cond 
-  show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " " ++ show cond 
+                                       show tags ++ " IF " ++ show cond 
+  show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " IF " ++ show cond 
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
@@ -66,8 +97,13 @@ instance Show Rule where
 --   NOT foo === intersection with foo and the candidate is empty
 data Condition = C Position (Bool, TagSet)
                | AND Condition Condition 
-               | OR Condition Condition  deriving (Show,Eq)
+               | OR Condition Condition  deriving (Eq)
 
+instance Show Condition where
+  show (C pos (True, ts)) = show pos ++ " " ++ show ts
+  show (C pos (False, ts)) = "NOT " ++ show pos ++ " " ++ show ts
+  show (AND c1 c2) = "(" ++ show c1 ++ ") (" ++ show c2 ++ ")"
+  show (OR c1 c2) = "(" ++ show c1 ++ ") OR (" ++ show c2 ++ ")"
 
 -- | Position can be exact or at least.
 -- | The meaning of numbers is 
@@ -76,12 +112,17 @@ data Condition = C Position (Bool, TagSet)
 -- | *  n: to the right.
 data Position = Exactly Integer 
               | AtLeast Integer
-              | Barrier Integer TagSet deriving (Show,Eq,Read)
+              | Barrier Integer TagSet deriving (Eq,Read)
+
+instance Show Position where
+  show (Exactly i) = show i
+  show (AtLeast i) = "*" ++ show i
+  show (Barrier i ts) = "*" ++ show i ++ " BARRIER " ++ show ts
+  
 
 
 
-
-toLists :: Condition -> [[Condition]]
+toConds :: Condition -> [[Condition]]
 {-    
      OR
     /  \
@@ -100,22 +141,22 @@ for AND, we need to make them parallel and put in a form with OR as the first co
 ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
 -}
 
-toLists cond = case cond of
+toConds cond = case cond of
     C   _pos       _tags -> [[cond]]
-    AND c1@(C _ _) c2    -> map (c1:) (toLists c2)
-    OR  c1@(C _ _) c2    -> [c1]:(toLists c2)
-    AND c2  c1@(C _ _)   -> map (c1:) (toLists c2)
-    OR  c2  c1@(C _ _)   -> [c1]:(toLists c2)
-    AND (AND c1 c2) (OR  c3 c4) -> toLists $ OR (AND c1 (AND c2 c3))
+    AND c1@(C _ _) c2    -> map (c1:) (toConds c2)
+    OR  c1@(C _ _) c2    -> [c1]:(toConds c2)
+    AND c2  c1@(C _ _)   -> map (c1:) (toConds c2)
+    OR  c2  c1@(C _ _)   -> [c1]:(toConds c2)
+    AND (AND c1 c2) (OR  c3 c4) -> toConds $ OR (AND c1 (AND c2 c3))
                                                 (AND c1 (AND c2 c4))
-    AND (OR  c3 c4) (AND c1 c2) -> toLists $ OR (AND c1 (AND c2 c3))
+    AND (OR  c3 c4) (AND c1 c2) -> toConds $ OR (AND c1 (AND c2 c3))
                                                 (AND c1 (AND c2 c4))
-    AND (OR  c1 c2) (OR  c3 c4) -> toLists $ OR (OR (AND c1 c3)
+    AND (OR  c1 c2) (OR  c3 c4) -> toConds $ OR (OR (AND c1 c3)
                                                     (AND c1 c4))
                                                 (OR (AND c2 c3)
                                                     (AND c2 c4))
-    AND c1@(AND _ _) c2@(AND _ _) -> [concat $ toLists c1 ++ toLists c2]
-    OR  c1 c2 -> toLists c1 ++ toLists c2 
+    AND c1@(AND _ _) c2@(AND _ _) -> [concat $ toConds c1 ++ toConds c2]
+    OR  c1 c2 -> toConds c1 ++ toConds c2 
 
 
 -- Shorthand for writing conditions without barriers
@@ -124,39 +165,39 @@ mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) (True, tags)
              | otherwise       = C (Exactly $ read str)          (True, tags)
 
 lemmaBear :: Condition
-lemmaBear = mkC "0" [[Lem "bear"]]
-always = mkC "0" []
+lemmaBear = mkC "0" (TS [[Lem "bear"]])
+always = mkC "0" All
 
 hasBoundary :: Rule -> Bool
 hasBoundary rule = case rule of
   (Select _n _t c) -> findBoundary c
   (Remove _n _t c) -> findBoundary c
-  where findBoundary c = any hasB (concat (toLists c))
-        hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat tags
+  where findBoundary c = any hasB (concat (toConds c))
+        hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat (toTags tags)
 
 -- Sets of tags
-verb = (map . map) Tag [["vblex"],["vbser"],["vbmod"]]
-noun = (map . map) Tag [["n"], ["np"]]
-det  = [[Tag "det"]]
-adv  = [[Tag "adv"]]
-conj = (map . map) Tag [["cnjcoo"],["cnjsub"]]
-prep = [[Tag "prep"]]
-sg   = [[Tag "sg"]]
-pl   = [[Tag "pl"]]
-cnjcoo  = [[Tag "cnjcoo"]]
+verb = TS $ (map . map) Tag [["vblex"],["vbser"],["vbmod"]]
+noun = TS $ (map . map) Tag [["n"], ["np"]]
+det  = TS $ [[Tag "det"]]
+adv  = TS $ [[Tag "adv"]]
+conj = TS $ (map . map) Tag [["cnjcoo"],["cnjsub"]]
+prep = TS $ [[Tag "prep"]]
+sg   = TS $ [[Tag "sg"]]
+pl   = TS $ [[Tag "pl"]]
+cnjcoo  = TS $ [[Tag "cnjcoo"]]
 
 -- Rules
-rmParticle = Remove NoName [[Tag "particle"]] always
+rmParticle = Remove NoName (TS [[Tag "particle"]]) always
 slVerbAlways = Select NoName verb  always
-slNounIfBear = Select NoName [[Lem "bear", n] | n <- concat noun]  always
+slNounIfBear = Select NoName (TS [[Lem "bear", Tag "n"]]) always
 
 rmVerbIfDet = Remove NoName verb (mkC "-1" det)
 rmAdvIfDet = Remove NoName adv (mkC "1" det)
-rmNounIfPron = Remove NoName noun (mkC "-1" [[Tag "pron"]])
+rmNounIfPron = Remove NoName noun (mkC "-1" (TS [[Tag "pron"]]))
 slPrepIfDet = Select NoName prep (mkC "1" det)
 slNounAfterConj = Select NoName noun (mkC "-1" conj)
 
-slCCifCC = Select NoName cnjcoo (C (Barrier 1 [[Tag "punct"]]) (True,cnjcoo))
+slCCifCC = Select NoName cnjcoo (C (Barrier 1 (TS [[Tag "punct"]])) (True,cnjcoo))
 
 rmPlIfSg = Remove NoName pl (C (Exactly (-1)) (True,sg))
 rmSgIfPl = Remove NoName sg (mkC "-1" pl)

@@ -71,8 +71,8 @@ main = do args <- getArgs
 parseCGRules :: Grammar -> State Env [Either String CGB.Rule]
 parseCGRules (Defs defs) = do mapM updateEnv defs 
                               --in case the grammar doesn't specify boundaries 
-                              modify ((">>>",bos) :)
-                              modify (("<<<",eos) :)
+                              modify ((">>>", CGB.TS bos) :)
+                              modify (("<<<", CGB.TS eos) :)
                               env <- get
                               return $ map (parseRules' env) defs
   where updateEnv :: Def -> State Env ()
@@ -100,18 +100,19 @@ strip n = drop n . reverse . drop n . reverse
 transSetDecl :: SetDecl -> State Env (String, CGB.TagSet)
 transSetDecl (Set setname tagset) = 
   case setname of
-    BOS          -> return (">>>", bos)
-    EOS          -> return ("<<<", eos)
+    BOS          -> return (">>>", CGB.TS bos)
+    EOS          -> return ("<<<", CGB.TS eos)
     (SetName (UIdent name)) -> do 
       ts <- transTagSet tagset
       return (name, ts)
 transSetDecl (List setname tags) = 
   case setname of
-    BOS          -> return (">>>", bos)
-    EOS          -> return ("<<<", eos)
+    BOS          -> return (">>>", CGB.TS bos)
+    EOS          -> return ("<<<", CGB.TS eos)
     (SetName (UIdent name)) -> do 
       tl <- mapM transTag tags
-      return (name, concat tl)
+      let tl' = concatMap CGB.toTags tl
+      return (name, CGB.TS tl')
 
 
                                       
@@ -119,13 +120,14 @@ transSetDecl (List setname tags) =
 transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
   Lemma (Str s) -> case s of
-                   ('"':'<':_) -> return [[CGB.WF (strip 2 s)]]
-                   ('"':    _) -> return [[CGB.Lem (strip 1 s)]]
-                   _           -> return [[CGB.Lem s]]
-  Tag (Id str) -> return [[CGB.Tag str]]
+                   ('"':'<':_) -> return $ CGB.TS [[CGB.WF (strip 2 s)]]
+                   ('"':    _) -> return $ CGB.TS [[CGB.Lem (strip 1 s)]]
+                   _           -> return $ CGB.TS [[CGB.Lem s]]
+  Tag (Id str) -> return $ CGB.TS [[CGB.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
-                     let allInOne = [concat (concat ts)]
-                     return allInOne
+                     let ts' = map CGB.toTags ts
+                         allInOne = [concat (concat ts')]
+                     return $ CGB.TS allInOne
 
   Named setname -> case setname of
     (SetName (UIdent name)) -> do
@@ -133,34 +135,36 @@ transTag tag = case tag of
       case lookup name env of
         Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
         Just ts -> (return ts :: State Env CGB.TagSet)
-    BOS -> return bos
-    EOS -> return eos
+    BOS -> return $ CGB.TS bos
+    EOS -> return $ CGB.TS eos
+
 
 transTagSet :: TagSet -> State Env CGB.TagSet
 transTagSet ts = case ts of
   TagSet tagset  -> transTagSet tagset
   NilT tag       -> transTag tag
-  All            -> return [[]]
+  All            -> return $ CGB.All
   OR tag _or tagset  -> do tags1 <- transTag tag
                            tags2 <- transTagSet tagset
-                           return $ tags1 ++ tags2
+                           return $ CGB.Or tags1 tags2
 
   ----TODO all set operations!
 
   Diff All ts    -> do env <- get
-                       let allTags = concatMap snd env 
+                       let allTags = concatMap (CGB.toTags . snd) env :: [[CGB.Tag]]
                        rmTags <- transTagSet ts
-                       return $ allTags \\ rmTags
+                       return $ CGB.Diff (CGB.TS allTags) rmTags
   Diff ts All    -> error "something except everything? are you a philosopher?"
   Diff ts1 ts2   -> do tags1 <- transTagSet ts1
                        tags2 <- transTagSet ts2
-                       return $ tags1 \\ tags2
+                       return $ CGB.Diff tags1 tags2
   
 
   Cart ts1 ts2   -> do tags1 <- transTagSet ts1   
                        tags2 <- transTagSet ts2
-                       let combs = map concat $ sequence [tags1, tags2]
-                       return combs
+                       return $ CGB.Cart tags1 tags2
+                       --let combs = map concat $ sequence [tags1, tags2]
+                       --return combs
 
 
 transRule :: Rule -> State Env CGB.Rule
@@ -180,9 +184,12 @@ transRule rl = case rl of
          CGB.Remove n ts c -> return $ CGB.Remove n (cart ts lem) c
   where cart :: CGB.TagSet -> String -> CGB.TagSet
         cart ts str = case str of
-           ('"':'<':_) -> [[CGB.WF  (strip 2 str), t] | t <- concat ts]
-           ('"':_    ) -> [[CGB.Lem (strip 1 str), t] | t <- concat ts]
-           _           -> [[CGB.Lem str          , t] | t <- concat ts]
+           ('"':'<':_) -> CGB.TS [[CGB.WF  (strip 2 str), t]
+                                    | t <- concat (CGB.toTags ts)]
+           ('"':_    ) -> CGB.TS [[CGB.Lem (strip 1 str), t] 
+                                    | t <- concat (CGB.toTags ts)]
+           _           -> CGB.TS [[CGB.Lem str          , t] 
+                                    | t <- concat (CGB.toTags ts)]
 
         getName (MaybeName_1 (Id id)) = CGB.Name id
         getName MaybeName_2           = CGB.NoName

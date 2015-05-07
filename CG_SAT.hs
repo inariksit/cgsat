@@ -95,11 +95,11 @@ anchor toks = (map.map) getLit (groupBy sameInd toks)
 applyRule :: Rule -> [Token] -> [[Lit]]
 applyRule rule toks = --trace (show rule) $
   case rule of 
-    (Remove _name tags conds) -> go False tags (toLists conds) toks
-    (Select _name tags conds) -> go True tags (toLists conds) toks
+    (Remove _name tags conds) -> go False (toTags tags) (toConds conds) toks
+    (Select _name tags conds) -> go True (toTags tags) (toConds conds) toks
 
     
-go :: Bool -> TagSet -> [[Condition]] -> [Token] -> [[Lit]]
+go :: Bool -> [[Tag]] -> [[Condition]] -> [Token] -> [[Lit]]
 go isSelect tags []         allToks = []
 go isSelect tags (conds:cs) allToks = --trace (show conds) $
   if isSelect 
@@ -125,14 +125,14 @@ go isSelect tags (conds:cs) allToks = --trace (show conds) $
      -- because that would require n pl and n sg be true at the same time.
      -- Instead we make combinations [(1,det), (3,n sg)] and [(1,det), (3,n pl)]
 
-        remove :: TagSet -> [(Token,[[Token]])]
+        remove :: [[Tag]] -> [(Token,[[Token]])]
         remove tags = [ (tok, ctx) | tok <- allToks
                                    , isAmbig tok allToks --only apply rules to ambiguous tokens
                                    , tagsMatchRule tags tok
                                    , let ctx = getContext tok allToks conds
                                    , allCondsHold ctx]
 
-        select :: TagSet -> ([(Token,[[Token]])], [(Token,[[Token]])])
+        select :: [[Tag]] -> ([(Token,[[Token]])], [(Token,[[Token]])])
         select tags = (chosen, other)
             -- chosen: analyses that have the wanted readings and context
  
@@ -158,11 +158,11 @@ getContext :: Token           -- ^ a single analysis
                -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext tok allToks []     = []
 getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
-  case ctags of
+  case ctags' of
     []     -> [[dummyTok]] --empty conds = holds always
     [[]]   -> [[dummyTok]] 
     (t:ts) -> case position of
-                Exactly 0 -> if nt $ tagsMatchRule ctags tok 
+                Exactly 0 -> if nt $ tagsMatchRule ctags' tok 
                                then [[tok]] --if the condition at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
                                else [exactly 0 nt tok] --if the LINK 0 thing is in a different reading
                 Exactly n -> [exactly n nt tok]
@@ -170,6 +170,7 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                 Barrier n bs  -> [barrier n nt bs tok]
 
   where nt = if bool then id else not
+        ctags' = toTags ctags
 
         dummyTok = ((999,[]),true) 
 
@@ -177,23 +178,23 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
         exactly :: Integer -> (Bool -> Bool) -> Token -> [Token]
         exactly n nt ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
                                          , ind' == ind+n
-                                         , nt $ tagsMatchRule ctags tok ]
+                                         , nt $ tagsMatchRule ctags' tok ]
 
         --same but list of tags that are at least n places away
         atleast n nt ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
                                          , ind' >= ind+n 
-                                         , nt $ tagsMatchRule ctags tok ]
+                                         , nt $ tagsMatchRule ctags' tok ]
 
         --between m and n places away
         between m n nt ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
                                            , ind+m <= ind' && ind' <= ind+n
-                                           , nt $ tagsMatchRule ctags tok ]
+                                           , nt $ tagsMatchRule ctags' tok ]
 
         barrier n nt btags tok | barinds==[] = atleast n nt tok
                                | n < 0     = between mindist n nt tok
                                | otherwise = between n mindist nt tok
            where barinds = [ ind | tok@((ind,_),_) <- allToks
-                                 , tagsMatchRule btags tok ]
+                                 , tagsMatchRule (toTags btags) tok ]
                  dists   = map (\i -> i - getInd tok) barinds :: [Integer]
                  mindist = minimum dists
                  
@@ -230,8 +231,8 @@ disambiguate verbose debug rules sentence = do
       when debug $ do
         putStrLn "\ntokens:"
         mapM_ print toks
-        putStrLn "\nfirst step, make sure all readings for a given word are not false:"
-        print allNotFalse
+        -- putStrLn "\nfirst step, make sure all readings for a given word are not false:"
+        -- print allNotFalse
         --putStrLn "\nclauses gotten by applying rules"
         --mapM_ print applied
 
@@ -313,27 +314,21 @@ disambiguateWithOrder verbose debug rules sentence = do
       when debug $ do
         putStrLn "\ntokens:"
         mapM_ print toks
-        putStrLn "\nfirst step, make sure all readings for a given word are not false:"
-        print allNotFalse
+        -- putStrLn "\nfirst step, make sure all readings for a given word are not false:"
+        -- print allNotFalse
         -- putStrLn "\nrules that are possibly triggered:"
         -- mapM_ putStrLn [ show rl ++ "\n* " ++ show cls | (rl, cls) <- zip rules applied ]
 
       bs <- sequence [ do k <- count s insts :: IO Unary
                           b <- solveMaximize s [] k
                           is <- sequence [ modelValue s x | x <- insts ] 
-                          --putStrLn "\nmaximising"
-                          --putStrLn "true:"
-                          --mapM_ putStrLn [ show lit | (True, lit) <- zip is insts ]
-                          --putStrLn "\nfalse:"
-                          --mapM_ putStrLn [ show lit | (False, lit) <- zip is insts ]
-
-                          sequence_ [ addClause s [lit] -- >> addClause s [c]
+                          sequence_ [ addClause s [lit]
                                        | (True, lit, c) <- zip3 is insts cs]
                           return b
                   | cls <- onlyClauses
                   , let insts = map (neg . head) cls
                   , let cs = map (!! 1) cls ]
-      when debug $ print bs
+      --when debug $ print bs
 
 
       when debug $ do 
@@ -349,11 +344,11 @@ disambiguateWithOrder verbose debug rules sentence = do
                       ]
 
       la <- count s litsForAnas
-      b <- solveMaximize s [] la
-      --b <- solveMinimize s [] la
-      --b <- solve s []
+      --b <- solveMaximize s [] la
+      b <- solveMinimize s [] la
+      --b <- solve s [] --just this doesn't make any difference!
 
-      if b && and bs && not (null bs) then
+      if and bs && not (null bs) then
                 do as <- sequence [ modelValue s x | x <- litsForAnas ]
                    let truetoks = [ t | (True, t) <- zip as toks ]
                    let alltoks = [ ((i,(WF t:((Lem (sc++l)):ts))),lit) | (b, ((i,(WF t:Lem l:ts)),lit)) <- zip as toks 
