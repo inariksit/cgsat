@@ -79,212 +79,212 @@ SET PERSON = 1p | 2p | 3p ;
 
 SECTION
 
-REMOVE V-FIN IF (-1C V-FIN);  # Careful: would kill "The man who _came_ _wrote_ a book"
+REMOVE:r01 V-FIN IF (-1C V-FIN);  # Careful: would kill "The man who _came_ _wrote_ a book"
 
-REMOVE N IF (0 ("<is>")) ; 
+REMOVE:r02 N IF (0 ("<is>")) ; 
 
-SELECT N IF (-1 ("<both>")) ; 
+SELECT:s01 N IF (-1 ("<both>")) ; 
 
-SELECT V IF (0 ("<like>")) ; 
+SELECT:s02 V IF (0 ("<like>")) ; 
 
-SELECT N IF (0 ("<names>"))(-1 Pr) ; 
+SELECT:s03 N IF (0 ("<names>"))(-1 Pr) ; 
 
-SELECT (vblex pp) IF (0 ("<hit>")) (-1 ("<is>")) ; 
+SELECT:s04 (vblex pp) IF (0 ("<hit>")) (-1 ("<is>")) ; 
 
-SELECT (vblex sep pp) IF (-1 (vbser past)) ; 
+SELECT:s05 (vblex sep pp) IF (-1 (vbser past)) ; 
 
-REMOVE N IF (0 ("<will>"))(1 ADV-NOT);
+REMOVE:r03 N IF (0 ("<will>"))(1 ADV-NOT);
 
-SELECT (vbhaver inf) if (0 ("have")) (-1 ("not"));
+SELECT:s06 (vbhaver inf) if (0 ("have")) (-1 ("not"));
 
-SELECT (n sg) if (0 ("English")) ;
+SELECT:s07 (n sg) if (0 ("English")) ;
 
-SELECT (n sg) if (0 ("Kazakh")) ;
+SELECT:s08 (n sg) if (0 ("Kazakh")) ;
 
-SELECT (vblex pp) if (-1 (vbser past)) ;
+SELECT:s09 (vblex pp) if (-1 (vbser past)) ;
 
-SELECT (vblex inf) if (0 ("be")) (-1 Pr) ;
+SELECT:s10 (vblex inf) if (0 ("be")) (-1 Pr) ;
 
-SELECT (vblex ger) if (0 ("beginning"))(NOT 1 V) ;
+SELECT:s11 (vblex ger) if (0 ("beginning"))(NOT 1 V) ;
 
-SELECT Rel if (-1 N) ;
+SELECT:s12 Rel if (-1 N) ;
 
 #SELECT N if (-1 Pr) ;
 
-SELECT A if (1C ("Party")) ;
+SELECT:s13 A if (1C ("Party")) ;
 
-SELECT AdvItg if (1C V) ;
+SELECT:s14 AdvItg if (1C V) ;
 
-SELECT (det dem) if (1 N) ;
+SELECT:s15 (det dem) if (1 N) ;
 
-SELECT AdvItg if (2C V) ;
+SELECT:s16 AdvItg if (2C V) ;
 
 #SELECT (vblex) if (-1 ("was")) ;
 
-SELECT N if (-1 AdvItg) ;
+SELECT:s17 N if (-1 AdvItg) ;
 
 #SELECT A if (1 ("Autonomous")) ;
 
-SELECT N if (-1 Det) (NOT 0 A) ;
+SELECT:s18 N if (-1 Det) (NOT 0 A) ;
 
-SELECT V-HAVE if (2C V) ;
+SELECT:s19 V-HAVE if (2C V) ;
 
-SELECT Inf if (-2 V-MOD) (-1 ADV-NOT);
+SELECT:s20 Inf if (-2 V-MOD) (-1 ADV-NOT);
 
-SELECT Inf if (-1 VAUX-WOULD) ;
+SELECT:s21 Inf if (-1 VAUX-WOULD) ;
 
-SELECT Pr if (-1 VAUX-WOULD) ;
+SELECT:s22 Pr if (-1 VAUX-WOULD) ;
 
-SELECT Inf IF (-2 V-FIN) (-1 ("<to>"));
+SELECT:s23 Inf IF (-2 V-FIN) (-1 ("<to>"));
 
-SELECT Inf IF (0 ("<will>")) (1 ADV-NOT);
+SELECT:s24 Inf IF (0 ("<will>")) (1 ADV-NOT);
 
-SELECT V-HAVE IF (1 PrcPast);
+SELECT:s25 V-HAVE IF (1 PrcPast);
 
-SELECT V IF (1 Ger)(NOT 0 (vblex pres p3 sg));
+SELECT:s26 V IF (1 Ger)(NOT 0 (vblex pres p3 sg));
 
-REMOVE V-FIN IF (-1 A) (-2 Det); 
+REMOVE:r04 V-FIN IF (-1 A) (-2 Det); 
 
-REMOVE V-FIN IF (-1 Det);
+REMOVE:r05 V-FIN IF (-1 Det);
 
-REMOVE Ger IF (-1 V-FIN) (NOT -1 Cop) (1 N); #MLF not sure about this rule here    
+REMOVE:r06 Ger IF (-1 V-FIN) (NOT -1 Cop) (1 N); #MLF not sure about this rule here    
 
-REMOVE A IF (-1 Det) (0 N OR A) (1 ("<is>")) (2 A);
+REMOVE:r07 A IF (-1 Det) (0 N OR A) (1 ("<is>")) (2 A);
 
-REMOVE Inf IF (0 N OR Inf) (1 ("to")) (2 Inf);
+REMOVE:r08 Inf IF (0 N OR Inf) (1 ("to")) (2 Inf);
 
-SELECT V IF (1 ("to")) (2 Inf);
+SELECT:s27 V IF (1 ("to")) (2 Inf);
 
-SELECT N IF (-1C NUM);
+SELECT:s28 N IF (-1C NUM);
 
-SELECT Inf IF (-1 ADV-NOT)(-2 VAUX-CAN);
+SELECT:s29 Inf IF (-1 ADV-NOT)(-2 VAUX-CAN);
 
-SELECT N IF (-1 ("Baltic"));
+SELECT:s30 N IF (-1 ("Baltic"));
 
-SELECT N IF (-1 ("Asian"));
+SELECT:s31 N IF (-1 ("Asian"));
 
-SELECT N IF (-1 A);
+SELECT:s32 N IF (-1 A);
 
-SELECT Adv IF (-1 V)(0 ("forward"));
+SELECT:s33 Adv IF (-1 V)(0 ("forward"));
 
-SELECT Inf IF (-1 V-MOD);
+SELECT:s34 Inf IF (-1 V-MOD);
 
-SELECT N IF (1 Pr)(2 N);
+SELECT:s35 N IF (1 Pr)(2 N);
 
-REMOVE N IF (0 V-FIN) (0 N) (0 N OR V-FIN) ((NOT 1* V-FIN BARRIER CLB) OR (NOT -1C* V-FIN BARRIER CLB));
+REMOVE:r09 N IF (0 V-FIN) (0 N) (0 N OR V-FIN) ((NOT 1* V-FIN BARRIER CLB) OR (NOT -1C* V-FIN BARRIER CLB));
 
-REMOVE A IF (0 A OR Adv) (NOT 1 N) (NOT -1* Cop BARRIER CLB) ;
+REMOVE:r10 A IF (0 A OR Adv) (NOT 1 N) (NOT -1* Cop BARRIER CLB) ;
 
-REMOVE N IF (0 N OR V-FIN) (1 ("<to>")) (2 Inf);
+REMOVE:r11 N IF (0 N OR V-FIN) (1 ("<to>")) (2 Inf);
 
-SELECT V-FIN + $$PERSON IF (-1 Subj + $$PERSON);
+SELECT:s36 V-FIN + $$PERSON IF (-1 Subj + $$PERSON);
 
-SELECT CS IF (-1 V)(1 N OR PRN-SUBJ);
+SELECT:s37 CS IF (-1 V)(1 N OR PRN-SUBJ);
 
-SELECT Inf IF (-1* V-DO BARRIER SENT) (NOT 1 Det);
+SELECT:s38 Inf IF (-1* V-DO BARRIER SENT) (NOT 1 Det);
 
-REMOVE Inf IF (NOT 0 ("will") ) (1C ADV-NOT) (2 Inf);
+REMOVE:r12 Inf IF (NOT 0 ("will") ) (1C ADV-NOT) (2 Inf);
 
-SELECT Pr IF (1 N);
+SELECT:s39 Pr IF (1 N);
 
-SELECT Pr IF (1 NUM);
+SELECT:s40 Pr IF (1 NUM);
 
-SELECT Inf IF (1 Inf) (2 Ger);
+SELECT:s41 Inf IF (1 Inf) (2 Ger);
 
-SELECT Inf IF (1 Inf) (2 PrcPast);
+SELECT:s42 Inf IF (1 Inf) (2 PrcPast);
 
-SELECT Inf IF ((-1 ADV-NOT) OR (0 ADV-NOT)) ((-1 VAUX-CAN) OR (1 VAUX-CAN));
+SELECT:s43 Inf IF ((-1 ADV-NOT) OR (0 ADV-NOT)) ((-1 VAUX-CAN) OR (1 VAUX-CAN));
 
-SELECT V-PRES IF (-1 N OR Pron)(1 N OR Pron);
+SELECT:s44 V-PRES IF (-1 N OR Pron)(1 N OR Pron);
 
-SELECT V-DO-AUX IF (NOT 1C ADV-NOT);
+SELECT:s45 V-DO-AUX IF (NOT 1C ADV-NOT);
 
-SELECT V-DO-AUX IF (-1 PRN-SUBJ) (1C ADV-NOT);
+SELECT:s46 V-DO-AUX IF (-1 PRN-SUBJ) (1C ADV-NOT);
 
-REMOVE V-DO-AUX IF (-1 PRN-SUBJ) (NOT 1C ADV-NOT);
+REMOVE:r13 V-DO-AUX IF (-1 PRN-SUBJ) (NOT 1C ADV-NOT);
 
-SELECT (gen) IF (0 ("'s"));
+SELECT:s47 (gen) IF (0 ("'s"));
 
-SELECT V IF (-1 PRN-SUBJ OR N);
+SELECT:s48 V IF (-1 PRN-SUBJ OR N);
 
-SELECT V-HAVE IF (1C ADV-NOT) (2 PrcPast);
+SELECT:s49 V-HAVE IF (1C ADV-NOT) (2 PrcPast);
 
-SELECT Inf IF (0 Inf) (1 ADV-NOT)(2 Ger);
+SELECT:s50 Inf IF (0 Inf) (1 ADV-NOT)(2 Ger);
 
-SELECT Pres IF (1 ADV-NOT) (2 Inf); 
+SELECT:s51 Pres IF (1 ADV-NOT) (2 Inf); 
 
-SELECT ("put"i vblex pp) IF (-1 V-HAVE); 
+SELECT:s52 ("put"i vblex pp) IF (-1 V-HAVE); 
 
-SELECT ("forward"i adv) IF (-1 V); 
+SELECT:s53 ("forward"i adv) IF (-1 V); 
 
-REMOVE Inf IF (-1 PRN-SUBJ) (NOT 0 ("will"));
+REMOVE:r14 Inf IF (-1 PRN-SUBJ) (NOT 0 ("will"));
 
-REMOVE N IF (-1 PRN-SUBJ) (0 ("will") );
+REMOVE:r15 N IF (-1 PRN-SUBJ) (0 ("will") );
 
-REMOVE N IF (0 ("will")) (1C ADV-NOT) ;
+REMOVE:r16 N IF (0 ("will")) (1C ADV-NOT) ;
 
-REMOVE Inf IF (0 Inf OR V-FIN) (NOT 1* V-FIN BARRIER CLB) (NOT -1* V-FIN BARRIER CLB);
+REMOVE:r17 Inf IF (0 Inf OR V-FIN) (NOT 1* V-FIN BARRIER CLB) (NOT -1* V-FIN BARRIER CLB);
 
-REMOVE PrcPast IF (-1 VAUX-WILL);
+REMOVE:r18 PrcPast IF (-1 VAUX-WILL);
 
-REMOVE V-FIN IF (0 Inf) (0 Inf OR V-FIN) ((1C* V-FIN BARRIER CLB) OR (-1C* V-FIN BARRIER CLB));
+REMOVE:r19 V-FIN IF (0 Inf) (0 Inf OR V-FIN) ((1C* V-FIN BARRIER CLB) OR (-1C* V-FIN BARRIER CLB));
 
-SELECT Inf IF (-2 ("do")) (-1 Pron) (0 Pres OR Inf);
+SELECT:s54 Inf IF (-2 ("do")) (-1 Pron) (0 Pres OR Inf);
 
-REMOVE CS IF (NOT 1* V-FIN BARRIER CLB);
+REMOVE:r20 CS IF (NOT 1* V-FIN BARRIER CLB);
 
-REMOVE Det IF (NOT 1 N OR A OR NUM);
+REMOVE:r21 Det IF (NOT 1 N OR A OR NUM);
 
-SELECT Adv + Interr IF (0 Adv OR Rel) (1* ("?")) ;
+SELECT:s55 Adv + Interr IF (0 Adv OR Rel) (1* ("?")) ;
 
-SELECT Subj IF (0 Subj OR Obj) (1 V-FIN);
+SELECT:s56 Subj IF (0 Subj OR Obj) (1 V-FIN);
 
-SELECT A IF (-1 Preadv) (0 A OR V);
+SELECT:s57 A IF (-1 Preadv) (0 A OR V);
 
 #REMOVE Pr IF (NOT 1* N BARRIER CLB);
 
-REMOVE Pr IF (0 Pr OR CC) (-1 SENT);
+REMOVE:r22 Pr IF (0 Pr OR CC) (-1 SENT);
 
 # SELECT V-FIN + $$PERSON (-1C Subj + $$PERSON);
 
-SELECT Inf IF (-2 V-FIN) (-1 Adv) (0 V-FIN OR Inf);
+SELECT:s58 Inf IF (-2 V-FIN) (-1 Adv) (0 V-FIN OR Inf);
 
-SELECT Det + Pos IF (0 Det OR Pron) (1 N);
+SELECT:s59 Det + Pos IF (0 Det OR Pron) (1 N);
 
-SELECT A IF (0 Det OR A) (-1 Det) (1 N);
+SELECT:s60 A IF (0 Det OR A) (-1 Det) (1 N);
 
-REMOVE Ger IF (-1 Det OR A);
+REMOVE:r23 Ger IF (-1 Det OR A);
 
-SELECT Ger IF (-1 Cop);  # Would not work with "We are sleeping beauties", but it is hard... 
+SELECT:s61 Ger IF (-1 Cop);  # Would not work with "We are sleeping beauties", but it is hard... 
 
-SELECT PPRS IF (-1 Det OR A) (1 N);
+SELECT:s62 PPRS IF (-1 Det OR A) (1 N);
 
-SELECT Pr IF (0 Pr OR Adv) (1 Det);
+SELECT:s63 Pr IF (0 Pr OR Adv) (1 Det);
 
-REMOVE Rel IF (-1 CC);
+REMOVE:r24 Rel IF (-1 CC);
 
-SELECT Det IF (0 ("<no>") OR ("<some>")) (1C N);
+SELECT:s64 Det IF (0 ("<no>") OR ("<some>")) (1C N);
 
-REMOVE A IF (0C A OR N) (-1 Det) (1 SENT);
+REMOVE:r25 A IF (0C A OR N) (-1 Det) (1 SENT);
 
-SELECT Det IF (0C Pron OR Det) (1C N);
+SELECT:s65 Det IF (0C Pron OR Det) (1C N);
 
-SELECT V-FIN IF (-1C Subj) (1 Inf);
+SELECT:s66 V-FIN IF (-1C Subj) (1 Inf);
 
-REMOVE Subj IF (0C Subj OR Obj) (-1C* Subj BARRIER SENT);
+REMOVE:r26 Subj IF (0C Subj OR Obj) (-1C* Subj BARRIER SENT);
 
-SELECT V-HAVE IF (1C PrcPast);
+SELECT:s67 V-HAVE IF (1C PrcPast);
 
-SELECT Pr IF (0 Pr OR Adv) (1 Pron + Obj) ;
+SELECT:s68 Pr IF (0 Pr OR Adv) (1 Pron + Obj) ;
 
-REMOVE N IF (0 N OR V) (-1 VAUX-CAN) ;
+REMOVE:r27 N IF (0 N OR V) (-1 VAUX-CAN) ;
 
-REMOVE Pron IF (0 Det OR Pron) (1 NUM) ;
+REMOVE:r28 Pron IF (0 Det OR Pron) (1 NUM) ;
 
-SELECT Year IF (-1 ("in") OR ("after") OR ("since") OR ("of") OR ("throughout")) (NOT 1 N);
+SELECT:s69 Year IF (-1 ("in") OR ("after") OR ("since") OR ("of") OR ("throughout")) (NOT 1 N);
 
-SELECT Year IF (-1 Seasons OR Months);
+SELECT:s70 Year IF (-1 Seasons OR Months);
  
 AFTER-SECTIONS 
 
-REMOVE Year ; 
+REMOVE:r29 Year ; 

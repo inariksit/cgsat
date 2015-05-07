@@ -27,11 +27,11 @@
   (.25,.15) -- cycle;}
 \newcommand{\Mypm}{\mathbin{\tikz [x=1.4ex,y=1.4ex,line width=.1ex] \draw (0.0,0) -- (1.0,0) (0.5,0.08) -- (0.5,0.92) (0.0,0.5) -- (1.0,0.5);}}%
 
-\title{Constraint Grammars as a SAT problem}
+\title{Constraint Grammar as a SAT problem}
 
-% \author{Inari Listenmaa \and Koen Claessen \\
-%  Chalmers University of Technology, Gothenburg, Sweden \\
-%  {\tt \{inari,koen\}@chalmers.se} }
+\author{Inari Listenmaa \and Koen Claessen \\
+ Chalmers University of Technology, Gothenburg, Sweden \\
+ {\tt \{inari,koen\}@chalmers.se} }
 
 \date{\today}
 
@@ -43,7 +43,7 @@
 
 \section{Introduction}
 
-We represent Constraint Grammars (CG) \cite{karlsson1995constraint} 
+We represent Constraint Grammar (CG) \cite{karlsson1995constraint} 
 as a Boolean satisfiability (SAT) problem.
 This is attractive from several reasons: formal logic is
 well-studied, and serves as an abstract language to reason about the
@@ -253,10 +253,9 @@ SATCG is currently just a naive proof-of-concept implementation with no optimisa
   \begin{tabular}{|l|c|c|c|}
      \hline
    \textbf{\# words} & \textbf{\# rules} &  \textbf{SATCG} & \textbf{VISL CG-3} \\ \hline
-                384,155  & 19   &  13.7s   & 4.2s\\ %\hline
-                124,493  & 99   &  55.7s   & 4.8s \\ % \hline
-	        384,155  & 130  &  1m14.1s & 6.1s \\ %\hline
-                384,155  & 261  &  2m53.7s & 10.7s \\ \hline
+                384,155  & 19   &  23.1s   & 4.2s\\ %\hline
+	        384,155  & 99   &  1m40.6s & 6.1s \\ %\hline
+                384,155  & 261  &  2m36.7s & 10.7s \\ \hline
   \end{tabular}
   \caption{Execution times.}
   \label{table:time}
@@ -319,7 +318,7 @@ difference between the systems at each new rule.
 
 \section{Conclusions}
 
-SAT-solvers are nowadays powerful enough to be used for dealing with Constraint Grammars. A logic-based approach to CG has possible advantages over more traditional approaches; a SAT-solver may disambiguate more words, and may do so more precisely. Also, the SAT-solver requires less rules, and these rules are simpler. The ordering of rules is something we found was incompatible with a logic-based approach. We compensate this by maximising rule applications. Whether this is an advantage or disadvantage remains to be seen. Our initial experimental results are promising.
+SAT-solvers are nowadays powerful enough to be used for dealing with Constraint Grammar. A logic-based approach to CG has possible advantages over more traditional approaches; a SAT-solver may disambiguate more words, and may do so more precisely. Also, the SAT-solver requires less rules, and these rules are simpler. The ordering of rules is something we found was incompatible with a logic-based approach. We compensate this by maximising rule applications. Whether this is an advantage or disadvantage remains to be seen. Our initial experimental results are promising.
 
 
 % \section*{Acknowledgments}

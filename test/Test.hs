@@ -23,6 +23,8 @@ rustext = undefined
 engr = "data/eng_cg2.rlx"
 entext = "data/en.tagged.ambiguous"
 engold = "data/en.tagged"
+-- entext = "data/vietnam.tagged.ambiguous"
+-- engold = "data/vietnam.tagged"
 enpre = "data/en_pre.rlx"
 
 main :: IO ()
@@ -49,7 +51,8 @@ main = do
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
-                      disam = if "o" `elem` o then disambiguateWithOrder                                                         else disambiguate
+                      disam = if "no" `elem` o then disambiguate
+                                               else disambiguateWithOrder
                   resSAT <- mapM (disam verbose debug rules) text -- :: [Sentence]
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 
                   prAll "" resSAT resVISL text verbose
