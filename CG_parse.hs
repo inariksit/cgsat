@@ -39,7 +39,15 @@ parseRules test s = case pGrammar (CG.Par.myLexer s) of
 parseData :: String -> [CGB.Sentence]
 parseData s = case pText (Apertium.Par.myLexer s) of
             AErr.Bad err  -> error err
-            AErr.Ok text  -> split $ transText text
+            AErr.Ok text  -> map sentence $ split isSent $ transText text
+  where isSent :: CGB.Analysis -> Bool
+        isSent = tagsInAna [CGB.Tag "sent", CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
+
+        tagsInAna :: [CGB.Tag] -> CGB.Analysis -> Bool
+        tagsInAna tags as = any ((not.null) . intersect tags) as
+
+        sentence s = [bos] ++ s ++ [eos]
+
 
 --just because it's nice to use them  rules <- readRules foo
 readRules :: String -> IO [CGB.Rule]
@@ -77,22 +85,9 @@ parseCGRules (Defs defs) = do mapM updateEnv defs
         parseRules' e (RuleDef r) = Right $ evalState (transRule r) e
 
 
-
-split :: [CGB.Analysis] -> [CGB.Sentence]
-split as = go as []
-  where go [] ys = ys
-        go xs ys = let beforePunct = takeWhile (not . isPunct) xs 
-                       fromPunct   = dropWhile (not . isPunct) xs
-                       punct = if null fromPunct then [] else head fromPunct 
-                       newxs = if null fromPunct then [] else tail fromPunct
-                       newsent = bos:beforePunct ++ punct:eos:[]
-                   in go newxs (newsent:ys)
-
-        isPunct :: CGB.Analysis -> Bool
-        isPunct = tagsInAna [CGB.Tag "sent", CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
-
-        tagsInAna :: [CGB.Tag] -> CGB.Analysis -> Bool
-        tagsInAna tags as = or $ map ((not.null) . intersect tags) as
+split :: (a -> Bool) -> [a] -> [[a]]
+split p [] = []
+split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
 
 bos = [[CGB.BOS]]
 eos = [[CGB.EOS]]
@@ -256,11 +251,11 @@ transBarrier (Barrier ts) = transTagSet ts
 
 
 --  morpho output parsing
+-- type Analysis = [[Tag]]
 
 transText :: Text -> [CGB.Analysis]
 transText x = case x of
   Lines lines  -> map transLine lines
-
 
 transLine :: Line -> CGB.Analysis
 transLine x = case x of
