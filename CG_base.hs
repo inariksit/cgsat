@@ -69,7 +69,6 @@ toTags (Or ts1 ts2) = toTags ts1 ++ toTags ts2
 toTags (Diff ts1 ts2) = toTags ts1 \\ toTags ts2 
 toTags (Cart ts1 ts2) = map concat $ sequence [(toTags ts1), (toTags ts2)]
 toTags All = [[]] --matches all
-toTags _ = [[]] --TODO!!!!
 
 -- | Analysis is just list of tags: for instance the word form "alusta" would get
 -- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
@@ -100,10 +99,10 @@ data Condition = C Position (Bool, TagSet)
                | OR Condition Condition  deriving (Eq)
 
 instance Show Condition where
-  show (C pos (True, ts)) = show pos ++ " " ++ show ts
-  show (C pos (False, ts)) = "NOT " ++ show pos ++ " " ++ show ts
-  show (AND c1 c2) = "(" ++ show c1 ++ ") (" ++ show c2 ++ ")"
-  show (OR c1 c2) = "(" ++ show c1 ++ ") OR (" ++ show c2 ++ ")"
+  show (C pos (True, ts)) = "(" ++ show pos ++ " " ++ show ts ++ ")"
+  show (C pos (False, ts)) = "(NOT " ++ show pos ++ " " ++ show ts ++ ")"
+  show (AND c1 c2) = show c1 ++ " " ++ show c2
+  show (OR c1 c2) = show c1 ++ " OR " ++ show c2
 
 -- | Position can be exact or at least.
 -- | The meaning of numbers is 
@@ -176,15 +175,15 @@ hasBoundary rule = case rule of
         hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat (toTags tags)
 
 -- Sets of tags
-verb = TS $ (map . map) Tag [["vblex"],["vbser"],["vbmod"]]
-noun = TS $ (map . map) Tag [["n"], ["np"]]
-det  = TS $ [[Tag "det"]]
-adv  = TS $ [[Tag "adv"]]
-conj = TS $ (map . map) Tag [["cnjcoo"],["cnjsub"]]
-prep = TS $ [[Tag "prep"]]
-sg   = TS $ [[Tag "sg"]]
-pl   = TS $ [[Tag "pl"]]
-cnjcoo  = TS $ [[Tag "cnjcoo"]]
+verb = TS [[Tag "vblex"],[Tag "vbser"],[Tag "vbmod"]]
+noun = TS [[Tag "n"], [Tag "np"]]
+det  = TS [[Tag "det"]]
+adv  = TS [[Tag "adv"]]
+conj = TS [[Tag "cnjcoo"],[Tag "cnjsub"]]
+prep = TS [[Tag "prep"]]
+sg   = TS [[Tag "sg"]]
+pl   = TS [[Tag "pl"]]
+cnjcoo  = TS [[Tag "cnjcoo"]]
 
 -- Rules
 rmParticle = Remove NoName (TS [[Tag "particle"]]) always

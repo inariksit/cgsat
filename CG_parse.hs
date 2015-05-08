@@ -163,8 +163,6 @@ transTagSet ts = case ts of
   Cart ts1 ts2   -> do tags1 <- transTagSet ts1   
                        tags2 <- transTagSet ts2
                        return $ CGB.Cart tags1 tags2
-                       --let combs = map concat $ sequence [tags1, tags2]
-                       --return combs
 
 
 transRule :: Rule -> State Env CGB.Rule

@@ -343,9 +343,10 @@ disambiguateWithOrder verbose debug rules sentence = do
                           | (False, (rl,cl)) <- zip cs applied 
                       ]
 
-      la <- count s litsForAnas
+      --la <- count s litsForAnas
       --b <- solveMaximize s [] la
-      b <- solveMinimize s [] la
+      --b <- solveMinimize s [] la --shouldn't do this, just add constraints that only one interpretation can be true
+      --TODO check atMostOne in sat+
       --b <- solve s [] --just this doesn't make any difference!
 
       if and bs && not (null bs) then

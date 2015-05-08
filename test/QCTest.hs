@@ -19,7 +19,7 @@ checkGetContext lit allLits conds = length (getContext lit allLits conds) == len
 
 --conditions glued together with AND form a list as long as there were original conditions
 checkToLists :: (Condition, Int) -> Bool
-checkToLists (cond, num) = length (toLists cond) == num
+checkToLists (cond, num) = length (toConds cond) == num
 
 --just for fun, to see automatically generated CG rules
 checkRule :: Rule -> Bool

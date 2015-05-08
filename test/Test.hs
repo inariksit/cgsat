@@ -114,6 +114,7 @@ prAll str s v tx verbose = do
       prec = 100 * (fromIntegral origwlen - fromIntegral diffwlenPrec) / fromIntegral origwlen
       rec  = 100 * (fromIntegral origwlen - fromIntegral diffwlenRec) / fromIntegral origwlen
       univ = 100 * (universaldiff / fromIntegral origwlen)
+      fscore = 2 * ( (prec*rec) / (prec+rec) )
 
   putStrLn $ "Original: " ++ show origslen ++ " sentences, " 
                           ++ show origwlen ++ " words"
@@ -123,6 +124,8 @@ prAll str s v tx verbose = do
   
   putStr str
   printf " General diff %.2f \n" (univ :: Float)
+
+  printf " F-score %.2f \n" (fscore :: Float)
   
   putStr "Disambiguates (more,less,disjoint,all): "
   print (moreD, lessD, diffD, diffwlenPrec)
