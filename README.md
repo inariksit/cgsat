@@ -6,10 +6,9 @@ Implementing Constraint Grammar using SAT solver.
 Installation: just type make.
 It will first compile the BNFC files and then just do cabal configure && cabal build.
 
------------------------
+It's using https://github.com/koengit/satplus/ , not on hackage (?)
 
-SAT 
-  - Helper functions for using MiniSat
+-----------------------
 
 bnfc
   - BNFC grammars for parsing CG rules and Apertium input format.
