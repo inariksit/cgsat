@@ -52,21 +52,25 @@ dependencies between the tags than standard CG.
 
 Applying logic to reductionist grammars has been explored earlier by \cite{lager98,lager_nivre01}, but it was never adopted for use.
 % ; logic programming was too slow to be used for tagging or parsing. 
-Since those works, SAT solving techniques have improved significantly \cite{marques_silva2010}, and 
-they are used in domains such as microprocessor design and computational 
+Since those works, SAT solving techniques have improved significantly \cite{marques_silva2010}, and they are used in domains such as microprocessor design and computational 
 biology---these problems easily match or exceed CG in complexity. 
-% Is this true for grammars with thousands of rules?
+Due to these advances, we were able to revisit the idea and develop it
+further. 
 
-Due to these advances, we were able to revisit the idea and develop it further. 
-% Whereas \cite{lager98} provides a proof-of-concept description, 
-Missing from the previous logic-based works, 
-we solve eventual rule conflicts by finding a solution that 
-discards the least number of rules.
-% allows the maximal number of rules to be applied.
-We test our implementation by parsing texts in the order of 10,000s--100,000s
-words, using grammars with hundreds of rules.
+Encoding CG in logic increases computational complexity, 
+but as a tradeoff, it could simplify the grammar writing.
+Due to representing the rules as implications, the requirement of being unambiguously tagged becomes irrelevant.
+One rule corresponds to many logical formulas (each condition being
+the target), making the number of the rules potentially smaller.
+Ordering can be preserved or discarded; in the latter case, we solve
+eventual rule conflicts by finding a solution that discards the least
+number of rule applications.
+% our experiments show that it is possible to write a small grammar, 
+% which, when run with SAT-CG, disambiguates more than the same
+%grammar run with VISL CG-3.
 
-
+We test our implementation by parsing texts in the order of
+10,000s--100,000s words, using grammars with hundreds of rules.
 
 
 
@@ -76,20 +80,16 @@ words, using grammars with hundreds of rules.
 %solution, where all variables in the set have a True or False value.
 
 
-%This increases the computational complexity, 
-%but we are exploring ways in which it could simplify the grammar writing:
-%our experiments show that less rules are needed, and features like ordering of the rules
-%and requirement of being unambiguously tagged become irrelevant.
 
 
 % Uncomment for full paper
-% \section{Related work}
-% \label{sect:related}
+\section{Related work}
+\label{sect:related}
 
-% Our work is inspired by \cite{lager98}, which presents constraint rules as a disjunctive logic program,
-% and \cite{lager_nivre01}, which reconstructs 4 different formalisms from a logical point of view.
-% \cite{lindberg_eineborg98ilp,asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
-% \cite{lager01transformation} discusses ordering of the CG rules.
+Our work is inspired by \cite{lager98}, which presents constraint rules as a disjunctive logic program,
+and \cite{lager_nivre01}, which reconstructs 4 different formalisms from a logical point of view.
+\cite{lindberg_eineborg98ilp,asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
+\cite{lager01transformation} discusses ordering of the CG rules.
 
 \section{CG as a SAT problem}
 Let us demonstrate our approach with the following example in Spanish.
@@ -189,8 +189,7 @@ can only remove readings for the word which is tagged as \texttt{prn} or
 This means that the rules are logically flipped: \texttt{REMOVE prn IF
   (1 n)} translates into the same logical formula as  \texttt{REMOVE n
   IF (-1 prn)}. A rule with more conditions can be written as many
-rules, each condition taking its turn to be in position to be removed
-or selected. \\
+rules, each condition taking its turn to be the target of removal or selection. \\
 
 % \begin{itemize}
 % \item [] \texttt{REMOVE n IF (-1 prn) ;} \\
@@ -224,7 +223,7 @@ applications.
 However, the results using our approach should not be too different from the
 existing ones---our preliminary evaluation against VISL CG-3 shows
 promising results in this regard.
-\pagebreak
+
 
 \section{Results and evaluation}
 
