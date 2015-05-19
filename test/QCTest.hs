@@ -36,10 +36,14 @@ arbCondList =
 
 --------------------------------------------------------------------------------
 allTags :: [Tag]
-allTags = concat $ verb ++ noun ++ det ++ adv ++ conj ++ prep ++ sg ++ pl ++ cnjcoo
+allTags = map Tag ["vblex", "vbser", "vbmod", "n", "np", "det", "adv", "cnjcoo", "cnjsub", "prep", "sg", "pl", "cnjcoo"]
 
 instance Arbitrary Tag where
   arbitrary = elements allTags
+
+instance Arbitrary TagSet where
+  arbitrary = do tags <- listOf arbitrary
+                 return $ TS [tags]
 
 instance Arbitrary SAT.Lit where
   arbitrary = elements [SAT.Lit (MiniSat.MkLit n) | n <- [1..50]]
@@ -47,13 +51,13 @@ instance Arbitrary SAT.Lit where
 instance Arbitrary Position where
   arbitrary = elements $ [Exactly n | n <- [-5..5]] ++
                          [AtLeast n | n <- [-5..5]] ++
-                         [Barrier n [[t]] | n <- [-5..5],
-                                            t <- allTags]
+                         [Barrier n (TS [[t]]) | n <- [-5..5],
+                                                 t <- allTags]
 
 instance Arbitrary Condition where
   arbitrary = do pos <- arbitrary
                  bool <- arbitrary
-                 tags <- listOf arbitrary
+                 tags <- arbitrary
                  return $ C pos (bool, tags)
 
 
