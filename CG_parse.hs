@@ -27,14 +27,11 @@ import qualified CG_base as CGB
 type Env = [(String, CGB.TagSet)]
 
 
-parseRules :: Bool -> String -> [CGB.Rule]
+parseRules :: Bool -> String -> [[CGB.Rule]] -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
             CGErr.Ok  tree -> let rules = evalState (parseCGRules tree) []
-                              in trace (if test then (unwords $ map pr rules) else "") $
-                              rights rules
-  where pr (Right rule)  = show rule
-        pr (Left string) = string
+                              in  map rights rules
 
 parseData :: String -> [CGB.Sentence]
 parseData s = case pText (Apertium.Par.myLexer s) of
@@ -51,7 +48,7 @@ parseData s = case pText (Apertium.Par.myLexer s) of
 
 --just because it's nice to use them  rules <- readRules foo
 readRules :: String -> IO [CGB.Rule]
-readRules fname = readFile fname >>= return . parseRules False
+readRules fname = readFile fname >>= return . concat . parseRules False
 
 readData :: String -> IO [CGB.Sentence]
 readData fname = readFile fname >>= return . parseData
@@ -68,8 +65,11 @@ main = do args <- getArgs
 
 ---
 
-parseCGRules :: Grammar -> State Env [Either String CGB.Rule]
-parseCGRules (Defs defs) = do mapM updateEnv defs 
+parseCGRules :: Grammar -> State Env [[Either String CGB.Rule]]
+parseCGRules (Sections secs) = mapM parseSection secs
+
+parseSection :: Section -> State Env [Either String CGB.Rule]
+parseSection (Defs defs) = do mapM updateEnv defs 
                               --in case the grammar doesn't specify boundaries 
                               modify ((">>>", CGB.TS bos) :)
                               modify (("<<<", CGB.TS eos) :)

@@ -3,12 +3,18 @@ comment "#" ;
 comment "SETS" ;
 comment "SUBREADINGS" ;
 comment "CONSTRAINTS" ;
+comment "MAPPINGS" ;
 comment "DELIMITERS" ;
 comment "SOFT-DELIMITERS" ;
-comment "SECTION" ;
 comment "AFTER-SECTIONS" ;
+comment "BEFORE-SECTIONS" ;
+comment "NULL-SECTION" ;
 
-Defs.  Grammar ::= [Def] ;
+
+Sections. Grammar ::= [Section] ;
+separator nonempty Section "SECTION" ;  --TODO: check if we can use multiple things as a separator (e.g. SECTION / BEFORE-SECTIONS / AFTER-SECTIONS
+
+Defs.  Section ::= [Def] ;
 terminator Def "" ;
 
 --------------------------------------------------------------------------------
