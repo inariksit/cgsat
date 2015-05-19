@@ -200,10 +200,11 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                  
 
 ---- Main stuff
-
-
--- how to emulate ordering:
--- Maximise all instances of applying rule one; then commit to those; then maximise instances of rule 2, and so on.
+disamSection ::  ([Rule] -> Sentence -> IO Sentence) -> [[Rule]] -> Sentence -> IO Sentence
+disamSection disam []         sent = return sent
+disamSection disam [rs]       sent = disam rs sent
+disamSection disam (r1:r2:rs) sent = disam r1 sent
+                                      >>= \s -> (print s >> disamSection disam ((r1++r2):rs) s)
 
 disambiguate :: Bool -> Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguate verbose debug rules sentence = do

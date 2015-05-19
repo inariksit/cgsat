@@ -31,7 +31,11 @@ parseRules :: Bool -> String -> [[CGB.Rule]] -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
             CGErr.Ok  tree -> let rules = evalState (parseCGRules tree) []
-                              in  map rights rules
+                              in trace (if test then unwords $ pr rules else "") $
+                                 map rights rules
+  where pr = concatMap $ map pr'
+        pr' (Right rule)  = show rule
+        pr' (Left string) = string
 
 parseData :: String -> [CGB.Sentence]
 parseData s = case pText (Apertium.Par.myLexer s) of
@@ -47,8 +51,8 @@ parseData s = case pText (Apertium.Par.myLexer s) of
 
 
 --just because it's nice to use them  rules <- readRules foo
-readRules :: String -> IO [CGB.Rule]
-readRules fname = readFile fname >>= return . concat . parseRules False
+readRules :: String -> IO [[CGB.Rule]]
+readRules fname = readFile fname >>= return . parseRules False
 
 readData :: String -> IO [CGB.Sentence]
 readData fname = readFile fname >>= return . parseData

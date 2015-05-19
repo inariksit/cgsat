@@ -59,9 +59,10 @@ further.
 
 Encoding CG in logic increases computational complexity, 
 but as a tradeoff, it could simplify the grammar writing.
-Due to representing the rules as implications, the requirement of being unambiguously tagged becomes irrelevant.
+Due to representing the rules as implications, cautious context
+condition becomes irrelevant.
 One rule corresponds to many logical formulas (each condition being
-the target), making the number of the rules potentially smaller.
+the target), which makes the number of the rules potentially smaller.
 Ordering can be preserved or discarded; in the latter case, we solve
 eventual rule conflicts by finding a solution that discards the least
 number of rule applications.

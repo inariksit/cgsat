@@ -51,9 +51,10 @@ main = do
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
-                      disam = if "no" `elem` o then disambiguate
-                                               else disambiguateWithOrder
-                  resSAT <- mapM (disam verbose debug rules) text -- :: [Sentence]
+                      disam = if "no" `elem` o 
+                                then disambiguate verbose debug
+                                else disambiguateWithOrder verbose debug
+                  resSAT <- mapM (disamSection disam rules) text -- :: [Sentence]
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 
                   prAll "" resSAT resVISL text verbose
                   putStrLn ""
@@ -63,7 +64,7 @@ gold rl dt g = do rules <- readRules rl
                   text <- readData dt
                   gold <- readData g
 
-                  resSAT <- mapM (disambiguateWithOrder False False rules) text
+                  resSAT <- mapM (disamSection (disambiguateWithOrder False False) rules) text
                   resVISL <- vislcg3 rl dt True
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 100 --change if you want different output
@@ -186,7 +187,7 @@ wordCount s = length $ map (filter (\x -> null $ [BOS,EOS] `intersect` x)) $ con
 
 --shuffle :: [Rule] -> IO ()
 shuffle_ r d g pre = do
-  rls <- readRules r
+  rls <- concat `fmap` readRules r
   seed <- newStdGen
   sequence_ [ do mkRuleFile ps fname r pre
                  putStrLn (fname ++ "\n---------") 
@@ -198,7 +199,7 @@ shuffle_ r d g pre = do
                            in shuffle' xs (length xs) seed : shuffles (reverse xs) newSeed
 
 rev r d g pre = do
-  rls <- readRules r
+  rls <- concat `fmap` readRules r
   sequence_ [ do mkRuleFile ps fname r pre
                  putStrLn (fname ++ "\n---------") 
                  gold fname d g
@@ -220,7 +221,7 @@ mkRuleFile rules fp orig pre = do
 
 --------------------------------------------------------------------------------
 
-optiBySz rl dt = do r <- readRules rl
+optiBySz rl dt = do r <- concat `fmap` readRules rl
                     t <- readData dt
                     g <- readData esgold
                     let seqs = groupBy (\x y -> length x == length y) (subsequences r)
@@ -228,14 +229,14 @@ optiBySz rl dt = do r <- readRules rl
                     putStrLn "Best rule set for each size:"
                     mapM_ (mapM_ pr . (sortBy (\x y -> fst x `compare` fst y))) res
 
-opti rls dat = do r <- readRules rls
+opti rls dat = do r <- concat `fmap` readRules rls
                   t <- readData dat
                   g <- readData esgold
                   res <- loop (subsequences r) t g []
                   putStrLn "optimal rule sequence:"
                   mapM_ pr (take 3 (sortBy (\(x,_) (y,_) -> x `compare` y) res))
 
-optiComp rls dat n = do r <- readRules rls
+optiComp rls dat n = do r <- concat `fmap` readRules rls
                         t <- readData dat
                         g <- readData esgold
                         let nrules = filter (\x -> length x==n) $ subsequences r
