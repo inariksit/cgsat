@@ -73,7 +73,7 @@ tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
 -- ((2,["bear",<vblex>,<pl>]),Lit v2)
 -- ((3,["sleep",<n>,<pl>]),Lit v4)
 -- ((3,["sleep",<vblex>,<sg>,<p3>]),Lit v5)
-chunk :: Sentence -> [(Integer,[Tag])]
+--chunk :: Sentence -> [(Integer,[Tag])]
 chunk sent = concat $ go sent 1
    where go []    _n = []
          go (x:xs) n = map ((,) n) x : go xs (n+1)
@@ -203,8 +203,10 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
 disamSection ::  ([Rule] -> Sentence -> IO Sentence) -> [[Rule]] -> Sentence -> IO Sentence
 disamSection disam []         sent = return sent
 disamSection disam [rs]       sent = disam rs sent
-disamSection disam (r1:r2:rs) sent = disam r1 sent
-                                      >>= \s -> (print s >> disamSection disam ((r1++r2):rs) s)
+disamSection disam (r1:r2:rs) sent = disam (take 10 (reverse r1)) sent
+                                      >>= \s -> ({-print s >>-} disamSection disam 
+                                                ((r1++r2):rs) s)
+ 
 
 disambiguate :: Bool -> Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguate verbose debug rules sentence = do
@@ -309,7 +311,8 @@ disambiguateWithOrder verbose debug rules sentence = do
       --mapM_ print applied
       let onlyClauses = (map.map) snd $ groupBy (\x y -> fst x==fst y) applied :: [[[Lit]]]
 
-      sequence_ [ addClause s cls | cls <- concat onlyClauses ]
+      --add clauses; in the "bs <- " loop when we add lits, some of those clauses will then be automatically removed
+      --sequence_ [ addClause s cls | cls <- concat onlyClauses ]
 
 
       when debug $ do

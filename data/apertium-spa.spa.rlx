@@ -18,7 +18,26 @@ LIST Vblex = (vblex) ;
 LIST Vbmod = (vbmod) ;
 LIST Vbhaver = (vbhaver) ;
 LIST Copula = (vbser);
+
+LIST Subj = prs pis ;
+LIST Imp = (imp) ;
+LIST Inf = (inf) ;
+LIST Pres = (pri) ;
+LIST Past = (pii) ;
+LIST Cond = (cni) ;
+LIST PastCondSubj = past cond subj ;
+SET PastCondSubjP1 = PastCondSubj + (p1)  ;
+
+LIST VerbFin = pri prs imp pii cni pis ifi fti;
+LIST VerbInd = pri imp pii ifi fti ;
+
+LIST Predet = (predet) ;
+SET PrnIndep = (prn pro) OR (prn itg) OR (prn tn) ;
 LIST Pron = (prn) ;
+LIST Prn = prn ;
+SET Ref = (prn pro ref) ;
+SET Pro = (prn pro) ;
+
 LIST Prep = (pr) ;
 LIST CnjCoo = (cnjcoo) ;
 # quantes vegades s'executa cada regla?
@@ -127,6 +146,7 @@ SET VerboSubj = ("querer") OR ("Querer") OR ("desear") OR ("Desear") OR ("propon
 
 # verbos Vblex que típicamente tienen predicativo
 SET VPred = ("considerar") OR ("Considerar") OR ("creer") OR ("Creer") OR ("opinar") OR ("Opinar") OR ("sentir") OR ("Sentir") OR ("hallar") OR ("Hallar") OR ("permanecer") OR ("Permanecer") OR ("continuar") OR ("Continuar") OR ("mantener") OR ("Mantener") OR ("resultar") OR ("Resultar") OR ("volver") OR ("Volver") ;
+
 
 
 ###############################################################################
@@ -632,3 +652,31 @@ REMOVE:r_na_9_fp_fp A OR PP IF (-1 Det + $$FemPl) (0 Noun_Adj_PP + $$FemPl LINK 
 	# adj_pp: "un trípode pesado con miras"
 
 # REMOVE:r_na_20 A OR PP IF (-1 Barrera_Inicial_SN LINK NOT 0 N) (NOT -1 Limite_Barrera_Inicial_SN) (0 Noun_Adj_PP LINK 0 N OR NP) (1 Barrera_Final_SN) ;
+
+
+
+##########################################
+# Inari's 19 rules
+
+SECTION
+
+SELECT:i01_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
+SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
+REMOVE:i12_r_predet Predet IF (NOT 1 Det) ; # TOP 12
+SELECT:i15_s_prn_1 Prn IF (0 A) (1C Verb OR Adv OR Pro) ; # TOP 15
+SELECT:i16_s_prn_2 Prn IF (0 A) (-1C Prep) ; # de qué?  # TOP 16
+SELECT:i14_s_prep Prep IF (-1 Verb) (1 N) ; # TOP 14
+SELECT:i13_s_a_adv A IF (-1C Det)  (1C N) ; # TOP 13
+SELECT:i02_s_n_adj N IF (-1C Det OR A OR Num OR Prep) (NOT 1 N) ; # TOP 2
+SELECT:i20_s_noun N IF (0 Verb) (1 A) ;
+SELECT:i06_s_adv Adv IF (1 Cnj_Rel_End OR Prep OR Det) ; # TOP 6
+SELECT:i18_s_preadv PreAdv IF (1C PP) ; # TOP 18
+REMOVE:i19_r_verb Verb IF (-1 A OR Det) ; # TOP 19 
+#SELECT:i20_s_noun N IF (-1 Det) (1 A) ;
+REMOVE:i10_r_pr_cn_p1 PastCondSubjP1 IF (-1 N OR P3) ; # TOP 10
+SELECT:i03_s_pri_1 (pri p3) IF (0 (vblex imp p2 sg)) ; # TOP 3
+REMOVE:i09_r_imp Imp IF (0 Subj) (-1* CnjSub) ; # TOP 9
+REMOVE:i17_r_v_pro Verb IF (1 Pro) ; # TOP 17
+REMOVE:i07_r_v_v Verb IF (-1C Vblex) ;  # TOP 7
+REMOVE:i05_r_vfin_prep VerbFin IF (0 Prep) (1 Inf) ; # TOP 5
+REMOVE:i11_r_vfin_prep VerbFin IF (-1 Prep) ; # TOP 11

@@ -51,10 +51,13 @@ main = do
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
-                      disam = if "no" `elem` o 
+                      disam = if "noord" `elem` o 
                                 then disambiguate verbose debug
                                 else disambiguateWithOrder verbose debug
-                  resSAT <- mapM (disamSection disam rules) text -- :: [Sentence]
+                      disec = if "nosec" `elem` o
+                                then disam (concat rules)
+                                else disamSection disam rules
+                  resSAT <- mapM disec text -- :: [Sentence]
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 
                   prAll "" resSAT resVISL text verbose
                   putStrLn ""

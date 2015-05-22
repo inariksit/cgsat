@@ -49,9 +49,9 @@ instance Show TagSet where
   show x = "TODO"
 
 showTagset :: [[Tag]] -> String
-showTagset [[x]] = show x
+showTagset [[x]] = show x ++ " "
 showTagset xs    = concatMap show' xs
-  where show' [y] = show y
+  where show' [y] = show y ++ " "
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
 toTags :: TagSet -> [[Tag]]

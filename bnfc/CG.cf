@@ -10,6 +10,13 @@ comment "AFTER-SECTIONS" ;
 comment "BEFORE-SECTIONS" ;
 comment "NULL-SECTION" ;
 
+-- hacks
+comment "ADD" ; 
+comment "IFF" ;
+comment "MAP" ;
+comment "SUBSTITUTE" ;
+
+
 
 Sections. Grammar ::= [Section] ;
 separator nonempty Section "SECTION" ;  --TODO: check if we can use multiple things as a separator (e.g. SECTION / BEFORE-SECTIONS / AFTER-SECTIONS

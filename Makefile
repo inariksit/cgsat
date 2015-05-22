@@ -1,3 +1,4 @@
+
 testprog=dist/build/test-cgsat/test-cgsat
 
 default: grammars rest
@@ -5,11 +6,11 @@ default: grammars rest
 grammars:
 #	bnfc -d bnfc/Apertium.cf
 #	bnfc -d bnfc/CG.cf
-	happy -gca CG/Par.y
-	alex -g CG/Lex.x
+#	happy -gca CG/Par.y
+#	alex -g CG/Lex.x
 	happy -gca Apertium/Par.y
 	alex -g Apertium/Lex.x
-	ghc --make CG/Test.hs -o CG/Test
+#	ghc --make CG/Test.hs -o CG/Test
 	ghc --make Apertium/Test.hs -o Apertium/Test
 
 rest:
@@ -30,6 +31,7 @@ test-grammars:
 	cat data/eng_cg2.rlx | ./CG/Test | grep Successful
 	cat data/apertium-spa.spa.rlx | ./CG/Test | grep Successful
 	cat data/hun_cg2.rlx | ./CG/Test | grep Successful
+	cat data/fin.rlx | ./CG/Test
 	cat data/bre_cg2.rlx | ./CG/Test | grep Successful
 
 
