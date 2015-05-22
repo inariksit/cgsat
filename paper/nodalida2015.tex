@@ -225,9 +225,67 @@ However, the results using our approach should not be too different from the
 existing ones---our preliminary evaluation against VISL CG-3 shows
 promising results in this regard.
 
+\section{Applications}
+
+As described in Section~\ref{sec:eval}, our implementation is not
+competetive with the state of the art. It is more fruitful to focus on
+things where the SAT-based representation can make an impact.
+One such thing is grammar analysis.
+
+Traditionally, CG rules are applied deterministically and
+sequentially; at the execution of rule, there is no way to
+go back to earlier rules and undo them. Thus there is no way to know
+what part of the input comes from the morphological analyser and what
+from the CG.
+
+A conflict can be defined as 
+a set of two or more rules, such that applying the first makes the
+next rules impossible to apply, regardless of input.
+As a simple example, these rules could be
+
+\begin{itemize}
+\item [] \texttt{SELECT verb ;} \\
+         \texttt{REMOVE verb IF (-1 det) ;}
+\end{itemize}
+
+The first rule selects the verb always, removing all other readings,
+and the second rule removes verb reading, given certain condition.
+If the rules are introduced in a different order, there is no
+conflict: the REMOVE rule would not remove verb readings from all
+possible verb analyses, so there is a possibility for the SELECT rule
+to fire.
+
+The way we implement SAT-CG is ideal for this kind of grammar
+analysis. After applying each rule, it stores the clauses produced by
+it and commits to them -- this makes the execution slow, but it
+retains the dependencies.
+Given the design that each rule application (instead of rule) gets a variable,
+in case of a conflict, the program prints out the particular
+application that violates the previous clauses, with the sentence
+where it is applied. 
+This conflict solving can be done per section, or for the whole grammar. 
+In case of section-based, we run each section on the input, and give
+the output as an input to the new section, discarding all clauses.
+
+Maximisation-based conflict solving (conflicting rule set --> remove least
+possible amount to get a non-conflicting rule set) is not feasible for this task. 
+The whole definition of conflicts depends on ordering, and it would
+not differentiate between the case where \texttt{SELECT verb} comes
+before \texttt{REMOVE verb IF (-1 det)} or after.
+On the other hand, a formalism such as FSIG would benefit from the
+maximisation-based technique in conflict handling.
+
+
+
+
+% SELECT (a) IF (0 PALJON + Nom + Sg) (1 N + Nom + Sg) ; # PALJO VALITTAMINEN
+% SELECT (a) IF (0 PALJON + Par) (1 N + Par + Sg) ;
+% SELECT (a) IF (0 PALJON + LOC-CASE) (1 N + 1 LOC-CASE + Sg) ;
+% REMOVE (a) IF (0 PALJON) ; # "on asetettu paljon haltijaksi"
+
 
 \section{Results and evaluation}
-
+\label{sec:eval}
 \paragraph{Time}
 
 The worst-case complexity of SAT is exponential, whereas the standard
