@@ -56,6 +56,10 @@ doSomething rule = do
   lt <- count s t
   b <- solveMaximize s [] lt
 
+  -- do we want more possible models?
+  possiblebs <- sequence [ solveMore s [] t | _ <- t ]
+
+  sequence_ [ putStrLn [ if b == True then '1' else '0' |  b <- bs' ] | bs' <- possiblebs ]
 
   as <- sequence [ modelValue s x | x <- t ]
   let alltoks = [ ((i,(WF t:((Tag (sc++l)):ts))),lit) 
@@ -83,3 +87,15 @@ splitEvery n list = first : (splitEvery n rest)
   where
     (first,rest) = splitAt n list
 
+
+solveMore :: Solver -> [Lit] -> [Lit] -> IO [Bool]
+solveMore s as xs = do
+  bs <- sequence [ modelValue s x | x <- xs ]
+  a <- newLit s
+  addClause s (neg a : [ if b == True then neg x else x | (x,b) <- xs `zip` bs ])
+  b <- solve s (a:as)
+  addClause s [neg a] -- just cleaning up
+  if b then do
+     sequence [ modelValue s x | x <- xs ]
+   else return []
+      
