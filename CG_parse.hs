@@ -223,14 +223,14 @@ transCond c = case c of
 
         getPos pos =
           case pos of
-            CGB.Exactly i -> i 
-            CGB.AtLeast i -> i
+            CGB.Exactly _ i -> i 
+            CGB.AtLeast _ i -> i
             CGB.Barrier i _ -> i 
 
         changePos pos newI = 
           case pos of
-            CGB.Exactly i -> CGB.Exactly newI 
-            CGB.AtLeast i -> CGB.AtLeast newI
+            CGB.Exactly b i -> CGB.Exactly b newI 
+            CGB.AtLeast b i -> CGB.AtLeast b newI
             CGB.Barrier i ts -> CGB.Barrier newI ts 
 
         transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
@@ -241,8 +241,8 @@ transCond c = case c of
         handleBar pos ts bar bool = 
           do pos' <- transPosition pos
              let int = case pos' of 
-                          CGB.Exactly i -> i
-                          CGB.AtLeast i -> i
+                          CGB.Exactly _ i -> i
+                          CGB.AtLeast _ i -> i
              btags <- transBarrier bar
              liftM (CGB.C $ CGB.Barrier int btags) (transTagSet' bool ts)
 
@@ -250,10 +250,10 @@ transCond c = case c of
 
 transPosition :: Position -> State Env CGB.Position
 transPosition pos = return $ case pos of
-  Exactly (Signed str)     -> CGB.Exactly $ read str
-  AtLeastPre (Signed str)  -> CGB.AtLeast $ read str
-  AtLeastPost (Signed str) -> CGB.AtLeast $ read str
-  AtLPostUnam (Signed str) -> CGB.AtLeast $ read str
+  Exactly (Signed str)     -> CGB.Exactly False $ read str
+  AtLeastPre (Signed str)  -> CGB.AtLeast False $ read str
+  AtLeastPost (Signed str) -> CGB.AtLeast False $ read str
+  AtLPostUnam (Signed str) -> CGB.AtLeast True $ read str
 
 transBarrier :: Barrier -> State Env CGB.TagSet
 transBarrier (Barrier ts) = transTagSet ts

@@ -68,12 +68,12 @@ tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
 -- | * its position in the sentence
 -- | * one of the suggested tag sequences
 -- | * id of that hypothesis in the SAT solver
--- ((1,["the",<det>]),Lit v0)
--- ((2,["bear",<n>,<sg>]),Lit v1)
--- ((2,["bear",<vblex>,<pl>]),Lit v2)
--- ((3,["sleep",<n>,<pl>]),Lit v4)
--- ((3,["sleep",<vblex>,<sg>,<p3>]),Lit v5)
---chunk :: Sentence -> [(Integer,[Tag])]
+-- ((1,["the",<det>]),v0)
+-- ((2,["bear",<n>,<sg>]),v1)
+-- ((2,["bear",<vblex>,<pl>]),v2)
+-- ((3,["sleep",<n>,<pl>]),v4)
+-- ((3,["sleep",<vblex>,<sg>,<p3>]),v5)
+chunk :: Sentence -> [(Integer,[Tag])]
 chunk sent = concat $ go sent 1
    where go []    _n = []
          go (x:xs) n = map ((,) n) x : go xs (n+1)
@@ -147,10 +147,6 @@ go isSelect tags (conds:cs) allToks = --trace (show conds) $
                                       , sameInd tok wantedTok
                                       , tagsDontMatchRule tags tok ]
 
-        
-
- 
-
 
 getContext :: Token           -- ^ a single analysis
                -> [Token]     -- ^ list of all analyses
@@ -162,11 +158,11 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
     []     -> [[dummyTok]] --empty conds = holds always
     [[]]   -> [[dummyTok]] 
     (t:ts) -> case position of
-                Exactly 0 -> if nt $ tagsMatchRule ctags' tok 
+                Exactly _ 0 -> if nt $ tagsMatchRule ctags' tok 
                                then [[tok]] --if the condition at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
                                else [exactly 0 nt tok] --if the LINK 0 thing is in a different reading
-                Exactly n -> [exactly n nt tok]
-                AtLeast n -> [atleast n nt tok]
+                Exactly _ n -> [exactly n nt tok]
+                AtLeast _ n -> [atleast n nt tok]
                 Barrier n bs  -> [barrier n nt bs tok]
 
   where nt = if bool then id else not

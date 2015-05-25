@@ -49,7 +49,7 @@ instance Show TagSet where
   show x = "TODO"
 
 showTagset :: [[Tag]] -> String
-showTagset [[x]] = show x ++ " "
+--showTagset [[x]] = show x ++ " "
 showTagset xs    = concatMap show' xs
   where show' [y] = show y ++ " "
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
@@ -105,17 +105,21 @@ instance Show Condition where
   show (OR c1 c2) = show c1 ++ " OR " ++ show c2
 
 -- | Position can be exact or at least.
--- | The meaning of numbers is 
--- | *  0: word itself
--- | * -n: to the left
--- | *  n: to the right.
-data Position = Exactly Integer 
-              | AtLeast Integer
+-- The meaning of numbers is 
+--   *  0: word itself
+--   * -n: to the left
+--   *  n: to the right.
+-- Bool is for cautious mode.
+data Position = Exactly Bool Integer 
+              | AtLeast Bool Integer
               | Barrier Integer TagSet deriving (Eq,Read)
 
+
 instance Show Position where
-  show (Exactly i) = show i
-  show (AtLeast i) = "*" ++ show i
+  show (Exactly True i) = show i ++ "C"
+  show (AtLeast True i) = "*" ++ show i ++ "C"
+  show (Exactly False i) = show i
+  show (AtLeast False i) = "*" ++ show i
   show (Barrier i ts) = "*" ++ show i ++ " BARRIER " ++ show ts
   
 
@@ -160,8 +164,8 @@ toConds cond = case cond of
 
 -- Shorthand for writing conditions without barriers
 mkC :: String -> TagSet -> Condition
-mkC str tags | last str == '*' = C (AtLeast $ (read . init) str) (True, tags)
-             | otherwise       = C (Exactly $ read str)          (True, tags)
+mkC s tags | last s == '*' = C (AtLeast False $ (read . init) s) (True, tags)
+           | otherwise     = C (Exactly False $ read s)          (True, tags)
 
 lemmaBear :: Condition
 lemmaBear = mkC "0" (TS [[Lem "bear"]])
@@ -198,7 +202,7 @@ slNounAfterConj = Select NoName noun (mkC "-1" conj)
 
 slCCifCC = Select NoName cnjcoo (C (Barrier 1 (TS [[Tag "punct"]])) (True,cnjcoo))
 
-rmPlIfSg = Remove NoName pl (C (Exactly (-1)) (True,sg))
+rmPlIfSg = Remove NoName pl (C (Exactly False (-1)) (True,sg))
 rmSgIfPl = Remove NoName sg (mkC "-1" pl)
 
 negTest   = Select NoName verb (mkC "-1" prep)
