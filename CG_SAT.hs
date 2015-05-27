@@ -48,12 +48,13 @@ sameInd ((i,_),_) ((i',_),_) = i == i'
 --Rule     has [[Tag]].
 --Analysis has [Tag].
 --At least one complete sublist in the rule must be found in the analysis.
+--If cautious mode, there must be only one sublist in analysis.
 tagsMatchRule :: [[Tag]] -> Token -> Bool
-tagsMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
+tagsMatchRule tr ((_,ta),_) = go tr ta
   where go []       ta = False
         go (tr:trs) ta = if all (\t -> t `elem` ta) tr 
                            then True
-                           else go trs ta
+                           else go trs ta 
 
 tagsDontMatchRule :: [[Tag]] -> Token -> Bool
 tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
@@ -110,7 +111,7 @@ go isSelect tags (conds:cs) allToks = --trace (show conds) $
         -- check if getContext has returned non-empty context for each condition
   where allCondsHold :: [[Token]] -> Bool
         allCondsHold ts | null conds = True 
-                        | otherwise  = all (not.null) ts
+                        | otherwise  = (not.null) ts && all (not.null) ts
 
 
      -- `foo => bar' translates into `~foo || bar'
@@ -158,37 +159,47 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
     []     -> [[dummyTok]] --empty conds = holds always
     [[]]   -> [[dummyTok]] 
     (t:ts) -> case position of
-                Exactly _ 0 -> if nt $ tagsMatchRule ctags' tok 
-                               then [[tok]] --if the condition at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
-                               else [exactly 0 nt tok] --if the LINK 0 thing is in a different reading
-                Exactly _ n -> [exactly n nt tok]
-                AtLeast _ n -> [atleast n nt tok]
-                Barrier n bs  -> [barrier n nt bs tok]
+                Exactly _ 0 -> if match tok 
+                                 then [[tok]] --if the feature at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
+                                 else [filter match $ exactly 0 tok] --feature in  different reading
 
-  where nt = if bool then id else not
-        ctags' = toTags ctags
+                -- for cautious mode. ONLY WORKS WITH SYMBOLIC!
+                Exactly True n -> if length (exactly n tok) > 1 
+                                   then [[]]
+                                   else [filter match $ exactly n tok]
+                AtLeast True n -> if length (atleast n tok) > 1
+                                   then [[]]
+                                   else [filter match $ atleast n tok]
+
+                -- normal mode
+                Exactly _ n -> [filter match $ exactly n tok]
+                AtLeast _ n -> [filter match $ atleast n tok]
+                Barrier n bs  -> [barrier n bs tok]
+
+  where ctags' = toTags ctags
+        match  = (if bool then id else not) . tagsMatchRule ctags'
 
         dummyTok = ((999,[]),true) 
 
         --given word and n, return list of words that are n places away in original sentence
-        exactly :: Integer -> (Bool -> Bool) -> Token -> [Token]
-        exactly n nt ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
-                                         , ind' == ind+n
-                                         , nt $ tagsMatchRule ctags' tok ]
+        exactly :: Integer -> Token -> [Token]
+        exactly n ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
+                                      , ind' == ind+n ]
+
 
         --same but list of tags that are at least n places away
-        atleast n nt ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
-                                         , ind' >= ind+n 
-                                         , nt $ tagsMatchRule ctags' tok ]
+        atleast n ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
+                                      , ind' >= ind+n ]
+
 
         --between m and n places away
-        between m n nt ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
-                                           , ind+m <= ind' && ind' <= ind+n
-                                           , nt $ tagsMatchRule ctags' tok ]
+        between m n ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
+                                        , ind+m <= ind' && ind' <= ind+n
+                                        , match tok ]
 
-        barrier n nt btags tok | barinds==[] = atleast n nt tok
-                               | n < 0     = between mindist n nt tok
-                               | otherwise = between n mindist nt tok
+        barrier n btags tok | barinds==[] = filter match $ atleast n tok
+                            | n < 0     = between mindist n tok
+                            | otherwise = between n mindist tok
            where barinds = [ ind | tok@((ind,_),_) <- allToks
                                  , tagsMatchRule (toTags btags) tok ]
                  dists   = map (\i -> i - getInd tok) barinds :: [Integer]

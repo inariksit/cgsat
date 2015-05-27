@@ -249,11 +249,14 @@ transCond c = case c of
 
 
 transPosition :: Position -> State Env CGB.Position
-transPosition pos = return $ case pos of
-  Exactly (Signed str)     -> CGB.Exactly False $ read str
-  AtLeastPre (Signed str)  -> CGB.AtLeast False $ read str
-  AtLeastPost (Signed str) -> CGB.AtLeast False $ read str
-  AtLPostUnam (Signed str) -> CGB.AtLeast True $ read str
+transPosition pos = case pos of
+  Exactly (Signed str)     -> return $ CGB.Exactly False $ read str
+  AtLeastPre (Signed str)  -> return $ CGB.AtLeast False $ read str
+  AtLeastPost (Signed str) -> return $ CGB.AtLeast False $ read str
+  AtLPostCaut (Signed str) -> return $ CGB.AtLeast True $ read str
+  Cautious position        -> cautious `fmap` transPosition position
+  where cautious (CGB.Exactly _b num) = CGB.Exactly True num
+        cautious (CGB.AtLeast _b num) = CGB.AtLeast True num
 
 transBarrier :: Barrier -> State Env CGB.TagSet
 transBarrier (Barrier ts) = transTagSet ts

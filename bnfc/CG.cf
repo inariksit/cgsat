@@ -112,8 +112,8 @@ rules Or ::= "OR" | "|" ;
 Exactly. Position ::= Signed ;
 AtLeastPre. Position ::= "*" Signed ;
 AtLeastPost. Position ::= Signed "*" ; 
-AtLPostUnam. Position ::= Signed "C*" ;
-_. Position ::= Position "C" ; --We're not interested in the unambiguous
+AtLPostCaut. Position ::= Signed "C*" ;
+Cautious. Position ::= Position "C" ; --We're not interested in the unambiguous
 
 Barrier. Barrier ::= "BARRIER" TagSet ;
 

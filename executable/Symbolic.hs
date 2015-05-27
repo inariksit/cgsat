@@ -47,7 +47,7 @@ main = do
       symbolicToks = zip chunkedSymbolicSent t :: [Token]
 
   possibletoks <- constrain s symbolicToks ((concat rules) !! 1) :: IO [[Token]]
-  moretoks <- sequence [ constrain s toks ((concat rules) !! 2) | toks <- possibletoks ]
+  moretoks <- sequence [ constrain s toks ((concat rules) !! 0) | toks <- possibletoks ]
   putStrLn "end"
 --  print moretoks
 
@@ -60,7 +60,7 @@ constrain s toks rule = do
   let allNotFalse = anchor toks :: [[Lit]]
   print allNotFalse
   sequence_ [addClause s cl | cl <- allNotFalse ]
-  sequence_ [addClause s cl | cl <- applyRule rule toks ]
+  sequence_ [print cl >> addClause s cl | cl <- applyRule rule toks ]
 
   lt <- count s lits
   b <- solveMaximize s [] lt
