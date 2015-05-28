@@ -119,7 +119,7 @@ go isSelect tags (conds:cs) allToks = --trace (show conds) $
         mkVars tctx nt = [ conseq:ants | (t, ctx) <- tctx -- (Token,[[Token]])
                                        , tCombs <- sequence ctx -- :: [[Token]]
                                        , let conseq = nt (getLit t)
-                                       , let ants = map (neg . getLit) tCombs ] 
+                                       , let ants = [] ] --map (neg . getLit) tCombs ] 
      -- tCombs <- sequence ctx: say we have rule REMOVE v IF (-1 det) (1 n)
      -- and we get [ [(1,det)], [(3,n pl), (3,n sg)] ]
      -- we can't just put all of them in the list of antecedents
