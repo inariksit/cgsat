@@ -34,8 +34,8 @@ First task: find such input that a rule will have effect, or prove there is none
 
 main = do
   s <- newSolver
-  t <- sequence [ newLit s | _ <- tags
-                           , _ <- [1..n] ] -- # of words in sentence
+  -- t <- sequence [ newLit s | _ <- tags
+  --                          , _ <- [1..n] ] -- # of words in sentence
 
   {- If rules can only consist of one tag (not a list/set) in target and condition,
      is it enough that all readings in the symbolic sentence have just one tag?
@@ -44,17 +44,17 @@ main = do
   -}
 
   let chunkedSymbSent = chunk $ replicate n (map (:[]) tags)
-      symbToks = zip chunkedSymbSent t :: [Token]
+--      symbToks = zip chunkedSymbSent t :: [Token]
 
-      ndSymbToks = map concat $ sequence
-         [ filter (not.null) $ subsequences cohort | cohort <- groupBy sameInd symbToks ] -- :: [[[Token]]]
+--  sequence_ [print cl >> addClause s cl | cl <- anchor symbToks ]
 
-       --concatMap (filter (not.null) . subsequences) $ groupBy sameInd symbToks :: [[Token]]
+  let ndSymbToks = map concat $ sequence
+--       [ (not.null) `filter` subsequences cohort | cohort <- groupBy sameInd symbToks ]
+       [ (not.null) `filter` subsequences cohort | cohort <- groupBy (\(a,_) (b,_) -> a==b) chunkedSymbSent ]
        
 
       ruleAndPrevs = loop (concat rules) [] :: [(Rule, [Rule])]
 
-  sequence_ [print cl >> addClause s cl | cl <- anchor symbToks ]
   print ruleAndPrevs
 
 
@@ -64,24 +64,33 @@ main = do
           putStrLn $ "Previous rule: " ++ show prev
           possibletoks <- constrain toks prev s :: IO [[Token]]
           putStrLn "^-- possibletoks"
-          newtoks <- sequence [ constrain ts rule s | ts <- possibletoks ]
+          newtoks <- sequence [ constrain (map fst ts) rule s | ts <- possibletoks ]
           putStrLn "^-- newtoks"
 
   sequence_ [ foo s rule prev symbToks | (rule, prevs) <- ruleAndPrevs
                                        , prev <- prevs 
-                                       , symbToks <- ndSymbToks 
-                                       , not $ null symbToks ] 
+                                       , symbToks <- ndSymbToks ] 
 
   putStrLn "end"
 
   where loop []     _     = [] 
         loop (r:rs) prevs = (r, prevs) : loop rs (r:prevs)
 
+--constrain :: [Token] -> Rule -> Solver -> IO [[Token]]
+constrain :: [(Integer,[Tag])] -> Rule -> Solver -> IO [[Token]]
+constrain notToks rule dummyS = do
+  s <- newSolver
+  t <- sequence [ newLit s | _ <- notToks ]  --we know already how many toks
 
-constrain :: [Token] -> Rule -> Solver -> IO [[Token]]
-constrain toks rule s = do
 
-  let lits = map getLit toks
+  let toks = zip notToks t :: [Token]
+
+  sequence_ [print cl >> addClause s cl | cl <- anchor toks ]
+
+
+
+
+  let lits = map getLit toks -- == t
   putStrLn "---------------------"
 
   let applied = applyRule rule toks
@@ -104,6 +113,14 @@ constrain toks rule s = do
 
   sequence_ [ putStrLn [ if b then '1' else '0' |  b <- bs ] | bs <- maxbs ]
 
+
+  let pr bs = do 
+          let alltoks = [ ((i, (WF w:((Tag (sc++t)):ts))), lit) 
+                    | (b, ((i, (WF w:((Tag      t ):ts))), lit)) <- zip bs toks 
+                    , let sc = if b then "" else "; " ]
+          putStrLn $ showSentence (dechunk alltoks)
+          putStrLn "-----"
+
   print rule
   mapM_ pr maxbs
 
@@ -115,12 +132,6 @@ constrain toks rule s = do
   return [ [ t | (True, t) <- zip bs toks ] | bs <- maxbs ]
   
 
-  where pr bs = do 
-          let alltoks = [ ((i, (WF w:((Tag (sc++t)):ts))), lit) 
-                    | (b, ((i, (WF w:((Tag      t ):ts))), lit)) <- zip bs toks 
-                    , let sc = if b then "" else "; " ]
-          putStrLn $ showSentence (dechunk alltoks)
-          putStrLn "-----"
 
 
 solveMore :: Solver -> [Lit] -> [Lit] -> IO [Bool]
