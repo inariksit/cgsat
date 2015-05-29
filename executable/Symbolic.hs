@@ -13,71 +13,51 @@ import System.IO.Unsafe
 
 n = 2
 
-verbose = False
+--dummytags = map (Tag . (:[])) ['b'..'e']
+--dummyrules = parseRules False "REMOVE:r1 (d) IF (-1C (c) LINK 1 (e)) ;\nREMOVE:r2 (b) ;\nREMOVE:r3 (e) IF (-1C (c)) ;"
 
---tags = map (Tag . (:[])) ['b'..'e']
+--TODO: get tags from the grammar to be tested
 tags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
---tags = map Tag ["prs", "imp", "p3", "v"]
 
-
-
---rules = parseRules False "REMOVE:r1 (d) IF (-1C (c) LINK 1 (e)) ;\nREMOVE:r2 (b) ;\nREMOVE:r3 (e) IF (-1C (c)) ;"
 randomrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (prs) ;\nREMOVE:r3 (imp) IF (0 (p3)) ;"
 
 goodrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
 badrules = parseRules False "REMOVE:r1 (v) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
 
-{- 
-all subsequences of t should be considered for the position of one reading
-
-symbolic must have at least one word with >1 reading, because of the requirement that applying R must make a difference
-
-First rule: we must find some input so that it applies, no other requirements.
-Second rule: we must find some input so that it applies, and first rule doesn't apply.
-
------
-
-First task: find such input that a rule will have effect, or prove there is none
-1) Target    of the rule must be in the analysis
-2) Condition of the rule must be in the context
--}
-
-
 main = do
   args <- getArgs
   case args of
-   []    -> mapM_ testRules [goodrules, badrules, randomrules]
-   (r:_) -> readRules r >>= testRules
-  
-  {- If rules can only consist of one tag (not a list/set) in target and condition,
-     is it enough that all readings in the symbolic sentence have just one tag?
+   []    -> mapM_ (testRules False) [goodrules, badrules, randomrules]
+   ["v"] -> do print "v" ; mapM_ (testRules True) [goodrules, badrules, randomrules]
+   (r:o) -> do let verbose = "v" `elem` o
+               readRules r >>= testRules verbose
+      
 
-     Number of readings is potentially |subsequences tags| (???), but can be smaller.
-  -}       
-
-testRules :: [[Rule]] -> IO ()
-testRules rules = do
+testRules :: Bool -> [[Rule]] -> IO ()
+testRules verbose rules = do
+  --later: let n and tags be determined by the rule(s)
   putStrLn "Testing rules! So much fun!"
-  let ruleAndPrevs = loop (concat rules) [] :: [(Rule, [Rule])]
 
-
-  let chunkedSymbSent = chunk $ replicate n (map (:[]) tags)
+  let symbChunks = chunk $ replicate n (map (:[]) tags)
 
   let ndSymbChunks = map concat $ sequence
-       [ subsequences cohort | cohort <- groupBy fstEq chunkedSymbSent ]
+        [ filter (not.null) $ subsequences cohort 
+             | cohort <- groupBy fstEq symbChunks ]
 
   let allCombs rule prev = do
         chunks <- ndSymbChunks
-        guard $ (not.null) chunks && length chunks < 4
+                 
+        guard $ n < length chunks && --at least one word has >1 analyses
+                    length chunks < n+3 --not too many or it gets slow :-P
         let potFst = unsafePerformIO $ constrain True verbose chunks prev
-        guard $ all (==True) potFst
+        guard $ all (==True) potFst --first rule doesn't remove anything
         let potSnd = unsafePerformIO $ constrain False verbose chunks rule
-        guard $ any (==False) potSnd
+        guard $ any (==False) potSnd --second rule removes something
         return $ dechunk' chunks
  
 
   let symbSents = [ ((rule,prev), allCombs rule prev)
-                            | (rule, prevs) <- ruleAndPrevs
+                            | (rule, prevs) <- loop (concat rules) []
                             , prev <- prevs ] :: [((Rule,Rule),[Sentence])]
   
   putStrLn $ "combinations:  " ++ show (length symbSents)
@@ -103,16 +83,6 @@ testRules rules = do
 
 constrain :: Bool -> Bool -> [(Integer,[Tag])] -> Rule -> IO [Bool]
 constrain isPrev verbose chunks rule = do
-  --print chunks
-  --later:
-  -- let n = length $ concat . toConds $ cond rule
-  -- print n
-  -- let chunkedSymbSent = chunk $ replicate n (map (:[]) tags)
-
-  -- let ndSymbToks = map concat $ sequence
-  --      [ (not.null) `filter` subsequences cohort 
-  --           | cohort <- groupBy (\(a,_) (b,_) -> a==b) chunkedSymbSent ]
-
   s <- newSolver
   lits <- sequence [ newLit s | _ <- chunks ]
   let toks = zip chunks lits :: [Token]
@@ -127,32 +97,16 @@ constrain isPrev verbose chunks rule = do
   as <- sequence [ modelValue s x | x <- lits ]
 
 
-  when verbose $ do
-        putStrLn "---------------------"
-        putStr $ if isPrev then "prev: " else "rule: "
-        print rule
-        let alltoks = [ ((i, (WF w:((Tag (sc++t)):ts))), lit) 
-                | (b, ((i, (WF w:((Tag      t ):ts))), lit)) <- zip as toks                , let sc = if b then "" else "; " ]
-        putStrLn $ showSentence (dechunk alltoks)
+  when verbose $
+   do putStrLn "---------------------"
+      putStr $ if isPrev then "prev: " else "rule: "
+      putStrLn $ show rule
+      let alltoks = [ ((i, (WF w:((Tag (sc++t)):ts))), lit) 
+                | (b, ((i, (WF w:((Tag      t ):ts))), lit)) <- zip as toks
+                , let sc = if b then "" else "; " ]
+      putStrLn $ showSentence (dechunk alltoks)
 
-
-  return as 
-
---  let truetoks = [ t | (True, t) <- zip as toks ] 
-  
-
-
-
-solveMore :: Solver -> [Lit] -> [Lit] -> IO [Bool]
-solveMore s as xs = do
-  bs <- sequence [ modelValue s x | x <- xs ]
-  a <- newLit s
-  addClause s (neg a : [ if b == True then neg x else x | (x,b) <- xs `zip` bs ])
-  b <- count s xs >>= solveMaximize s (a:as) -- give max True count in xs to solveMax
-  addClause s [neg a] -- cleanup: remove (a:as) by adding ~a as unit clause
-  if b then do
-     sequence [ modelValue s x | x <- xs ]
-   else return []
+  return as
 
   
 chunk :: Sentence -> [(Integer,[Tag])]
@@ -166,35 +120,17 @@ dechunk' ts = map (map snd) $ groupBy fstEq ts
 
 
 fstEq (a,_) (b,_) = a==b
+
 ------------------------------------------------
 
-
-{- general design:
-
-do
-  tags_word1 <- choose from [ ["w1", a], ["w1", a, b], ["w1", b], ... ]
-  tags_word2 <- choose from [ ["w2", c], ["w2", c, d], ["w2", c], ... ]
-  ...
-  tags_wordN <- choose from [ ... ]
-
-  let sentence = tags_word1 ++ ... ++ tags_wordN
-  
-  --  for each pair of rules:
-  newsent <- constrain sentence rule1
-  newersent <- constrain newsent rule2
-  guard $ all (==True) newsent && any (==False) newersent
-
-
-TODO: why are you not working? ;____; e.g.
-
-[~v430,~v3]
-1010
-REMOVE:r2 b  IF (0 (*))
-"<w1>"
-        c
-"<w2>"
-        ; b
-        c
-        ; e
--}
-
+-- Not needed for now, but maybe later if we push the nondeterminism to the SAT solver side and work with multiple models.
+solveMoreMax :: Solver -> [Lit] -> [Lit] -> IO [Bool]
+solveMoreMax s as xs = do
+  bs <- sequence [ modelValue s x | x <- xs ]
+  a <- newLit s
+  addClause s (neg a : [ if b == True then neg x else x | (x,b) <- xs `zip` bs ])
+  b <- count s xs >>= solveMaximize s (a:as) -- give max True count in xs to solveMax
+  addClause s [neg a] -- cleanup: remove (a:as) by adding ~a as unit clause
+  if b then do
+     sequence [ modelValue s x | x <- xs ]
+   else return []
