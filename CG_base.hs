@@ -42,11 +42,10 @@ data TagSet =
 
 instance Show TagSet where
   show (TS tags) = showTagset tags
-  show (Or (TS ts1) ts2) = showTagset ts1 ++ " OR " ++ show ts2
-  show (Diff (TS ts1) ts2) = showTagset ts1 ++ " - " ++ show ts2
-  show (Cart (TS ts1) ts2) = showTagset ts1 ++ " + " ++ show ts2
+  show (Or ts1 ts2) = show ts1 ++ " OR " ++ show ts2
+  show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2
+  show (Cart ts1 ts2) = show ts1 ++ " + " ++ show ts2
   show All = "(*)"
-  show x = "TODO"
 
 showTagset :: [[Tag]] -> String
 --showTagset [[x]] = show x ++ " "
@@ -79,7 +78,8 @@ type Sentence = [Analysis]
 
 
 -- | Rule is either remove or select a list of tags, with contextual tests
-data Rule = Remove Name TagSet Condition | Select Name TagSet Condition deriving (Eq)
+data Rule = Remove {name :: Name, target :: TagSet, cond :: Condition} |
+            Select {name :: Name, target :: TagSet, cond :: Condition} deriving (Eq) 
 data Name = Name String | NoName deriving (Eq)
 
 instance Show Rule where

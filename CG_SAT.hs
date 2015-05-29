@@ -96,8 +96,8 @@ anchor toks = (map.map) getLit (groupBy sameInd toks)
 applyRule :: Rule -> [Token] -> [[Lit]]
 applyRule rule toks = --trace (show rule) $
   case rule of 
-    (Remove _name tags conds) -> go False (toTags tags) (toConds conds) toks
-    (Select _name tags conds) -> go True (toTags tags) (toConds conds) toks
+    (Remove _name target conds) -> go False (toTags target) (toConds conds) toks
+    (Select _name target conds) -> go True (toTags target) (toConds conds) toks
 
     
 go :: Bool -> [[Tag]] -> [[Condition]] -> [Token] -> [[Lit]]

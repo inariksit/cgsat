@@ -114,7 +114,7 @@ SECTION
 
 SELECT:i01_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
     # la casa (en que vivo)
-SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
+# SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
     # (el novio) la casa
 
 #REMOVE:i01_r_det Det IF (1C VerbFin) ;  # TOP 1
@@ -123,14 +123,14 @@ SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
     # (el novio) la casa
 
 # todos son iguales / todos los días
-# REMOVE:i12_r_predet Predet IF (NOT 1 Det) ; # TOP 12
+REMOVE:i12_r_predet Predet IF (NOT 1 Det) ; # TOP 12
 
 
-# # desambiguació (adj|prn) itg
-# # qué decir? / qué tal / qué le diría
-# # Tie for TOP 15/16 for SATCG; chose as TOP 15 one that was less significant for VISLCG3
-# SELECT:i15_s_prn_1 Prn IF (0 A) (1C Verb OR Adv OR Pro) ; # TOP 15
-# SELECT:i16_s_prn_2 Prn IF (0 A) (-1C Prep) ; # de qué?  # TOP 16
+# desambiguació (adj|prn) itg
+# qué decir? / qué tal / qué le diría
+# Tie for TOP 15/16 for SATCG; chose as TOP 15 one that was less significant for VISLCG3
+SELECT:i15_s_prn_1 Prn IF (0 A) (1C Verb OR Adv OR Pro) ; # TOP 15
+SELECT:i16_s_prn_2 Prn IF (0 A) (-1C Prep) ; # de qué?  # TOP 16
 
 
 # ######
