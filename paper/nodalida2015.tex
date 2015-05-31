@@ -151,38 +151,114 @@ With these constraints, we get two solutions. The interaction of the rules regar
 
 
 
-\noindent The most important differences between the traditional and the SAT-based approach are summarised below:
+\noindent The most important differences between the traditional and
+the SAT-based approach are described in the following sections.
 
-\paragraph{Condition of being unambiguously tagged is irrelevant.}
-Rather than waiting for a word to get disambiguated, the SAT solver starts by 
-making assumptions (e.g. ``\emph{casa} is a noun'') and working under them,
-discarding the assumption if it doesn't lead to a model that satisfies
-all constraints.
+\subsection{Rules disambiguate more}
+Considering our example phrase and rules, the standard CG implementation
+can only remove readings from the target word (\texttt{prn} or
+\texttt{det}). The SAT-based implementation interprets the rules as
+``determiner and verb together are illegal'', and is free to take action that concerns also the word in the condition (\texttt{n} or \texttt{v}).
 
-The traditional CG relies on that applying the rule set iteratively,
-some rules fire the first time and make way for new rules to fire for
-the second time.
-For SAT-based CG, we present the rules as implications:
-``if the \texttt{n} reading for \emph{casa} is true, then discard the
-\texttt{prn} reading''. Each rule generates a list these implications,
-and the SAT solver is left with the task of finding a model that will
-satisfy them. 
+This behaviour is explained by simple properties of logical formulae.
+When the rules are applied to the text, they are translated into
+implications: \texttt{REMOVE prn IF (1 n)} becomes
+ \emph{casa}\texttt{<n>} $\Rightarrow$ $\neg$\emph{la}\texttt{<prn>},
+ which reads ``if the \texttt{n} reading for \emph{casa} is true, then
+ discard the \texttt{prn} reading for \emph{la}''.
+Any implication $a\,\Rightarrow\,b$ can be represented as a disjunction
+$\neg a\,\vee\,b$; intuitively, either the antecedent is false
+and the consequent can be anything, or the consequent is true and the
+antecedent can be anything.
+Due to this property, our rule translates into the disjunction 
+$\neg$\emph{casa}\texttt{<n>} $\vee$ $\neg$\emph{la}\texttt{<prn>}.
+
+However, our rule is not the only way to reach this form: since
+disjunction doesn't care about order, we notice that also
+\emph{la}\texttt{<prn>} $\Rightarrow$ $\neg$\emph{casa}\texttt{<n>} 
+corresponds to the same disjunction.
+This means that the rules are logically flipped: \texttt{REMOVE prn IF
+  (1 n)} translates into the same logical formula as  \texttt{REMOVE n
+  IF (-1 prn)}. 
+A rule with more conditions corresponds to many
+rules, each condition taking its turn to be the target of removal or
+selection.
+
+% \begin{itemize}
+% \item [] \texttt{REMOVE n IF (-1 prn) ;} \\
+%          \texttt{REMOVE v IF (-1 det) ;}
+% \end{itemize}
+
+% SAT-based approach gives identical results with both sets of rules,
+% whereas the standard CG would remove one reading from \emph{casa} and leave \emph{la} ambiguous.
+% Testing this property with more complex rules and larger rule sets remains to be done.
+
+%Rules with more conditions translate into many rules; rules with negation become complements (\texttt{(*)-X} for \texttt{NOT X}). Rules which require the condition to be unambiguously tagged, don't have an equivalent flip in the standard CG.
+% We did not expect much practical benefits, save for realising that some rules are bad by having to think further what it implies,
+%Out of interest, we manually flipped a small grammar and tested it against the original.
+% \todo{The results show  }
+%\begin{itemize}
+%\item []          \texttt{SL Inf IF (-2 V-MOD) (-1 "not");} \\
+%$\rightarrow$\texttt{SL V-MOD   IF (1 "not") (2 INF);} \\
+%$\rightarrow$\texttt{SL "not" IF (-1 V-MOD) (1 Inf);}
+%\item []           \texttt{SL Foo IF (NOT 1 Bar)} \\
+%$\rightarrow$\texttt{SL (*)-Foo if (-1 Bar)}
+%\end{itemize}
+
+
+\subsection{Cautious context is irrelevant}
+% Rather than waiting for a word to get disambiguated, the SAT solver starts by 
+% making assumptions (e.g. ``\emph{casa} is a noun'') and working under them,
+% discarding the assumption if it doesn't lead to a model that satisfies
+% all constraints.
+
+The traditional CG relies on that applying the rule set iteratively:
+some rules fire during the first iteration, either because their
+conditions don't require cautious context, or because some words are
+unambiguous to start with. This makes some more words unambiguous, and
+new rules can fire during the second iteration.
+
+In SAT-CG, the notion of cautious context is irrelevant.
+When the rules are applied to the text, they are translated into
+implications, such as \\ 
+ \emph{casa}\texttt{<n>} $\Rightarrow$ $\neg$\emph{la}\texttt{<prn>},
+ which reads ``if the \texttt{n} reading for \emph{casa} is true, then
+ discard the \texttt{prn} reading for \emph{la}''. Each rule generates
+ a number of these implications, and the SAT solver tries to find a model that will satisfy them. 
 
 Let us continue with the earlier example. 
-We can add a word to the sentence, \emph{la casa grande} `the big house',
-and a rule that removes verb if followed by an adjective.
+We can add a word to the input:
+\begin{itemize}
+\item [] \emph{la casa grande} `the big house'
+\end{itemize}
+and a rule that removes verb reading, if the word is followed by an adjective:
 \begin{itemize}
 \item [] \texttt{REMOVE v IF (1 adj) ;}
 \end{itemize}
-Then the additional clauses will make it impossible for \emph{casa} to
-be a verb\footnote{If \texttt{adj} is the only reading for
-\emph{grande}, it must be true, because of the restriction that at
-least one analysis for each word is true. Then the implication
-\texttt{grande<adj> => $\neg$casa<v>} has a true antecedent, thus
-its consequent will hold.}, so we will get a unique solution with \texttt{det n adj}.
-Standard CG will also remove the verb reading, 
-but remember the beginning: if the \texttt{det} reading of \emph{la}
-was removed first, then we are stuck with that choice.
+
+% The SAT solver has already the clauses produced by the previous rules.
+% \emph{casa}\texttt{<n>} $\Rightarrow$ $\neg$\emph{la}\texttt{<prn>}
+% and   \emph{casa}\texttt{<v>} $\Rightarrow$ $\neg$\emph{la}\texttt{<det>}
+The new rule adds the implication
+ \emph{grande}\texttt{<adj>} $\Rightarrow$
+ $\neg$\emph{casa}\texttt{<v>}, which will
+disambiguate  \emph{casa} to a noun\footnote{Assuming that
+  \texttt{adj} is the only reading for \emph{grande}, it must be true,
+  because of the restriction that at least one analysis for each word
+  is true. Then the implication has a true antecedent (\emph{grande}\texttt{<adj>}), thus its
+  consequent ($\neg$\emph{casa}\texttt{<v>}) will hold.}. 
+With the status of \emph{casa} resolved, the SAT solver can now make
+decision between the two models that it would find with only \emph{la casa}.
+Now \emph{casa}\texttt{<n>} is true, so \emph{la}\texttt{<prn>} must
+be false. 
+Because \emph{la}\texttt{<prn>} is false,  \emph{casa} cannot
+ be a \texttt{v}, and we get a unique solution with \texttt{det n adj}.
+
+Contrast this with the behaviour of the standard CG.
+
+With the new rule, standard CG will also remove the verb reading from \emph{casa}, 
+but it is in no way connected to the choice for \emph{la}. It all
+depends of the order of the two rules; if the \texttt{det} reading of \emph{la} is removed first, then we are stuck with that choice.
 
 % \todo{Unordered rules: also not applicable anymore to apply rules
 % iteratively; there's no ``this rule doesn't fire now but will after
@@ -191,7 +267,7 @@ was removed first, then we are stuck with that choice.
 % peacefully to the same input.}
 
 
-\paragraph{Rules can be unordered.}
+\subsection{Rules can be unordered}
 
 As hinted by the previous property, SAT solver doesn't need a fixed
 order of the rules.
@@ -199,20 +275,15 @@ Applying a rule to a sentence produces a number of clauses,
 and those clauses are fed into the SAT solver.
 However, in the unordered scheme, some information is lost: the
 following rule sets would be treated identically, whereas in the
-traditional CG, only the first would be considered as a bad order.
+traditional CG, only the second would be considered as a bad order.
 
 \begin{itemize}
-\item [\texttt{1)}] \texttt{SELECT verb ;} \\
-         \texttt{REMOVE verb IF (-1 det) ;} \\
-         \texttt{REMOVE verb IF (-1 adj) ;} \\
-
-\end{itemize}
-
-
-\begin{itemize}
-\item [\texttt{2)}] \texttt{REMOVE verb IF (-1 det) ;} \\
+\item [\texttt{1)}] \texttt{REMOVE verb IF (-1 det) ;} \\
          \texttt{REMOVE verb IF (-1 adj) ;} \\
          \texttt{SELECT verb ;}
+\item [\texttt{2)}] \texttt{SELECT verb ;} \\
+         \texttt{REMOVE verb IF (-1 det) ;} \\
+         \texttt{REMOVE verb IF (-1 adj) ;} 
 \end{itemize}
 
 Without order, both of these rule sets will conflict, if applied to an
@@ -266,36 +337,6 @@ Larger rule sets are yet to be tested.
 % Finite-state implementations of CG \cite{koskenniemi92} also have logically unordered rules. 
 % \todo{Inari: check if Tapanainen 1996 discuss ordering}
 
-\paragraph{Rules disambiguate more.}
-Considering our example phrase and rules, standard CG implementation
-can only remove readings for the target word (\texttt{prn} or
-\texttt{det}). The SAT-based implementation interprets the rules as
-``determiner and verb together are illegal'', and is free to take action that concerns also the word in the condition (\texttt{1 n} or \texttt{1 v}).
-This means that the rules are logically flipped: \texttt{REMOVE prn IF
-  (1 n)} translates into the same logical formula as  \texttt{REMOVE n
-  IF (-1 prn)}. A rule with more conditions corresponds to many
-rules, each condition taking its turn to be the target of removal or selection. \\
-
-% \begin{itemize}
-% \item [] \texttt{REMOVE n IF (-1 prn) ;} \\
-%          \texttt{REMOVE v IF (-1 det) ;}
-% \end{itemize}
-
-% SAT-based approach gives identical results with both sets of rules,
-% whereas the standard CG would remove one reading from \emph{casa} and leave \emph{la} ambiguous.
-% Testing this property with more complex rules and larger rule sets remains to be done.
-
-%Rules with more conditions translate into many rules; rules with negation become complements (\texttt{(*)-X} for \texttt{NOT X}). Rules which require the condition to be unambiguously tagged, don't have an equivalent flip in the standard CG.
-% We did not expect much practical benefits, save for realising that some rules are bad by having to think further what it implies,
-%Out of interest, we manually flipped a small grammar and tested it against the original.
-% \todo{The results show  }
-%\begin{itemize}
-%\item []          \texttt{SL Inf IF (-2 V-MOD) (-1 "not");} \\
-%$\rightarrow$\texttt{SL V-MOD   IF (1 "not") (2 INF);} \\
-%$\rightarrow$\texttt{SL "not" IF (-1 V-MOD) (1 Inf);}
-%\item []           \texttt{SL Foo IF (NOT 1 Bar)} \\
-%$\rightarrow$\texttt{SL (*)-Foo if (-1 Bar)}
-%\end{itemize}
 
 
 \noindent These three features influence the way that rules are written. 
@@ -405,7 +446,7 @@ conflict: the REMOVE rule would not remove verb readings from all
 possible verb analyses, so there is a possibility for the SELECT rule
 to fire.
 
-The way we implement SAT-CG is ideal for this kind of grammar
+The SAT-CG implementation is ideal for this kind of corpus-based grammar
 analysis. After applying each rule, it stores the clauses produced by
 it and commits to them -- this makes the execution slow, but it
 retains the dependencies.
@@ -417,15 +458,37 @@ This conflict solving can be done per section, or for the whole grammar.
 In case of section-based, we run each section on the input, and give
 the output as an input to the new section, discarding all clauses.
 
-Maximisation-based conflict solving (conflicting rule set --> remove least
-possible amount to get a non-conflicting rule set) is not feasible for this task. 
+Maximisation-based conflict solving (see Section 3) is not feasible for this task. 
 The whole definition of conflicts depends on ordering, and it would
 not differentiate between the case where \texttt{SELECT verb} comes
 before \texttt{REMOVE verb IF (-1 det)} or after.
 On the other hand, a formalism such as FSIG would benefit from the
 maximisation-based technique in conflict handling.
 
+For future work, we intend to apply the SAT solver in testing for
+conflicts without a corpus. Let us illustrate the idea with the rule
+set shown in Section 3:
 
+
+\begin{itemize}
+\item [\texttt{1)}] \texttt{SELECT verb ;} \\
+         \texttt{REMOVE verb IF (-1 det) ;} \\
+
+\end{itemize}
+
+
+\begin{itemize}
+\item [\texttt{2)}] \texttt{REMOVE verb IF (-1 det) ;} \\
+         \texttt{SELECT verb ;}
+\end{itemize}
+
+Assume we have tag set \texttt{\{det, noun, verb, sg, pl\}}. Then we
+can ask the SAT solver a question if there exists an input which
+satisfies our constraints: both rules, applied in the order, remove
+something from the input.
+after applying the first rule, can be modified by the second rule.
+
+Implementing the design on a larger scale is left for future work.
 
 
 % SELECT (a) IF (0 PALJON + Nom + Sg) (1 N + Nom + Sg) ; # PALJO VALITTAMINEN
@@ -438,7 +501,11 @@ maximisation-based technique in conflict handling.
 SAT-solvers are nowadays powerful enough to be used for dealing with Constraint Grammar. A logic-based approach to CG has possible advantages over more traditional approaches; a SAT-solver may disambiguate more words, and may do so more precisely. Also, the SAT-solver requires less rules, and these rules are simpler. The ordering of rules is something we found was incompatible with a logic-based approach. We compensate this by maximising rule applications. Whether this is an advantage or disadvantage remains to be seen. Our initial experimental results are promising.
 
 
-% \section*{Acknowledgments}
+\section*{Acknowledgments}
+
+We thank Tino Didriksen, Eckhard Bick, Francis Tyers and Anssi
+Yli-Jyrä for comments and suggestions; also everyone at the CG
+workshop who participated in the discussion.
 
 % Do not number the acknowledgment section. Do not include this section
 % when submitting your paper for review.
