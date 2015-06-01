@@ -42,8 +42,7 @@
 \begin{abstract} 
 
 We represent Constraint Grammar (CG) as a Boolean satisfiability (SAT) problem.
-Encoding CG in logic increases the computational complexity, 
-but brings some new features to the grammars.
+Encoding CG in logic brings some new features to the grammars.
 The rules are interpreted in a more declarative way, which makes
 cautious context and ordering irrelevant.
 One rule corresponds to many logical formulas,
@@ -60,10 +59,12 @@ We test our implementation by parsing texts in the order of
 \section{Introduction and previous research}
 
 Constraint Grammar (CG) \cite{karlsson1995constraint} is a relatively
-young formalism, born out of empirical linguistic approach. 
-It belongs to the reductionist family of parsing
-strategies, along with e.g. Finite-State Intersection Grammar (FSIG) \cite{koskenniemi90}.
-In this work, we implement CG\footnote{Roughly compatible with CG-2}
+young formalism, born out of practical need for a robust and
+language-independent method for part-of-speech tagging.
+%It belongs to the reductionist family of parsing
+%strategies, along with e.g. Finite-State Intersection Grammar (FSIG) \cite{koskenniemi90}.
+In this work, we present CG %\footnote{Roughly compatible with CG-2}
+as a Boolean satisfiability (SAT) problem, and describe an implementation
 using a SAT solver. This is attractive from several reasons: formal logic is
 well-studied, and serves as an abstract language to reason about the
 properties of CG. Constraint rules encoded in logic capture richer
@@ -108,11 +109,14 @@ We add the following rules:
              \texttt{REMOVE det IF (1 v) ;}
 \end{itemize}
 
-Standard CG will apply one\footnote{To be more cautious, we could require the word at position +1 be disambiguated fully (\texttt{1C} instead of \texttt{1}), but in that case, 
-neither of the rules would be applied.} of the rules to the word \emph{la}; 
+Standard CG will apply one  of the rules to the word \emph{la}; 
 either the one that comes first, or by some other heuristic. 
-The second rule will not fire, because it would remove the last reading. 
-All readings of \emph{casa} are left untouched by these rules.
+The second rule will not fire, because it would remove the last
+reading. 
+If we use the cautious mode (\texttt{1C n} or \texttt{1C v}), which
+ requires the word in the context to be fully disambiguated, 
+neither of the rules will be applied.
+In any case, all readings of \emph{casa} are left untouched by these rules.
 
 The SAT solver performs a search, 
 and starts building possible models that satisfy both constraints. 
@@ -237,7 +241,9 @@ disambiguate  \emph{casa} to a noun\footnote{Assuming that
   consequent ($\neg$\emph{casa}\texttt{<v>}) will hold.}. 
 As the status of \emph{casa} is resolved, the SAT solver can now
 discard the model where \emph{casa} is a verb and \emph{la} is a
-pronoun---all these decisions are connected---and we get a unique solution with \texttt{det n adj}.
+pronoun
+%---all these decisions are connected---
+and we get a unique solution with \texttt{det n adj}.
 % Now \emph{casa}\texttt{<n>} is true, so \emph{la}\texttt{<prn>} must be false. 
 %Because \emph{la}\texttt{<prn>} is false,  \emph{casa} cannot
 % be a \texttt{v}, and we get a unique solution with \texttt{det n adj}.
@@ -513,7 +519,8 @@ The unordered scheme with maximisation-based conflict solving (see Section~\ref{
 The whole definition of conflicts depends on ordering, and it would
 not differentiate between the case where \texttt{SELECT v} comes
 before \texttt{REMOVE v IF (-1 det)} or after.
-On the other hand, an unordered formalism such as FSIG would benefit from the
+On the other hand, an unordered formalism such as Finite-State
+Intersection Grammar \cite{koskenniemi90} would benefit from the
 maximisation-based technique in conflict handling.
 
 For future work, we intend to apply the SAT solver for corpus-free
