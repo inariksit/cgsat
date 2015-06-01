@@ -16,7 +16,7 @@
 \usepackage{url}
 \usepackage{latexsym}
 \usepackage{cite}
-\usepackage[colorlinks=true]{hyperref}
+\usepackage[colorlinks=true,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{authordate1-4}
 \usepackage{multirow}
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
@@ -114,7 +114,7 @@ We add the following rules:
 
 Standard CG will apply one  of the rules to the word \emph{la}; 
 either the one that comes first, or by some other heuristic. 
-The second rule will not fire, because it would remove the last
+The other rule will not fire, because it would remove the last
 reading. 
 If we use the cautious mode (\texttt{1C n} or \texttt{1C v}), which
  requires the word in the context to be fully disambiguated, 
@@ -281,7 +281,7 @@ rules are more declarative.
 \subsection{Rules can be unordered}
 \label{sec:unord}
 
-As hinted by the previous property, SAT solver does not need a fixed
+As hinted by the previous property, the SAT solver does not need a fixed
 order of the rules.
 Applying a rule to a sentence produces a number of clauses,
 and those clauses are fed into the SAT solver.
@@ -346,8 +346,7 @@ hand, lack of order can make the rules less transparent, and might not scale up 
 \section{Evaluation}
 \label{sec:eval}
 
-For evaluation, we measure the performance against the state of the
-art CG parser VISL CG-3.
+For evaluation, we measure the performance against the state-of-the-art CG parser VISL CG-3.
 % both in terms of accuracy and execution time.
 SAT-CG fares slightly worse for accuracy, and significantly worse for execution time.
 The results are presented in more detail in the following sections.
@@ -379,14 +378,13 @@ available gold standard.
 %with the traditional CG in mind, SAT-CG loses with both ordering
 %strategies, but emulating order fares better.
 
-We also wanted to test the hypothesis that SAT-CG works better with
-small amount of rules. We took the base grammar and started
-handcrafting rules; with our best performing and most concise
+We also wanted to test whether SAT-CG outperforms traditional CG with a
+small rule set. With our best performing and most concise
 grammar\footnote{\url{https://github.com/inariksit/cgsat/blob/master/data/spa\_smallset.rlx}}
-of only 19 rules, unordered SAT-CG achieves 85.3 \% and VISL CG-3 85.9
-\%. This experiment is naturally very small and might be explained by
+of only 19 rules, both SAT-CG and VISL CG-3  achieve a F-score of
+around 85 \%. This experiment is very small and might be explained by
 overfitting or mere chance, but it seems to indicate that rules that
-work well with SAT-CG, are also good for traditional CG.
+work well with SAT-CG are also good for traditional CG.
 % It was possible to attain a rule set for which the unordered SAT-CG
 % works better (\textless0.5 \%), but it required trying
 % subsequences of the 19-rule set in a brute force manner---this hardly
@@ -452,8 +450,8 @@ proof-of-concept implementation with no optimisations.
 %VISL CG-3 is efficient, reliable and widely used, and
 Instead of trying to compete with the state of the art, we plan to use SAT-CG for grammar analysis\footnote{We thank Eckhard Bick for the idea.}.
 There has been work on automatic tuning of hand-written CGs
-\cite{bick2013tuning}, but to our knowledge no tools which would
-search for inconsistencies or unoptimal design. %in order to point it out to the grammar writer.
+\cite{bick2013tuning}, but to our knowledge no tools to
+search for inconsistencies or suboptimal design. %in order to point it out to the grammar writer.
 
 The sequential application of traditional CG rules is good for
 performance and transparency. When a rule takes action, the analyses
