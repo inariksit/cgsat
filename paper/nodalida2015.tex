@@ -334,8 +334,8 @@ so far is correct. If a conflict is introduced by new clauses, discard
 them and move on to the next rule.
 By testing against gold standard, we see that this scheme works better
 with ready-made CGs, which are written with ordering in mind.
-It is also slightly better for the performance, because the maximisation
-problems are smaller. 
+It also runs slightly faster than the unordered version.
+%the performance, because the maximisation problems are smaller. 
 %We have also experimented with sections, and 
 \\
 
@@ -355,23 +355,56 @@ problems are smaller.
 We predict that less rules are needed; whether this holds in the order
 of thousands of rules remains to be tested. On one hand, getting rid
 of ordering and cautious context could ease the task of the grammar
-writer, since it removes the need to estimate the best sequence of
-rule applications and whether to make the rules cautious. On the other
+writer, since it removes the burden of estimating the best sequence of
+rules and whether to make the them cautious. On the other
 hand, lack of order can make the rules less transparent, and might not scale up for larger grammars.
-
-When conducting our tests, we have been able to construct a small grammar 
-which, when run with the unordered scheme, disambiguates more
-accurately than the same grammar run with VISL CG-3. However, when
-testing with grammars that are written for the original CG, SAT-CG
-loses with both ordering strategies, but emulating order fares better.
-This suggests that our implementation should not compete with existing
-state-of-the-art, but rather it has value as a way of relating the CG
-formalism to wider context in the theory of computer science.
-In Section~\ref{sec:apps} we discuss more about possible applications.
 
 
 \section{Results and evaluation}
 \label{sec:eval}
+
+When conducting our tests, we have been able to construct small
+grammars (\textless20 rules) which, when run with the unordered scheme,
+disambiguate more accurately than the same grammar run with VISL
+CG-3. However, when testing with larger grammars that are written with the
+traditional CG in mind, SAT-CG loses with both ordering strategies, but emulating
+order fares better.
+In the following sections, we report both execution time and
+performance against state of the art.
+
+%This suggests that our implementation should not compete with existing
+%state-of-the-art, but rather it has value as a way of relating the CG
+%formalism to wider context in the theory of computer science.
+%In Section~\ref{sec:apps} we discuss more about possible applications.
+
+
+
+\subsection{Performance against VISL CG-3}
+
+
+We took a manually tagged
+corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged}
+containing 21865 words of Spanish news text, 
+and a small constraint grammar\footnote{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}, produced independently of the authors.
+% We ignored substitute rules, but kept subreadings and unification, even though our implementation doesn't handle them.
+We kept only select and remove rules, after which the grammar had 261 rules.
+With this setup, we took the text of the tagged corpus with all
+ambiguities, and ran both SAT-CG and VISL CG-3 with the same grammar. 
+Treating the corpus as the gold standard, the disambiguation by  VISL
+CG-3 achieves F-score of 82.6 \%, ordered
+SAT-CG 81.5 \%  and unordered SAT-CG 79.2 \%. 
+For comparison, with the best handcrafted grammar, unordered SAT-CG
+achieves 85.3 \% and VISL CG-3 85.9 \%.
+Similar patterns were observed with small (\textless{}20) rule sets
+written by the authors; depending on the subset, SAT-CG and VISL CG-3 had
+a difference of at most $\Mypm$ 1.5 \%. 
+Introducing rules one by one up to 19, the
+performance improved in a very similar rate, with less than 0.5 \%
+difference between the systems at each new rule.
+We did not evaluate on other languages or text genres, due to lack of suitable test data.
+
+% Additional tests could include plugging SAT-CG into Apertium
+% translation pipeline, and comparing the translation quality.
 
 \subsection{Time}
 
@@ -380,11 +413,14 @@ implementations of CG are polynomial, but with advances in SAT solving
 techniques, the performance in the average case in practice is much more feasible than in the previous works done in 90s--00s.
 We used the open-source SAT solver MiniSat \cite{een04sat}.
 
-Table~\ref{table:time} shows the execution time compared to VISL CG-3. 
+We tested the performance by parsing Don Quijote (384,155 words) with
+the same Spanish grammar. Table~\ref{table:time} shows execution times compared to VISL
+CG-3 for the same text and rules. 
 The number of rules in the grammar is more significant than the word
 count; this holds also for the performance of VISL CG-3.
-From the SAT solving side, maximisation is the most costly operation; emulating ordering is faster, because maximisation problems are smaller.
-Parsing Don Quijote (384,155 words) with the rule set of 261 rules,
+From the SAT solving side, maximisation is the most costly operation; 
+emulating order (SAT-CG\textsubscript{o}) is slightly faster, because maximisation problems are smaller.
+SAT is not Parsing Don Quijote (384,155 words) with the rule set of 261 rules,
 the function was called 147,253 times, and with 19 rules, 132,255 times.
 %However, with both rule sets, half of the sentences in Don Quijote
 %needed less than 6 calls of maximise, and 75 \% of the sentences
@@ -405,29 +441,6 @@ SAT-CG is currently just a naive proof-of-concept implementation with no optimis
   \caption{Execution times for 384,155 words.}
   \label{table:time}
 \end{table}
-
-\subsection{Performance against VISL CG-3}
-
-
-We took a tagged corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged} of 21865 words for Spanish, 
-and a small constraint grammar\footnote{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}, produced independently of the authors.
-% We ignored substitute rules, but kept subreadings and unification, even though our implementation doesn't handle them.
-We only took select and remove rules (no substitute/iff), after which the constraint grammar had 261 rules.
-With this setup, we took the text of the tagged corpus with all
-ambiguities, and ran both SAT-CG and VISL CG-3 with the same grammar. 
-Treating the corpus as the gold standard, the disambiguation by
-SAT-CG achieves F-score of 81.54 \%  and VISL CG-3 82.56 \%.
-Similar patterns were observed with small (\textless{}20) rule sets
-written by the authors; depending on the subset, SAT-CG and VISL CG-3 had
-a difference of at most $\Mypm$ 1.5 \%. 
-Introducing rules one by one up to 19, the
-performance improved in a very similar rate, with less than 0.5 \%
-difference between the systems at each new rule.
-
-% Additional tests could include plugging SAT-CG into Apertium
-% translation pipeline, and comparing the translation quality.
-
-
 
 \section{Applications and Future Work}
 \label{sec:apps}
