@@ -126,7 +126,7 @@ the CG principles: an analysis is true if no rule affects it,
 and at least one analysis for each word is true---the notion of
 ``last'' is not applicable.
 
-With these constraints, we get two solutions. The interaction of the rules regarding \emph{la}  disambiguates the POS of \emph{casa} for free, and ordering of the rules doesn't matter. 
+With these constraints, we get two solutions. The interaction of the rules regarding \emph{la}  disambiguates \emph{casa} for free, and ordering of the rules doesn't matter. 
 
 \begin{enumerate}
 \item [\texttt{1)}]
@@ -171,17 +171,14 @@ $\neg a\,\vee\,b$; intuitively, either the antecedent is false
 and the consequent can be anything, or the consequent is true and the
 antecedent can be anything.
 Due to this property, our rule translates into the disjunction 
-$\neg$\emph{casa}\texttt{<n>} $\vee$ $\neg$\emph{la}\texttt{<prn>}.
-%Since disjunction doesn't care about the order, we notice that
-However, our rule is not the only way to reach this form---the implication
-\emph{la}\texttt{<prn>} $\Rightarrow$ $\neg$\emph{casa}\texttt{<n>} 
-corresponds to the same disjunction.
+$\neg$\emph{casa}\texttt{<n>} $\vee$ $\neg$\emph{la}\texttt{<prn>},
+which is also equivalent to another implication, 
+ \emph{la}\texttt{<prn>} $\Rightarrow$ $\neg$\emph{casa}\texttt{<n>}.
 This means that the rules are logically flipped: \texttt{REMOVE prn IF
   (1 n)} translates into the same logical formula as  \texttt{REMOVE n
   IF (-1 prn)}. 
-A rule with more conditions corresponds to many
-rules, each condition taking its turn to be the target of removal or
-selection.
+A rule with more conditions corresponds to many rules, each condition
+taking its turn to be the target. % of removal or selection.
 
 % \begin{itemize}
 % \item [] \texttt{REMOVE n IF (-1 prn) ;} \\
@@ -243,10 +240,9 @@ disambiguate  \emph{casa} to a noun\footnote{Assuming that
   because of the restriction that at least one analysis for each word
   is true. Then the implication has a true antecedent (\emph{grande}\texttt{<adj>}), thus its
   consequent ($\neg$\emph{casa}\texttt{<v>}) will hold.}. 
-With the status of \emph{casa} resolved, the SAT solver can now make
-decision between the two models that it would find with only \emph{la casa}.
-As described in the previous section, the dependencies between tags
-are stronger than in standard CG, so we get a unique solution with \texttt{det n adj}.
+As the status of \emph{casa} is resolved, the SAT solver can now
+discard the model where \emph{casa} is a verb and \emph{la} is a
+pronoun---all these decisions are connected---and we get a unique solution with \texttt{det n adj}.
 % Now \emph{casa}\texttt{<n>} is true, so \emph{la}\texttt{<prn>} must be false. 
 %Because \emph{la}\texttt{<prn>} is false,  \emph{casa} cannot
 % be a \texttt{v}, and we get a unique solution with \texttt{det n adj}.
@@ -260,7 +256,7 @@ If we made the first rules cautious, that is, keeping the determiner
 open until \emph{casa} is disambiguated, then we get the same
 result as with the SAT solver.
 Ideally, both ways of grammar writing should yield good results;
-traditional CG is written in a more imperative way, whereas SAT-CG
+traditional CG are more imperative, whereas SAT-CG
 rules are more declarative.
 
 % The SAT-based approach only removes readings after it has enough
@@ -295,13 +291,12 @@ traditional CG, only the second would be considered as a bad order.
 
 Without order, both of these rule sets will conflict, if applied to an
 input that has sequence \texttt{det v}.
-The SAT solver is fed clauses that tell to select a verb and remove a
+The SAT solver is given clauses that tell to select a verb and remove a
 verb, and it cannot build a model that satisfies all of those clauses.
-To solve this problem, we create a variable for every clause
-(\emph{instance of rule application}), and request a solution where maximally many of these variables are true.
+To solve this problem, we create a variable for every instance of rule application, and request a solution where maximally many of these variables are true.
 If there is no conflict, then the maximal solution is one where all of
-these variables are true; that is, all instances of rule application
-are kept.
+these variables are true; that is, all rules take action.
+
 
 In case of a conflict, SAT solver makes it possible to discard only
 minimal amount of rule applications. Continuing with the example,
@@ -362,7 +357,7 @@ of thousands of rules remains to be tested. On one hand, getting rid
 of ordering and cautious context could ease the task of the grammar
 writer, since it removes the need to estimate the best sequence of
 rule applications and whether to make the rules cautious. On the other
-hand, it is also less transparent, and might not scale up for larger grammars.
+hand, lack of order can make the rules less transparent, and might not scale up for larger grammars.
 
 When conducting our tests, we have been able to construct a small grammar 
 which, when run with the unordered scheme, disambiguates more
