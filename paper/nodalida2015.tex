@@ -60,11 +60,11 @@ We test our implementation by parsing texts in the order of
 \section{Introduction and previous research}
 
 Constraint Grammar (CG) \cite{karlsson1995constraint} is a relatively
-young formalism. It belongs to the reductionist family of parsing
-strategies, along with Finite-State Intersection Grammar (FSIG) \cite{koskenniemi90}.
-In this work, we use a SAT solver to implement a version of CG that is
-roughly compatible with CG-2.
-This is attractive from several reasons: formal logic is
+young formalism, born out of empirical linguistic approach. 
+It belongs to the reductionist family of parsing
+strategies, along with e.g. Finite-State Intersection Grammar (FSIG) \cite{koskenniemi90}.
+In this work, we implement CG\footnote{Roughly compatible with CG-2}
+using a SAT solver. This is attractive from several reasons: formal logic is
 well-studied, and serves as an abstract language to reason about the
 properties of CG. Constraint rules encoded in logic capture richer
 dependencies between the tags than standard CG.
@@ -76,14 +76,14 @@ biology---these problems easily match or exceed CG in complexity.
 Due to these advances, we were able to revisit the idea and develop it
 further. 
 
-Our work is inspired by \cite{lager98}, which presents constraint
+Our work is primarily inspired by \cite{lager98}, which presents constraint
 rules as a disjunctive logic program, and \cite{lager_nivre01}, which
 reconstructs four different formalisms in first-order logic.
-\cite{lindberg_eineborg98ilp} and \cite{asfrent14} use Inductive Logic Programming to learn CG rules from a tagged corpus.
-We explore different approaches to ordering. In the case of unordered
-rules, it resembles Finite-State Intersection Grammar \cite{koskenniemi90}.
-See also \cite{lager01transformation} for discussion of ordering of
-the CG rules.
+Other works combining logic to CG include
+\cite{lindberg_eineborg98ilp} and \cite{asfrent14}, both using Inductive Logic Programming to learn CG rules from a tagged corpus.
+%We explore different approaches to ordering. 
+%In the case of unordered rules, it resembles Finite-State Intersection Grammar \cite{koskenniemi90}.
+%See also \cite{lager01transformation} for discussion of ordering of the CG rules.
 
 
 \section{CG as a SAT problem}
