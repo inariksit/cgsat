@@ -476,16 +476,16 @@ There has been work on automatic tuning of hand-written CGs
 search for inconsistencies or unoptimal design in order to point it out to the grammar writer.
 
 The sequential application of traditional CG rules is good for
-performance and transparency. As soon as a rule takes action, the analyses
-are removed from the input, and next rules get the modified sentence
+performance and transparency. When a rule takes action, the analyses
+are removed from the input, and the next rules get the modified sentence
 as their input. 
 % At the execution of rule, there is no way to go back to earlier rules and undo them. 
-Thus there is no way to know which part comes directly from the
+As a downside, there is no way to know which part comes directly from the
 raw input and which part from applying previous rules.
 
 A conflict in an ordered scheme can be defined as 
 a set of two or more rules, such that applying the first makes the
-next rules impossible to apply, regardless of input.
+next rules impossible to apply, regardless of the input.
 We can reuse the example from Section~\ref{sec:unord}:
 
 \begin{itemize}
@@ -493,40 +493,34 @@ We can reuse the example from Section~\ref{sec:unord}:
          \texttt{REMOVE v IF (-1 det) ;}
 \end{itemize}
 
-The first rule selects the verb always, removing all other readings,
-and the second rule removes verb reading, given certain condition.
+The first rule selects the verb reading always, removing all other readings,
+and the second rule removes the verb reading conditionally.
 If the rules are introduced in a different order, there is no
 conflict: the REMOVE rule would not remove verb readings from all
 possible verb analyses, so there is a possibility for the SELECT rule
 to fire.
 
+
 Ordered SAT-CG can be used to detect these conflicts without any
 modifications, as a side effect of its design. 
 After applying each rule, it stores the clauses
-produced by it and commits to them
-% ---even if the new rules cannot
-% change the earlier decisions, the SAT solver still retains the
-% dependencies.
-% Given that each application of a rule 
-% is 
-% gets a variable,
+produced by the rule and commits to them.
 In case of a conflict, the program detects the particular rule that 
 violates the previous clauses, with the sentence
 where it is applied. Thus we get feedback which rule fails, and on which
 particular word(s).
 
-This conflict solving can be done per section, or for the whole grammar. 
-In case of section-based application, we run each section on the
-input, and give the output as a fresh input to the new section, discarding
-all clauses. Alternatively, we can let the rules interact with each
-other regardless of the section boundaries.
+% This conflict solving can be done per section, or for the whole grammar. 
+% In case of section-based application, we run each section on the
+% input, and give the output as a fresh input to the new section, discarding
+% all clauses. Alternatively, we can let the rules interact with each
+% other regardless of the section boundaries.
 
-The unordered scheme with maximisation-based conflict solving (see Section~\ref{sec:unord}) is not feasible for this task. 
-The whole definition of conflicts depends on ordering, and it would
-not differentiate between the case where \texttt{SELECT v} comes
-before \texttt{REMOVE v IF (-1 det)} or after.
-On the other hand, an unordered formalism such as Finite-State
-Intersection Grammar \cite{koskenniemi90} would benefit from the
+Unordered SAT-CG with maximisation-based conflict solving is not
+suitable for this task: the whole definition of conflict depends on
+ordering, and the unordered scheme deliberately loses this information.
+On a more speculative note, an unordered formalism such as Finite-State
+Intersection Grammar \cite{koskenniemi90} might benefit from the
 maximisation-based technique in conflict handling.
 
 For future work, we intend to apply the SAT solver for corpus-free
