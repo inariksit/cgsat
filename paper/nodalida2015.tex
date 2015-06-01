@@ -424,7 +424,7 @@ work well with SAT-CG, are also good for traditional CG.
 % Additional tests could include plugging SAT-CG into Apertium
 % translation pipeline, and comparing the translation quality.
 
-\subsection{Time}
+\subsection{Execution time}
 
 The worst-case complexity of SAT is exponential, whereas the standard
 implementations of CG are polynomial, but with advances in SAT solving
@@ -466,7 +466,7 @@ proof-of-concept implementation with no optimisations.
 
 \section{Applications}
 \label{sec:apps}
-As described in Section~\ref{sec:eval}, our implementation is not
+As demonstrated in Section~\ref{sec:eval}, our implementation is not
 competetive with the state of the art. It is more fruitful to focus on
 things where the SAT-based representation can make an impact.
 One such thing is grammar analysis\footnote{We thank Eckhard Bick for
@@ -498,17 +498,20 @@ and the second rule removes verb reading, given certain condition.
 If the rules are introduced in a different order, there is no
 conflict: the REMOVE rule would not remove verb readings from all
 possible verb analyses, so there is a possibility for the SELECT rule
-to fire, as long as the input has verbs
+to fire.
 
-Ordered SAT-CG can be used to detect conflicts without any
+Ordered SAT-CG can be used to detect these conflicts without any
 modifications, as a side effect of its design. 
 After applying each rule, it stores the clauses
-produced by it and commits to them---even if the new rules cannot
-change the earlier decisions, the SAT solver still retains the
-dependencies.
-Given that each application of a rule gets a variable,
-in case of a conflict, the program detects the particular
-application that violates the previous clauses, with the sentence
+produced by it and commits to them
+% ---even if the new rules cannot
+% change the earlier decisions, the SAT solver still retains the
+% dependencies.
+% Given that each application of a rule 
+% is 
+% gets a variable,
+In case of a conflict, the program detects the particular rule that 
+violates the previous clauses, with the sentence
 where it is applied. Thus we get feedback which rule fails, and on which
 particular word(s).
 
