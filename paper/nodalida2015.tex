@@ -245,10 +245,11 @@ disambiguate  \emph{casa} to a noun\footnote{Assuming that
   consequent ($\neg$\emph{casa}\texttt{<v>}) will hold.}. 
 With the status of \emph{casa} resolved, the SAT solver can now make
 decision between the two models that it would find with only \emph{la casa}.
-Now \emph{casa}\texttt{<n>} is true, so \emph{la}\texttt{<prn>} must
-be false. 
-Because \emph{la}\texttt{<prn>} is false,  \emph{casa} cannot
- be a \texttt{v}, and we get a unique solution with \texttt{det n adj}.
+As described in the previous section, the dependencies between tags
+are stronger than in standard CG, so we get a unique solution with \texttt{det n adj}.
+% Now \emph{casa}\texttt{<n>} is true, so \emph{la}\texttt{<prn>} must be false. 
+%Because \emph{la}\texttt{<prn>} is false,  \emph{casa} cannot
+% be a \texttt{v}, and we get a unique solution with \texttt{det n adj}.
 
 Contrast this with the behaviour of the standard CG.
 With the new rule, standard CG will also remove the verb reading from \emph{casa}, 
@@ -258,8 +259,8 @@ depends of the order of the two rules; if the \texttt{det} reading of
 The SAT-based approach only removes readings after it has enough
 evidence to do that. From the grammar writer perspective, this removes
 a burden of having to decide whether the rule should be cautious or
-not---the SAT solver will only apply it if it has enough evidence from
-the surrounding context.
+not---the SAT solver will only take action the surrounding context
+supports the decision.
 
 % \todo{Unordered rules: also not applicable anymore to apply rules
 % iteratively; there's no ``this rule doesn't fire now but will after
@@ -381,11 +382,11 @@ SAT-CG is currently just a naive proof-of-concept implementation with no optimis
   \begin{tabular}{|c|c|c|c|}
      \hline
      \textbf{\# rules} &  \textbf{SAT-CG\textsubscript{u}} & \textbf{SAT-CG\textsubscript{o}} & \textbf{VISL CG-3} \\ \hline
-      19   & TODO &  23.1s   & 4.2s\\ %\hline
-      99   & TODO & 1m40.6s & 6.1s \\ %\hline
-      261  & TODO & 2m36.7s & 10.7s \\ \hline
+      19   & 39.7s &  22.1s   & 4.2s\\ %\hline
+      99   & 1m34.1s & 1m14.9s & 6.1s \\ %\hline
+      261  & 2m54.1s & 2m31.6s & 10.7s \\ \hline
   \end{tabular}
-  \caption{Execution times.}
+  \caption{Execution times for 384,155 words.}
   \label{table:time}
 \end{table}
 
