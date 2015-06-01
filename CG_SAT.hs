@@ -48,7 +48,6 @@ sameInd ((i,_),_) ((i',_),_) = i == i'
 --Rule     has [[Tag]].
 --Analysis has [Tag].
 --At least one complete sublist in the rule must be found in the analysis.
---If cautious mode, there must be only one sublist in analysis.
 tagsMatchRule :: [[Tag]] -> Token -> Bool
 tagsMatchRule tr ((_,ta),_) = go tr ta
   where go []       ta = False
@@ -119,7 +118,8 @@ go isSelect tags (conds:cs) allToks = --trace (show conds) $
         mkVars tctx nt = [ conseq:ants | (t, ctx) <- tctx -- (Token,[[Token]])
                                        , tCombs <- sequence ctx -- :: [[Token]]
                                        , let conseq = nt (getLit t)
-                                       , let ants = [] ] --map (neg . getLit) tCombs ] 
+--                                       , let ants = [] ] --for Cautious 
+                                       , let ants = map (neg . getLit) tCombs ] 
      -- tCombs <- sequence ctx: say we have rule REMOVE v IF (-1 det) (1 n)
      -- and we get [ [(1,det)], [(3,n pl), (3,n sg)] ]
      -- we can't just put all of them in the list of antecedents
@@ -164,12 +164,12 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                                  else [filter match $ exactly 0 tok] --feature in  different reading
 
                 -- for cautious mode. ONLY WORKS WITH SYMBOLIC!
-                Exactly True n -> if length (exactly n tok) > 1 
-                                   then [[]]
-                                   else [filter match $ exactly n tok]
-                AtLeast True n -> if length (atleast n tok) > 1
-                                   then [[]]
-                                   else [filter match $ atleast n tok]
+                -- Exactly True n -> if length (exactly n tok) > 1 
+                --                    then [[]]
+                --                    else [filter match $ exactly n tok]
+                -- AtLeast True n -> if length (atleast n tok) > 1
+                --                    then [[]]
+                --                    else [filter match $ atleast n tok]
 
                 -- normal mode
                 Exactly _ n -> [filter match $ exactly n tok]
@@ -384,6 +384,7 @@ test :: IO ()
 test = mapM_ (disambiguateWithOrder True True rls) CG_data.exs
 
   where rls = [rmVerbIfDet
+             --, slVerbAlways --conflicts with anything that selects other than V 
              , rmNounIfPron
              , slNounAfterConj
              , slCCifCC             
@@ -392,9 +393,8 @@ test = mapM_ (disambiguateWithOrder True True rls) CG_data.exs
              , rmPlIfSg
              , rmSgIfPl
              , slNounIfBear 
-             , slVerbAlways --conflicts with anything that selects other than V 
-             , negTest      --should conflict
-             , negOrTest    --should conflict
+             --, negTest      --should conflict
+             --, negOrTest    --should conflict
              , rmParticle
              ]
 

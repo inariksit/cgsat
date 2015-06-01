@@ -31,6 +31,7 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
+    ["subset",n]    -> subsetN (read n) apertium espre
     ["shuffle"]     -> shuffle_ small ambiguous esgold espre
     [r,"shuffle"]   -> shuffle_ r ambiguous esgold espre
     ["enshuffle"]   -> shuffle_ engr entext engold enpre
@@ -210,14 +211,20 @@ rev r d g pre = do
                | (n, ps) <- zip [0..] [rls, reverse rls]
                , let fname = "/tmp/rev" ++ show n ]
 
+subsetN n rules pre = do
+  rls <- concat `fmap` readRules rules
+  let fname = "/tmp/subset" ++ show n
+      ps = take n rls
+  mkRuleFile (take n rls) fname rules pre
+
 
 mkRuleFile :: [Rule] -> FilePath -> FilePath -> FilePath -> IO ()
-mkRuleFile rules fp orig pre = do
+mkRuleFile rules new orig pre = do
   lists <- readFile pre
-  writeFile fp lists
+  writeFile new lists
   rules <- sequence [ putStr name >> grep name | rl <- rules
                        , let name = head $ words $ show rl ]
-  appendFile fp (unwords rules)
+  appendFile new (unwords rules)
 
   where
     grep name = readProcess "egrep" [("\\<"++name++"\\>"), orig] []

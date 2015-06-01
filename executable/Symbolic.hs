@@ -11,13 +11,14 @@ import System.Environment
 import System.IO.Unsafe
 
 
-n = 2
+n = 3
 
 --dummytags = map (Tag . (:[])) ['b'..'e']
 --dummyrules = parseRules False "REMOVE:r1 (d) IF (-1C (c) LINK 1 (e)) ;\nREMOVE:r2 (b) ;\nREMOVE:r3 (e) IF (-1C (c)) ;"
 
 --TODO: get tags from the grammar to be tested
-tags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
+--tags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
+tags = map Tag ["det", "v", "p3", "imp", "prs", "predet", "prn"]
 
 randomrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (prs) ;\nREMOVE:r3 (imp) IF (0 (p3)) ;"
 

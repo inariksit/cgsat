@@ -20,9 +20,13 @@ main = do
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
-                      disam = if "no" `elem` o then disambiguate
-                                               else disambiguateWithOrder
-                  mapM_ (disamSection (disam verbose debug) rules) text
+                      disam = if "noord" `elem` o 
+                                then disambiguate verbose debug
+                                else disambiguateWithOrder verbose debug
+                      disec = if "nosec" `elem` o
+                                then disam (concat rules)
+                                else disamSection disam rules
+                  mapM_ disec text
     ("test":_) -> CG_SAT.test
     _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"
   
