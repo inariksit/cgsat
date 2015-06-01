@@ -41,13 +41,15 @@
 
 \begin{abstract} 
 
-We represent Constraint Grammar (CG) as a Boolean satisfiability (SAT) problem.
+We represent Constraint Grammar (CG) as a Boolean satisfiability 
+(SAT) problem.
 Encoding CG in logic brings some new features to the grammars.
-The rules are interpreted in a more declarative way, which makes
-cautious context and ordering irrelevant.
-One rule corresponds to many logical formulas,
-where each condition interpreted as a target---this makes the number of the rules
-potentially smaller. 
+The rules are interpreted in a more declarative way, which makes it
+possible to abstract away from details such as cautious context and
+ordering.
+The encoding in logic captures richer dependencies between the tags:
+a rule is allowed to take action also concerning the words in its
+context. This makes the number of the rules potentially smaller. 
 Ordering can be preserved or discarded;
 in the latter case, we solve eventual rule conflicts by finding a
 solution that discards the least number of rule applications.
@@ -533,7 +535,7 @@ and we want to find if there exists an input such that
  both rules, applied in the given order, remove something from the input.
 % This is another constraint solving problem, hence we can model it in SAT.
 There are no inputs that satisfy the requirement with first order,
-but several that work with the second, for instance:
+but several that work with the second, for instance
 
 \begin{itemize}
 \item []
@@ -560,11 +562,14 @@ Implementing and testing this on a larger scale is left for future work.
 
 SAT-solvers are nowadays powerful enough to be used for dealing with
 Constraint Grammar. A logic-based approach to CG has possible
-advantages over more traditional approaches; a SAT-solver may
+advantages over more traditional approaches; a SAT solver may
 disambiguate more words, and may do so more precisely, capturing
 more dependencies between tags.
 We experimented with both ordered and unordered rules, and found the ordered
 scheme to work better with previously written grammars.
+The evaluation shows that SAT-CG isn't a match for
+As future work, we 
+As a complementary approach, we intend to concentrate on grammar analysis
 
 
 % Also, the SAT-solver requires less rules, and these rules are simpler. 
