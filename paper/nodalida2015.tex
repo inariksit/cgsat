@@ -65,7 +65,7 @@ language-independent method for part-of-speech tagging.
 %strategies, along with e.g. Finite-State Intersection Grammar (FSIG) \cite{koskenniemi90}.
 In this work, we present CG %\footnote{Roughly compatible with CG-2}
 as a Boolean satisfiability (SAT) problem, and describe an implementation
-using a SAT solver. This is attractive from several reasons: formal logic is
+using a SAT solver. This is attractive for several reasons: formal logic is
 well-studied, and serves as an abstract language to reason about the
 properties of CG. Constraint rules encoded in logic capture richer
 dependencies between the tags than standard CG.
@@ -282,13 +282,13 @@ Applying a rule to a sentence produces a number of clauses,
 and those clauses are fed into the SAT solver.
 However, in the unordered scheme, some information is lost: the
 following rule sets would be treated identically, whereas in the
-traditional CG, only the second would be considered as a bad order.
+traditional CG, only the first would be considered as a bad order.
 
 \begin{itemize}
-\item [\texttt{1)}] \texttt{REMOVE v IF (-1 det) ;} \\
-         \texttt{SELECT v ;}
-\item [\texttt{2)}] \texttt{SELECT v ;} \\
+\item [\texttt{1)}] \texttt{SELECT v ;} \\
          \texttt{REMOVE v IF (-1 det) ;} 
+\item [\texttt{2)}] \texttt{REMOVE v IF (-1 det) ;} \\
+         \texttt{SELECT v ;}
 \end{itemize}
 
 Without order, both of these rule sets will conflict, if applied to an
@@ -332,8 +332,8 @@ like an outlier.
 
 We can also emulate order with SAT-CG. To do that, we enter clauses
 produced by each rule one by one, and assume the solver state reached
-so far is correct. If a conflict is introduced by new clauses, discard
-them and move on to the next rule.
+so far is correct. If a new clause introduces a conflict with
+previous clauses, we discard it and move on to the next rule.
 By testing against gold standard, we see that this scheme works better
 with ready-made CGs, which are written with ordering in mind.
 It also runs slightly faster than the unordered version.
@@ -523,19 +523,17 @@ On a more speculative note, an unordered formalism such as Finite-State
 Intersection Grammar \cite{koskenniemi90} might benefit from the
 maximisation-based technique in conflict handling.
 
-For future work, we intend to apply the SAT solver for corpus-free
-conflict testing. Let us illustrate the idea with the same two rules,
-\texttt{REMOVE v IF (-1 det)} and \texttt{SELECT v}
+As future work, we intend to test for conflicts
+without using a corpus.
+Let us illustrate the idea with the same two rules,
+\texttt{SELECT v} and \texttt{REMOVE v IF (-1 det)}
 in both orders.
-Assume we have tag set \texttt{\{det, n, v, sg, pl\}}. Then we
-can ask the SAT solver a question if there exists an input which
-satisfies our constraints: both rules, applied in the order, remove
-something from the input.
-SAT solver tells us that with sentence length 2 and maximum 4 readings
-for the whole sentence, there are several inputs that
-satisfy the constraints for the first rule set, but none that
-satisfies the second rule set: for instance
-
+Assume we have the tag set \texttt{\{det, n, v, sg, pl\}}, 
+and we want to find if there exists an input such that
+ both rules, applied in the given order, remove something from the input.
+% This is another constraint solving problem, hence we can model it in SAT.
+There are no inputs that satisfy the requirement with first order,
+but several that work with the second, for instance:
 
 \begin{itemize}
 \item []
@@ -563,9 +561,13 @@ Implementing and testing this on a larger scale is left for future work.
 SAT-solvers are nowadays powerful enough to be used for dealing with
 Constraint Grammar. A logic-based approach to CG has possible
 advantages over more traditional approaches; a SAT-solver may
-disambiguate more words, and may do so more precisely. Also, the
-SAT-solver requires less rules, and these rules are simpler. 
-\todo{proper conclusions for the new stuff}
+disambiguate more words, and may do so more precisely, capturing
+more dependencies between tags.
+We experimented with both ordered and unordered rules, and found the ordered
+scheme to work better with previously written grammars.
+
+
+% Also, the SAT-solver requires less rules, and these rules are simpler. 
 % The ordering of rules is something we found was incompatible with a logic-based approach. We compensate this by maximising rule applications. Whether this is an advantage or disadvantage remains to be seen. Our initial experimental results are promising.
 
 
