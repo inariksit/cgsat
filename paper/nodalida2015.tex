@@ -16,6 +16,7 @@
 \usepackage{url}
 \usepackage{latexsym}
 \usepackage{cite}
+\usepackage{hyperref}
 \usepackage{authordate1-4}
 \usepackage{multirow}
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
@@ -211,7 +212,7 @@ taking its turn to be the target. % of removal or selection.
 % discarding the assumption if it doesn't lead to a model that satisfies
 % all constraints.
 
-Traditional CG relies on that applying the rule set iteratively:
+Traditional CG applies the rule set iteratively:
 some rules fire during the first iteration, either because their
 conditions do not require cautious context, or because some words are
 unambiguous to start with. This makes some more words unambiguous, and
@@ -307,10 +308,10 @@ these variables are true; that is, all rules take action.
 In case of a conflict, the SAT solver makes it possible to discard only
 minimal amount of rule applications. Continuing with the example,
 it is not clear which instances would be discarded, but if the rules
-were part of a larger rule set, and in the context the REMOVE rule was
+were part of a larger rule set, and in the context the \textsc{remove} rule was
 the right one to choose, it is likely that the interaction between the desired
 rules would make a large set of clauses that fit together, and the
-SELECT rule would not fit in, hence it would be discarded. 
+\textsc{select} rule would not fit in, hence it would be discarded. 
 
 This corresponds loosely to the common design pattern in
 CGs, where there is a number of rules with the same target, ordered
@@ -362,11 +363,11 @@ The results are presented in more detail in the following sections.
 
 
 We took a manually tagged
-corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged}
+corpus\footnote{\url{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/apertium-en-es/es-tagger-data/es.tagged}}
 containing approximately 22,000 words of Spanish news text, 
-and a small constraint grammar\footnote{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}, produced independently of the authors.
+and a small constraint grammar\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}}, produced independently of the authors.
 % We ignored substitute rules, but kept subreadings and unification, even though our implementation doesn't handle them.
-We kept only SELECT and REMOVE rules, which left us 261 rules.
+We kept only \textsc{select} and \textsc{remove} rules, which left us 261 rules.
 With this setup, we produced an ambiguous version of the tagged
 corpus, and ran both SAT-CG and VISL CG-3 on it.
 Treating the original corpus as the gold standard, the disambiguation
@@ -381,7 +382,7 @@ available gold standard.
 We also wanted to test the hypothesis that SAT-CG works better with
 small amount of rules. We took the base grammar and started
 handcrafting rules; with our best performing and most concise
-grammar\footnote{https://github.com/inariksit/cgsat/blob/master/data/spa\_smallset.rlx}
+grammar\footnote{\url{https://github.com/inariksit/cgsat/blob/master/data/spa\_smallset.rlx}}
 of only 19 rules, unordered SAT-CG achieves 85.3 \% and VISL CG-3 85.9
 \%. This experiment is naturally very small and might be explained by
 overfitting or mere chance, but it seems to indicate that rules that
@@ -447,7 +448,7 @@ proof-of-concept implementation with no optimisations.
 \section{Applications}
 \label{sec:apps}
 As demonstrated in Section~\ref{sec:eval}, our implementation is not
-competetive with the state of the art. It is more fruitful to focus on
+competitive with the state of the art. It is more fruitful to focus on
 things where the SAT-based representation can make an impact.
 One such thing is grammar analysis\footnote{We thank Eckhard Bick for
   the suggestion.}.
@@ -476,8 +477,8 @@ We can reuse the example from Section~\ref{sec:unord}:
 The first rule selects the verb reading everywhere and removes
 all other readings, leaving no chance for the second rule to take action.
 If the rules are introduced in a different order, there is no
-conflict: the REMOVE rule would not remove verb readings from all
-possible verb analyses, so there is a possibility for the SELECT rule
+conflict: the \textsc{remove} rule would not remove verb readings from all
+possible verb analyses, so there is a possibility for the \textsc{select} rule
 to fire.
 
 
@@ -508,7 +509,7 @@ without using a corpus.
 Let us illustrate the idea with the same two rules,
 \texttt{SELECT v} and \texttt{REMOVE v IF (-1 det)}
 in both orders.
-Assume we have the tag set \texttt{\{det, n, v, sg, pl\}}, 
+Assume we have the tag set \texttt{\{det, n, v\}}, 
 and we want to find if there exists an input such that
  both rules, applied in the given order, remove something from the input.
 % This is another constraint solving problem, hence we can model it in SAT.
@@ -546,7 +547,7 @@ more dependencies between tags.
 We experimented with both ordered and unordered rules, and found the 
 ordered scheme to work better with previously written grammars.
 For future direction, we intend to concentrate on grammar analysis,
-especially finding conflicts in grammars.
+especially finding conflicts in constraint grammars.
 
 
 % Also, the SAT-solver requires less rules, and these rules are simpler. 
