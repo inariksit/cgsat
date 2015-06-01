@@ -255,8 +255,8 @@ depends of the order of the two rules; if the \texttt{det} reading of
 If we made the first rules cautious, that is, keeping the determiner
 open until \emph{casa} is disambiguated, then we get the same
 result as with the SAT solver.
-Ideally, both ways of grammar writing should yield good results;
-traditional CG are more imperative, whereas SAT-CG
+Ideally, both ways of grammar writing should yield similar results;
+traditional CG rules are more imperative, and SAT-CG
 rules are more declarative.
 
 % The SAT-based approach only removes readings after it has enough
@@ -388,7 +388,7 @@ corpus, and ran both SAT-CG and VISL CG-3 on it.
 Treating the original corpus as the gold standard, the disambiguation
 by  VISL CG-3 achieves F-score of 82.6 \%, ordered SAT-CG 81.5 \%  and
 unordered SAT-CG 79.2 \%. 
-We did not test with other languages or text genres due to lack of
+We did not test with other languages or text genres due to the lack of
 available gold standard.
 %This result suggests that that when running grammars that are written
 %with the traditional CG in mind, SAT-CG loses with both ordering
@@ -427,22 +427,25 @@ implementations of CG are polynomial, but with advances in SAT solving
 techniques, the performance in the average case in practice is much more feasible than in the previous works done in 90s--00s.
 We used the open-source SAT solver MiniSat \cite{een04sat}.
 
+
 We tested the performance by parsing Don Quijote (384,155 words) with
-the same Spanish grammars as in previous experiment. Table~\ref{table:time} shows execution times compared to VISL
-CG-3 for the same text and rules. 
-The number of rules in the grammar is more significant than the word
-count; this holds also for the performance of VISL CG-3.
-From the SAT solving side, maximisation is the most costly operation; 
-emulating order (SAT-CG\textsubscript{o}) is slightly faster, because maximisation problems are smaller.
+the same Spanish grammars as in the previous experiment. 
+Table~\ref{table:time} shows execution times compared to VISL CG-3;
+SAT-CG\textsubscript{U} is the unordered scheme and
+SAT-CG\textsubscript{O} is the ordered.
+% For both systems, the number of rules in the grammar affects the performance more than the word count.
+From the SAT solving side, maximisation is the most costly operation. 
+Emulating order is slightly faster, likely because the maximisation problems are smaller.
 In any case, SAT does not seem to be the bottleneck: with 261 rules,
 the maximisation function was called 147,253 times, and with 19 rules,
-132,255 times. 
+132,255 times, but 
 %However, with both rule sets, half of the sentences in Don Quijote
 %needed less than 6 calls of maximise, and 75 \% of the sentences
 %needed less than 14.
-The difference in the execution times suggests that there are other
-reasons for the worse performance---this is to be expected,
-SAT-CG is currently just a naive proof-of-concept implementation with no optimisations.
+the differences in the execution times are much larger, which suggests
+that there are other reasons for the worse performance. 
+This is to be expected, SAT-CG is currently just a naive
+proof-of-concept implementation with no optimisations.
 
 \begin{table}
   \centering
@@ -471,19 +474,19 @@ search for inconsistencies or unoptimal design in order to point it out to the g
 The sequential application of traditional CG rules is good for
 performance and transparency. As soon as a rule applies, the analyses
 are removed from the input, and next rules get the modified sentence
-as their input. At the execution of rule, there is no way to
-go back to earlier rules and undo them. Thus there is no way to know
-what part of the input comes from the morphological analyser and what
-part from applying previous rules.
+as their input. 
+% At the execution of rule, there is no way to go back to earlier rules and undo them. 
+Thus there is no way to know what part of the input comes from the
+morphological analyser and what part from applying previous rules.
 
-A conflict can be defined as 
+A conflict in an ordered scheme can be defined as 
 a set of two or more rules, such that applying the first makes the
 next rules impossible to apply, regardless of input.
 We can reuse the example from Section~\ref{sec:unord}:
 
 \begin{itemize}
-\item [] \texttt{SELECT verb ;} \\
-         \texttt{REMOVE verb IF (-1 det) ;}
+\item [] \texttt{SELECT v ;} \\
+         \texttt{REMOVE v IF (-1 det) ;}
 \end{itemize}
 
 The first rule selects the verb always, removing all other readings,
@@ -491,52 +494,60 @@ and the second rule removes verb reading, given certain condition.
 If the rules are introduced in a different order, there is no
 conflict: the REMOVE rule would not remove verb readings from all
 possible verb analyses, so there is a possibility for the SELECT rule
-to fire.
+to fire, as long as the input has verbs
 
-SAT-CG works for this kind of corpus-based grammar analysis as a side
-effect of its design. After applying each rule, it stores the clauses
-produced by it and commits to them---this meas that it retains the
+Ordered SAT-CG can be used to detect conflicts without any
+modifications, as a side effect of its design. 
+After applying each rule, it stores the clauses
+produced by it and commits to them---even if the new rules cannot
+change the earlier decisions, the SAT solver still retains the
 dependencies.
-Given the design that each rule application (instead of rule) gets a variable,
-in case of a conflict, the program prints out the particular
+Given that each application of a rule gets a variable,
+in case of a conflict, the program detects the particular
 application that violates the previous clauses, with the sentence
-where it is applied. 
+where it is applied. Thus we get feedback which rule fails, and on which
+particular word(s).
+
 This conflict solving can be done per section, or for the whole grammar. 
 In case of section-based application, we run each section on the
-input, and give the output as an input to the new section, discarding
+input, and give the output as a fresh input to the new section, discarding
 all clauses. Alternatively, we can let the rules interact with each
 other regardless of the section boundaries.
 
-Maximisation-based conflict solving (see Section~\ref{sec:unord}) is not feasible for this task. 
+The unordered scheme with maximisation-based conflict solving (see Section~\ref{sec:unord}) is not feasible for this task. 
 The whole definition of conflicts depends on ordering, and it would
-not differentiate between the case where \texttt{SELECT verb} comes
-before \texttt{REMOVE verb IF (-1 det)} or after.
-On the other hand, a formalism such as FSIG would benefit from the
+not differentiate between the case where \texttt{SELECT v} comes
+before \texttt{REMOVE v IF (-1 det)} or after.
+On the other hand, an unordered formalism such as FSIG would benefit from the
 maximisation-based technique in conflict handling.
 
 For future work, we intend to apply the SAT solver for corpus-free
-conflict testing. Let us illustrate the idea with the rule
-set shown in Section 3:
-
-
-\begin{itemize}
-\item [\texttt{1)}] \texttt{REMOVE verb IF (-1 det) ;} \\
-         \texttt{SELECT verb ;}
-
-\item [\texttt{2)}] \texttt{SELECT verb ;} \\
-         \texttt{REMOVE verb IF (-1 det) ;} 
-\end{itemize}
-
-Assume we have tag set \texttt{\{det, noun, verb, sg, pl\}}. Then we
+conflict testing. Let us illustrate the idea with the same two rules,
+\texttt{REMOVE v IF (-1 det)} and \texttt{SELECT v}
+in both orders.
+Assume we have tag set \texttt{\{det, n, v, sg, pl\}}. Then we
 can ask the SAT solver a question if there exists an input which
 satisfies our constraints: both rules, applied in the order, remove
 something from the input.
 SAT solver tells us that with sentence length 2 and maximum 4 readings
-for the whole sentence (1+3, 2+2 or 3+1), there are several inputs that
+for the whole sentence, there are several inputs that
 satisfy the constraints for the first rule set, but none that
-satisfies the second rule set. Thus we can say that the first rule set
-is sane, but the second rule set is conflicting.
+satisfies the second rule set: for instance
 
+
+\begin{itemize}
+\item []
+\begin{verbatim}
+"<w1>"
+        det
+        v
+"<w2>"
+        n
+        v
+\end{verbatim}
+\end{itemize}
+Thus we can say that the first rule set is sane, but the second rule
+set is conflicting. 
 Implementing and testing this on a larger scale is left for future work.
 
 
@@ -559,7 +570,7 @@ SAT-solver requires less rules, and these rules are simpler.
 \section*{Acknowledgments}
 
 We thank Tino Didriksen, Eckhard Bick, Francis Tyers and Anssi
-Yli-Jyr{\"a} for comments and suggestions, samt the anonymous
+Yli-Jyr{\"a} for comments and suggestions, as well as the anonymous
 reviewers and everyone who participated in the discussion at the CG workshop.
 
 % Do not number the acknowledgment section. Do not include this section
