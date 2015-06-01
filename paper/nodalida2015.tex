@@ -47,9 +47,9 @@ Encoding CG in logic brings some new features to the grammars.
 The rules are interpreted in a more declarative way, which makes it
 possible to abstract away from details such as cautious context and
 ordering.
-The encoding in logic captures richer dependencies between the tags:
-a rule is allowed to take action also concerning the words in its
-context. This makes the number of the rules potentially smaller. 
+%In addition to the target words, 
+A rule is allowed to affect its context words, which makes the number
+of the rules in a grammar potentially smaller. 
 Ordering can be preserved or discarded;
 in the latter case, we solve eventual rule conflicts by finding a
 solution that discards the least number of rule applications.
@@ -76,7 +76,7 @@ Applying logic to reductionist grammars has been explored earlier by \cite{lager
 % ; logic programming was too slow to be used for tagging or parsing. 
 Since those works, SAT solving techniques have improved significantly \cite{marques_silva2010}, and they are used in domains such as microprocessor design and computational 
 biology---these problems easily match or exceed CG in complexity. 
-Due to these advances, we were able to revisit the idea and develop it
+Thanks to these advances, we were able to revisit the idea and develop it
 further. 
 
 Our work is primarily inspired by \cite{lager98}, which presents constraint
@@ -127,7 +127,9 @@ the CG principles: an analysis is true if no rule affects it,
 and at least one analysis for each word is true---the notion of
 ``last'' is not applicable.
 
-With these constraints, we get two solutions. The interaction of the rules regarding \emph{la}  disambiguates \emph{casa} for free, and ordering of the rules doesn't matter. 
+With these constraints, we get two solutions. The interaction of the
+rules regarding \emph{la}  disambiguates the part of speech of
+\emph{casa} for free, and the order of the rules does not matter. 
 
 \begin{enumerate}
 \item [\texttt{1)}]
@@ -211,7 +213,7 @@ taking its turn to be the target. % of removal or selection.
 
 Traditional CG relies on that applying the rule set iteratively:
 some rules fire during the first iteration, either because their
-conditions don't require cautious context, or because some words are
+conditions do not require cautious context, or because some words are
 unambiguous to start with. This makes some more words unambiguous, and
 new rules can fire during the second iteration.
 
@@ -278,7 +280,7 @@ rules are more declarative.
 \subsection{Rules can be unordered}
 \label{sec:unord}
 
-As hinted by the previous property, SAT solver doesn't need a fixed
+As hinted by the previous property, SAT solver does not need a fixed
 order of the rules.
 Applying a rule to a sentence produces a number of clauses,
 and those clauses are fed into the SAT solver.
@@ -302,7 +304,7 @@ If there is no conflict, then the maximal solution is one where all of
 these variables are true; that is, all rules take action.
 
 
-In case of a conflict, SAT solver makes it possible to discard only
+In case of a conflict, the SAT solver makes it possible to discard only
 minimal amount of rule applications. Continuing with the example,
 it is not clear which instances would be discarded, but if the rules
 were part of a larger rule set, and in the context the REMOVE rule was
@@ -319,18 +321,6 @@ The order-based heuristic in the traditional CG is replaced by a more
 holistic behaviour: if the rules conflict, discard the one that seems
 like an outlier.
 
-%With the added interaction between rules, catch-all rules might even be less 
-%necessary. However, this is just speculation, we have not tested this effect.
-
-
-%We can apply this for the whole grammar, or for one section at a time.
-
-%The design of unordered rules can lead to new ways of writing CGs,
-%potentially with less mental effort to the writer, but also less transparent. 
-
-%By testing against gold standard, we see that the
-%unordered scheme not optimal for applying ready-made
-%CGs, where the order is a crucial detail.
 
 We can also emulate order with SAT-CG. To do that, we enter clauses
 produced by each rule one by one, and assume the solver state reached
@@ -339,28 +329,16 @@ previous clauses, we discard it and move on to the next rule.
 By testing against gold standard, we see that this scheme works better
 with ready-made CGs, which are written with ordering in mind.
 It also runs slightly faster than the unordered version.
-%the performance, because the maximisation problems are smaller. 
-%We have also experimented with sections, and 
 \\
 
 
-%  that it is possible to write a small grammar, 
-% which, when run with the unordered scheme, disambiguates more than the
-% same grammar run with VISL CG-3. 
-% However, when tested with grammars that are written for the original
-% CG, SAT-CG loses with both strategies, but emulating order fares better.
 
-% Finite-state implementations of CG \cite{koskenniemi92} also have logically unordered rules. 
-% \todo{Inari: check if Tapanainen 1996 discuss ordering}
-
-
-
-\noindent These three features influence the way that rules are written. 
+\noindent These three features influence the way rules are written. 
 We predict that less rules are needed; whether this holds in the order
-of thousands of rules remains to be tested. On one hand, getting rid
+of thousands of rules remains to be tested. On the one hand, getting rid
 of ordering and cautious context could ease the task of the grammar
 writer, since it removes the burden of estimating the best sequence of
-rules and whether to make the them cautious. On the other
+rules and whether to make them cautious. On the other
 hand, lack of order can make the rules less transparent, and might not scale up for larger grammars.
 
 
@@ -388,7 +366,7 @@ corpus\footnote{https://svn.code.sf.net/p/apertium/svn/branches/apertium-swpost/
 containing approximately 22,000 words of Spanish news text, 
 and a small constraint grammar\footnote{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}, produced independently of the authors.
 % We ignored substitute rules, but kept subreadings and unification, even though our implementation doesn't handle them.
-We kept only select and remove rules, after which the grammar had 261 rules.
+We kept only SELECT and REMOVE rules, which left us 261 rules.
 With this setup, we produced an ambiguous version of the tagged
 corpus, and ran both SAT-CG and VISL CG-3 on it.
 Treating the original corpus as the gold standard, the disambiguation
@@ -400,11 +378,11 @@ available gold standard.
 %with the traditional CG in mind, SAT-CG loses with both ordering
 %strategies, but emulating order fares better.
 
-We also wanted to test the hypothesis that SAT-CG needs different
-kinds of rules to perform well. We took the base grammar and started
+We also wanted to test the hypothesis that SAT-CG works better with
+small amount of rules. We took the base grammar and started
 handcrafting rules; with our best performing and most concise
 grammar\footnote{https://github.com/inariksit/cgsat/blob/master/data/spa\_smallset.rlx}
-of just 19 rules, unordered SAT-CG achieves 85.3 \% and VISL CG-3 85.9
+of only 19 rules, unordered SAT-CG achieves 85.3 \% and VISL CG-3 85.9
 \%. This experiment is naturally very small and might be explained by
 overfitting or mere chance, but it seems to indicate that rules that
 work well with SAT-CG, are also good for traditional CG.
@@ -430,7 +408,7 @@ work well with SAT-CG, are also good for traditional CG.
 
 The worst-case complexity of SAT is exponential, whereas the standard
 implementations of CG are polynomial, but with advances in SAT solving
-techniques, the performance in the average case in practice is much more feasible than in the previous works done in 90s--00s.
+techniques, the performance in the average case in practice is more feasible than in the previous works done in 90s--00s.
 We used the open-source SAT solver MiniSat \cite{een04sat}.
 
 
@@ -450,7 +428,7 @@ the maximisation function was called 147,253 times, and with 19 rules,
 %needed less than 14.
 the differences in the execution times are much larger, which suggests
 that there are other reasons for the worse performance. 
-This is to be expected, SAT-CG is currently just a naive
+This is to be expected, as SAT-CG is currently just a naive
 proof-of-concept implementation with no optimisations.
 
 \begin{table}
@@ -479,8 +457,8 @@ search for inconsistencies or unoptimal design in order to point it out to the g
 
 The sequential application of traditional CG rules is good for
 performance and transparency. When a rule takes action, the analyses
-are removed from the input, and the next rules get the modified sentence
-as their input. 
+are removed from the sentence, and the next rules get the modified
+sentence as input. 
 % At the execution of rule, there is no way to go back to earlier rules and undo them. 
 As a downside, there is no way to know which part comes directly from the
 raw input and which part from applying previous rules.
@@ -495,8 +473,8 @@ We can reuse the example from Section~\ref{sec:unord}:
          \texttt{REMOVE v IF (-1 det) ;}
 \end{itemize}
 
-The first rule selects the verb reading always, removing all other readings,
-and the second rule removes the verb reading conditionally.
+The first rule selects the verb reading everywhere and removes
+all other readings, leaving no chance for the second rule to take action.
 If the rules are introduced in a different order, there is no
 conflict: the REMOVE rule would not remove verb readings from all
 possible verb analyses, so there is a possibility for the SELECT rule
@@ -534,8 +512,8 @@ Assume we have the tag set \texttt{\{det, n, v, sg, pl\}},
 and we want to find if there exists an input such that
  both rules, applied in the given order, remove something from the input.
 % This is another constraint solving problem, hence we can model it in SAT.
-There are no inputs that satisfy the requirement with first order,
-but several that work with the second, for instance
+There are no inputs that satisfy the requirement with the first order,
+but several that work with the second, such as the following:
 
 \begin{itemize}
 \item []
@@ -548,8 +526,8 @@ but several that work with the second, for instance
         v
 \end{verbatim}
 \end{itemize}
-Thus we can say that the first rule set is sane, but the second rule
-set is conflicting. 
+Thus we can say that the first rule order is conflicting, but the second
+one is not. 
 Implementing and testing this on a larger scale is left for future work.
 
 
@@ -565,11 +543,10 @@ Constraint Grammar. A logic-based approach to CG has possible
 advantages over more traditional approaches; a SAT solver may
 disambiguate more words, and may do so more precisely, capturing
 more dependencies between tags.
-We experimented with both ordered and unordered rules, and found the ordered
-scheme to work better with previously written grammars.
-The evaluation shows that SAT-CG isn't a match for
-As future work, we 
-As a complementary approach, we intend to concentrate on grammar analysis
+We experimented with both ordered and unordered rules, and found the 
+ordered scheme to work better with previously written grammars.
+For future direction, we intend to concentrate on grammar analysis,
+especially finding conflicts in grammars.
 
 
 % Also, the SAT-solver requires less rules, and these rules are simpler. 
