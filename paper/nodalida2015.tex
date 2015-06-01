@@ -16,7 +16,7 @@
 \usepackage{url}
 \usepackage{latexsym}
 \usepackage{cite}
-\usepackage{hyperref}
+\usepackage[colorlinks=true]{hyperref}
 \usepackage{authordate1-4}
 \usepackage{multirow}
 \special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
@@ -445,16 +445,15 @@ proof-of-concept implementation with no optimisations.
   \label{table:time}
 \end{table}
 
-\section{Applications}
+\section{Applications and future work}
 \label{sec:apps}
-As demonstrated in Section~\ref{sec:eval}, our implementation is not
-competitive with the state of the art. It is more fruitful to focus on
-things where the SAT-based representation can make an impact.
-One such thing is grammar analysis\footnote{We thank Eckhard Bick for
-  the suggestion.}.
+%As demonstrated in Section~\ref{sec:eval}, our implementation is not
+%competitive with the state of the art. 
+%VISL CG-3 is efficient, reliable and widely used, and
+Instead of trying to compete with the state of the art, we plan to use SAT-CG for grammar analysis\footnote{We thank Eckhard Bick for the idea.}.
 There has been work on automatic tuning of hand-written CGs
-\cite{bick2013tuning}, but to our knowledge, no tools which would
-search for inconsistencies or unoptimal design in order to point it out to the grammar writer.
+\cite{bick2013tuning}, but to our knowledge no tools which would
+search for inconsistencies or unoptimal design. %in order to point it out to the grammar writer.
 
 The sequential application of traditional CG rules is good for
 performance and transparency. When a rule takes action, the analyses
@@ -504,7 +503,7 @@ On a more speculative note, an unordered formalism such as Finite-State
 Intersection Grammar \cite{koskenniemi90} might benefit from the
 maximisation-based technique in conflict handling.
 
-As future work, we intend to test for conflicts
+Finally, we intend to test for conflicts
 without using a corpus.
 Let us illustrate the idea with the same two rules,
 \texttt{SELECT v} and \texttt{REMOVE v IF (-1 det)}
