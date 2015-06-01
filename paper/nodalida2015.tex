@@ -256,11 +256,18 @@ With the new rule, standard CG will also remove the verb reading from \emph{casa
 but it is in no way connected to the choice for \emph{la}. It all
 depends of the order of the two rules; if the \texttt{det} reading of
 \emph{la} is removed first, then we are stuck with that choice.
-The SAT-based approach only removes readings after it has enough
-evidence to do that. From the grammar writer perspective, this removes
-a burden of having to decide whether the rule should be cautious or
-not---the SAT solver will only take action the surrounding context
-supports the decision.
+If we made the first rules cautious, that is, keeping the determiner
+open until \emph{casa} is disambiguated, then we get the same
+result as with the SAT solver.
+Ideally, both ways of grammar writing should yield good results;
+traditional CG is written in a more imperative way, whereas SAT-CG
+rules are more declarative.
+
+% The SAT-based approach only removes readings after it has enough
+% evidence to do that. From the grammar writer perspective, this removes
+% a burden of having to decide whether the rule should be cautious or
+% not---the SAT solver will only take action the surrounding context
+% supports the decision.
 
 % \todo{Unordered rules: also not applicable anymore to apply rules
 % iteratively; there's no ``this rule doesn't fire now but will after
@@ -281,15 +288,13 @@ traditional CG, only the second would be considered as a bad order.
 
 \begin{itemize}
 \item [\texttt{1)}] \texttt{REMOVE v IF (-1 det) ;} \\
-         \texttt{REMOVE v IF (-1 adj) ;} \\
          \texttt{SELECT v ;}
 \item [\texttt{2)}] \texttt{SELECT v ;} \\
-         \texttt{REMOVE v IF (-1 det) ;} \\
-         \texttt{REMOVE v IF (-1 adj) ;} 
+         \texttt{REMOVE v IF (-1 det) ;} 
 \end{itemize}
 
 Without order, both of these rule sets will conflict, if applied to an
-input that has sequence \texttt{det v} or \texttt{adj v}.
+input that has sequence \texttt{det v}.
 The SAT solver is fed clauses that tell to select a verb and remove a
 verb, and it cannot build a model that satisfies all of those clauses.
 To solve this problem, we create a variable for every clause
@@ -300,29 +305,44 @@ are kept.
 
 In case of a conflict, SAT solver makes it possible to discard only
 minimal amount of rule applications. Continuing with the example,
-assume that there are instances for both contexts for the REMOVE
-rules, then just ignoring the SELECT rule will lead to maximal solution. 
+it is not clear which instances would be discarded, but if the rules
+were part of a larger rule set, and in the context the REMOVE rule was
+the right one to choose, it is likely that the interaction between the desired
+rules would make a large set of clauses that fit together, and the
+SELECT rule would not fit in, hence it would be discarded. 
+
 This corresponds loosely to the common design pattern in
 CGs, where there is a number of rules with the same target, ordered
 such that more secure rules come first,
 with a catch-all rule with no condition as the last resort, to be
 applied if none of the previous has fired.
+The order-based heuristic in the traditional CG is replaced by a more
+holistic behaviour: if the rules conflict, discard the one that seems
+like an outlier.
 
-We can apply this for the whole grammar, or for one section at a time.
+%With the added interaction between rules, catch-all rules might even be less 
+%necessary. However, this is just speculation, we have not tested this effect.
 
 
+%We can apply this for the whole grammar, or for one section at a time.
 
-The design of unordered rules can lead to new ways of writing CGs,
-potentially with less mental effort to the writer, but also less
-transparent. By testing against gold standard, we see that the
-unordered scheme not optimal for applying ready-made
-CGs, where the order is a crucial detail.
-We can also emulate order: enter clauses produced by each rule one by
-one, and assume the solver state reached so far is correct; if a
-conflict is introduced by new clauses, discard them and move on to
-next.
-This is also better for the performance, because the maximisation
-problems are smaller. \\
+%The design of unordered rules can lead to new ways of writing CGs,
+%potentially with less mental effort to the writer, but also less transparent. 
+
+%By testing against gold standard, we see that the
+%unordered scheme not optimal for applying ready-made
+%CGs, where the order is a crucial detail.
+
+We can also emulate order with SAT-CG. To do that, we enter clauses
+produced by each rule one by one, and assume the solver state reached
+so far is correct. If a conflict is introduced by new clauses, discard
+them and move on to the next rule.
+By testing against gold standard, we see that this scheme works better
+with ready-made CGs, which are written with ordering in mind.
+It is also slightly better for the performance, because the maximisation
+problems are smaller. 
+%We have also experimented with sections, and 
+\\
 
 
 %  that it is possible to write a small grammar, 
@@ -337,11 +357,12 @@ problems are smaller. \\
 
 
 \noindent These three features influence the way that rules are written. 
-We predict that less rules are needed; whether this holds in
-the order of thousands of rules remains to be tested.
-Getting rid of ordering could ease the task of the grammar writer,
-since it removes the need to estimate the best sequence of rule
-applications.
+We predict that less rules are needed; whether this holds in the order
+of thousands of rules remains to be tested. On one hand, getting rid
+of ordering and cautious context could ease the task of the grammar
+writer, since it removes the need to estimate the best sequence of
+rule applications and whether to make the rules cautious. On the other
+hand, it is also less transparent, and might not scale up for larger grammars.
 
 When conducting our tests, we have been able to construct a small grammar 
 which, when run with the unordered scheme, disambiguates more
