@@ -7,10 +7,7 @@ import Data.List
 import Data.Maybe
 import Debug.Trace
 import SAT
-import SAT.Optimize
-import SAT.Unary hiding (modelValue)
 import System.Environment
-import System.IO.Unsafe
 
 
 
@@ -45,15 +42,15 @@ makeFirstSentence rmOrSl target conds = do
   -- e.g. [[v0,v1,v2,v3], [v4,v5,v6,v7]]
   -- where v0=word1_isDet , v1=word1_isN ...
   --       v4=word2_isDet , v5=word2_isN ...
-  print lits
-  print ti
+  -- print lits
+  -- print ti
 
   let condcls = zipWith slConds lits condsByInd
-  print condcls
+  -- print condcls
 
   let targetcls = condcls!!ti ++ rmOrSl (lits!!ti) (concat target)
 
-  print targetcls
+  -- print targetcls
   let allcls = concat $ condcls & element ti .~ targetcls
   print allcls
   return allcls
