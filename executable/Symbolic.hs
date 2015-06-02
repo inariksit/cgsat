@@ -1,6 +1,7 @@
 import CG_base
 import CG_SAT hiding (chunk)
 import CG_parse
+import Control.Lens (element, (.~), (&)) --for updating list index with bazooka
 import Control.Monad
 import Data.List
 import Data.Maybe
@@ -17,7 +18,7 @@ import System.IO.Unsafe
 --globaltags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
 globaltags = map Tag ["det", "v", "p3", "imp", "prs"] -- , "predet", "prn"]
 
-randomrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (prs) ;\nSELECT:r3 (imp) IF (0 (p3)) ;"
+randomrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (prs) ;\nREMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (p3) IF (-1 det) (1 v) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (2 prs) ;"
 
 goodrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
 badrules = parseRules False "REMOVE:r1 (v) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
@@ -26,18 +27,17 @@ main = do
   args <- getArgs
   case args of
    []    -> mapM_ foo (concat randomrules)
-   -- ["v"] -> do print "v" ; mapM_ (testRules True) [goodrules, badrules, randomrules]
    (r:o) -> undefined
       
 type Clause = [Lit]
 
 foo :: Rule -> IO [Clause]
 foo rule = case rule of
-  (Remove _ target cond) -> do print rule ; doStuff rmTarget (toTags target) (toConds cond)
-  (Select _ target cond) -> do print rule ; doStuff slTarget (toTags target) (toConds cond)
+  (Remove _ target cond) -> print rule >> makeFirstSentence rmTarget (toTags target) (toConds cond)
+  (Select _ target cond) -> print rule >> makeFirstSentence slTarget (toTags target) (toConds cond)
 
---doStuff :: Bool -> [[Tag]] -> [[Condition]] -> IO [Clause]
-doStuff rmOrSl target conds = do
+--makeFirstSentence :: (a->b->c) -> [[Tag]] -> [[Condition]] -> IO [Clause]
+makeFirstSentence rmOrSl target conds = do
   s <- newSolver
 
   lits <- sequence 
@@ -54,11 +54,39 @@ doStuff rmOrSl target conds = do
   let targetcls = condcls!!ti ++ rmOrSl (lits!!ti) (concat target)
 
   print targetcls
-  return []
+  let allcls = concat $ condcls & element ti .~ targetcls
+  print allcls
+  return allcls
   where 
    condsAsTuples = sort $ (0,[]) `insert` map toTuple (concat conds) --for now, only AND in conds
    condsByInd = groupBy fstEq condsAsTuples
    ti = 999 `fromMaybe` findIndex (elem (0,[])) condsByInd
+
+--TODO: apply more rules to the output produced by the first rule!
+{- Idea:
+first rule produces a minimum length sequence, and for each word in sequence, variables
+that indicate whether one of the tags is true.
+For instance, with tagset [det, n, v] and 2 words, we get
+
+[v0,v1,v2] == w1_is_det, w1_is_n, w1_is_v  ; and
+[v3,v4,v5] == w2_is_det, w2_is_n, w2_is_v  .
+
+When we apply a next rule, it will have new cond and target words.
+We can check if we can unify any of the words, 
+e.g. condition of first rule is the same as target for the second rule.
+If yes, we add the relevant clauses to the solver state so far.
+If not, we add words to the sequence, AND we must check the new sequence with the old rule!
+Otherwise we could have 
+
+1) REMOVE v ;
+----> output one word with w1_is_v=False
+
+2) SELECT v -- no v left, so we add w2
+----> before check: output two words with w1_is_v=False and w2_is_v=True
+----> after check: rule 1 makes w2_is_v False
+----> conflict, breakdown D:
+
+-}
 
 --------------------------------------------------------------------------------
 
@@ -121,14 +149,3 @@ fstEq (a,_) (b,_) = a==b
 
 --------------------------------------------------------------------------------
 
--- Not needed for now, but maybe later if we push the nondeterminism to the SAT solver side and work with multiple models.
-solveMoreMax :: Solver -> [Lit] -> [Lit] -> IO [Bool]
-solveMoreMax s as xs = do
-  bs <- sequence [ modelValue s x | x <- xs ]
-  a <- newLit s
-  addClause s (neg a : [ if b == True then neg x else x | (x,b) <- xs `zip` bs ])
-  b <- count s xs >>= solveMaximize s (a:as) -- give max True count in xs to solveMax
-  addClause s [neg a] -- cleanup: remove (a:as) by adding ~a as unit clause
-  if b then do
-     sequence [ modelValue s x | x <- xs ]
-   else return []
