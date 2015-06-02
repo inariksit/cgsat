@@ -14,13 +14,15 @@ bnfc
   - BNFC grammars for parsing CG rules and Apertium input format.
 
 data
-  - Hungarian, Spanish and English CG rules and morpho analysed data to use as examples
+  - Spanish, English, Hungarian and Finnish CG rules and morpho analysed data to use as examples
 
 executable
-  - just to make things more complicated and add more directories
+  - Main: just to test disambiguate functions quickly, no comparison to any other
+  - Symbolic: preliminary work on conflict detection, using SAT solver to generate input
 
 test
-  - some QuickCheck tests (mostly because it's fun to random generate rules)
+  - Test: comparison with VISL CG-3 with or without gold standard + some other small stuff
+  - QCTest: some QuickCheck tests (mostly because it's fun to random generate rules)
 
 
 ------------------------
