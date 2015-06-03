@@ -2,41 +2,51 @@ import CG_base
 import CG_SAT hiding (chunk)
 import CG_parse
 import Control.Lens (element, (.~), (&)) --for updating list index with bazooka
-import Control.Monad
+import Data.Function (on)
 import Data.List
 import Data.Maybe
 import Debug.Trace
 import SAT
 import System.Environment
-
+import System.IO.Unsafe
 
 
 --TODO: get tags from the grammar to be tested
 --globaltags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
 globaltags = map Tag ["det", "v", "p3", "imp", "prs"] -- , "predet", "prn"]
 
-randomrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (prs) ;\nREMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (p3) IF (-1 det) (1 v) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (2 prs) ;"
+randomrules = concat $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (p3) IF (-1 det) (1 v) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
 
-goodrules = parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
-badrules = parseRules False "REMOVE:r1 (v) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
+goodrules = concat $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
+badrules = concat $ parseRules False "REMOVE:r1 (v) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
 
 main = do
   args <- getArgs
   case args of
-   []    -> mapM_ foo (concat randomrules)
+   []    -> do s <- newSolver
+               firstLits <- doStuff s (head randomrules)
+               (newlits, cls) <- bar (randomrules !! 3) firstLits s
+               sequence_ [ addClause s cl | cl <- cls ]
+               b <- solve s []
+               print b
+               cs <- sequence [ modelValue s x | x <- concat firstLits ]
+               putStrLn $ "from firstLits: " ++ show cs
+               newcs <- sequence [ modelValue s x | x <- concat newlits ]
+               putStrLn $ "from newLits:   " ++ show newcs
    (r:o) -> undefined
+   where doStuff s rule = do (lits, clauses) <- foo rule s
+                             sequence_ [ addClause s cl | cl <- clauses ]
+                             return lits
       
 type Clause = [Lit]
 
-foo :: Rule -> IO [Clause]
-foo rule = case rule of
-  (Remove _ target cond) -> print rule >> makeFirstSentence rmTarget (toTags target) (toConds cond)
-  (Select _ target cond) -> print rule >> makeFirstSentence slTarget (toTags target) (toConds cond)
+foo :: Rule -> Solver -> IO ([[Lit]], [Clause])
+foo rule s = case rule of
+  (Remove _ target cond) -> print rule >> makeFirstSentence s rmTarget (toTags target) (toConds cond)
+  (Select _ target cond) -> print rule >> makeFirstSentence s slTarget (toTags target) (toConds cond)
 
---makeFirstSentence :: (a->b->c) -> [[Tag]] -> [[Condition]] -> IO [Clause]
-makeFirstSentence rmOrSl target conds = do
-  s <- newSolver
-
+--makeFirstSentence :: Solver -> (a->b->c) -> [[Tag]] -> [[Condition]] -> IO ([[Lit]], [Clause])
+makeFirstSentence s rmOrSl target conds = do
   lits <- sequence 
            [ sequence [ newLit s | _ <- globaltags ] | _ <- condsByInd ]
   -- e.g. [[v0,v1,v2,v3], [v4,v5,v6,v7]]
@@ -44,20 +54,81 @@ makeFirstSentence rmOrSl target conds = do
   --       v4=word2_isDet , v5=word2_isN ...
   -- print lits
   -- print ti
+  --print condsByInd
 
   let condcls = zipWith slConds lits condsByInd
-  -- print condcls
+  --print condcls
 
   let targetcls = condcls!!ti ++ rmOrSl (lits!!ti) (concat target)
 
   -- print targetcls
   let allcls = concat $ condcls & element ti .~ targetcls
-  print allcls
-  return allcls
+  print (lits, allcls)
+  putStrLn ""
+  return (lits, allcls)
   where 
-   condsAsTuples = sort $ (0,[]) `insert` map toTuple (concat conds) --for now, only AND in conds
+   condsAsTuples = sort $ fill $ (0,[]) `insert` map toTuple (concat conds) --for now, only AND in conds
    condsByInd = groupBy fstEq condsAsTuples
    ti = 999 `fromMaybe` findIndex (elem (0,[])) condsByInd
+
+bar :: Rule -> [[Lit]] -> Solver -> IO ([[Lit]], [Clause])
+bar rule lits s = case rule of
+  (Remove _ target cond) -> 
+    do print rule
+       checkNextSentence s lits (toTags target) (toConds cond)
+  (Select _ target cond) -> 
+    do print rule 
+       checkNextSentence s lits (toTags target) (toConds cond)
+
+checkNextSentence :: Solver
+                       -> [[Lit]]
+                       -> [[Tag]]
+                       -> [[Condition]]
+                       -> IO ([[Lit]], [Clause])
+checkNextSentence s litss target conds = do
+  
+  --we have new target index
+  -- new everything
+  print "next sentence"
+  print condsByInd
+
+  --try to match the new conditions produced by new rule to existing literals
+  let listPairs = nub $ 
+        map (zip litss) [ drop n condsByInd | n <- [0..(length litss)-1] ] ++
+        map ((flip zip) condsByInd)   [ drop n litss | n <- [0..(length condsByInd)-1] ] 
+        :: [[([Lit], [(Integer, [Tag])])]]
+
+  --mapM_ print listPairs
+
+  let potentialCondCls = [ [ (lits, conds) | (lits, conds) <- pairs
+                                           , unsafePerformIO $ isOK lits conds ] 
+                            | pairs <- listPairs ]
+  --mapM_ print potentialCondCls
+  let maxcomb = head $ reverse $ sortBy (compare `on` length) potentialCondCls
+  print maxcomb
+  let condsInMaxcomb = map snd maxcomb
+      condsOutside = condsByInd \\ condsInMaxcomb
+      litsInMaxcomb = map fst maxcomb
+      litsOutside = litss \\ litsInMaxcomb
+  if (not.null) litsOutside then putStrLn "free lits" else putStrLn "no free lits"
+  print condsOutside
+  newlits <- sequence 
+              [ sequence [ newLit s | _ <- globaltags ] | _ <- condsOutside ]
+  let newclauses = zipWith slConds newlits condsOutside
+  return (litss++newlits, concat newclauses) --because the old clauses are already inside SAT solver
+
+  where
+   condsAsTuples = sort $ fill $ (0,[]) `insert` map toTuple (concat conds)
+   condsByInd = groupBy fstEq condsAsTuples :: [[(Integer, [Tag])]]
+   ti = 999 `fromMaybe` findIndex (elem (0,[])) condsByInd
+
+   isOK :: [Lit] -> [(Integer, [Tag])] -> IO Bool
+   isOK lits numsConds = do
+     let cls = slConds lits numsConds
+     testLits <- sequence [ newLit s | _ <- cls ]
+     sequence_ [ addClause s (neg tl:cl) | (tl,cl) <- zip testLits cls ]
+     b <- solve s testLits
+     return b
 
 --TODO: apply more rules to the output produced by the first rule!
 {- Idea:
@@ -126,7 +197,7 @@ fill (x@(n,_):xs) = go (x:xs) n []
            | n-m == 1 ||
                n-m == 0 = go xs n (x:res)
            | otherwise  = go xs n (x : (filled++res))
-           where filled = [ (k,[]) | k <- [m..n] ]
+           where filled = [ (k,[]) | k <- [m..n-1] ]
 
 
 
