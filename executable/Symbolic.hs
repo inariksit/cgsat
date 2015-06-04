@@ -24,28 +24,50 @@ main = do
   args <- getArgs
   case args of
    []    -> do s <- newSolver
-               firstLits <- doStuff s (head randomrules)
-               (newlits, cls) <- bar (randomrules !! 3) firstLits s
-               sequence_ [ addClause s cl | cl <- cls ]
-               b <- solve s []
-               print b
-               cs <- sequence [ modelValue s x | x <- concat firstLits ]
-               putStrLn $ "from firstLits: " ++ show cs
-               newcs <- sequence [ modelValue s x | x <- concat newlits ]
-               putStrLn $ "from newLits:   " ++ show newcs
+               (lits1, cls1) <- doFirst (head randomrules) s
+               sequence_ [ addClause s cl | cl <- cls1 ]
+               --cs <- sequence [ modelValue s x | x <- concat lits1 ]
+               -- putStrLn $ "after " ++ show (head randomrules) ++ ": " ++ show' cs
+               (finalSent, finalCl) <- loop s lits1 (tail randomrules)
+               print finalSent
+               print finalCl
+
    (r:o) -> undefined
-   where doStuff s rule = do (lits, clauses) <- foo rule s
-                             sequence_ [ addClause s cl | cl <- clauses ]
-                             return lits
+   where
+    loop s ls (r1:r2:rs) = 
+         do (lits1, cls1) <- doNext r1 ls s
+            sequence_ [ addClause s cl | cl <- cls1 ]
+            cs1 <- sequence [ modelValue s x | x <- concat lits1 ]
+            putStrLn $ "after " ++ show r1 ++ ": " ++ show' cs1
+            b <- solve s []
+            if b 
+              then do
+                (lits2, cls2) <- doNext r2 lits1 s
+                cs2 <- sequence [ modelValue s x | x <- concat lits2 ]
+                putStrLn $ "after " ++ show r2 ++ ": " ++ show' cs2
+                putStrLn ""
+                loop s lits2 rs
+              else return (lits1,cls1)
+                              
+                              
+    loop s ls _ = return (ls,[])
       
 type Clause = [Lit]
 
-foo :: Rule -> Solver -> IO ([[Lit]], [Clause])
-foo rule s = case rule of
+show' :: [Bool] -> String
+show' [] = ""
+show' (b:bs) = (if b then "1" else "0") ++ show' bs
+
+doFirst :: Rule -> Solver -> IO ([[Lit]], [Clause])
+doFirst rule s = case rule of
   (Remove _ target cond) -> print rule >> makeFirstSentence s rmTarget (toTags target) (toConds cond)
   (Select _ target cond) -> print rule >> makeFirstSentence s slTarget (toTags target) (toConds cond)
 
---makeFirstSentence :: Solver -> (a->b->c) -> [[Tag]] -> [[Condition]] -> IO ([[Lit]], [Clause])
+makeFirstSentence :: Solver
+                      -> ([Lit]->[Tag]->[Clause])
+                      -> [[Tag]] 
+                      -> [[Condition]] 
+                      -> IO ([[Lit]], [Clause])
 makeFirstSentence s rmOrSl target conds = do
   lits <- sequence 
            [ sequence [ newLit s | _ <- globaltags ] | _ <- condsByInd ]
@@ -71,26 +93,27 @@ makeFirstSentence s rmOrSl target conds = do
    condsByInd = groupBy fstEq condsAsTuples
    ti = 999 `fromMaybe` findIndex (elem (0,[])) condsByInd
 
-bar :: Rule -> [[Lit]] -> Solver -> IO ([[Lit]], [Clause])
-bar rule lits s = case rule of
+doNext :: Rule -> [[Lit]] -> Solver -> IO ([[Lit]], [Clause])
+doNext rule lits s = case rule of
   (Remove _ target cond) -> 
-    do print rule
-       checkNextSentence s lits (toTags target) (toConds cond)
+    do putStr "\nNext rule: "
+       print rule
+       checkNextRule s lits (toTags target) (toConds cond)
   (Select _ target cond) -> 
-    do print rule 
-       checkNextSentence s lits (toTags target) (toConds cond)
+    do putStr "\nNext rule: "
+       print rule 
+       checkNextRule s lits (toTags target) (toConds cond)
 
-checkNextSentence :: Solver
-                       -> [[Lit]]
-                       -> [[Tag]]
-                       -> [[Condition]]
-                       -> IO ([[Lit]], [Clause])
-checkNextSentence s litss target conds = do
-  
-  --we have new target index
-  -- new everything
-  print "next sentence"
+checkNextRule :: Solver
+                  -> [[Lit]]
+                  -> [[Tag]]
+                  -> [[Condition]]
+                  -> IO ([[Lit]], [Clause])
+checkNextRule s litss target conds = do
+  putStr "conditions and target: "
   print condsByInd
+  putStr "only conditions :" 
+  print condsByIndWoT
 
   --try to match the new conditions produced by new rule to existing literals
   let listPairs = nub $ 
@@ -105,12 +128,16 @@ checkNextSentence s litss target conds = do
                             | pairs <- listPairs ]
   --mapM_ print potentialCondCls
   let maxcomb = head $ reverse $ sortBy (compare `on` length) potentialCondCls
+  putStr "max combination: "
   print maxcomb
   let condsInMaxcomb = map snd maxcomb
       condsOutside = condsByInd \\ condsInMaxcomb
       litsInMaxcomb = map fst maxcomb
       litsOutside = litss \\ litsInMaxcomb
-  if (not.null) litsOutside then putStrLn "free lits" else putStrLn "no free lits"
+  if (not.null) litsOutside 
+     then putStrLn "free lits" 
+     else putStrLn "no free lits, can't unify"
+  putStr "conditions outside literals: "
   print condsOutside
   newlits <- sequence 
               [ sequence [ newLit s | _ <- globaltags ] | _ <- condsOutside ]
@@ -118,8 +145,10 @@ checkNextSentence s litss target conds = do
   return (litss++newlits, concat newclauses) --because the old clauses are already inside SAT solver
 
   where
-   condsAsTuples = sort $ fill $ (0,[]) `insert` map toTuple (concat conds)
-   condsByInd = groupBy fstEq condsAsTuples :: [[(Integer, [Tag])]]
+   condsWithTarget = nub $ sort $ fill $ (0,concat target) `insert` map toTuple (concat conds)
+   condsWithoutTarget = nub $ sort $ fill $ (0,[]) `insert` map toTuple (concat conds)
+   condsByInd = groupBy fstEq condsWithTarget :: [[(Integer, [Tag])]]
+   condsByIndWoT = groupBy fstEq condsWithoutTarget
    ti = 999 `fromMaybe` findIndex (elem (0,[])) condsByInd
 
    isOK :: [Lit] -> [(Integer, [Tag])] -> IO Bool
@@ -156,6 +185,29 @@ Otherwise we could have
 
 -}
 
+
+{-- NEW PLAN
+
+for rule in Pres:
+  for w in symbolicSent:
+     rl has no effect on w, because one of the following:
+
+     1) conditions are out of scope (trivial, no clause)
+     2) conditions in scope, but one doesn't hold
+     3) tag has been removed in w
+     4) all readings of w have the desired tag (cannot remove)
+
+
+
+general stuff:
+
+we know length of symbolic sentence from the width of R
+we know the target from R
+conditions: if no C, then all tag combinations that have the tag in the condition
+            if C, pick one of them (disjoint clauses?)
+if empty space in cods, empty places must have >= 1 readings (but any will do)
+
+--}
 --------------------------------------------------------------------------------
 
 slConds :: [Lit] -> [(Integer, [Tag])] -> [Clause]
