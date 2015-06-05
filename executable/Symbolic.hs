@@ -19,7 +19,7 @@ lookup' :: [Tag] -> [Int] --list of indices where the wanted taglist is found
 lookup' tagsInCond = 
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
-randomrules = concat $ parseRules False "LIST Person = (p1) (p3) ;\n REMOVE:r1 (v p1) IF (-1C (det)) (1 def);\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (v) IF (-1 det) (1 Person) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
+randomrules = concat $ parseRules False "LIST Person = (p1) (p3) ; LIST Det = (det def) (det indef) ; \n REMOVE:r1 (v p1) IF (-1C (det)) (1 def);\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (v) + Person IF (-1 Det ) (1 Person) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
 
 goodrules = concat $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
 badrules = concat $ parseRules False "REMOVE:r1 (v) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
@@ -54,6 +54,18 @@ main = do
                let truetoks = [ t | (True, t) <- zip as ss ]
                putStrLn $ showSentence (dechunk truetoks)
 
+               putStrLn "\n---------\n"
+
+               let applied = nub [ (rl, cl) | rl  <- (tail randomrules)
+                                        , cl <- applyRule rl ss 
+                                        , (not.null) cl ] :: [(Rule, [Lit])]
+
+               print applied
+               sequence_ [ print rl >> print cl >> addClause s cl | (rl,cl) <- applied ]
+               b <- solve s []
+               as <- sequence [ modelValue s x | x <- concat allLits ]
+               let truetoks = [ t | (True, t) <- zip as ss ]
+               putStrLn $ showSentence (dechunk truetoks)
                --print allLits
                stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
                print stuff
@@ -85,7 +97,7 @@ main = do
             (Remove _ _ _) -> [ wn !! ind | tags <- getTags' trg
                                           , ind  <- [0..n] \\ lookup' tags ] 
                               :
-                              [ [neg (wn!!ind)] | tags <- getTags' trg
+                              [ [wn !! ind ] | tags <- getTags' trg
                                                 , ind  <- lookup' tags ]
 
          --getTags' :: [((Int,Bool), [[Tag]])] -> [[Tag]]
