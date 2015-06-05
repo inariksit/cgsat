@@ -95,6 +95,7 @@ instance Show Rule where
 --   (Bool, TagSet) emulates set negation NOT in CG3.
 --   NOT foo === intersection with foo and the candidate is empty
 data Condition = C Position (Bool, TagSet)
+               | Always
                | AND Condition Condition 
                | OR Condition Condition  deriving (Eq)
 
@@ -103,6 +104,7 @@ instance Show Condition where
   show (C pos (False, ts)) = "(NOT " ++ show pos ++ " " ++ show ts ++ ")"
   show (AND c1 c2) = show c1 ++ " " ++ show c2
   show (OR c1 c2) = show c1 ++ " OR " ++ show c2
+  show Always = "(always)"
 
 -- | Position can be exact or at least.
 -- The meaning of numbers is 
@@ -110,9 +112,9 @@ instance Show Condition where
 --   * -n: to the left
 --   *  n: to the right.
 -- Bool is for cautious mode.
-data Position = Exactly Bool Integer 
-              | AtLeast Bool Integer
-              | Barrier Integer TagSet deriving (Eq,Read)
+data Position = Exactly Bool Int 
+              | AtLeast Bool Int
+              | Barrier Int TagSet deriving (Eq,Read)
 
 
 instance Show Position where
@@ -146,6 +148,12 @@ ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
 
 toConds cond = case cond of
     C   _pos       _tags -> [[cond]]
+    Always               -> [[Always]]
+    AND Always c2        -> [[Always]]
+    AND c1 Always        -> [[Always]]
+    OR Always c2         -> toConds c2
+    OR c1 Always         -> toConds c1
+    OR  c1@(C _ _) c2    -> [c1]:(toConds c2)
     AND c1@(C _ _) c2    -> map (c1:) (toConds c2)
     OR  c1@(C _ _) c2    -> [c1]:(toConds c2)
     AND c2  c1@(C _ _)   -> map (c1:) (toConds c2)

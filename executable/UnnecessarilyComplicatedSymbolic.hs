@@ -118,7 +118,7 @@ checkNextRule s litss target conds = do
   --try to match the new conditions produced by new rule to existing literals
   let listPairs = nub $ 
         map (zip litss) [ drop n condsByInd | n <- [0..(length litss)-1] ] ++
-        map ((flip zip) condsByInd)   [ drop n litss | n <- [0..(length condsByInd)-1] ] 
+        map ((flip zip) condsByInd) [ drop n litss | n <- [0..(length condsByInd)-1] ] 
         :: [[([Lit], [(Integer, [Tag])])]]
 
   --mapM_ print listPairs

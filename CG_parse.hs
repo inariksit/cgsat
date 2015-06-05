@@ -176,9 +176,9 @@ transRule rl = case rl of
   RemoveIf (REMOVE_1 nm) tags _if conds ->
     liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (transCondSet conds)
   SelectAlways (SELECT_1 nm) tags ->
-    liftM2 (CGB.Select (getName nm)) (transTagSet tags) (return CGB.always)
+    liftM2 (CGB.Select (getName nm)) (transTagSet tags) (return CGB.Always)
   RemoveAlways (REMOVE_1 nm) tags ->
-    liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (return CGB.always)
+    liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (return CGB.Always)
   MatchLemma (Str lem) rl -> 
     do cgrule <- transRule rl
        case cgrule of

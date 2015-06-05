@@ -18,9 +18,9 @@ import qualified SAT.Unary as U
 import Debug.Trace
 
 
-type Token = ((Integer, [Tag]), Lit)
+type Token = ((Int, [Tag]), Lit)
 
-getInd :: Token -> Integer
+getInd :: Token -> Int
 getInd ((i,_),_) = i
 
 getTags :: Token -> [Tag]
@@ -73,7 +73,7 @@ tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
 -- ((2,["bear",<vblex>,<pl>]),v2)
 -- ((3,["sleep",<n>,<pl>]),v4)
 -- ((3,["sleep",<vblex>,<sg>,<p3>]),v5)
-chunk :: Sentence -> [(Integer,[Tag])]
+chunk :: Sentence -> [(Int,[Tag])]
 chunk sent = concat $ go sent 1
    where go []    _n = []
          go (x:xs) n = map ((,) n) x : go xs (n+1)
@@ -182,7 +182,7 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
         dummyTok = ((999,[]),true) 
 
         --given word and n, return list of words that are n places away in original sentence
-        exactly :: Integer -> Token -> [Token]
+        exactly :: Int -> Token -> [Token]
         exactly n ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
                                       , ind' == ind+n ]
 
@@ -202,7 +202,7 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                             | otherwise = between n mindist tok
            where barinds = [ ind | tok@((ind,_),_) <- allToks
                                  , tagsMatchRule (toTags btags) tok ]
-                 dists   = map (\i -> i - getInd tok) barinds :: [Integer]
+                 dists   = map (\i -> i - getInd tok) barinds :: [Int]
                  mindist = minimum dists
                  
 
@@ -217,7 +217,7 @@ disamSection disam (r1:r2:rs) sent = disam (take 10 (reverse r1)) sent
 
 disambiguate :: Bool -> Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguate verbose debug rules sentence = do
-  let chunkedSent = chunk sentence :: [(Integer,[Tag])]
+  let chunkedSent = chunk sentence :: [(Int,[Tag])]
   if length chunkedSent == length sentence then return sentence -- not ambiguous
    else
    do s <- newSolver
@@ -292,7 +292,7 @@ disambiguate verbose debug rules sentence = do
 
 disambiguateWithOrder :: Bool -> Bool -> [Rule] -> Sentence -> IO Sentence
 disambiguateWithOrder verbose debug rules sentence = do
-  let chunkedSent = chunk sentence :: [(Integer,[Tag])]
+  let chunkedSent = chunk sentence :: [(Int,[Tag])]
   if length chunkedSent == length sentence then return sentence -- not ambiguous
    else
    do s <- newSolver
