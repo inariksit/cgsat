@@ -1,13 +1,10 @@
 import CG_base
 import CG_SAT hiding (chunk)
 import CG_parse
-import Data.Function (on)
 import Data.List
-import Data.Maybe
 import Debug.Trace
 import SAT
 import System.Environment
-import System.IO.Unsafe
 
 
 --globaltags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
@@ -22,62 +19,61 @@ lookup' tagsInCond =
 randomrules = concat $ parseRules False "LIST Person = (p1) (p3) ; LIST Det = (det def) (det indef) ; \n REMOVE:r1 (v p1) IF (-1C (det)) (1 def);\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (v) + Person IF (-1 Det ) (1 Person) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
 
 goodrules = concat $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
-badrules = concat $ parseRules False "REMOVE:r1 (v) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
+badrules = concat $ parseRules False "REMOVE:r1 (v) IF (0 (v)) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
 
 main = do
   args <- getArgs
   case args of
-   []    -> do s <- newSolver
-               let testedRule = head randomrules
-               let ruleWidth = width testedRule -- :: [[(Int,[[Tag]])]]
-               allLits <- sequence 
-                       [ sequence [ newLit s | _ <- tagcombs ]
-                                             | _ <- ruleWidth ]
-               let ss = concat
-                    [ [ ((m, addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
-                      | (lits, m) <- zip allLits [1..length allLits]
-                    ]  :: [Token]
-               
-               let cls = concat [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
-                                            , let f = if isTarget cond 
-                                                       then slOrRm testedRule
-                                                       else slCond ]
-
-               putStr "rule: "
-               print testedRule
-               putStr "cls: "
-               print cls
-               sequence_ [ print cl >> addClause s cl | cl <- cls ]
-
-               b <- solve s []
-               as <- sequence [ modelValue s x | x <- concat allLits ]
-               let truetoks = [ t | (True, t) <- zip as ss ]
-               putStrLn $ showSentence (dechunk truetoks)
-
-               putStrLn "\n---------\n"
-
-               let applied = nub [ (rl, cl) | rl  <- (tail randomrules)
-                                        , cl <- applyRule rl ss 
-                                        , (not.null) cl ] :: [(Rule, [Lit])]
-
-               print applied
-               sequence_ [ print rl >> print cl >> addClause s cl | (rl,cl) <- applied ]
-               b <- solve s []
-               as <- sequence [ modelValue s x | x <- concat allLits ]
-               let truetoks = [ t | (True, t) <- zip as ss ]
-               putStrLn $ showSentence (dechunk truetoks)
-               --print allLits
-               stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
-               print stuff
-               print tagcombs
-
+   []    -> do mapM_ (uncurry testRule) (splits badrules)
    (r:o) -> undefined
-   where 
-         addWF m = (WF ("w" ++ show m) :)
 
-         isC (((pos,b),_):_) = b
+  where splits list = list >>= \x -> return (x, delete x list)
 
-         slCond wn cond = if isC cond 
+testRule rule rules = do
+  s <- newSolver
+  let ruleWidth = width rule
+  allLits <- sequence 
+              [ sequence [ newLit s | _ <- tagcombs ] | _ <- ruleWidth ]
+  let ss = concat
+             [ [ ((m, addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
+                   | (lits, m) <- zip allLits [1..length allLits]
+             ]  :: [Token]
+               
+  let cls = concat [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
+                              , let f = if isTarget cond 
+                                            then slOrRm
+                                            else slCond ]
+
+  putStrLn $ "rule: " ++ show rule
+  putStrLn $ "cls: " ++ show cls
+  sequence_ [ print cl >> addClause s cl | cl <- cls ]
+
+
+  putStrLn "\n---------\n"
+
+  let applied = nub [ (rl, cl) | rl <- rules
+                               , cl <- applyRule rl ss 
+                               , (not.null) cl ] :: [(Rule, [Lit])]
+
+--  print applied
+  sequence_ [  addClause s cl | (rl,cl) <- applied ]
+  b <- solve s []
+  print b
+  as <- sequence [ modelValue s x | x <- concat allLits ]
+  let truetoks = [ t | (True, t) <- zip as ss ]
+  putStrLn $ showSentence (dechunk truetoks)
+
+  putStrLn "\n---------\n"
+
+  stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
+  print stuff
+  print tagcombs
+
+  where addWF m = (WF ("w" ++ show m) :)
+
+        isC (((pos,b),_):_) = b
+
+        slCond wn cond = if isC cond 
            then [[ wn !! ind | tags <- getTags' cond
                              , ind <- lookup' tags ]]
                 ++
@@ -86,26 +82,20 @@ main = do
            else [[ wn !! ind | tags <- getTags' cond
                              , ind <- lookup' tags ]]
 
-         slOrRm rl wn trg = let n = length tagcombs - 1 in
-          case rl of
-            (Select _ _ _) -> [ [wn !! ind] | tags <- getTags' trg
-                                            , ind  <- lookup' tags ] 
-                              ++ 
-                              [ [neg (wn!!ind)] | tags <- getTags' trg
-                                                , ind  <- [0..n] \\ lookup' tags ] 
-
-            (Remove _ _ _) -> [ wn !! ind | tags <- getTags' trg
-                                          , ind  <- [0..n] \\ lookup' tags ] 
-                              :
-                              [ [wn !! ind ] | tags <- getTags' trg
-                                                , ind  <- lookup' tags ]
+        slOrRm wn trg = let n = length tagcombs - 1 in
+           [ wn !! ind | tags <- getTags' trg --disjunction: >=1 context tag 
+                       , ind  <- [0..n] \\ lookup' tags ] 
+           :
+           [ [wn !! ind] | tags <- getTags' trg
+                         , ind  <- lookup' tags ] --unit clauses: readings to sl/rm
+ 
 
          --getTags' :: [((Int,Bool), [[Tag]])] -> [[Tag]]
-         getTags' []           = []
-         getTags' ((_,ts):its) = ts ++ getTags' its
+        getTags' []           = []
+        getTags' ((_,ts):its) = ts ++ getTags' its
 
-         isTarget []        = False
-         isTarget (((i,_),_):_) = i==0
+        isTarget []        = False
+        isTarget (((i,_),_):_) = i==0
 
 width :: Rule -> [[((Int,Bool),[[Tag]])]]
 width rule = case rule of
