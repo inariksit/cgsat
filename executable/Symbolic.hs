@@ -20,7 +20,7 @@ lookup' :: [[Tag]] -> [Tag] -> [Int] --list of indices where the wanted taglist 
 lookup' allTagCombs tagsInCond = 
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) allTagCombs
 
-randomrules = concat $ parseRules False "LIST Person = (p1) (p3) ;\n REMOVE:r1 (v p1) IF (-1C (det)) ;\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (v) IF (-1 det) (1 Person) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
+randomrules = concat $ parseRules False "LIST Person = (p1) (p3) ;\n REMOVE:r1 (v p1) IF (-1C (det)) (1 def);\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (v) IF (-1 det) (1 Person) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
 
 goodrules = concat $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
 badrules = concat $ parseRules False "REMOVE:r1 (v) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
@@ -29,29 +29,53 @@ main = do
   args <- getArgs
   case args of
    []    -> do s <- newSolver
-               let widths = map foo randomrules
-               mapM_ print widths
-               mapM_ print $ map ((map.map) (findInd' . snd)) widths
+               let testedRuleWidth = width (head randomrules)
+               allLits <- sequence 
+                       [ sequence [ newLit s | _ <- tagcombs ]
+                                             | _ <- testedRuleWidth ]
+               let symbolicSentence = concat
+                    [ [ ((m, addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
+                                         | lits <- allLits ,
+                                           m <- [1..length allLits] :: [Int]
+                                         ] -- :: [Token]
+
+               putStrLn $ showSentence (dechunk symbolicSentence)
+               print symbolicSentence
+               print allLits
+               stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
+               print stuff
                print tagcombs
 
    (r:o) -> undefined
-
-                              
-                              
-  where
-    foo (Select _ target conds) = width (toTags target) (toConds conds)
-    foo (Remove _ target conds) = width (toTags target) (toConds conds)
- 
-    findInd' = map (lookup' tagcombs)
+   where 
+         addWF m = (WF ("w" ++ show m) :)
 
 
-width :: [[Tag]] -> [[Condition]] -> [[(Integer,[[Tag]])]]
-width target conds = groupBy fstEq conds'
-  where 
-    conds' = nub $ sort $ fill $ (0, target) `insert` map toTuple (concat conds)
+width :: Rule -> [[(Int,[[Tag]])]]
+width rule = case rule of
+  (Select _ target conds) -> doStuff target conds
+  (Remove _ target conds) -> doStuff target conds
+  where doStuff t cs = groupBy fstEq $ nub $ sort $ fill $ (0, toTags t) `insert` map toTuple (concat (toConds cs))
 
 
-{-- NEW PLAN
+checkIfApplies ::  Solver
+                  -> [[Lit]]
+                  -> Rule 
+                  -> IO [Clause]
+checkIfApplies s lits rule = do
+  if length lits >= length sswidth 
+    then do putStrLn "sufficiently long sentence"
+            let inds = map (concatMap (map (lookup' tagcombs) . snd)) sswidth
+            print inds --e.g. [[[0,1]],[[2,3,4,5]],[[3,5],[2,4]]]
+            --for lit in lits:
+            --
+            print sswidth
+            return []
+    else do putStrLn "conditions out of scope"
+            return []
+  where sswidth = width rule
+
+{--
 
 for rule in Pres:
   for w in symbolicSent:
@@ -82,7 +106,7 @@ sh :: Bool -> Char
 sh True = '1' 
 sh False = '0'
 
-slConds :: [Lit] -> [(Integer, [[Tag]])] -> [Clause]
+slConds :: [Lit] -> [(Int, [[Tag]])] -> [Clause]
 slConds lits numsConds = 
   let lu    = zip tagcombs lits
       conds = concatMap snd numsConds in  --concatMap won't work for contexts with OR
@@ -121,19 +145,19 @@ fill (x@(n,_):xs) = go (x:xs) n []
            | n-m == 1 ||
                n-m == 0 = go xs n (x:res)
            | otherwise  = go xs n (x : (filled++res))
-           where filled = [ (k,[]) | k <- [m+1..n-1] ]
+           where filled = [ (k,[[]]) | k <- [m+1..n-1] ]
 
 
 
 --------------------------------------------------------------------------------
 
-chunk :: Sentence -> [(Integer,[Tag])]
+chunk :: Sentence -> [(Int,[Tag])]
 chunk sent = concat $ go sent 1
    where go []    _m = []
          go (x:xs) m = map ((,) m) (addWF m x) : go xs (m+1)
          addWF m = map (WF ("w" ++ show m) :)
 
-dechunk' :: [(Integer,[Tag])] -> Sentence
+dechunk' :: [(Int,[Tag])] -> Sentence
 dechunk' ts = map (map snd) $ groupBy fstEq ts
 
 
