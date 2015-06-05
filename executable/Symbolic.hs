@@ -1,7 +1,6 @@
 import CG_base
 import CG_SAT hiding (chunk)
 import CG_parse
-import Control.Lens (element, (.~), (&)) --for updating list index with bazooka
 import Data.Function (on)
 import Data.List
 import Data.Maybe
@@ -16,9 +15,9 @@ tagcombs = [ [Tag "det", Tag "def"], [Tag "det", Tag "indef"] ] ++
            [ [Tag "v", Tag m, Tag p] | m <- ["imp","prs"]
                                      , p <- ["p3","p1"] ]
 
-lookup' :: [[Tag]] -> [Tag] -> [Int] --list of indices where the wanted taglist is found
-lookup' allTagCombs tagsInCond = 
-  findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) allTagCombs
+lookup' :: [Tag] -> [Int] --list of indices where the wanted taglist is found
+lookup' tagsInCond = 
+  findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 randomrules = concat $ parseRules False "LIST Person = (p1) (p3) ;\n REMOVE:r1 (v p1) IF (-1C (det)) (1 def);\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (v) IF (-1 det) (1 Person) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
 
@@ -29,19 +28,33 @@ main = do
   args <- getArgs
   case args of
    []    -> do s <- newSolver
-               let testedRuleWidth = width (head randomrules)
+               let testedRule = head randomrules
+               let ruleWidth = width testedRule -- :: [[(Int,[[Tag]])]]
                allLits <- sequence 
                        [ sequence [ newLit s | _ <- tagcombs ]
-                                             | _ <- testedRuleWidth ]
-               let symbolicSentence = concat
+                                             | _ <- ruleWidth ]
+               let ss = concat
                     [ [ ((m, addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
-                                         | lits <- allLits ,
-                                           m <- [1..length allLits] :: [Int]
-                                         ] -- :: [Token]
+                      | (lits, m) <- zip allLits [1..length allLits]
+                    ]  :: [Token]
+               
+               let cls = concat [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
+                                            , let f = if isTarget cond 
+                                                       then slOrRm testedRule
+                                                       else slCond ]
 
-               putStrLn $ showSentence (dechunk symbolicSentence)
-               print symbolicSentence
-               print allLits
+               putStr "rule: "
+               print testedRule
+               putStr "cls: "
+               print cls
+               sequence_ [ print cl >> addClause s cl | cl <- cls ]
+
+               b <- solve s []
+               as <- sequence [ modelValue s x | x <- concat allLits ]
+               let truetoks = [ t | (True, t) <- zip as ss ]
+               putStrLn $ showSentence (dechunk truetoks)
+
+               --print allLits
                stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
                print stuff
                print tagcombs
@@ -50,12 +63,43 @@ main = do
    where 
          addWF m = (WF ("w" ++ show m) :)
 
+         isC (((pos,b),_):_) = b
 
-width :: Rule -> [[(Int,[[Tag]])]]
+         slCond wn cond = if isC cond 
+           then [[ wn !! ind | tags <- getTags' cond
+                             , ind <- lookup' tags ]]
+                ++
+                [[neg(wn!!ind) | tags <- getTags' cond
+                               , ind <- lookup' tags ]] ---- generalise for >2 lits
+           else [[ wn !! ind | tags <- getTags' cond
+                             , ind <- lookup' tags ]]
+
+         slOrRm rl wn trg = let n = length tagcombs - 1 in
+          case rl of
+            (Select _ _ _) -> [ [wn !! ind] | tags <- getTags' trg
+                                            , ind  <- lookup' tags ] 
+                              ++ 
+                              [ [neg (wn!!ind)] | tags <- getTags' trg
+                                                , ind  <- [0..n] \\ lookup' tags ] 
+
+            (Remove _ _ _) -> [ wn !! ind | tags <- getTags' trg
+                                          , ind  <- [0..n] \\ lookup' tags ] 
+                              :
+                              [ [neg (wn!!ind)] | tags <- getTags' trg
+                                                , ind  <- lookup' tags ]
+
+         --getTags' :: [((Int,Bool), [[Tag]])] -> [[Tag]]
+         getTags' []           = []
+         getTags' ((_,ts):its) = ts ++ getTags' its
+
+         isTarget []        = False
+         isTarget (((i,_),_):_) = i==0
+
+width :: Rule -> [[((Int,Bool),[[Tag]])]]
 width rule = case rule of
   (Select _ target conds) -> doStuff target conds
   (Remove _ target conds) -> doStuff target conds
-  where doStuff t cs = groupBy fstEq $ nub $ sort $ fill $ (0, toTags t) `insert` map toTuple (concat (toConds cs))
+  where doStuff t cs = groupBy fstEq $ nub $ sort $ fill $ ((0,False), toTags t) `insert` map toTuple (concat (toConds cs))
 
 
 checkIfApplies ::  Solver
@@ -65,7 +109,7 @@ checkIfApplies ::  Solver
 checkIfApplies s lits rule = do
   if length lits >= length sswidth 
     then do putStrLn "sufficiently long sentence"
-            let inds = map (concatMap (map (lookup' tagcombs) . snd)) sswidth
+            let inds = map (concatMap (map lookup' . snd)) sswidth
             print inds --e.g. [[[0,1]],[[2,3,4,5]],[[3,5],[2,4]]]
             --for lit in lits:
             --
@@ -113,39 +157,44 @@ slConds lits numsConds =
   [ [lit] | (tag, lit) <- lu
           , tag `elem` conds ]
 
-rmTarget :: [Lit] -> [[Tag]] -> [Clause]
-rmTarget lits targets = let lu = zip tagcombs lits in
+rmTarget :: [Lit] -> [(Int, [[Tag]])] -> [Clause]
+rmTarget lits numsTargets = 
+  let lu = zip tagcombs lits 
+      trgs = concatMap snd numsTargets in
   [ lit | (tag, lit) <- lu
-        , tag `notElem` targets ]
+        , tag `notElem` trgs ]
   :
   [ [neg lit] | (tag, lit) <- lu
-              , tag `elem` targets ]
+              , tag `elem` trgs ]
 
-slTarget :: [Lit] -> [[Tag]] -> [Clause]
-slTarget lits targets = let lu = zip tagcombs lits in
+slTarget :: [Lit] -> [(Int, [[Tag]])] -> [Clause]
+slTarget lits numsTargets = 
+  let lu = zip tagcombs lits 
+      trgs = concatMap snd numsTargets in
   [ [lit] | (tag, lit) <- lu
-          , tag `elem` targets ]
+          , tag `elem` trgs ]
   ++
   [ [neg lit] | (tag, lit) <- lu
-              , tag `notElem` targets ]
+              , tag `notElem` trgs ]
 
 --------------------------------------------------------------------------------
 --TODO: negative condition
-toTuple (C pos (_b,tags)) = (n, toTags tags)
-  where n = case pos of
-              Exactly _ i -> i
-              AtLeast _ i -> i
-              Barrier i _ -> i
+toTuple :: Condition -> ((Int,Bool),[[Tag]]) --bool: cautious or not
+toTuple (C pos (_b,tags)) = ((n,b), toTags tags)
+  where (n,b) = case pos of
+                 Exactly b i -> (i,b)
+                 AtLeast b i -> (i,b)
+                 Barrier i _ -> (i,False)
 
 -- x:xs must be sorted
 fill [] = []
-fill (x@(n,_):xs) = go (x:xs) n []
+fill (x@((n,b),_):xs) = go (x:xs) n []
   where go []           _m res = reverse res
-        go (x@(n,_):xs) m  res
+        go (x@((n,b),_):xs) m  res
            | n-m == 1 ||
                n-m == 0 = go xs n (x:res)
            | otherwise  = go xs n (x : (filled++res))
-           where filled = [ (k,[[]]) | k <- [m+1..n-1] ]
+           where filled = [ ((k,False), [[]]) | k <- [m+1..n-1] ]
 
 
 
