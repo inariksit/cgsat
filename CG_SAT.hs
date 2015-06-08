@@ -154,6 +154,8 @@ getContext :: Token           -- ^ a single analysis
                -> [Condition] -- ^ list of conditions grouped by AND
                -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext tok allToks []     = []
+getContext tok allToks (Always:cs) = getContext tok allToks cs ++
+  [[((999,[]),true)]]
 getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
   case ctags' of
     []     -> [[dummyTok]] --empty conds = holds always
@@ -163,7 +165,12 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                                  then [[tok]] --if the feature at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
                                  else [filter match $ exactly 0 tok] --feature in  different reading
 
-                -- for cautious mode. ONLY WORKS WITH SYMBOLIC!
+                -- for cautious mode. You probably shouldn't use this;
+                -- it doesn't check about the variables in the position,
+                -- just the length of list.
+                -- And I think checking the value of variables might just not work,
+                -- depends on the state of the SAT solver. Maybe with 
+                -- disambiguateWithOrder but definitely not with disambiguate.
                 -- Exactly True n -> if length (exactly n tok) > 1 
                 --                    then [[]]
                 --                    else [filter match $ exactly n tok]

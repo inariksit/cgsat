@@ -83,9 +83,13 @@ data Rule = Remove {name :: Name, target :: TagSet, cond :: Condition} |
 data Name = Name String | NoName deriving (Eq)
 
 instance Show Rule where
+  show (Remove (Name nm) tags Always) = "REMOVE:" ++ nm ++ " " ++ show tags
+  show (Remove  NoName   tags Always) = "REMOVE " ++ show tags
   show (Remove (Name nm) tags cond) = "REMOVE:" ++ nm ++ " " ++
                                        show tags ++ " IF " ++ show cond 
-  show (Remove  NoName   tags cond) = "REMOVE " ++ show tags ++ " IF " ++ show cond 
+  show (Remove  NoName   tags cond) = "REMOVE " ++ show tags ++ " IF " ++ show cond
+  show (Select (Name nm) tags Always) = "SELECT:" ++ nm ++ " " ++ show tags
+  show (Select  NoName   tags Always) = "SELECT " ++ show tags
   show (Select (Name nm) tags cond) = "SELECT:" ++ nm ++ " " ++
                                        show tags ++ " IF " ++ show cond 
   show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " IF " ++ show cond 
@@ -104,7 +108,7 @@ instance Show Condition where
   show (C pos (False, ts)) = "(NOT " ++ show pos ++ " " ++ show ts ++ ")"
   show (AND c1 c2) = show c1 ++ " " ++ show c2
   show (OR c1 c2) = show c1 ++ " OR " ++ show c2
-  show Always = "(always)"
+  show Always = ""
 
 -- | Position can be exact or at least.
 -- The meaning of numbers is 

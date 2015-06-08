@@ -10,13 +10,13 @@ import System.Environment
 --globaltags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
 tagcombs = [ [Tag "det", Tag "def"], [Tag "det", Tag "indef"] ] ++
            [ [Tag "v", Tag m, Tag p] | m <- ["imp","prs"]
-                                     , p <- ["p3","p1"] ]
+                                     , p <- ["p3","p1","p2"] ]
 
 lookup' :: [Tag] -> [Int] --list of indices where the wanted taglist is found
 lookup' tagsInCond = 
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
-randomrules = concat $ parseRules False "LIST Person = (p1) (p3) ; LIST Det = (det def) (det indef) ; \n REMOVE:r1 (v p1) IF (-1C (det)) (1 def);\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp) IF (0 (p3)) ;\nSELECT:s4 (v) + Person IF (-1 Det ) (1 Person) ;\nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
+randomrules = concat $ parseRules False "LIST Det = (det def) (det indef) ; \n REMOVE:r1 (v) IF (-1C (det));\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp p2) IF (0 (p3)) ;\nREMOVE:s4 (v) IF (1 p1) ;" -- \nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
 
 goodrules = concat $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2 (v) ;"
 badrules = concat $ parseRules False "REMOVE:r1 (v) IF (0 (v)) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
@@ -24,7 +24,9 @@ badrules = concat $ parseRules False "REMOVE:r1 (v) IF (0 (v)) ;\nREMOVE:r2 (v) 
 main = do
   args <- getArgs
   case args of
-   []    -> do mapM_ (uncurry testRule) (splits badrules)
+   []    -> do let spl = head $ splits (reverse randomrules)
+               print spl
+               uncurry testRule spl
    (r:o) -> undefined
 
   where splits list = list >>= \x -> return (x, delete x list)
@@ -46,8 +48,10 @@ testRule rule rules = do
 
   putStrLn $ "rule: " ++ show rule
   putStrLn $ "cls: " ++ show cls
+  
   sequence_ [ print cl >> addClause s cl | cl <- cls ]
-
+  b <- solve s []
+  print b
 
   putStrLn "\n---------\n"
 
@@ -56,7 +60,15 @@ testRule rule rules = do
                                , (not.null) cl ] :: [(Rule, [Lit])]
 
 --  print applied
-  sequence_ [  addClause s cl | (rl,cl) <- applied ]
+  sequence_ [ do addClause s cl
+                 b <- solve s []
+                 if True then do
+                    putStr $ show rl ++ ": "
+                    print cl 
+                    as <- sequence [ modelValue s x | x <- concat allLits ]
+                    putStrLn $ map sh as
+                 else return ()
+                 print b | (rl,cl) <- applied ]
   b <- solve s []
   print b
   as <- sequence [ modelValue s x | x <- concat allLits ]
@@ -65,9 +77,9 @@ testRule rule rules = do
 
   putStrLn "\n---------\n"
 
-  stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
-  print stuff
-  print tagcombs
+  -- stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
+  -- print stuff
+  -- print tagcombs
 
   where addWF m = (WF ("w" ++ show m) :)
 
@@ -83,11 +95,11 @@ testRule rule rules = do
                              , ind <- lookup' tags ]]
 
         slOrRm wn trg = let n = length tagcombs - 1 in
-           [ wn !! ind | tags <- getTags' trg --disjunction: >=1 context tag 
-                       , ind  <- [0..n] \\ lookup' tags ] 
-           :
-           [ [wn !! ind] | tags <- getTags' trg
-                         , ind  <- lookup' tags ] --unit clauses: readings to sl/rm
+           [[ wn !! ind | tags <- getTags' trg --disjunction: >=1 context tag 
+                       , ind  <- [0..n] \\ lookup' tags ]] 
+           ++
+           [[ wn !! ind | tags <- getTags' trg
+                         , ind  <- lookup' tags ]] --unit clauses: readings to sl/rm
  
 
          --getTags' :: [((Int,Bool), [[Tag]])] -> [[Tag]]
