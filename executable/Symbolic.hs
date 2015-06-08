@@ -182,6 +182,7 @@ slTarget lits numsTargets =
 --------------------------------------------------------------------------------
 --TODO: negative condition
 toTuple :: Condition -> ((Int,Bool),[[Tag]]) --bool: cautious or not
+toTuple Always            = ((0,False), [[]])
 toTuple (C pos (_b,tags)) = ((n,b), toTags tags)
   where (n,b) = case pos of
                  Exactly b i -> (i,b)
