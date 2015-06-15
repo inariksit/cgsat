@@ -21,7 +21,7 @@ lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 
-testrules = concat $ parseRules False "REMOVE:r1 (aa) ;\nREMOVE:r2 (aa) IF (NOT -1C (det)) ;"
+testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-3 def) ;\nREMOVE:r2 (aa) IF (-1C (det m)) (NOT 1 (f)) ;"
 
 main = do
   ts <- map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
@@ -46,7 +46,7 @@ main = do
   where splits list = list >>= \x -> return (x, delete x list)
 
 testRule verbose alltags tagcombs rule rules = do
-  putStrLn $ "Testing with rule " ++ show rule
+  putStrLn $ "Testing with " ++ show rule ++ " as the last rule"
   s <- newSolver
   let ruleWidth = width rule alltags
   allLits <- sequence 
@@ -72,20 +72,21 @@ testRule verbose alltags tagcombs rule rules = do
   putStrLn "\n---------\n"
 
   let applied = nub [ (rl, cl) | rl <- rules
+                               , length (width rl alltags) <= length ruleWidth
                                , cl <- applyRule rl ss 
                                , (not.null) cl ] :: [(Rule, [Lit])]
 
 --  print applied
   sequence_ [ do addClause s cl
-                 b <- solve s []
+                 --b <- solve s []
                  when verbose $ do
-                   putStr $ show rl ++ ": "
-                   print cl 
-                   when b $ do
-                     as <- sequence [ modelValue s x | x <- concat allLits ]
-                     printFancy (map sh as)
+                   --putStrLn $ show rl ++ ": " ++ show cl 
+                   printFancy $ show rl ++ ": " ++ show cl
+                   --when True $ do
+                     --as <- sequence [ modelValue s x | x <- concat allLits ]
+                     --printFancy (map sh as)
                      --print (map sh as)
-                   putStrLn $ "Solution after prev clause: " ++ show b 
+                   --putStrLn $ "Solution after prev clause: " ++ show b 
                  | (rl,cl) <- applied ]
   b <- solve s []
   putStr "Solution after all clauses: "
@@ -108,12 +109,12 @@ testRule verbose alltags tagcombs rule rules = do
 
   isC (((pos,b),_):_) = b
 
-  slCond wn cond =
+  slCond wn cond = let n = length tagcombs - 1 in
    if isC cond 
      then [[ wn !! ind | tags <- getTags' cond
                        , ind <- lookup' tagcombs tags ]] ++
-          [[neg(wn!!ind) | tags <- getTags' cond
-                         , ind <- lookup' tagcombs tags ]] ---- generalise for >2 lits
+          [[neg(wn!!ind)] | tags <- getTags' cond
+                         , ind <- [0..n] \\ lookup' tagcombs tags ] ---- generalise for >2 lits
      else [[ wn !! ind | tags <- getTags' cond
                        , ind <- lookup' tagcombs tags ]]
 
@@ -149,14 +150,14 @@ width rule alltags = case rule of
 --------------------------------------------------------------------------------
 
 toTuple :: [[Tag]] -> Condition -> ((Int,Bool),[[Tag]]) --bool: cautious or not
-toTuple _ Always              = error "toTuple Always: this should not happen"
+toTuple _ Always              = error "toTuple applied to Always: this should not happen"
 toTuple _ (C pos (True,tags)) = ((n,b), toTags tags)
  where 
   (n,b) = case pos of
                  Exactly b i -> (i,b)
                  AtLeast b i -> (i,b)
                  Barrier i _ -> (i,False)
-toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show complement) $ ((n,b), complement)
+toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show tags ++ "\\" ++ show complement) $ ((n,b), complement)
  where 
   (n,b) = case pos of
                  Exactly b i -> (i,b)
@@ -168,11 +169,10 @@ toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show complement
 -- x:xs must be sorted
 fill [] = []
 fill (x@((n,b),_):xs) = go (x:xs) n []
-  where go []           _m res = reverse res
-        go (x@((n,b),_):xs) m  res
-           | n-m == 1 ||
-               n-m == 0 = go xs n (x:res)
-           | otherwise  = go xs n (x : (filled++res))
+ where
+  go []              _m res = reverse res
+  go (x@((n,b),_):xs) m res | n-m == 1 || n-m == 0 = go xs n (x:res)
+                            | otherwise            = go xs n (x : (filled++res))
            where filled = [ ((k,False), [[]]) | k <- [m+1..n-1] ]
 
 
