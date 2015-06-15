@@ -62,7 +62,6 @@
 <det><ind><mf><pl>
 <f><pl>
 <f><sg>
-<f><sg>+de<pr>+que<cnjsub>
 <f><sp>
 <fti><p1><pl>
 <fti><p1><sg>
@@ -534,7 +533,6 @@
 <predet><nt><sp>
 <pri><p1><pl>
 <pri><p1><sg>
-<pri><p1><sg>+que<cnjsub>
 <pri><p2><pl>
 <pri><p2><sg>
 <pri><p3><pl>
