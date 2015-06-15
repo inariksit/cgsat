@@ -6,14 +6,12 @@ import Debug.Trace
 import SAT
 import System.Environment
 
+tagfile = "data/spa_tagcombs.txt"
 
---globaltags = map Tag ["det", "n", "v", "pri", "prs", "imp", "p3", "predet", "prn", "adj", "pr"]
-tagcombs = [ [Tag "det", Tag "def"], [Tag "det", Tag "indef"] ] ++
-           [ [Tag "v", Tag m, Tag p] | m <- ["imp","prs"]
-                                     , p <- ["p3","p1","p2"] ]
 
-lookup' :: [Tag] -> [Int] --list of indices where the wanted taglist is found
-lookup' tagsInCond = 
+
+lookup' :: [[Tag]] -> [Tag] -> [Int] --list of indices where the wanted taglist is found
+lookup' tagcombs tagsInCond = 
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 randomrules = concat $ parseRules False "LIST Det = (det def) (det indef) ; \n REMOVE:r1 (v) IF (-1C (det));\nREMOVE:r2 (prs) ;\n REMOVE:r3 (imp p2) IF (0 (p3)) ;\nREMOVE:s4 (v) IF (1 p1) ;" -- \nREMOVE:r5 (p3) IF (-2 det) (-1 v) (1 imp) (5 prs) ;"
@@ -22,16 +20,19 @@ goodrules = concat $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ;\nREMOVE:r2
 badrules = concat $ parseRules False "REMOVE:r1 (v) IF (0 (v)) ;\nREMOVE:r2 (v) IF (-1C (det)) ;"
 
 main = do
+  tc <- map parse `fmap` words `fmap` readFile tagfile
+  print $ length tc
+  print $ length $ lookup' tc [Tag "mf"]
   args <- getArgs
   case args of
    []    -> do let spl = head $ splits (reverse randomrules)
                print spl
-               uncurry testRule spl
+               uncurry (testRule tc) spl
    (r:o) -> undefined
 
   where splits list = list >>= \x -> return (x, delete x list)
 
-testRule rule rules = do
+testRule tagcombs rule rules = do
   s <- newSolver
   let ruleWidth = width rule
   allLits <- sequence 
@@ -87,19 +88,19 @@ testRule rule rules = do
 
         slCond wn cond = if isC cond 
            then [[ wn !! ind | tags <- getTags' cond
-                             , ind <- lookup' tags ]]
+                             , ind <- lookup' tagcombs tags ]]
                 ++
                 [[neg(wn!!ind) | tags <- getTags' cond
-                               , ind <- lookup' tags ]] ---- generalise for >2 lits
+                               , ind <- lookup' tagcombs tags ]] ---- generalise for >2 lits
            else [[ wn !! ind | tags <- getTags' cond
-                             , ind <- lookup' tags ]]
+                             , ind <- lookup' tagcombs tags ]]
 
         slOrRm wn trg = let n = length tagcombs - 1 in
            [[ wn !! ind | tags <- getTags' trg --disjunction: >=1 context tag 
-                       , ind  <- [0..n] \\ lookup' tags ]] 
+                       , ind  <- [0..n] \\ lookup' tagcombs tags ]] 
            ++
            [[ wn !! ind | tags <- getTags' trg
-                         , ind  <- lookup' tags ]] --unit clauses: readings to sl/rm
+                         , ind  <- lookup' tagcombs tags ]] --unit clauses: readings to sl/rm
  
 
          --getTags' :: [((Int,Bool), [[Tag]])] -> [[Tag]]
@@ -123,7 +124,7 @@ checkIfApplies ::  Solver
 checkIfApplies s lits rule = do
   if length lits >= length sswidth 
     then do putStrLn "sufficiently long sentence"
-            let inds = map (concatMap (map lookup' . snd)) sswidth
+            let inds = map (concatMap (map (lookup' [[]]) . snd)) sswidth
             print inds --e.g. [[[0,1]],[[2,3,4,5]],[[3,5],[2,4]]]
             --for lit in lits:
             --
@@ -164,16 +165,16 @@ sh :: Bool -> Char
 sh True = '1' 
 sh False = '0'
 
-slConds :: [Lit] -> [(Int, [[Tag]])] -> [Clause]
-slConds lits numsConds = 
-  let lu    = zip tagcombs lits
+slConds :: [[Tag]] -> [Lit] -> [(Int, [[Tag]])] -> [Clause]
+slConds tc lits numsConds = 
+  let lu    = zip tc lits
       conds = concatMap snd numsConds in  --concatMap won't work for contexts with OR
   [ [lit] | (tag, lit) <- lu
           , tag `elem` conds ]
 
-rmTarget :: [Lit] -> [(Int, [[Tag]])] -> [Clause]
-rmTarget lits numsTargets = 
-  let lu = zip tagcombs lits 
+rmTarget :: [[Tag]] -> [Lit] -> [(Int, [[Tag]])] -> [Clause]
+rmTarget tc lits numsTargets = 
+  let lu = zip tc lits 
       trgs = concatMap snd numsTargets in
   [ lit | (tag, lit) <- lu
         , tag `notElem` trgs ]
@@ -181,9 +182,9 @@ rmTarget lits numsTargets =
   [ [neg lit] | (tag, lit) <- lu
               , tag `elem` trgs ]
 
-slTarget :: [Lit] -> [(Int, [[Tag]])] -> [Clause]
-slTarget lits numsTargets = 
-  let lu = zip tagcombs lits 
+slTarget :: [[Tag]] -> [Lit] -> [(Int, [[Tag]])] -> [Clause]
+slTarget tc lits numsTargets = 
+  let lu = zip tc lits 
       trgs = concatMap snd numsTargets in
   [ [lit] | (tag, lit) <- lu
           , tag `elem` trgs ]
@@ -229,3 +230,14 @@ fstEq (a,_) (b,_) = a==b
 
 --------------------------------------------------------------------------------
 
+parse :: String -> [Tag]
+parse str = map toTag $ filter (not.null) $ split isValid str
+  where isValid c = c=='<' || c=='+'
+        toTag ">>>" = BOS
+        toTag "<<<" = EOS
+        toTag []    = error "empty tag"
+        toTag str = if last str=='>' then Tag (init str) else Lem str
+
+split :: (a -> Bool) -> [a] -> [[a]]
+split p [] = []
+split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
