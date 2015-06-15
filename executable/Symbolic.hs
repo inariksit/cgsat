@@ -7,6 +7,7 @@ import Debug.Trace
 import SAT
 import System.Environment
 import System.IO ( hFlush, stdout )
+import System.IO.Unsafe
 
 tagcfile = "data/spa_tagcombs.txt"
 tagfile = "data/spa_tags.txt"
@@ -21,7 +22,7 @@ lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 
-testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-3 def) ;\nREMOVE:r2 (aa) IF (-1C (det m)) (NOT 1 (f)) ;"
+testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-3C (det def) OR (mf)) ;\nREMOVE:r2 (aa) IF (-1C (det m)) (NOT 1 (f)) ;"
 
 main = do
   ts <- map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
@@ -55,11 +56,12 @@ testRule verbose alltags tagcombs rule rules = do
              [ [ ((m, addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
                    | (lits, m) <- zip allLits [1..length allLits]
              ]  :: [Token]
-               
-  let cls = concat [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
+      
+  --TODO fix this         
+  cls <- sequence [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
                                , let f = if isTarget cond 
                                             then slOrRm
-                                            else slCond ]
+                                            else slCond s ]
 
   putStr $ "rule " ++ show rule
   putStrLn $ ": " ++ show (length cls) ++ " clauses"
@@ -85,7 +87,6 @@ testRule verbose alltags tagcombs rule rules = do
                    --when True $ do
                      --as <- sequence [ modelValue s x | x <- concat allLits ]
                      --printFancy (map sh as)
-                     --print (map sh as)
                    --putStrLn $ "Solution after prev clause: " ++ show b 
                  | (rl,cl) <- applied ]
   b <- solve s []
@@ -109,47 +110,65 @@ testRule verbose alltags tagcombs rule rules = do
 
   isC (((pos,b),_):_) = b
 
-  slCond wn cond = let n = length tagcombs - 1 in
-   if isC cond 
-     then [[ wn !! ind | tags <- getTags' cond
-                       , ind <- lookup' tagcombs tags ]] ++
-          [[neg(wn!!ind)] | tags <- getTags' cond
-                         , ind <- [0..n] \\ lookup' tagcombs tags ] ---- generalise for >2 lits
-     else [[ wn !! ind | tags <- getTags' cond
-                       , ind <- lookup' tagcombs tags ]]
+  -- conditions for one word; there can be many but the index is the same
+  slCond :: Solver -> [Lit] -> [((Int,Cautious), [[Tag]])] -> [Clause]
+  slCond s wn cond = trace ("slCond: " ++ show (concatMap (\(_,ts) -> ts) cond)) $
+   let n = length tagcombs - 1 
+       tagsInCond = concatMap (\(_,ts) -> ts) cond :: [[Tag]]
+       newls = [ unsafePerformIO $ newLit s | _ <- tagsInCond ] --TODO fix this
+       disjs = nub $ concat
+              [ disjunctionstuff n nl tags 
+                | (nl, tags) <- zip newls tagsInCond ]
+   in newls:disjs 
+     --else []
+   -- if isC cond 
+   --   then [[neg(wn!!ind)] | tagss <- map getTags' cond
+   --                        , tags <- tagss
+   --                        , ind <- [0..n] \\ lookup' tagcombs tags ]
+   --   else []
+
+    where
+     disjunctionstuff :: Int -> Lit -> [Tag] -> [Clause]
+     disjunctionstuff n nl ts = 
+       let indY = lookup' tagcombs ts
+           indN = [0..n] \\ indY
+       in [ [ neg nl, neg (wn!!ind) ] | ind <- indN ] ++
+          [   neg nl:[    wn !! ind | ind <- indY ] ]
+           
 
   slOrRm wn trg = let n = length tagcombs - 1 in
-    [[ wn !! ind | tags <- getTags' trg --disjunction: >=1 context tag 
+    [[ wn !! ind | tags <- concatMap getTags' trg --disjunction: >=1 context tag 
                  , ind  <- [0..n] \\ lookup' tagcombs tags ]] 
     ++ 
-    [[ wn !! ind | tags <- getTags' trg
-                 , ind  <- lookup' tagcombs tags ]] --unit clauses: readings to sl/rm
+    [[ wn !! ind | tags <- concatMap getTags' trg
+                 , ind  <- lookup' tagcombs tags ]] --readings to select/remove
  
 
-  --getTags' :: [((Int,Bool), [[Tag]])] -> [[Tag]]
-  getTags' []           = []
-  getTags' ((_,ts):its) = ts ++ getTags' its
+  getTags' :: ((Int,Cautious), [[Tag]]) -> [[Tag]]
+  getTags' (_,ts) = ts
 
-  isTarget []        = False
+  isTarget []            = False
   isTarget (((i,_),_):_) = i==0
 
 --------------------------------------------------------------------------------
       
 type Clause = [Lit]
 
-width :: Rule -> [[Tag]] -> [[((Int,Bool),[[Tag]])]]
+width :: Rule -> [[Tag]] -> [[((Int,Cautious),[[Tag]])]]
 width rule alltags = case rule of
   (Select _ target Always) -> [[((0,False), toTags target)]]
   (Remove _ target Always) -> [[((0,False), toTags target)]]
   (Select _ target conds) -> doStuff target conds
   (Remove _ target conds) -> doStuff target conds
  where 
-  doStuff t cs = groupBy fstEq $ nub $ sort $ fill $ ((0,False), toTags t) `insert` map (toTuple alltags) (concat (toConds cs))
+  doStuff t cs = 
+    groupBy fstEq $ nub $ sort $ fill $ 
+      ((0,False), toTags t) `insert` map (toTuple alltags) (concat (toConds cs))
 
 
 --------------------------------------------------------------------------------
 
-toTuple :: [[Tag]] -> Condition -> ((Int,Bool),[[Tag]]) --bool: cautious or not
+toTuple :: [[Tag]] -> Condition -> ((Int,Cautious),[[Tag]])
 toTuple _ Always              = error "toTuple applied to Always: this should not happen"
 toTuple _ (C pos (True,tags)) = ((n,b), toTags tags)
  where 
@@ -157,11 +176,11 @@ toTuple _ (C pos (True,tags)) = ((n,b), toTags tags)
                  Exactly b i -> (i,b)
                  AtLeast b i -> (i,b)
                  Barrier i _ -> (i,False)
-toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show tags ++ "\\" ++ show complement) $ ((n,b), complement)
+toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show tags ++ "\\ " ++ show complement) $ ((n,b), complement)
  where 
   (n,b) = case pos of
-                 Exactly b i -> (i,b)
-                 AtLeast b i -> (i,b)
+                 Exactly b i -> (i,False)
+                 AtLeast b i -> (i,False)
                  Barrier i _ -> (i,False)
   complement = alltags \\ toTags tags
 
