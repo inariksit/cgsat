@@ -22,10 +22,10 @@ lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 
-testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-3C (det def) OR (mf)) ;\nREMOVE:r2 (aa) IF (-1C (det m)) (NOT 1 (f)) ;"
+testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-3C (m) OR (mf)) ;\nREMOVE:r2 (aa) IF (-1C (det m)) (NOT 1 (f)) ;"
 
 main = do
-  ts <- map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
+  ts <- filter (not.null) `fmap` map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
   print ts
   tc <- take 150 `fmap` map parse `fmap` words `fmap` readFile tagcfile
   -- mapM_ print tc
@@ -58,7 +58,7 @@ testRule verbose alltags tagcombs rule rules = do
              ]  :: [Token]
       
   --TODO fix this         
-  cls <- sequence [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
+  cls <- concat `fmap` sequence [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
                                , let f = if isTarget cond 
                                             then slOrRm
                                             else slCond s ]
@@ -111,41 +111,35 @@ testRule verbose alltags tagcombs rule rules = do
   isC (((pos,b),_):_) = b
 
   -- conditions for one word; there can be many but the index is the same
-  slCond :: Solver -> [Lit] -> [((Int,Cautious), [[Tag]])] -> [Clause]
+  slCond :: Solver -> [Lit] -> [((Int,Cautious), [[Tag]])] -> IO [Clause]
   slCond s wn cond = trace ("slCond: " ++ show (concatMap (\(_,ts) -> ts) cond)) $
-   let n = length tagcombs - 1 
-       tagsInCond = concatMap (\(_,ts) -> ts) cond :: [[Tag]]
-       newls = [ unsafePerformIO $ newLit s | _ <- tagsInCond ] --TODO fix this
-       disjs = nub $ concat
+   do
+    let n = length tagcombs - 1 
+        tagsInCond = concatMap snd cond :: [[Tag]]
+    newlits <- sequence [ newLit s | _ <- tagsInCond ]
+    let disjs = nub $ concat
               [ disjunctionstuff n nl tags 
-                | (nl, tags) <- zip newls tagsInCond ]
-   in newls:disjs 
-     --else []
-   -- if isC cond 
-   --   then [[neg(wn!!ind)] | tagss <- map getTags' cond
-   --                        , tags <- tagss
-   --                        , ind <- [0..n] \\ lookup' tagcombs tags ]
-   --   else []
+                | (nl, tags) <- zip newlits tagsInCond ]
+    return $ newlits:disjs 
+
 
     where
      disjunctionstuff :: Int -> Lit -> [Tag] -> [Clause]
      disjunctionstuff n nl ts = 
        let indY = lookup' tagcombs ts
            indN = [0..n] \\ indY
-       in [ [ neg nl, neg (wn!!ind) ] | ind <- indN ] ++
-          [   neg nl:[    wn !! ind | ind <- indY ] ]
+       in [ [ neg nl, neg$wn!!ind ] | ind <- indN ] ++
+          [   neg nl:[  wn !! ind | ind <- indY ] ]
            
 
-  slOrRm wn trg = let n = length tagcombs - 1 in
-    [[ wn !! ind | tags <- concatMap getTags' trg --disjunction: >=1 context tag 
-                 , ind  <- [0..n] \\ lookup' tagcombs tags ]] 
-    ++ 
-    [[ wn !! ind | tags <- concatMap getTags' trg
-                 , ind  <- lookup' tagcombs tags ]] --readings to select/remove
+  slOrRm wn trg = do
+    let n = length tagcombs - 1 
+    return $ [[ wn !! ind | tags <- concatMap snd trg --disjunction: >=1 context tag 
+                          , ind  <- [0..n] \\ lookup' tagcombs tags ]] 
+             ++ 
+             [[ wn !! ind | tags <- concatMap snd trg
+                          , ind  <- lookup' tagcombs tags ]] --readings to select/remove
  
-
-  getTags' :: ((Int,Cautious), [[Tag]]) -> [[Tag]]
-  getTags' (_,ts) = ts
 
   isTarget []            = False
   isTarget (((i,_),_):_) = i==0
