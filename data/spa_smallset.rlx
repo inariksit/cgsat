@@ -114,7 +114,7 @@ SECTION
 
 SELECT:i01_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
     # la casa (en que vivo)
-# SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
+SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
     # (el novio) la casa
 
 #REMOVE:i01_r_det Det IF (1C VerbFin) ;  # TOP 1
@@ -185,7 +185,7 @@ REMOVE:i17_r_v_pro Verb IF (1 Pro) ; # TOP 17
 REMOVE:i07_r_v_v Verb IF (-1C Vblex) ;  # TOP 7
 
 # para estar
-REMOVE:i05_r_vfin_prep VerbFin IF (0 Prep) (1 Inf) ; # TOP 5
+REMOVE:i05_r_vfin_prep VerbFin IF (0 Prep) (1C Inf) ; # TOP 5
 
 # de entre
 REMOVE:i11_r_vfin_prep VerbFin IF (-1 Prep) ; # TOP 11

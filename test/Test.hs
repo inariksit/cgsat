@@ -53,11 +53,11 @@ main = do
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
                       disam = if "noord" `elem` o 
-                                then disambiguate verbose debug
-                                else disambiguateWithOrder verbose debug
-                      disec = if "nosec" `elem` o
-                                then disam (concat rules)
-                                else disamSection disam rules
+                                then disambiguateUnordered verbose debug
+                                else disambiguate verbose debug
+                      disec = if "sec" `elem` o
+                                then disamSection disam rules
+                                else disam (concat rules)
                   resSAT <- mapM disec text -- :: [Sentence]
                   resVISL <- vislcg3 r d is2  -- :: [Sentence] 
                   prAll "" resSAT resVISL text verbose
@@ -68,7 +68,7 @@ gold rl dt g = do rules <- readRules rl
                   text <- readData dt
                   gold <- readData g
 
-                  resSAT <- mapM (disamSection (disambiguateWithOrder False False) rules) text
+                  resSAT <- mapM (disamSection (disambiguate False False) rules) text
                   resVISL <- vislcg3 rl dt True
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 100 --change if you want different output

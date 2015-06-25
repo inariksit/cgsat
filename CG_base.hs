@@ -116,8 +116,11 @@ instance Show Condition where
 --   * -n: to the left
 --   *  n: to the right.
 -- Bool is for cautious mode.
-data Position = Exactly Bool Int 
-              | AtLeast Bool Int
+
+type Cautious = Bool
+
+data Position = Exactly Cautious Int 
+              | AtLeast Cautious Int
               | Barrier Int TagSet deriving (Eq,Read)
 
 

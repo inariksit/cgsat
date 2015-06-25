@@ -1,5 +1,5 @@
 import CG_base
-import CG_SAT hiding ( chunk )
+import CG_SAT 
 import CG_parse
 import Control.Monad ( when )
 import Data.List
@@ -22,12 +22,12 @@ lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 
-testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-3C (m) OR (mf)) ;\nREMOVE:r2 (aa) IF (-1C (det m)) (NOT 1 (f)) ;"
+testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-1C (mf)) ;\nREMOVE:r2 (aa) IF (-1C (acr)) ;"
 
 main = do
   ts <- filter (not.null) `fmap` map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
   print ts
-  tc <- take 150 `fmap` map parse `fmap` words `fmap` readFile tagcfile
+  tc <- take 2191 `fmap` map parse `fmap` words `fmap` readFile tagcfile
   -- mapM_ print tc
   -- print $ length tc -- 2191
   -- print $ length $ lookup' tc [Tag "mf"] --1632
@@ -57,7 +57,7 @@ testRule verbose alltags tagcombs rule rules = do
                    | (lits, m) <- zip allLits [1..length allLits]
              ]  :: [Token]
       
-  --TODO fix this         
+
   cls <- concat `fmap` sequence [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
                                , let f = if isTarget cond 
                                             then slOrRm
@@ -66,17 +66,20 @@ testRule verbose alltags tagcombs rule rules = do
   putStr $ "rule " ++ show rule
   putStrLn $ ": " ++ show (length cls) ++ " clauses"
   
-  sequence_ [ print cl >> addClause s cl | cl <- cls ]
+  sequence_ [  addClause s cl | cl <- cls ]
 
   b <- solve s []
   print b
 
   putStrLn "\n---------\n"
 
-  let applied = nub [ (rl, cl) | rl <- rules
-                               , length (width rl alltags) <= length ruleWidth
-                               , cl <- applyRule rl ss 
-                               , (not.null) cl ] :: [(Rule, [Lit])]
+  applied <- sequence [ applyRule s rl ss 
+                          | rl <- rules
+                          , length (width rl alltags) <= length ruleWidth ]
+
+
+                               -- , cl <- cl'
+                               -- , (not.null) cl ] :: [(Rule, [Lit])]
 
 --  print applied
   sequence_ [ do addClause s cl
@@ -84,18 +87,20 @@ testRule verbose alltags tagcombs rule rules = do
                  when verbose $ do
                    --putStrLn $ show rl ++ ": " ++ show cl 
                    printFancy $ show rl ++ ": " ++ show cl
-                   --when True $ do
-                     --as <- sequence [ modelValue s x | x <- concat allLits ]
-                     --printFancy (map sh as)
+                   -- when True $ do
+                   --   as <- sequence [ modelValue s x | x <- concat allLits ]
+                   --   printFancy (map sh as)
                    --putStrLn $ "Solution after prev clause: " ++ show b 
-                 | (rl,cl) <- applied ]
+                 | (rl,cl') <- zip rules applied 
+                 , cl <- cl' ]
   b <- solve s []
   putStr "Solution after all clauses: "
   print b
-  as <- sequence [ modelValue s x | x <- concat allLits ]
-  let truetoks = [ t | (True, t) <- zip as ss ]
-  putStrLn $ showSentence (dechunk truetoks)
-
+  if b then do
+    as <- sequence [ modelValue s x | x <- concat allLits ]
+    let truetoks = [ t | (True, t) <- zip as ss ]
+    putStrLn $ showSentence (dechunk truetoks)
+       else print "bad D:"
   putStrLn "\n---------\n"
 
   -- stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
@@ -117,20 +122,26 @@ testRule verbose alltags tagcombs rule rules = do
     let n = length tagcombs - 1 
         tagsInCond = concatMap snd cond :: [[Tag]]
     newlits <- sequence [ newLit s | _ <- tagsInCond ]
-    let disjs = nub $ concat
-              [ disjunctionstuff n nl tags 
-                | (nl, tags) <- zip newlits tagsInCond ]
+    let f = if isC cond then disjunctionC else disjunction
+    let disjs = filter notNegUnit $ nub $ concat
+              [ f n nl tags | (nl, tags) <- zip newlits tagsInCond ]
     return $ newlits:disjs 
 
 
     where
-     disjunctionstuff :: Int -> Lit -> [Tag] -> [Clause]
-     disjunctionstuff n nl ts = 
+     disjunctionC :: Int -> Lit -> [Tag] -> [Clause]
+     disjunctionC n nl ts = 
        let indY = lookup' tagcombs ts
            indN = [0..n] \\ indY
        in [ [ neg nl, neg$wn!!ind ] | ind <- indN ] ++
           [   neg nl:[  wn !! ind | ind <- indY ] ]
-           
+
+     disjunction n nl ts = 
+       let indY = lookup' tagcombs ts
+       in [ neg nl:[  wn !! ind | ind <- indY ] ]
+      
+     notNegUnit [x] = pos x
+     notNegUnit _   = True
 
   slOrRm wn trg = do
     let n = length tagcombs - 1 
@@ -201,6 +212,8 @@ chunk sent = concat $ go sent 1
 dechunk' :: [(Int,[Tag])] -> Sentence
 dechunk' ts = map (map snd) $ groupBy fstEq ts
 
+dechunk :: [Token] -> Sentence
+dechunk ts = (map.map) getTags (groupBy sameInd ts)
 
 fstEq (a,_) (b,_) = a==b
 
@@ -258,8 +271,8 @@ for rule in Pres:
 
      1) conditions are out of scope (trivial, no clause)
      2) conditions in scope, but one doesn't hold
-     3) tag has been removed in w
-     4) all readings of w have the desired tag (cannot remove)
+     3) tag has been removed in target
+     4) all readings of  target have the desired tag (cannot remove)
 
 
 

@@ -1,6 +1,6 @@
 module Main where
 
-import CG_parse (readRules, readData, parseData)
+import CG_parse ( readRules, readData, parseData )
 import CG_SAT
 import CG_base ( Sentence, showSentence, Rule )
 import Control.Monad
@@ -12,20 +12,20 @@ main = do
   args <- getArgs
   case args of
     ["v", f1]  -> do rules <- concat `fmap` readRules f1
-                     loop False (disambiguateWithOrder False False rules)
+                     loop False (disambiguate False False rules)
     ["v", "d", f1]  -> do rules <- concat `fmap` readRules f1
-                          loop True (disambiguateWithOrder True True rules)
+                          loop True (disambiguate True True rules)
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
                       disam = if "noord" `elem` o 
-                                then disambiguate verbose debug
-                                else disambiguateWithOrder verbose debug
-                      disec = if "nosec" `elem` o
-                                then disam (concat rules)
-                                else disamSection disam rules
+                                then disambiguateUnordered verbose debug
+                                else disambiguate verbose debug
+                      disec = if "sec" `elem` o
+                                then disamSection disam rules
+                                else disam (concat rules)
                   mapM_ disec text
     ("test":_) -> CG_SAT.test
     _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"
