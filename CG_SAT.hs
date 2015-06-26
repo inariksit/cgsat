@@ -55,6 +55,7 @@ isAmbig tok toks = atLeast 2 (filter (sameInd tok) toks)
 sameInd :: Token -> Token -> Bool
 sameInd ((i,_),_) ((i',_),_) = i == i'
 
+--------------------------------------------------------------------------------
 
 --Rule     has [[Tag]].
 --Analysis has [Tag].
@@ -62,7 +63,7 @@ sameInd ((i,_),_) ((i',_),_) = i == i'
 tagsMatchRule :: [[Tag]] -> Token -> Bool
 tagsMatchRule tr ((_,ta),_) = go tr ta
   where go []       ta = False
-        go (tr:trs) ta = if all (\t -> t `elem` ta) tr 
+        go (tr:trs) ta = trace ("tagsMatchRule: " ++ show tr ++ show ta ++ " " ++ show (all (\t -> t `elem` ta) tr)) $ if all (\t -> t `elem` ta) tr 
                            then True
                            else go trs ta 
 
@@ -103,36 +104,30 @@ anchor toks = (map.map) getLit (groupBy sameInd toks)
 
 
 -- | Apply rules to tokens. 
-applyRule :: Solver -> Rule -> [Token] -> IO [[Lit]]
-applyRule s rule toks = do
+applyRule :: Solver -> [Token] -> Rule -> IO [[Lit]]
+applyRule s toks rule = do
   case rule of 
     (Remove _name target conds) -> go s False (toTags target) (toConds conds) toks
     (Select _name target conds) -> go s True (toTags target) (toConds conds) toks
 
     
 go :: Solver -> Bool -> [[Tag]] -> [[Condition]] -> [Token] -> IO [[Lit]]
-go s isSelect tags []         allToks = return []
-go s isSelect tags (conds:cs) allToks =
+go s isSelect target []         allToks = return []
+go s isSelect target (conds:cs) allToks =
    if isSelect 
-     then let (trg,rm) = select tags in mkVars trg rm 
-     else let trg     = remove tags in mkVars [] trg
+     then let (trg,rm) = select target in mkVars trg rm 
+     else let trg      = remove target in mkVars [] trg
 
-   ++> go s isSelect tags cs allToks
-
-  -- if isSelect 
-  --   then let (ch,ot) = select tags in (mkVars ch id) ++ (mkVars ot neg)
-  --   else let chosen  = remove tags in mkVars chosen neg 
-  -- ++ go s isSelect tags cs allToks
+   ++> go s isSelect target cs allToks
 
         
  where
   (++>) = liftM2 (++)
-  sndEq (_,a) (_,b) = a==b
 
   -- check if getContext has returned non-empty context for each condition
   allCondsHold :: [[Token]] -> Bool
-  allCondsHold ts | null conds = True 
-                  | otherwise  = (not.null) ts && all (not.null) ts
+  allCondsHold ts | null conds = trace ("allCondsHold: null conds " ++ show ts) $True 
+                  | otherwise  = trace ("allCondsHold: not null conds " ++ show ts ++ "trg: " ++ show target ++ if (not.null) ts && all (not.null) ts then " HOLDS!" else "") $ (not.null) ts && all (not.null) ts
                                          
 
   -- TODO this is a mess
@@ -176,14 +171,14 @@ go s isSelect tags (conds:cs) allToks =
 
 
   remove :: [[Tag]] -> [(Token,[[Token]])]
-  remove tags = [ (tok, ctx) | tok <- allToks
-                             , isAmbig tok allToks --only apply rules to ambiguous tokens
-                             , tagsMatchRule tags tok
-                             , let ctx = getContext tok allToks conds
-                             , allCondsHold ctx]
+  remove target = [ (tok, ctx) | tok <- allToks
+                               , isAmbig tok allToks --only apply rules to ambiguous words
+                               , tagsMatchRule target tok
+                               , let ctx = getContext tok allToks conds
+                               , allCondsHold ctx]
 
   select :: [[Tag]] -> ([(Token,[[Token]])], [(Token,[[Token]])])
-  select tags = (chosen, other)
+  select target = (chosen, other)
     -- chosen: analyses that have the wanted readings and context
  
     -- other: analyses that don't have the wanted readings,
@@ -191,11 +186,11 @@ go s isSelect tags (conds:cs) allToks =
     --      allToks = [(1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl])]
     --      tags    = [V]
     --      chosen  = (2,[V,Sg]), other = (2,[N,Pl])
-    where chosen = remove tags
+    where chosen = remove target
           other  = [ (tok, ctx) | tok <- allToks
                                 , (wantedTok, ctx) <- chosen
                                 , sameInd tok wantedTok
-                                , tagsDontMatchRule tags tok ]
+                                , tagsDontMatchRule target tok ]
 
 
 getContext :: Token           -- ^ a single analysis
@@ -262,13 +257,15 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                  mindist = minimum dists
                  
 
----- Main stuff
+--------------------------------------------------------------------------------
+
 disamSection ::  ([Rule] -> Sentence -> IO Sentence) -> [[Rule]] -> Sentence -> IO Sentence
 disamSection disam []         sent = return sent
 disamSection disam [rs]       sent = disam rs sent
 disamSection disam (r1:r2:rs) sent = disam (take 10 (reverse r1)) sent
                                       >>= \s -> ({-print s >>-} disamSection disam 
                                                 ((r1++r2):rs) s)
+
 
 type WithOrder = Bool
 type Verbose = Bool
@@ -289,26 +286,23 @@ disambiguate' withOrder verbose debug rules sentence = do
    s <- newSolver
    litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
    let toks = zip chunkedSent litsForAnas
-   applied' <- filter (not.null) `fmap` sequence [ applyRule s rl toks | rl <- rules ]
+   applied' <- applyRule s toks `mapM` rules
 
    -- CHECKPOINT 2: are rules triggered       
    if null applied' || all null applied'
     then do when debug $ putStrLn "No rules triggered"
+            when verbose $ putStrLn (showSentence sentence)
             return sentence 
 
     else do
-      litsForClauses <- sequence [ newLit s | _ <- applied' ]
+      litsForClauses <- sequence [ newLit s | _ <- concat applied' ]
 
       let applied = [ (rl, cl) | (rl, cl') <- zip rules applied'
                                , cl <- cl'
                                , (not.null) cl ] :: [(Rule, [Lit])]
 
-      let clauses = [ neg b:cl | (_, cl) <- applied
-                               , b <- litsForClauses ]
+      let rlsCls = [ (rl, neg b:cl) | (b, (rl, cl)) <- zip litsForClauses applied ]
 
-      let clsByRule = [ [neg b:cl] | cls <- applied'
-                                   , (b, cl) <- zip litsForClauses cls 
-                                   , (not.null) cl ]
 
       when debug $ do
         putStrLn "\ntokens:"
@@ -324,7 +318,9 @@ disambiguate' withOrder verbose debug rules sentence = do
       b <- 
        if withOrder 
          then -- TODO there's something wrong here
-          do bs <- sequence [ do k <- count s insts :: IO Unary
+          do let clsByRule = (map.map) snd $ groupBy fstEq rlsCls
+             --mapM_ print clsByRule
+             bs <- sequence [ do k <- count s insts :: IO Unary
                                  b <- solveMaximize s [] k
                                  is <- sequence [ modelValue s x | x <- insts ] 
                                  sequence_ [ addClause s [lit]
@@ -337,7 +333,8 @@ disambiguate' withOrder verbose debug rules sentence = do
              return $ and bs && not (null bs)
 
         else
-         do sequence_ [ addClause s cl | cl <- clauses ]
+         do let clauses = map snd rlsCls
+            sequence_ [ addClause s cl | cl <- clauses ]
             lc <- count s litsForClauses
             solveMaximize s [] lc
 
@@ -378,10 +375,10 @@ disambiguate' withOrder verbose debug rules sentence = do
            return []
 
  where 
-  insertStr str ((i, (Lem l:ts)), lit) = ((i, ((Lem (str++l)):ts)), lit)
-  insertStr str ((i, (Tag t:ts)), lit) =  ((i, ((Tag (str++t)):ts)), lit)
+--  insertStr str ((i, (Lem l:ts)), lit) = ((i, ((Lem (str++l)):ts)), lit)
+--  insertStr str ((i, (Tag t:ts)), lit) =  ((i, ((Tag (str++t)):ts)), lit)
   insertStr str ((i, (WF t:Lem l:ts)), lit) = ((i, newts), lit)
-   where newts = WF t:(Lem (str++l)):ts
+   where newts = WF t:Tag str:Lem l:ts
   insertStr str ((i, ts), lit) = ((i, Tag str:ts), lit)
 
 
@@ -404,3 +401,8 @@ test = mapM_ (disambiguate True True rls) CG_data.exs
              , rmParticle
              ]
 
+
+--------------------------------------------------------------------------------
+
+fstEq (a,_) (b,_) = a==b
+sndEq (_,a) (_,b) = a==b
