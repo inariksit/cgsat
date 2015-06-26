@@ -210,6 +210,8 @@ transCond c = case c of
   CNotBar pos ts bar  -> handleBar pos ts bar False
   CTempl templs       -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
                             return $ foldr1 CGB.OR cs
+
+  --TODO there might be something strange in LINK 
   CLinked (c:cs)      -> do first@(CGB.C pos tags) <- transCond c
                             let base = getPos pos
                             conds <- mapM transCond cs
