@@ -25,6 +25,7 @@ import Control.Monad ( liftM2, when )
 import SAT
 import SAT.Optimize
 import SAT.Unary hiding ( modelValue )
+import qualified SAT.Unary as U
 import Debug.Trace
 
 
@@ -63,7 +64,7 @@ sameInd ((i,_),_) ((i',_),_) = i == i'
 tagsMatchRule :: [[Tag]] -> Token -> Bool
 tagsMatchRule tr ((_,ta),_) = go tr ta
   where go []       ta = False
-        go (tr:trs) ta = trace ("tagsMatchRule: " ++ show tr ++ show ta ++ " " ++ show (all (\t -> t `elem` ta) tr)) $ if all (\t -> t `elem` ta) tr 
+        go (tr:trs) ta = if all (\t -> t `elem` ta) tr 
                            then True
                            else go trs ta 
 
@@ -126,24 +127,17 @@ go s isSelect target (conds:cs) allToks =
 
   -- check if getContext has returned non-empty context for each condition
   allCondsHold :: [[Token]] -> Bool
-  allCondsHold ts | null conds = trace ("allCondsHold: null conds " ++ show ts) $True 
-                  | otherwise  = trace ("allCondsHold: not null conds " ++ show ts ++ "trg: " ++ show target ++ if (not.null) ts && all (not.null) ts then " HOLDS!" else "") $ (not.null) ts && all (not.null) ts
+  allCondsHold ts | null conds = True
+                  | otherwise  = (not.null) ts && all (not.null) ts
                                          
 
-  -- TODO this is a mess
   mkVars :: [(Token,[[Token]])] -> [(Token,[[Token]])] -> IO [[Lit]]
-  mkVars sl rm = do --group all tokens that have the same context
+  mkVars sl rm = do
 
     let onlyCtxs = [ ctx | tctx <- groupBy sndEq (sl++rm)
                          , let ctx = snd (head tctx) ]
 
-    let trgsByCtx = [ (trgs, ctx) | tctx <- groupBy sndEq (sl++rm)
-                                  , let trgs = map fst tctx
-                                  , let ctx = snd (head tctx) ]
---    mapM_ print trgsByCtx
-
-    rs <- sequence [ help s ctx r1 | ctx <- onlyCtxs
-                                   , let r1 = true ]
+    rs <- sequence [ help s ctx true | ctx <- onlyCtxs ]
     let ctxMap = zip onlyCtxs rs
  
     let rmClauses =  [ [neg r, neg tl] | (trg, ctx) <- rm
@@ -157,15 +151,50 @@ go s isSelect target (conds:cs) allToks =
     return $ rmClauses ++ slClauses
 
 
+{-
+Examples:
+
+analyses:
+  v6 ... (7,["<la>","el",det,def,f,sg])
+  v7 ... (7,["<la>","lo",prn,pro,p3,f,sg])
+  v8 ... (8,["<casa>","casa",n,f,sg])
+  v9 ... (8,["<casa>","casar",vblex,pri,p3,sg])
+  v10 .. (8,["<casa>","casar",vblex,imp,p2,sg])
+  v11 .. (9,["<,>",",",cm])
+rule: 
+  SELECT:i08_s_pro PrnIndep IF (1C VerbFin)
+
+both v9 and v10 are VerbFin, so we create these clauses:
+  [False,~v9,v15]
+  [False,~v10,v15]
+
+the final lit to be used in the rule is v15:
+  [~v15,~v6], [~v15,v7]
+
+the old way would be 
+  [~v9,~v6], [~v9,v7], [~v10,~v6], [~v10,v7]
+
+Example with two conditions:
+
+rule:
+  SELECT:i02_s_n_adj n  IF (-1C Det) (NOT 1 N)
+
+v11 is not N and v6 is a det, so we create these clauses:
+ [False,~v11,v16] -- first round:   dummy && NOT 1 N => v16
+ [~v16,~v6,v17]   -- second round:  v16   && -1 Det  => v17 
+
+the final lit is v17:
+ [~v17,v8], [~v17,~v9], [~v17,~v10]  -}
+
   help :: Solver -> [[Token]] -> Lit -> IO Lit
-  help s []     r2 = do --putStr "the final lit: " 
-                        --print r2 
+  help s []     r2 = do -- putStr "the final lit: " 
+                        -- print r2 
                         --addClause s [r2] ---- ???
                         return r2
   help s (c:cs) r1 = do r' <- newLit s
                         sequence_ [ do addClause s [neg r1, neg vc, r'] 
---                                       putStr "mkVars.help: "
---                                       print [neg r1, neg vc, r']
+                                       -- putStr "mkVars.help: "
+                                       -- print [neg r1, neg vc, r']
                                      | (_,vc) <- c ]
                         help s cs r'
 
@@ -280,8 +309,6 @@ disambiguate' withOrder verbose debug rules sentence = do
 
  -- CHECKPOINT 1: is sentence ambiguous
  if length chunkedSent == length sentence then return sentence 
-
-
   else do 
    s <- newSolver
    litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
@@ -293,7 +320,6 @@ disambiguate' withOrder verbose debug rules sentence = do
     then do when debug $ putStrLn "No rules triggered"
             when verbose $ putStrLn (showSentence sentence)
             return sentence 
-
     else do
       litsForClauses <- sequence [ newLit s | _ <- concat applied' ]
 
@@ -313,29 +339,25 @@ disambiguate' withOrder verbose debug rules sentence = do
         mapM_ print applied
 
       sequence_ [ addClause s cl | cl <- anchor toks ]
+      sequence_ [ addClause s cl | (_, cl) <- rlsCls ]
       --- up to here identical
       
       b <- 
        if withOrder 
-         then -- TODO there's something wrong here
+         then 
           do let clsByRule = (map.map) snd $ groupBy fstEq rlsCls
-             --mapM_ print clsByRule
              bs <- sequence [ do k <- count s insts :: IO Unary
                                  b <- solveMaximize s [] k
                                  is <- sequence [ modelValue s x | x <- insts ] 
                                  sequence_ [ addClause s [lit]
-                                       | (True, lit, c) <- zip3 is insts cs]
+                                       | (True, lit) <- zip is insts ]
                                  return b
                               | cls <- clsByRule
-                              , let insts = map (neg . head) cls
-                              , let cs = map (!! 1) cls ]
-             --if null bs then print "bs is empty >:(" else print bs
+                              , let insts = map (neg . head) cls ]
              return $ and bs && not (null bs)
 
         else
-         do let clauses = map snd rlsCls
-            sequence_ [ addClause s cl | cl <- clauses ]
-            lc <- count s litsForClauses
+         do lc <- count s litsForClauses
             solveMaximize s [] lc
 
 
@@ -350,35 +372,23 @@ disambiguate' withOrder verbose debug rules sentence = do
 
       if b 
         then
-         do lt <- count s litsForAnas
-            --b2 <- solveMaximize s [lc .>= k] lt
-            --b2 <- solveMaximize s [] lt
-            if True
-              then
-               do as <- sequence [ modelValue s x | x <- litsForAnas ]
-                  let truetoks = [ t | (True, t) <- zip as toks ]
-                  let alltoks = [ insertStr sc tok | (b, tok) <- zip as toks 
+         do as <- sequence [ modelValue s x | x <- litsForAnas ]
+            let truetoks = [ t | (True, t) <- zip as toks ]
+            let alltoks = [ insertStr sc tok | (b, tok) <- zip as toks 
                                                    , let sc = if b then "" else "; " ]
-                  when (verbose && debug) $ do
-                      putStrLn "\nThe following tag sequence was chosen:"
-                      putStrLn $ showSentence (dechunk alltoks)
-                  when (verbose && (not debug)) $  
-                      putStrLn $ showSentence (dechunk truetoks)
-                  return (dechunk truetoks)
-              else
-               do putStrLn "No solution after trying to maximise tags"
-                  return []
-       else
-        do putStrLn "No solution"
-           conf <- conflict s
-           print conf
-           return []
+            when debug $ do putStrLn "\nThe following tag sequence was chosen:"
+                            putStrLn $ showSentence (dechunk alltoks)
+            when (verbose && (not debug)) $ 
+                            putStrLn $ showSentence (dechunk truetoks)
+            return (dechunk truetoks)
+        else
+         do putStrLn "No solution"
+            conf <- conflict s
+            print conf
+            return []
 
  where 
---  insertStr str ((i, (Lem l:ts)), lit) = ((i, ((Lem (str++l)):ts)), lit)
---  insertStr str ((i, (Tag t:ts)), lit) =  ((i, ((Tag (str++t)):ts)), lit)
-  insertStr str ((i, (WF t:Lem l:ts)), lit) = ((i, newts), lit)
-   where newts = WF t:Tag str:Lem l:ts
+  insertStr str ((i, (WF t:ts)), lit) = ((i,  WF t:Tag str:ts), lit)
   insertStr str ((i, ts), lit) = ((i, Tag str:ts), lit)
 
 
