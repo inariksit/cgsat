@@ -132,6 +132,10 @@ transTag tag = case tag of
                    ('"':'<':_) -> return $ CGB.TS [[CGB.WF (strip 2 s)]]
                    ('"':    _) -> return $ CGB.TS [[CGB.Lem (strip 1 s)]]
                    _           -> return $ CGB.TS [[CGB.Lem s]]
+  LemmaCI (Str s) -> case s of
+                   ('"':'<':_) -> return $ CGB.TS [[CGB.WF (strip 2 s)]]
+                   ('"':    _) -> return $ CGB.TS [[CGB.Lem (strip 1 s)]]
+                   _           -> return $ CGB.TS [[CGB.Lem s]]
   Tag (Id str) -> return $ CGB.TS [[CGB.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
                      let ts' = map CGB.toTags ts
