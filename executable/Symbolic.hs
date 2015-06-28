@@ -22,12 +22,12 @@ lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 
-testrules = concat $ parseRules False "REMOVE:r1 (aa) IF (-1C (mf)) ;\nREMOVE:r2 (aa) IF (-1C (acr)) ;"
+testrules = concat $ parseRules False "REMOVE:r1 (aa) OR (acr) IF (-1 (mf)) ;\nREMOVE:r2 (aa) IF (-1 (acr)) ;"
 
 main = do
   ts <- filter (not.null) `fmap` map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
   print ts
-  tc <- take 2191 `fmap` map parse `fmap` words `fmap` readFile tagcfile
+  tc <- take 1191 `fmap` map parse `fmap` words `fmap` readFile tagcfile
   -- mapM_ print tc
   -- print $ length tc -- 2191
   -- print $ length $ lookup' tc [Tag "mf"] --1632
@@ -58,28 +58,30 @@ testRule verbose alltags tagcombs rule rules = do
              ]  :: [Token]
       
 
-  cls <- concat `fmap` sequence [ f wn cond | (wn, cond) <- zip allLits ruleWidth 
+  cls <- concat `fmap` sequence [ f s wn cond | (wn, cond) <- zip allLits ruleWidth 
                                , let f = if isTarget cond 
                                             then slOrRm
-                                            else slCond s ]
+                                            else slCond ]
 
   putStr $ "rule " ++ show rule
   putStrLn $ ": " ++ show (length cls) ++ " clauses"
   
-  sequence_ [  addClause s cl | cl <- cls ]
+  sequence_ [ do --when verbose $ print cl
+                 addClause s cl | cl <- cls ]
 
   b <- solve s []
   print b
-
+  if b then do
+    as <- sequence [ modelValue s x | x <- concat allLits ]
+    let truetoks = [ t | (True, t) <- zip as ss ]
+    putStrLn $ showSentence (dechunk truetoks)
+       else print "bad D:"
   putStrLn "\n---------\n"
 
-  applied <- sequence [ applyRule s rl ss 
+  applied <- sequence [ applyRule s ss rl
                           | rl <- rules
                           , length (width rl alltags) <= length ruleWidth ]
 
-
-                               -- , cl <- cl'
-                               -- , (not.null) cl ] :: [(Rule, [Lit])]
 
 --  print applied
   sequence_ [ do addClause s cl
@@ -90,9 +92,10 @@ testRule verbose alltags tagcombs rule rules = do
                    -- when True $ do
                    --   as <- sequence [ modelValue s x | x <- concat allLits ]
                    --   printFancy (map sh as)
-                   --putStrLn $ "Solution after prev clause: " ++ show b 
-                 | (rl,cl') <- zip rules applied 
-                 , cl <- cl' ]
+                   -- printFancy $ "Solution after prev clause: " ++ show b
+                   
+                 | (rl, cls) <- zip rules applied 
+                 , cl <- cls ]
   b <- solve s []
   putStr "Solution after all clauses: "
   print b
@@ -120,13 +123,12 @@ testRule verbose alltags tagcombs rule rules = do
   slCond s wn cond = trace ("slCond: " ++ show (concatMap (\(_,ts) -> ts) cond)) $
    do
     let n = length tagcombs - 1 
-        tagsInCond = concatMap snd cond :: [[Tag]]
-    newlits <- sequence [ newLit s | _ <- tagsInCond ]
+        context = concatMap snd cond :: [[Tag]]
+    newlits <- sequence [ newLit s | _ <- context ]
     let f = if isC cond then disjunctionC else disjunction
     let disjs = filter notNegUnit $ nub $ concat
-              [ f n nl tags | (nl, tags) <- zip newlits tagsInCond ]
+              [ f n nl tags | (nl, tags) <- zip newlits context ]
     return $ newlits:disjs 
-
 
     where
      disjunctionC :: Int -> Lit -> [Tag] -> [Clause]
@@ -143,13 +145,20 @@ testRule verbose alltags tagcombs rule rules = do
      notNegUnit [x] = pos x
      notNegUnit _   = True
 
-  slOrRm wn trg = do
-    let n = length tagcombs - 1 
-    return $ [[ wn !! ind | tags <- concatMap snd trg --disjunction: >=1 context tag 
-                          , ind  <- [0..n] \\ lookup' tagcombs tags ]] 
-             ++ 
-             [[ wn !! ind | tags <- concatMap snd trg
-                          , ind  <- lookup' tagcombs tags ]] --readings to select/remove
+  slOrRm s wn trg =  trace ("slOrRm: " ++ show (concatMap (\(_,ts) -> ts) trg)) $do
+    let n = length tagcombs - 1
+    newlits <- sequence [ newLit s | _ <- trg ]
+    let disjs = 
+         concat [ disj n nl tags | (nl, tags) <- zip newlits (concatMap snd trg) ]
+    return $ newlits:disjs
+
+    where 
+     disj n nl ts = 
+       let indY = lookup' tagcombs ts
+           indN = [0..n] \\ indY
+       in [ neg nl:[ wn !! ind | ind <- indN ] ] ++
+          [ neg nl:[ wn !! ind | ind <- indY ] ]
+
  
 
   isTarget []            = False
@@ -181,7 +190,7 @@ toTuple _ (C pos (True,tags)) = ((n,b), toTags tags)
                  Exactly b i -> (i,b)
                  AtLeast b i -> (i,b)
                  Barrier i _ -> (i,False)
-toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show tags ++ "\\ " ++ show complement) $ ((n,b), complement)
+toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show complement ++ "\\ " ++ show tags) $ ((n,b), complement)
  where 
   (n,b) = case pos of
                  Exactly b i -> (i,False)
@@ -196,7 +205,7 @@ fill (x@((n,b),_):xs) = go (x:xs) n []
  where
   go []              _m res = reverse res
   go (x@((n,b),_):xs) m res | n-m == 1 || n-m == 0 = go xs n (x:res)
-                            | otherwise            = go xs n (x : (filled++res))
+                            | otherwise            = go xs n (x:(filled++res))
            where filled = [ ((k,False), [[]]) | k <- [m+1..n-1] ]
 
 
