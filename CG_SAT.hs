@@ -30,10 +30,11 @@ import Debug.Trace
 
 
 
-type Token = ((Int, [Tag]), Lit)
+type Token = (((Int,Cautious), [Tag]), Lit)
+
 
 getInd :: Token -> Int
-getInd ((i,_),_) = i
+getInd (((i,_),_),_) = i
 
 getTags :: Token -> [Tag]
 getTags ((_,t),_) = t
@@ -54,7 +55,7 @@ isAmbig tok toks = atLeast 2 (filter (sameInd tok) toks)
 
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
-sameInd ((i,_),_) ((i',_),_) = i == i'
+sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
 
 --------------------------------------------------------------------------------
 
@@ -86,10 +87,10 @@ tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
 -- ((2,["bear",<vblex>,<pl>]),v2)
 -- ((3,["sleep",<n>,<pl>]),v4)
 -- ((3,["sleep",<vblex>,<sg>,<p3>]),v5)
-chunk :: Sentence -> [(Int,[Tag])]
+chunk :: Sentence -> [((Int,Cautious), [Tag])]
 chunk sent = concat $ go sent 1
    where go []    _n = []
-         go (x:xs) n = map ((,) n) x : go xs (n+1)
+         go (x:xs) n = map ((,) (n,False)) x : go xs (n+1)
 
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
@@ -160,9 +161,9 @@ analyses:
   v8 ... (8,["<casa>","casa",n,f,sg])
   v9 ... (8,["<casa>","casar",vblex,pri,p3,sg])
   v10 .. (8,["<casa>","casar",vblex,imp,p2,sg])
-  v11 .. (9,["<,>",",",cm])
+  v11 .. (9,["<,>", ",", cm])
 rule: 
-  SELECT:i08_s_pro PrnIndep IF (1C VerbFin)
+  SELECT:i08_s_pro PrnIndep IF (1 VerbFin)
 
 both v9 and v10 are VerbFin, so we create these clauses:
   [False,~v9,v15]
@@ -187,8 +188,8 @@ the final lit is v17:
  [~v17,v8], [~v17,~v9], [~v17,~v10]  -}
 
   help :: Solver -> [[Token]] -> Lit -> IO Lit
-  help s []     r2 = do -- putStr "the final lit: " 
-                        -- print r2 
+  help s []     r2 = do putStr "the final lit: " 
+                        print r2 
                         --addClause s [r2] ---- ???
                         return r2
   help s (c:cs) r1 = do r' <- newLit s
@@ -228,7 +229,7 @@ getContext :: Token           -- ^ a single analysis
                -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext tok allToks []          = []
 getContext tok allToks (Always:cs) = getContext tok allToks cs ++
-  [[((999,[]),true)]]
+  [[(((999,False),[]),true)]]
 getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
   case ctags' of
     []     -> [[dummyTok]] --empty conds = holds always
@@ -244,12 +245,8 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                 -- And I think checking the value of variables might just not work,
                 -- depends on the state of the SAT solver. Maybe with 
                 -- disambiguateWithOrder but definitely not with disambiguate.
-                -- Exactly True n -> if length (exactly n tok) > 1 
-                --                    then [[]]
-                --                    else [filter match $ exactly n tok]
-                -- AtLeast True n -> if length (atleast n tok) > 1
-                --                    then [[]]
-                --                    else [filter match $ atleast n tok]
+                Exactly True n -> [map makeCautious $ filter match $ exactly n tok]
+                AtLeast True n -> [map makeCautious $ filter match $ atleast n tok]
 
                 -- normal mode
                 Exactly _ n -> [filter match $ exactly n tok]
@@ -259,28 +256,33 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
   where ctags' = toTags ctags
         match  = (if bool then id else not) . tagsMatchRule ctags'
 
-        dummyTok = ((999,[]),true) 
+        dummyTok = (((999,False),[]),true) 
+
+        makeCautious :: Token -> Token
+        makeCautious = id
 
         --given word and n, return words that are n places away in the original sentence
         exactly :: Int -> Token -> [Token]
-        exactly n ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
-                                      , ind' == ind+n ]
+        exactly n token = [ tok' | tok' <- allToks
+                                 , getInd tok' == n + getInd token ]
 
 
         --same but list of tags that are at least n places away
-        atleast n ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
-                                      , ind' >= ind+n ]
+        atleast n token = [ tok' | tok' <- allToks
+                                 , getInd tok' >= n + getInd token ]
 
 
         --between m and n places away
-        between m n ((ind,_),_) = [ tok | tok@((ind',_),_) <- allToks
-                                        , ind+m <= ind' && ind' <= ind+n
-                                        , match tok ]
+        between m n token = [ tok' | tok' <- allToks
+                                   , let ind' = getInd tok'
+                                   , let ind = getInd token
+                                   , ind+m <= ind' && ind' <= ind+n
+                                   , match tok ]
 
         barrier n btags tok | barinds==[] = filter match $ atleast n tok
                             | n < 0     = between mindist n tok
                             | otherwise = between n mindist tok
-           where barinds = [ ind | tok@((ind,_),_) <- allToks
+           where barinds = [ getInd tok | tok <- allToks
                                  , tagsMatchRule (toTags btags) tok ]
                  dists   = map (\i -> i - getInd tok) barinds :: [Int]
                  mindist = minimum dists
@@ -305,7 +307,7 @@ disambiguateUnordered = disambiguate' False
 
 disambiguate' :: WithOrder -> Verbose -> Debug -> [Rule] -> Sentence -> IO Sentence
 disambiguate' withOrder verbose debug rules sentence = do
- let chunkedSent = chunk sentence :: [(Int,[Tag])]
+ let chunkedSent = chunk sentence
 
  -- CHECKPOINT 1: is sentence ambiguous
  if length chunkedSent == length sentence then return sentence 
@@ -333,10 +335,10 @@ disambiguate' withOrder verbose debug rules sentence = do
       when debug $ do
         putStrLn "\ntokens:"
         mapM_ print toks
-        putStrLn "\nfirst step, make sure all readings for a given word are not false:"
-        print (anchor toks)
-        putStrLn "\nclauses gotten by applying rules"
-        mapM_ print applied
+        -- putStrLn "\nfirst step, make sure all readings for a given word are not false:"
+        -- print (anchor toks)
+        -- putStrLn "\nclauses gotten by applying rules"
+        -- mapM_ print applied
 
       sequence_ [ addClause s cl | cl <- anchor toks ]
       sequence_ [ addClause s cl | (_, cl) <- rlsCls ]
