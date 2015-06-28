@@ -48,6 +48,7 @@ _.        SetName ::= "$$" SetName ; -- Unification; just read them as regular s
 -- Tags can be wordforms or lemmas/wordforms, identifiers or named sets.
 
 Lemma.   Tag1 ::= Str ; 
+LemmaCI. Tag1 ::= Str "i" ; 
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
 _.       Tag1 ::= "+" Tag1 ; -- Subreadings; ignore
