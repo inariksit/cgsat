@@ -1,7 +1,8 @@
 module CG_parse ( parseRules
                 , parseData
                 , readRules
-                , readData ) where
+                , readData 
+                , readRules' ) where
 
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
@@ -27,12 +28,12 @@ import qualified CG_base as CGB
 type Env = [(String, CGB.TagSet)]
 
 
-parseRules :: Bool -> String -> [[CGB.Rule]] -- sections
+parseRules :: Bool -> String -> ([CGB.TagSet], [[CGB.Rule]]) -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
-            CGErr.Ok  tree -> let rules = evalState (parseCGRules tree) []
+            CGErr.Ok  tree -> let (rules,tags) = runState (parseCGRules tree) []
                               in trace (if test then unwords $ pr rules else "") $
-                                 map rights rules
+                                 (map snd tags, map rights rules)
   where pr = concatMap $ map pr'
         pr' (Right rule)  = show rule
         pr' (Left string) = string
@@ -52,7 +53,11 @@ parseData s = case pText (Apertium.Par.myLexer s) of
 
 --just because it's nice to use them  rules <- readRules foo
 readRules :: String -> IO [[CGB.Rule]]
-readRules fname = readFile fname >>= return . parseRules False
+readRules fname = readFile fname >>= return . snd . parseRules False
+
+readRules' :: String -> IO ([CGB.TagSet], [[CGB.Rule]])
+readRules' fname = readFile fname >>= return . parseRules False
+
 
 readData :: String -> IO [CGB.Sentence]
 readData fname = readFile fname >>= return . parseData
