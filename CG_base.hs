@@ -241,6 +241,7 @@ showAnalysis (a:as) = unlines $ showTags a : map showTags as'
         notWF _      = True        
   
 showTags :: [Tag] -> String
+showTags []         = "[]"
 showTags ts@(wf:as) = 
   case wf of
     (WF s) -> show wf ++ '\n':'\t':showA as
