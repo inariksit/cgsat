@@ -1,7 +1,8 @@
 {-# LANGUAGE DoAndIfThenElse #-} 
 
 module CG_SAT(
-    Token
+    Clause
+  , Token
   , getInd
   , getTags
   , getLit
@@ -29,7 +30,7 @@ import qualified SAT.Unary as U
 import Debug.Trace
 
 
-
+type Clause = [Lit]
 type Token = (((Int,Cautious), [Tag]), Lit)
 
 
@@ -40,10 +41,13 @@ getTags :: Token -> [Tag]
 getTags ((_,t),_) = t
 
 getLit :: Token -> Lit
-getLit (_,b) = b
+getLit (_,l) = l
 
 isBoundary :: Token -> Bool
 isBoundary ((_,ts),_) = not $ null ([BOS,EOS] `intersect` ts)
+
+isCautious :: Token -> Bool
+isCautious (((_,b),_),_) = b
 
 -- we don't need to apply rules to tokens that are already unambiguous
 isAmbig :: Token -> [Token] -> Bool
@@ -117,8 +121,8 @@ go :: Solver -> Bool -> [[Tag]] -> [[Condition]] -> [Token] -> IO [[Lit]]
 go s isSelect target []         allToks = return []
 go s isSelect target (conds:cs) allToks =
    if isSelect 
-     then let (trg,rm) = select target in mkVars trg rm 
-     else let trg      = remove target in mkVars [] trg
+     then let (trg,rm) = select target in mkVars trg rm conds 
+     else let trg      = remove target in mkVars [] trg conds
 
    ++> go s isSelect target cs allToks
 
@@ -132,13 +136,13 @@ go s isSelect target (conds:cs) allToks =
                   | otherwise  = (not.null) ts && all (not.null) ts
                                          
 
-  mkVars :: [(Token,[[Token]])] -> [(Token,[[Token]])] -> IO [[Lit]]
-  mkVars sl rm = do
+  mkVars :: [(Token,[[Token]])] -> [(Token,[[Token]])] -> [Condition] ->  IO [[Lit]]
+  mkVars sl rm conds = do
 
     let onlyCtxs = [ ctx | tctx <- groupBy sndEq (sl++rm)
                          , let ctx = snd (head tctx) ]
 
-    rs <- sequence [ help s ctx true | ctx <- onlyCtxs ]
+    rs <- sequence [ help s ctx true conds | ctx <- onlyCtxs ]
     let ctxMap = zip onlyCtxs rs
  
     let rmClauses =  [ [neg r, neg tl] | (trg, ctx) <- rm
@@ -187,17 +191,57 @@ v11 is not N and v6 is a det, so we create these clauses:
 the final lit is v17:
  [~v17,v8], [~v17,~v9], [~v17,~v10]  -}
 
-  help :: Solver -> [[Token]] -> Lit -> IO Lit
-  help s []     r2 = do putStr "the final lit: " 
+  help :: Solver -> [[Token]] -> Lit -> [Condition] -> IO Lit
+  help s []     r2 conds = 
+                     do putStr "the final lit: " 
                         print r2 
-                        --addClause s [r2] ---- ???
+                        putStrLn $ "conditions: " ++ show conds ++ "\n"
                         return r2
-  help s (c:cs) r1 = do r' <- newLit s
-                        sequence_ [ do addClause s [neg r1, neg vc, r'] 
-                                       -- putStr "mkVars.help: "
-                                       -- print [neg r1, neg vc, r']
-                                     | (_,vc) <- c ]
-                        help s cs r'
+  help s (c:cs) r1 conds = 
+                     do litsForConds <- sequence [ newLit s | _ <- c] --for each analysis that matches condition
+                        r' <- --r' is the variable that indicates that *some condition* holds
+                         if length litsForConds > 1 
+                          then do
+                            veryCautiousLit <- newLit s
+                            let vcl = [neg veryCautiousLit:litsForConds]
+                            putStrLn $ "mkVars.help |litsForConds| > 1: " ++ show vcl
+                            mapM_ (addClause s) vcl
+                            return veryCautiousLit
+                          else do
+                            putStrLn $ "mkVars.help.litsForConds: " ++ show litsForConds
+                            addClause s litsForConds
+                            return $ head litsForConds
+                        putStrLn $ "r' :" ++ show r'
+                        sequence_ [ do --mapM_ (addClause s) cautiousCls
+                                       mapM_ (addClause s) clauses
+                                       
+                                       putStr "mkVars.help.cautiousCls: "
+                                       print cautiousCls
+                                       putStr "mkVars.help.clauses: "
+                                       print clauses
+                                     | (lc, tok@(_,lit)) <- zip litsForConds c 
+                                     , let cautiousCls = if isCautious tok 
+                                                           then disjC lc tok
+                                                           else disj lc tok
+                                     , let clauses = [[neg r1, neg lit, r']] 
+                                                          ]
+                                                           --else [[neg r1, neg lit, r']] ]
+                        help s cs r' conds
+   where
+
+    disj :: Lit -> Token -> [Clause]
+    disj cautiouslit yestok = 
+       let yeslit = getLit yestok           
+       in [[neg cautiouslit, yeslit]]
+
+    disjC cautiouslit yestok = 
+       let yeslit = getLit yestok
+           nolits = [ getLit tok | tok <- allToks
+                                 , sameInd tok yestok 
+                                 , getLit tok /= getLit yestok ]
+       in [neg cautiouslit, yeslit] :
+          [ [ neg cautiouslit, neg nolit ] | nolit <- nolits ]
+
 
 
   remove :: [[Tag]] -> [(Token,[[Token]])]
@@ -230,7 +274,7 @@ getContext :: Token           -- ^ a single analysis
 getContext tok allToks []          = []
 getContext tok allToks (Always:cs) = getContext tok allToks cs ++
   [[(((999,False),[]),true)]]
-getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks cs ++
+getContext tok allToks ((C position (positive,ctags)):cs) = getContext tok allToks cs ++
   case ctags' of
     []     -> [[dummyTok]] --empty conds = holds always
     [[]]   -> [[dummyTok]] 
@@ -239,12 +283,6 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                                  then [[tok]] --if the feature at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
                                  else [filter match $ exactly 0 tok] --feature in  different reading
 
-                -- for cautious mode. You probably shouldn't use this;
-                -- it doesn't check about the variables in the position,
-                -- just the length of list.
-                -- And I think checking the value of variables might just not work,
-                -- depends on the state of the SAT solver. Maybe with 
-                -- disambiguateWithOrder but definitely not with disambiguate.
                 Exactly True n -> [map makeCautious $ filter match $ exactly n tok]
                 AtLeast True n -> [map makeCautious $ filter match $ atleast n tok]
 
@@ -254,12 +292,12 @@ getContext tok allToks ((C position (bool,ctags)):cs) = getContext tok allToks c
                 Barrier n bs  -> [barrier n bs tok]
 
   where ctags' = toTags ctags
-        match  = (if bool then id else not) . tagsMatchRule ctags'
+        match  = (if positive then id else not) . tagsMatchRule ctags'
 
         dummyTok = (((999,False),[]),true) 
 
         makeCautious :: Token -> Token
-        makeCautious = id
+        makeCautious (((i,_),tags),lit) = (((i,True),tags),lit)
 
         --given word and n, return words that are n places away in the original sentence
         exactly :: Int -> Token -> [Token]
