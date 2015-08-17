@@ -75,14 +75,14 @@ testRule verbose alltags tagcombs rule rules = do
   mapM_ print ss
   cls <- concat `fmap` 
               sequence [ f s wn cond | (wn, cond) <- zip allLits ruleWidth
-                                     , let f = if isTarget cond 
+                                     , let f = if any (isTarget.fst) cond
                                             then slOrRm
                                             else slCond ] 
                                                 
   putStr $ "rule " ++ show rule
   putStrLn $ ": " ++ show (length cls) ++ " clauses"
   
-  sequence_ [ do --when verbose $ print cl
+  sequence_ [ do -- when verbose $ print cl
                  addClause s cl | cl <- cls ]
 
   b <- solve s []
@@ -141,16 +141,14 @@ testRule verbose alltags tagcombs rule rules = do
   sh True = '1' 
   sh False = '0'
 
-  isC (((pos,b),_):_) = b
-
   -- conditions for one word; there can be many but the index is the same
-  slCond :: Solver -> [Lit] -> [((Int,Cautious), [[Tag]])] -> IO [Clause]
-  slCond s wn cond = trace ("slCond: " ++ show (concatMap (\(_,ts) -> ts) cond)) $
+  slCond :: Solver -> [Lit] -> [(Info, [[Tag]])] -> IO [Clause]
+  slCond s wn conds = trace ("slCond: " ++ show (concatMap (\(_,ts) -> ts) conds)) $
    do
     let n = length tagcombs - 1 
-        context = concatMap snd cond :: [[Tag]]
+        context = concatMap snd conds :: [[Tag]]
     newlits <- sequence [ newLit s | _ <- context ]
-    let f = if isC cond then disjunctionC else disjunction
+    let f = if all (isCautious.fst) conds then disjunctionC else disjunction --TODO
     let disjs = filter notNegUnit $ nub $ concat
               [ f n nl tags | (nl, tags) <- zip newlits context ]
     return $ newlits:disjs 
@@ -170,15 +168,19 @@ testRule verbose alltags tagcombs rule rules = do
      notNegUnit [x] = pos x
      notNegUnit _   = True
 
-  slOrRm :: Solver -> [Lit] -> [((Int, Cautious), [[Tag]])] -> IO [Clause]
-  slOrRm s wn trg =  trace ("slOrRm: " ++ show (concatMap (\(_,ts) -> ts) trg)) $do
+  -- At index 0 there can be both targets and conditions
+  slOrRm :: Solver -> [Lit] -> [(Info, [[Tag]])] -> IO [Clause]
+  slOrRm s wn ind0s =  trace ("slOrRm: " ++ show (concatMap (\(_,ts) -> ts) ind0s)) $ do
     let n = length tagcombs - 1
-    newlits <- sequence [ newLit s | _ <- trg ]
-    let disjs = 
-         nub $ concat [ disj n nl tags | (nl, tags) <- zip newlits (concatMap snd trg) ]
-    return $ newlits:disjs
+    let (trgs,conds) = partition (isTarget.fst) ind0s
+    newlits <- sequence [ newLit s | _ <- trgs ]
+    let trgCls = 
+         nub $ concat [ disj n nl tags | (nl, tags) <- zip newlits (concatMap snd trgs) ]
 
-    where 
+    condCls <- slCond s wn conds
+    return $ (newlits:trgCls) ++ condCls
+
+    where
      disj :: Int -> Lit -> [Tag] -> [Clause]
      disj n nl ts = 
        let indY = lookup' tagcombs ts
@@ -186,38 +188,47 @@ testRule verbose alltags tagcombs rule rules = do
        in [ neg nl:[ wn !! ind | ind <- indN ] ] ++
           [ neg nl:[ wn !! ind | ind <- indY ] ]
 
- 
-  ---BAD!
-  isTarget []            = False
-  isTarget (((i,_),_):_) = i==0
-
 --------------------------------------------------------------------------------
       
 width :: Rule    -- ^ rule whose width to calculate 
       -> [[Tag]] -- ^ all possible tag combinations
-      -> [[((Int,Cautious),[[Tag]])]] -- ^ conditions and target
+      -> [[(Info,[[Tag]])]] -- ^ conditions and target
 width rule alltags = case rule of
-  (Select _ target Always) -> [[((0,False), toTags target)]]
-  (Remove _ target Always) -> [[((0,False), toTags target)]]
+  (Select _ target Always) -> [[(defaultTrg, toTags target)]]
+  (Remove _ target Always) -> [[(defaultTrg, toTags target)]]
   (Select _ target conds) -> doStuff target conds
   (Remove _ target conds) -> doStuff target conds
  where 
   doStuff t cs = 
-    groupBy fstEq $ nub $ sort $ fill $ 
-      ((0,False), toTags t) `insert` map (toTuple alltags) (concat (toConds cs))
+    groupBy sameIndInfo $ nub $ sort $ fill $ 
+      (defaultTrg, toTags t) `insert` map (toTuple alltags) (concat (toConds cs))
 
 
 --------------------------------------------------------------------------------
 
-toTuple :: [[Tag]] -> Condition -> ((Int,Cautious),[[Tag]])
+data Info = I { index      :: Int 
+              , isCautious :: Bool
+              , isTarget   :: Bool } deriving (Eq,Ord,Show)
+
+defaultTrg = I 0 False True
+
+mkCond :: Int -> Info
+mkCond i = I i False False
+
+sameIndInfo :: (Info,a) -> (Info,a) -> Bool
+sameIndInfo (I i _ _, a) (I i' _ _, b) = i== i'
+
+--------------------------------------------------------------------------------
+
+toTuple :: [[Tag]] -> Condition -> (Info,[[Tag]])
 toTuple _ Always              = error "toTuple applied to Always: this should not happen"
-toTuple _ (C pos (True,tags)) = ((n,b), toTags tags)
+toTuple _ (C pos (True,tags)) = (I n b False, toTags tags)
  where 
   (n,b) = case pos of
                  Exactly b i -> (i,b)
                  AtLeast b i -> (i,b)
                  Barrier i _ -> (i,False)
-toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show complement ++ "\\ " ++ show tags) $ ((n,b), complement)
+toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show complement ++ "\\ " ++ show tags) $ (I n b False, complement)
  where 
   (n,b) = case pos of
                  Exactly b i -> (i,False)
@@ -227,30 +238,30 @@ toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show complement
 
 
 -- x:xs must be sorted
+fill :: [(Info, [[Tag]])] -> [(Info, [[Tag]])]
 fill [] = []
-fill (x@((n,b),_):xs) = go (x:xs) n []
+fill (x@((I n b t),_):xs) = go (x:xs) n []
  where
   go []              _m res = reverse res
-  go (x@((n,b),_):xs) m res | n-m == 1 || n-m == 0 = go xs n (x:res)
-                            | otherwise            = go xs n (x:(filled++res))
-           where filled = [ ((k,False), [[]]) | k <- [m+1..n-1] ]
+  go (x@((I n b t),_):xs) m res | n-m == 1 || n-m == 0 = go xs n (x:res)
+                              | otherwise            = go xs n (x:(filled++res))
+           where filled = [ (I k False False, [[]]) | k <- [m+1..n-1] ]
 
 
 
 --------------------------------------------------------------------------------
 
-chunk :: Sentence -> [((Int,Cautious), [Tag])]
-chunk sent = concat $ go sent 1
-   where go []    _m = []
-         go (x:xs) m = map ((,) (m,False)) (addWF m x) : go xs (m+1)
-         addWF m = map (WF ("w" ++ show m) :)
+-- chunk :: Sentence -> [(Info, [Tag])]
+-- chunk sent = concat $ go sent 1
+--    where go []    _m = []
+--          go (x:xs) m = map ((,) (mkInfo m)) (addWF m x) : go xs (m+1)
+--          addWF m = map (WF ("w" ++ show m) :)
 
-dechunk' :: [((Int,Cautious),[Tag])] -> Sentence
-dechunk' ts = map (map snd) $ groupBy fstEq ts
+dechunk' :: [(Info,[Tag])] -> Sentence
+dechunk' ts = map (map snd) $ groupBy sameIndInfo ts
 
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
-
 
 
 fstEq (a,_) (b,_) = a==b
