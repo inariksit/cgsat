@@ -159,7 +159,7 @@ SELECT:i18_s_preadv PreAdv IF (1C PP) ; # TOP 18
 
 # la casa era nueva / él vino ayer     # becomes worse with SELECT
 REMOVE:i04_r_noun N    IF (-1 N OR Prn) ; # TOP 4
-REMOVE:i19_r_verb Verb IF (-1 A OR Det) ; # TOP 19 (Removing this from 19 rules gives 83.15 -> 83.19) # but still this combined with TOP 1 is the second best combo for 2 rules
+REMOVE:i19_r_verb Verb IF (-1C A OR Det) ; # TOP 19 (Removing this from 19 rules gives 83.15 -> 83.19) # but still this combined with TOP 1 is the second best combo for 2 rules
 
 #SELECT:i20_s_noun N IF (-1 Det) (1 A) ;
 
@@ -181,10 +181,10 @@ REMOVE:i17_r_v_pro Verb IF (1 Pro) ; # TOP 17
 REMOVE:i07_r_v_v Verb IF (-1C Vblex) ;  # TOP 7
 
 # para estar
-REMOVE:i05_r_vfin_prep VerbFin IF (0 Prep) (1C Inf) ; # TOP 5
+REMOVE:i05_r_vfin_prep VerbFin IF (0 Prep) (1 Inf) ; # TOP 5
 
 # de entre
-REMOVE:i11_r_vfin_prep VerbFin IF (-1 Prep) ; # TOP 11
+REMOVE:i11_r_vfin_prep VerbFin IF (-1C Prep) ; # TOP 11
 
 
 

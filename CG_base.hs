@@ -27,8 +27,8 @@ instance Show Tag where
   show (WF str) = "\"<" ++ str ++ ">\""
   show (Lem str) = "\"" ++ str ++ "\""
   show (Tag str) = str
-  show BOS       = "" --">>>"
-  show EOS       = "" --"<<<"
+  show BOS       = ">>>"
+  show EOS       = "<<<"
 
 
 
