@@ -9,8 +9,12 @@ import System.Environment
 import System.IO ( hFlush, stdout )
 import System.IO.Unsafe
 
-tagcfile = "data/spa_tagcombs.txt"
-tagfile = "data/spa_tags.txt"
+-- tagcfile = "data/spa_tagcombs.txt"
+-- tagfile = "data/spa_tags.txt"
+
+tagcfile = "data/nld_tagcombs.txt"
+tagfile = "data/nld_tags.txt"
+
 
 
 lookup' :: [[Tag]] -> [Tag] -> [Int] --list of indices where the wanted taglist is found
@@ -22,55 +26,59 @@ lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
 
 
-testrules = concat $ snd $ parseRules False "REMOVE:r1 (aa) OR (acr) IF (-1 (mf)) ;\nREMOVE:r2 (aa) IF (-1 (acr)) ;"
+testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf)) ;\nREMOVE:r2 (aa) IF (-1C (acr)) ;"
 
 main = do
   ts <- filter (not.null) `fmap` map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
   print ts
-
-  -- mapM_ print tc
-  -- print $ length tc -- 2191
-  -- print $ length $ lookup' tc [Tag "mf"] --1632
+  tc <- map parse `fmap` words `fmap` readFile tagcfile
 
   args <- getArgs
   case args of
    []    -> do putStrLn "test"
-               let spl = splits testrules
+               let spl = init $ splits testrules
                print spl
-               tc <- take 2191 `fmap` map parse `fmap` words `fmap` readFile tagcfile
-               mapM_ (uncurry (testRule True ts tc)) spl
+               (tsets, _) <- readRules' "data/spa_smallset.rlx"
+               let tc = nub $ ts ++ concatMap toTags tsets
+               print tc
+               tokens <- mapM (uncurry (testRule True ts tc)) spl
+               corpus <- concat `fmap` readData "data/spa_story.txt"
+               mapM_ ((flip checkCorpus) corpus) tokens
+
+
    (r:o) -> do let verbose = "v" `elem` o
 
                (tsets, rls) <- readRules' r
                let rules = concat rls
-               let tags = concatMap toTags tsets
-               mapM_ print tsets
-               mapM_ print tags
-               let tc = nub $ ts ++ tags
-               let spl = head $ splits (reverse rules)
+               mapM_ print rules
+               let tc = nub $ concatMap toTags tsets
+               let spl = last $ take 9 $ splits (reverse rules)
                print spl
-               uncurry (testRule verbose ts tc) spl
+               tokens <- uncurry (testRule verbose ts tc) spl
+               corpus <- concat `fmap` readData "data/nld_story.txt"
+               checkCorpus tokens corpus
+               putStrLn "\n---------\n"
 
   where splits list = list >>= \x -> return (x, delete x list)
 
+testRule :: Bool -> [[Tag]] -> [[Tag]] -> Rule -> [Rule] -> IO [Token]
 testRule verbose alltags tagcombs rule rules = do
   putStrLn $ "Testing with " ++ show rule ++ " as the last rule"
   s <- newSolver
   let ruleWidth = width rule alltags
   allLits <- sequence 
-              [ sequence [ newLit s | _ <- tagcombs ] | _ <- ruleWidth ]
+              [ sequence [ newLit s | _ <- tagcombs ] | _ <- ruleWidth ] :: IO [[Lit]]
   let ss = concat
              [ [ (((m,False), addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
                    | (lits, m) <- zip allLits [1..length allLits]
              ]  :: [Token]
-
   mapM_ print ss
-
-  cls <- concat `fmap` sequence [ f s wn cond | (wn, cond) <- zip allLits ruleWidth 
-                               , let f = if isTarget cond 
+  cls <- concat `fmap` 
+              sequence [ f s wn cond | (wn, cond) <- zip allLits ruleWidth
+                                     , let f = if isTarget cond 
                                             then slOrRm
-                                            else slCond ]
-
+                                            else slCond ] 
+                                                
   putStr $ "rule " ++ show rule
   putStrLn $ ": " ++ show (length cls) ++ " clauses"
   
@@ -86,15 +94,15 @@ testRule verbose alltags tagcombs rule rules = do
        else print "bad D:"
   putStrLn "\n---------\n"
 
-  applied <- nub `fmap` sequence [ applyRule s ss rl
-                          | rl <- rules
-                          , length (width rl alltags) <= length ruleWidth ]
+  applied <- nub `fmap` sequence [ analyseGrammar s ss rl
+                                   | rl <- rules
+                                   , length (width rl alltags) <= length ruleWidth ]
 
 
 --  print applied
   sequence_ [ do b <- solve s cl
                  if not b 
-                   then putStrLn $ "clause " ++ show cl ++ " conflicts :("
+                   then putStrLn $ "clause " ++ show cl ++ " cannot be applied"
                    else 
                     do addClause s cl
 
@@ -106,8 +114,9 @@ testRule verbose alltags tagcombs rule rules = do
                      --printFancy (map sh as)
                      let truetoks = [ t | (True, t) <- zip as ss ]
                      putStrLn $ showSentence (dechunk truetoks)
+                     --printFancy $ show (dechunk truetoks)
                    putStrLn $ "Solution after prev clause: " ++ show b
---                   printFancy $ "Solution after prev clause: " ++ show b
+                   --printFancy $ "Solution after prev clause: " ++ show b
                    
                  | (rl, cls) <- zip rules applied 
                  , cl <- cls ]
@@ -118,8 +127,9 @@ testRule verbose alltags tagcombs rule rules = do
     as <- sequence [ modelValue s x | x <- concat allLits ]
     let truetoks = [ t | (True, t) <- zip as ss ]
     putStrLn $ showSentence (dechunk truetoks)
-       else print "bad D:"
-  putStrLn "\n---------\n"
+    return truetoks
+       else print "bad D:" >> return []
+--  putStrLn "\n---------\n"
 
   -- stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
   -- print stuff
@@ -160,6 +170,7 @@ testRule verbose alltags tagcombs rule rules = do
      notNegUnit [x] = pos x
      notNegUnit _   = True
 
+  slOrRm :: Solver -> [Lit] -> [((Int, Cautious), [[Tag]])] -> IO [Clause]
   slOrRm s wn trg =  trace ("slOrRm: " ++ show (concatMap (\(_,ts) -> ts) trg)) $do
     let n = length tagcombs - 1
     newlits <- sequence [ newLit s | _ <- trg ]
@@ -176,15 +187,15 @@ testRule verbose alltags tagcombs rule rules = do
           [ neg nl:[ wn !! ind | ind <- indY ] ]
 
  
-
+  ---BAD!
   isTarget []            = False
   isTarget (((i,_),_):_) = i==0
 
 --------------------------------------------------------------------------------
       
-type Clause = [Lit]
-
-width :: Rule -> [[Tag]] -> [[((Int,Cautious),[[Tag]])]]
+width :: Rule    -- ^ rule whose width to calculate 
+      -> [[Tag]] -- ^ all possible tag combinations
+      -> [[((Int,Cautious),[[Tag]])]] -- ^ conditions and target
 width rule alltags = case rule of
   (Select _ target Always) -> [[((0,False), toTags target)]]
   (Remove _ target Always) -> [[((0,False), toTags target)]]
@@ -240,6 +251,8 @@ dechunk' ts = map (map snd) $ groupBy fstEq ts
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
 
+
+
 fstEq (a,_) (b,_) = a==b
 
 --------------------------------------------------------------------------------
@@ -268,9 +281,50 @@ printFancy s =
   wipe = replicate n ' '
 
 
-
 --------------------------------------------------------------------------------
 
+--just a naive try to prune the corpus-free method by using a corpus.
+--TODO rather restrict the number/combination of tags in the SAT formulas?
+
+checkCorpus :: [Token] -> Sentence -> IO ()
+checkCorpus symbsent corpus = do
+  putStrLn "------------"
+  putStrLn "checkCorpus:"
+  let sent = dechunk symbsent
+--  putStrLn $ showSentence sent
+  let foo = filter (\s -> length s >= 2) (adjacent sent corpus)
+  mapM_ pr $ map showSentence foo 
+  where pr arg = putStrLn "---" >> putStrLn arg
+
+elem' :: Analysis -> Analysis -> [Analysis]
+elem' symbolic real = nub [ real | s <- symbolic, r<-real
+                               , not $ null $ s `intersect` r ]
+
+adjacent :: Sentence -> Sentence -> [Sentence]
+adjacent (w1:w2:[]) corpus = 
+ [ words1++words2 | (c1,c2) <- zip corpus (drop 1 corpus)
+    , let words1 = elem' w1 c1
+    , let words2 = elem' w2 c2
+    , (not.null) words1
+    , (not.null) words2
+    , all (any mt1) [words1,words2] ] 
+
+adjacent (w1:w2:ws) corpus = 
+ [ words1 | (c1,c2) <- zip corpus (drop 1 corpus)
+    , let words1 = elem' w1 c1
+    , let words2 = elem' w2 c2
+    , (not.null) words1
+    , (not.null) words2
+    , all (any mt1) [words1,words2] ]
+ ++ adjacent (w2:ws) corpus
+
+mt1 :: [[Tag]] -> Bool
+mt1 []     = False
+mt1 (t:ts) = if length t > 1 then True else mt1 ts
+
+
+--------------------------------------------------------------------------------
+{--
 checkIfApplies ::  Solver
                   -> [[Lit]]
                   -> Rule 
@@ -288,7 +342,7 @@ checkIfApplies s lits rule = do
             return []
   where sswidth = width rule []
 
-{--
+
 
 for rule in Pres:
   for w in symbolicSent:
