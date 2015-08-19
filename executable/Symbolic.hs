@@ -65,7 +65,7 @@ main = do
                let rules = concat rls
                mapM_ print rules
                let tc = nub $ concatMap toTags tsets
-               let spl = take 2 $ drop 9 $ splits rules
+               let spl = splits rules
                mapM_ print spl
                tokens <- mapM (uncurry (testRule verbose ts tc)) spl
                corpus <- concat `fmap` readData "data/nld_story.txt"

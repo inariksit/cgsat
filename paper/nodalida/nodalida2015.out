@@ -1,0 +1,11 @@
+\BOOKMARK [1][-]{section.1}{Introduction and previous research}{}% 1
+\BOOKMARK [1][-]{section.2}{CG as a SAT problem}{}% 2
+\BOOKMARK [2][-]{subsection.2.1}{Rules disambiguate more}{section.2}% 3
+\BOOKMARK [2][-]{subsection.2.2}{Cautious context is irrelevant}{section.2}% 4
+\BOOKMARK [2][-]{subsection.2.3}{Rules can be unordered}{section.2}% 5
+\BOOKMARK [1][-]{section.3}{Evaluation}{}% 6
+\BOOKMARK [2][-]{subsection.3.1}{Performance against VISL CG-3}{section.3}% 7
+\BOOKMARK [2][-]{subsection.3.2}{Execution time}{section.3}% 8
+\BOOKMARK [1][-]{section.4}{Applications and future work}{}% 9
+\BOOKMARK [1][-]{section.5}{Conclusions}{}% 10
+\BOOKMARK [1][-]{section*.2}{References}{}% 11
