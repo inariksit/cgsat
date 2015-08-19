@@ -8,15 +8,12 @@ apos>
 atp>
 attr>
 cm>
-cmp-split>
 cmp>
 cnjadv>
 cnjcoo>
 cnjsub>
 cog>
 comp>
-compound-R>
-compound-only-L>
 def>
 dem>
 det>

@@ -27,6 +27,10 @@ engold = "data/en.tagged"
 -- engold = "data/vietnam.tagged"
 enpre = "data/en_pre.rlx"
 
+nldgr   = "data/nld.rlx"
+nldtext = "data/nld_story.txt"
+nldgold = "data/nld_story.gold"
+
 main :: IO ()
 main = do
   args <- getArgs
@@ -44,7 +48,8 @@ main = do
     ["gold","obs"]  -> optiBySz small ambiguous
     ["gold"]        -> gold small ambiguous esgold --using small as default grammar
     ["goldrus"]     -> gold rusgr rustext undefined
-    ["engold"]     -> gold engr entext engold
+    ["engold"]      -> gold engr entext engold
+    ["nldgold"]     -> gold nldgr nldtext nldgold
     [r,"gold"]      -> gold r ambiguous esgold --specify grammar
 
     (r:d:o) -> do rules <- readRules r
@@ -71,7 +76,7 @@ gold rl dt g = do rules <- readRules rl
                   resSAT <- mapM (disamSection (disambiguate False False) rules) text
                   resVISL <- vislcg3 rl dt True
                   putStrLn "SAT-CG in comparison to gold standard"
-                  let verbose = length text < 100 --change if you want different output
+                  let verbose = length text < 10 --change if you want different output
                   prAll "SAT" resSAT gold text verbose
                   putStrLn "\nVISLCG3 in comparison to gold standard"
                   prAll "VISL" resVISL gold text verbose

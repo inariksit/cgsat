@@ -43,7 +43,7 @@ data TagSet =
 instance Show TagSet where
   show (TS tags) = showTagset tags
   show (Or ts1 ts2) = show ts1 ++ " OR " ++ show ts2
-  show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2
+  show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2 
   show (Cart ts1 ts2) = show ts1 ++ " + " ++ show ts2
   show All = "(*)"
 
@@ -65,7 +65,7 @@ toTags :: TagSet -> [[Tag]]
 
 toTags (TS tags) = tags
 toTags (Or ts1 ts2) = toTags ts1 ++ toTags ts2
-toTags (Diff ts1 ts2) = toTags ts1 \\ toTags ts2 
+toTags (Diff ts1 ts2) = toTags ts1 \\ toTags ts2 --TODO: here or somewhere else, make sure that (prn) \\ (pers) doesn't match (prn pers)
 toTags (Cart ts1 ts2) = map concat $ sequence [(toTags ts1), (toTags ts2)]
 toTags All = [[]] --matches all
 
