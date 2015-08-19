@@ -99,7 +99,7 @@ chunk sent = concat $ go sent 1
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
         
-  
+
 --------------------------------------------------------------------------------
 
 -- | For each position, at least one analysis must be true.
@@ -124,7 +124,7 @@ applyRule s toks rule = do
     (Select _name target conds) -> go s True False (toTags target) (toConds conds) toks
 
     
-go :: Solver -> Bool -> Bool -> [[Tag]] -> [[Condition]] -> [Token] -> IO [[Lit]]
+go :: Solver -> Bool -> Bool -> [[Tag]] -> [[Condition]] -> [Token] -> IO [Clause]
 go s isSelect isGrAna target []         allToks = return []
 go s isSelect isGrAna target (conds:cs) allToks = do
    let f = if isGrAna then mkVarsGrammarAnalysis else mkVars
@@ -171,7 +171,7 @@ go s isSelect isGrAna target (conds:cs) allToks = do
   --As before, we collapse multiple conditions into one SAT variable and create clauses.
   --In addition, stuff only for grammar analysis:
   --We want to find a sentence for which a rule /does not/ fire.
-  --It can be because of 
+  --It can be because of there is no target left, or because there is /only/ target left.
   mkVarsGrammarAnalysis :: [(Token,[[Token]])] -> [(Token,[[Token]])] -> [Condition] ->  IO [Clause]
   mkVarsGrammarAnalysis sl rm conds = do
     let onlyCtxs = [ ctx | tctx <- groupBy sndEq (sl++rm)
@@ -179,35 +179,66 @@ go s isSelect isGrAna target (conds:cs) allToks = do
     rs <- sequence [ help s ctx true conds | ctx <- onlyCtxs ]
     let ctxMap = zip onlyCtxs rs
 
-    rmLits <- sequence [ newLit s | _ <- rm ] --for the "only target left" case
-    slLits <- sequence [ newLit s | _ <- sl ]
 
-                        --r => ~tl || nl (which denotes the onlyTrg option)
-    let rmClauses = [ [neg r, neg tl, nl]:onlyTrg
-                        | (nl, (trg, ctx)) <- zip rmLits rm
-                        , let r = fromJust $ lookup ctx ctxMap
+    --should onlyTrgCls only apply to the original target of the rule that is analysed?
+    --no  : a rule cannot apply selectively if context is met
+    --yes : if ctx word isn't analysed as <target>, no need for rule in the first place
+    let target = if null sl then rm else sl 
+    trgLits <- sequence [ newLit s | _ <- target ]
+    let onlyTrgCls = concat [ onlyTargetLeft lit trg conds
+                              | (lit, (trg, ctx)) <- zip trgLits target ] 
+                     
+            
+    -- print target
+    -- print onlyTrgCls
+
+    
+    -- this lit will indicate that rules are applied
+    rlit <- newLit s
+
+    --we apply one, but not both, of:
+    --    rmClauses and slClauses 
+    --    onlyTrg
+    let rmClauses = [ [neg rlit, neg r, neg tl]
+                        | (trg, ctx) <- rm
+                        , let Just r = lookup ctx ctxMap
                         , let tl = getLit trg 
-                        , let onlyTrg = onlyTargetLeft nl trg
                         ]
-    let slClauses = [ [neg r, tl] 
-                        | (nl, (trg, ctx)) <- zip slLits sl
-                        , let r = fromJust $ lookup ctx ctxMap
+    let slClauses = [ [neg rlit, neg r, tl] 
+                        | (trg, ctx) <-  sl
+                        , let Just r = lookup ctx ctxMap
                         , let tl = getLit trg 
-                        , let onlyTrg = [] -- map (neg nl :) (onlyTargetLeft nl trg)
                         ]  
-    putStr "rmClauses: " 
-    mapM_ print rmClauses
-    putStr "slClauses: " 
-    mapM_ print slClauses
-    return $ concat rmClauses ++ slClauses
+    -- putStr "rmClauses: " 
+    -- print rmClauses
+    -- putStr "slClauses: " 
+    -- print slClauses
+    -- putStrLn ""
+
+    a <- newLit s
+    let ruleApplied = [a, rlit]
+    let onlyTrg = neg a : trgLits
+    -- putStr "ruleApplied: "
+    -- print ruleApplied
+    -- putStr "onlyTrg: "
+    -- print onlyTrg
+    return $ ruleApplied : onlyTrg : onlyTrgCls ++ rmClauses ++ slClauses
     
    where
-    onlyTargetLeft :: Lit -> Token -> [Clause]
-    onlyTargetLeft newlit trg =
+    --TODO: pass information about the target from Symbolic
+    --intersect (getTags tok) (getTags trg)  won't work in general case
+    onlyTargetLeft :: Lit -> Token -> [Condition] -> [Clause]
+    onlyTargetLeft newlit trg conds = -- trace ("onlyTargetLeft: " ++ (show trg) ++ (show conds)) $ 
       [ neg newlit:[getLit tok | tok <- allToks
-                               , sameInd tok trg ] ] ++
-      [ [neg newlit, neg $ getLit tok] | tok <- allToks
-                                       , not $ sameInd tok trg]
+                               , sameInd tok trg
+                               , not $ null $ sameTags tok trg ] ] ++
+      [ [neg newlit, neg $ getLit tok] | tok <- allToks 
+                                       , sameInd tok trg
+                                       , null $ sameTags tok trg] 
+
+    sameTags tok trg = 
+      intersect [ tag | tag@(Tag foo) <- getTags tok ]
+                [ tag | tag@(Tag foo) <- getTags trg ]
 
 
 {-
@@ -246,57 +277,23 @@ the final lit is v17:
  [~v17,v8], [~v17,~v9], [~v17,~v10]  -}
 
   help :: Solver -> [[Token]] -> Lit -> [Condition] -> IO Lit
-  help s []     r2 conds = 
-                     do -- putStr "the final lit: " 
-                        -- print r2 
-                        -- putStrLn $ "conditions: " ++ show conds ++ "\n"
-                        return r2
-  help s (c:cs) r1 conds = 
-                     do cautiouslits <- sequence [ newLit s | _ <- c] --for each analysis that matches condition
-                        r' <- newLit s --r' is the variable that indicates that *some condition* holds
-                         -- if length cautiouslits > 1 
-                         --  then do
-                         --    veryCautiousLit <- newLit s
-                         --    let vcl = [neg veryCautiousLit:cautiouslits]
-                         --    putStrLn $ "mkVars.help |cautiouslits| > 1: " ++ show vcl
-                         --    mapM_ (addClause s) vcl
-                         --    return veryCautiousLit
-                         --  else do
-                         --    putStrLn $ "mkVars.help.cautiouslits: " ++ show cautiouslits
-                         --    addClause s cautiouslits
-                         --    return $ head cautiouslits
-
-
-                    --    putStrLn $ "r': " ++ show r'
-                        sequence_ [ do mapM_ (addClause s) cautiousCls
-                                       addClause s clause
-                                       
-                      --                 putStr "mkVars.help.cautiousCls: "
-                      --                 print cautiousCls
-                      --                 putStr "mkVars.help.clause: "
-                      --                 print clause
-                                     | (lc, tok@(_,lit)) <- zip cautiouslits c 
-                                     , let cautiousCls = if isCautious tok --1 w<ana> at a time
-                                                           then disjC lc tok
-                                                           else []
-                                     , let clause = if isCautious tok --1 w<ana> at a time
-                                                      then [neg r1, neg lc, r'] 
-                                                      else [neg r1, neg lit, r'] ]
-                        help s cs r' conds
-   where
-
-    disj :: Lit -> Token -> [Clause]
-    disj cautiouslit yestok = 
-       let yeslit = getLit yestok           
-       in [[neg cautiouslit, yeslit]]
-
-    disjC cautiouslit yestok = 
-       let yeslit = getLit yestok
-           nolits = [ getLit tok | tok <- allToks
-                                 , sameInd tok yestok 
-                                 , getLit tok /= getLit yestok ]
-       in [neg cautiouslit, yeslit] :
-          [ [ neg cautiouslit, neg nolit ] | nolit <- nolits ]
+  help s []     r2 conds = do
+    -- putStr "the final lit: " 
+    -- print r2 
+    -- putStrLn $ "conditions: " ++ show conds ++ "\n"
+    return r2
+  help s (c:cs) r1 conds = do 
+    r' <- newLit s --r' is the variable that indicates that *some condition* holds
+    --putStrLn $ "r': " ++ show r'
+    sequence_ [ do addClause s clause
+                   -- putStr "mkVars.help.clause: "
+                   -- print clause
+                   | tok@(_,lit) <- c --context 
+                   , let clause = if isCautious tok --1 w<ana> at a time
+                                   then [neg r1, neg lit, r'] --TODO
+                                   else [neg r1, neg lit, r'] ] 
+    help s cs r' conds
+    --TODO cautious
 
 
 

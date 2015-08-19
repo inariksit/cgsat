@@ -29,14 +29,15 @@ lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
 testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf)) ;\nREMOVE:r2 (aa) IF (-1C (acr)) ;"
 
 main = do
-  ts <- filter (not.null) `fmap` map parse `fmap` words `fmap` readFile tagfile :: IO [[Tag]]
-  print ts
-  tc <- map parse `fmap` words `fmap` readFile tagcfile
+  tc <- (map parse . words) `fmap` readFile tagcfile
 
   args <- getArgs
   case args of
    []    -> do putStrLn "test"
-               let spl = init $ splits testrules
+               ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/spa_tags.txt"
+  
+               print ts
+               let spl = splits testrules
                print spl
                (tsets, _) <- readRules' "data/spa_smallset.rlx"
                let tc = nub $ ts ++ concatMap toTags tsets
@@ -46,24 +47,42 @@ main = do
                mapM_ ((flip checkCorpus) corpus) tokens
 
 
-   (r:o) -> do let verbose = "v" `elem` o
+   ("tiny":_)
+         -> do let ts = map ((:[]) . Tag) ["det","v","n"] ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"]]
+               --let rules = concat $ snd $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ; REMOVE:r2 (adj) ; REMOVE:r3 (n) IF (-1C (det));"
+               let rules = concat $ snd $ parseRules False "REMOVE:r1 (v) IF (-1 (det)) (0 (n)) ; REMOVE:r2 (adj); REMOVE:r3 (n) IF (-1 (det));"
+               let spl = splits $ reverse rules
+               let tc = ts
+               tokens <- mapM (uncurry (testRule True ts tc)) spl
+               --mapM_ putStrLn (map (showSentence . dechunk) tokens)
+               putStrLn "\n---------\n"
 
-               (tsets, rls) <- readRules' r
+   ("nld":r)
+         -> do let verbose = "v" `elem` r
+               ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/nld_tags.txt"
+  
+               (tsets, rls) <- readRules' "data/nld.rlx"
                let rules = concat rls
                mapM_ print rules
                let tc = nub $ concatMap toTags tsets
-               let spl = last $ take 9 $ splits (reverse rules)
-               print spl
-               tokens <- uncurry (testRule verbose ts tc) spl
+               let spl = take 2 $ drop 9 $ splits rules
+               mapM_ print spl
+               tokens <- mapM (uncurry (testRule verbose ts tc)) spl
                corpus <- concat `fmap` readData "data/nld_story.txt"
-               checkCorpus tokens corpus
+               --checkCorpus tokens corpus
                putStrLn "\n---------\n"
 
-  where splits list = list >>= \x -> return (x, delete x list)
+  where 
+   splits :: (Eq a) => [a] -> [(a,[a])]
+   splits xs = xs >>= \x -> let Just ind = elemIndex x xs
+                            in return (x, take ind xs)
 
 testRule :: Bool -> [[Tag]] -> [[Tag]] -> Rule -> [Rule] -> IO [Token]
 testRule verbose alltags tagcombs rule rules = do
+  putStrLn "************* testRule ***************"
   putStrLn $ "Testing with " ++ show rule ++ " as the last rule"
+  putStrLn "the rest of the rules: " >> mapM_ print rules
+
   s <- newSolver
   let ruleWidth = width rule alltags
   allLits <- sequence 
@@ -72,17 +91,18 @@ testRule verbose alltags tagcombs rule rules = do
              [ [ (((m,False), addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
                    | (lits, m) <- zip allLits [1..length allLits]
              ]  :: [Token]
-  mapM_ print ss
+  when verbose $ do putStrLn "symbolic sentence:"
+                    mapM_ print ss
   cls <- concat `fmap` 
-              sequence [ f s wn cond | (wn, cond) <- zip allLits ruleWidth
-                                     , let f = if any (isTarget.fst) cond
+              sequence [ f s wn sword | (wn, sword) <- zip allLits ruleWidth
+                                      , let f = if any (isTarget.fst) sword
                                             then slOrRm
                                             else slCond ] 
                                                 
   putStr $ "rule " ++ show rule
   putStrLn $ ": " ++ show (length cls) ++ " clauses"
   
-  sequence_ [ do -- when verbose $ print cl
+  sequence_ [ do when verbose $ print cl
                  addClause s cl | cl <- cls ]
 
   b <- solve s []
@@ -91,7 +111,11 @@ testRule verbose alltags tagcombs rule rules = do
     as <- sequence [ modelValue s x | x <- concat allLits ]
     let truetoks = [ t | (True, t) <- zip as ss ]
     putStrLn $ showSentence (dechunk truetoks)
-       else print "bad D:"
+   else do
+    putStrLn "bad initial rule"
+    conf <- conflict s
+    putStr "conf: "
+    print conf
   putStrLn "\n---------\n"
 
   applied <- nub `fmap` sequence [ analyseGrammar s ss rl
@@ -100,22 +124,26 @@ testRule verbose alltags tagcombs rule rules = do
 
 
 --  print applied
-  sequence_ [ do b <- solve s cl
-                 if not b 
-                   then putStrLn $ "clause " ++ show cl ++ " cannot be applied"
-                   else 
-                    do addClause s cl
+  sequence_ [ do -- b <- solve s cl
+                 -- if not b 
+                 --   then do
+                 --         putStrLn $ "clause " ++ show cl ++ " cannot be applied"
+                 --         conf <- conflict s
+                 --         putStr "conf: "
+                 --         print conf
+                 --   else
+                 addClause s cl
 
                  when verbose $ do
                    putStrLn $ show rl ++ ": " ++ show cl 
                    --printFancy $ show rl ++ ": " ++ show cl
-                   when b $ do
-                     as <- sequence [ modelValue s x | x <- concat allLits ]
-                     --printFancy (map sh as)
-                     let truetoks = [ t | (True, t) <- zip as ss ]
-                     putStrLn $ showSentence (dechunk truetoks)
-                     --printFancy $ show (dechunk truetoks)
-                   putStrLn $ "Solution after prev clause: " ++ show b
+                   -- when b $ do
+                   --   as <- sequence [ modelValue s x | x <- concat allLits ]
+                   --   --printFancy (map sh as)
+                   --   let truetoks = [ t | (True, t) <- zip as ss ]
+                   --   putStrLn $ showSentence (dechunk truetoks)
+                   --   --printFancy $ show (dechunk truetoks)
+                   -- putStrLn $ "Solution after prev clause: " ++ show b
                    --printFancy $ "Solution after prev clause: " ++ show b
                    
                  | (rl, cls) <- zip rules applied 
@@ -128,12 +156,13 @@ testRule verbose alltags tagcombs rule rules = do
     let truetoks = [ t | (True, t) <- zip as ss ]
     putStrLn $ showSentence (dechunk truetoks)
     return truetoks
-       else print "bad D:" >> return []
---  putStrLn "\n---------\n"
+       else do
+         print "bad D:" 
+         conf <- conflict s
+         putStr "conf: "
+         print conf
+         return []
 
-  -- stuff <- mapM (checkIfApplies s allLits) (tail randomrules)
-  -- print stuff
-  -- print tagcombs
 
  where 
   addWF m = (WF ("w" ++ show m) :)
@@ -142,16 +171,23 @@ testRule verbose alltags tagcombs rule rules = do
   sh False = '0'
 
   -- conditions for one word; there can be many but the index is the same
+   --TODO: here or somewhere else, make sure that (prn) \\ (pers) doesn't match (prn pers)
   slCond :: Solver -> [Lit] -> [(Info, [[Tag]])] -> IO [Clause]
-  slCond s wn conds = trace ("slCond: " ++ show (concatMap (\(_,ts) -> ts) conds)) $
+  slCond s wn sword = trace ("slCond: " ++ show (map snd sword)) $
    do
     let n = length tagcombs - 1 
-        context = concatMap snd conds :: [[Tag]]
-    newlits <- sequence [ newLit s | _ <- context ]
-    let f = if all (isCautious.fst) conds then disjunctionC else disjunction --TODO
-    let disjs = filter notNegUnit $ nub $ concat
-              [ f n nl tags | (nl, tags) <- zip newlits context ]
-    return $ newlits:disjs 
+    newlits <- sequence --takes care of one condition with OR vs. many conditions with AND
+                [ sequence [ newLit s | _ <- tagss ] | tagss <- map snd sword ] :: IO [[Lit]]
+    putStrLn $ ("slCond.newlits: " ++ show newlits)
+    let disjs = map (filter notNegUnit) $ 
+                [ f n nl tags | (nlits, (info, tagss)) <- zip newlits sword
+                              , (nl, tags) <- zip nlits tagss
+                              , let f = if isCautious info
+                                          then disjunctionC
+                                          else if isPositive info
+                                                 then disjunction
+                                                 else negative ]
+    return $ newlits ++ concat disjs 
 
     where
      disjunctionC :: Int -> Lit -> [Tag] -> [Clause]
@@ -160,6 +196,10 @@ testRule verbose alltags tagcombs rule rules = do
            indN = [0..n] \\ indY
        in [ [ neg nl, neg$wn!!ind ] | ind <- indN ] ++
           [   neg nl:[  wn !! ind | ind <- indY ] ]
+
+     negative n nl ts = trace "negative" $ 
+       let indN = lookup' tagcombs ts
+       in [ neg nl:[  neg $ wn !! ind | ind <- indN ] ]
 
      disjunction n nl ts = 
        let indY = lookup' tagcombs ts
@@ -170,14 +210,18 @@ testRule verbose alltags tagcombs rule rules = do
 
   -- At index 0 there can be both targets and conditions
   slOrRm :: Solver -> [Lit] -> [(Info, [[Tag]])] -> IO [Clause]
-  slOrRm s wn ind0s =  trace ("slOrRm: " ++ show (concatMap (\(_,ts) -> ts) ind0s)) $ do
+  slOrRm s wn ind0s = trace ("slOrRm: " ++ (show $ concatMap snd ind0s)) $ do
     let n = length tagcombs - 1
     let (trgs,conds) = partition (isTarget.fst) ind0s
     newlits <- sequence [ newLit s | _ <- trgs ]
+    --putStrLn $ ("slOrRm.newlits: " ++ show newlits)
     let trgCls = 
          nub $ concat [ disj n nl tags | (nl, tags) <- zip newlits (concatMap snd trgs) ]
 
-    condCls <- slCond s wn conds
+    
+    condCls <- if null conds
+                then return [] 
+                else slCond s wn conds
     return $ (newlits:trgCls) ++ condCls
 
     where
@@ -208,44 +252,45 @@ width rule alltags = case rule of
 
 data Info = I { index      :: Int 
               , isCautious :: Bool
-              , isTarget   :: Bool } deriving (Eq,Ord,Show)
+              , isTarget   :: Bool
+              , isPositive :: Bool } deriving (Eq,Ord,Show)
 
-defaultTrg = I 0 False True
+defaultTrg = I 0 False True True
 
 mkCond :: Int -> Info
-mkCond i = I i False False
+mkCond i = I i False False True
 
-sameIndInfo :: (Info,a) -> (Info,a) -> Bool
-sameIndInfo (I i _ _, a) (I i' _ _, b) = i== i'
+
+
+sameIndInfo :: (Info, a) -> (Info, a) -> Bool
+sameIndInfo (I i _ _ _, a) (I i' _ _ _, a') = i== i'
 
 --------------------------------------------------------------------------------
 
 toTuple :: [[Tag]] -> Condition -> (Info,[[Tag]])
 toTuple _ Always              = error "toTuple applied to Always: this should not happen"
-toTuple _ (C pos (True,tags)) = (I n b False, toTags tags)
+toTuple _ (C pos (positive,tags)) = ( I { index      = ind
+                                        , isCautious = c
+                                        , isTarget   = False
+                                        , isPositive = positive}
+                                    , toTags tags )
  where 
-  (n,b) = case pos of
-                 Exactly b i -> (i,b)
-                 AtLeast b i -> (i,b)
+  (ind,c) = case pos of
+                 Exactly c i -> (i,c)
+                 AtLeast c i -> (i,c)
                  Barrier i _ -> (i,False)
-toTuple alltags (C pos (False,tags)) = trace ("toTuple neg: " ++ show complement ++ "\\ " ++ show tags) $ (I n b False, complement)
- where 
-  (n,b) = case pos of
-                 Exactly b i -> (i,False)
-                 AtLeast b i -> (i,False)
-                 Barrier i _ -> (i,False)
-  complement = alltags \\ toTags tags
+
 
 
 -- x:xs must be sorted
 fill :: [(Info, [[Tag]])] -> [(Info, [[Tag]])]
 fill [] = []
-fill (x@((I n b t),_):xs) = go (x:xs) n []
+fill (x@((I ind c t ng),_):xs) = go (x:xs) ind []
  where
-  go []              _m res = reverse res
-  go (x@((I n b t),_):xs) m res | n-m == 1 || n-m == 0 = go xs n (x:res)
-                              | otherwise            = go xs n (x:(filled++res))
-           where filled = [ (I k False False, [[]]) | k <- [m+1..n-1] ]
+  go []                       _m res = reverse res
+  go (x@((I ind c t ng),_):xs) m res | ind-m == 1 || ind-m == 0 = go xs ind (x:res)
+                                     | otherwise       = go xs ind (x:(filled++res))
+           where filled = [ (mkCond k, [[]]) | k <- [m+1..ind-1] ]
 
 
 
@@ -328,6 +373,8 @@ adjacent (w1:w2:ws) corpus =
     , (not.null) words2
     , all (any mt1) [words1,words2] ]
  ++ adjacent (w2:ws) corpus
+
+adjacent ws         corpus = []
 
 mt1 :: [[Tag]] -> Bool
 mt1 []     = False
