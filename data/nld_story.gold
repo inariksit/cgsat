@@ -130,7 +130,7 @@
 ^Marie/Marie<np><ant><f><sg>$ 
 ^heeft/hebben<vbhaver><pres><p3><sg>$ 
 ^geen/geen<det><ind><mf><sg>$ 
-^hond/hond<n><m><sg>/$
+^hond/hond<n><m><sg>$
 ^,/,<cm>$ 
 ^zij/prpers<prn><subj><p3><f><sg>$ 
 ^heeft/hebben<vbhaver><pres><p3><sg>$ 
@@ -175,7 +175,7 @@
 ^./.<sent>$ 
 ^Jan/Jan<np><ant><m><sg>$ 
 ^rent/rennen<vblex><pres><p3><sg>$ 
-^snel/snel<adv>/$ 
+^snel/snel<adv>$ 
 ^naar/naar<pr>$ 
 ^een/een<det><ind><mf><sg>$ 
 ^grote/groot<adj><sint><attr>$ 
@@ -257,8 +257,8 @@
 ^Marie/Marie<np><ant><f><sg>$ 
 ^weet/weten<vblex><pres><p3><sg>$ 
 ^niet/niet<adv>$ 
-^waar/waar<adv><itg>
-Jan<np><ant><m><sg>$ 
+^waar/waar<adv><itg>$
+^Jan/Jan<np><ant><m><sg>$ 
 ^is/zijn<vbser><pres><p3><sg>$
 ^./.<sent>$ 
 ^ze/prpers<prn><subj><p3><mf><pl>$ 
@@ -395,128 +395,61 @@ Jan<np><ant><m><sg>$
 ^is/zijn<vbser><pres><p3><sg>$ 
 ^daar/daar<adv>$ 
 ^niet/niet<adv>$
-^./.<sent>$ ^ze/
-prpers<prn><subj><p3><mf><pl>/
-prpers<prn><subj><p3><f><sg>/
-prpers<prn><obj><uns><p3><mf><pl>$ ^zoekt/
-zoeken<vblex><imp><pl>/
-zoeken<vblex><pres><p2><sg>/
-zoeken<vblex><pres><p3><sg>$ ^overal/
-overal<adv>$ ^maar/
-maar<cnjcoo>/
-maar<adv>$ ^kan/
-kunnen<vbmod><pres><p1><sg>/
-kunnen<vbmod><pres><p2><sg>/
-kunnen<vbmod><pres><p3><sg>$ ^Jan/
-Jan<np><ant><m><sg>$ ^niet/
-niet<adv>/
-nieten<vblex><imp><sg>/
-nieten<vblex><imp><pl>/
-nieten<vblex><pres><p1><sg>/
-nieten<vblex><pres><p2><sg>/
-nieten<vblex><pres><p3><sg>$ ^vinden/
-vinden<vblex><inf>/
-vinden<vblex><ger>/
-vinden<vblex><pres><pl>/
-vinden<vblex><prs><pl>$^./
-.<sent>$
-^10/
-10<num>$	^Dan/
-Dan<cnjadv>/
-Dan<adv>/
-Dan<preadv>$ ^hoort/
-horen<vblex><imp><pl>/
-horen<vblex><pres><p2><sg>/
-horen<vblex><pres><p3><sg>$ ^ze/
-prpers<prn><subj><p3><mf><pl>/
-prpers<prn><subj><p3><f><sg>/
-prpers<prn><obj><uns><p3><mf><pl>$ ^een/
-een<det><ind><mf><sg>/
-een<det><ind><nt><sg>$ ^geluid/
-luiden<vblex><pp>/
-geluid<n><nt><sg>/
-geluid<n><nt><sg><compound-R>/
-geluid<n><nt><sg><cmp><compound-only-L>$^,/
-,<cm>$ ^het/
-de<det><def><nt><sg>/
-prpers<prn><subj><p3><nt><sg>/
-prpers<prn><obj><p3><nt><sg>$ ^komt/
-komen<vblex><imp><pl>/
-komen<vblex><pres><p2><sg>/
-komen<vblex><pres><p3><sg>$ ^van/
-van<pr>/
-van<adv>$ ^achter/
-achter<pr>/
-achter<adv>$ ^de/
-de<det><def><mf><sg>/
-de<det><def><mfn><pl>$ ^grote/
-groot<adj><sint><attr>$ ^oude/
-oud<adj><sint><attr>$ ^boom/
-boom<n><m><sg>/
-boom<n><m><sg><compound-R>/
-boom<n><m><sg><cmp><compound-only-L>$^./
-.<sent>$ ^Zou/
-Zullen<vaux><past><p1><sg>/
-Zullen<vaux><past><p2><sg>/
-Zullen<vaux><past><p3><sg>$ ^dat/
-dat<cnjsub>/
-die<rel><nt><sg>/
-die<det><dem><nt><sg>/
-die<prn><dem><nt><sg>$ ^Jan/
-Jan<np><ant><m><sg>$ ^kunnen/
-kunnen<vbmod><inf>/
-kunnen<vbmod><pres><pl>$ ^zijn/
-zijn<vbser><inf>/
-zijn<vbser><pres><pl>/
-zijn<det><pos><mfn><sp>$^?/
-?<sent>$ ^Daar/
-Daar<cnjsub>/
-Daar<adv>$ ^is/
-zijn<vbser><pres><p3><sg>$ ^het/
-de<det><def><nt><sg>/
-prpers<prn><subj><p3><nt><sg>/
-prpers<prn><obj><p3><nt><sg>$ ^geluid/
-luiden<vblex><pp>/
-geluid<n><nt><sg>/
-geluid<n><nt><sg><compound-R>/
-geluid<n><nt><sg><cmp><compound-only-L>$ ^weer/
-weer<adv>/
-weren<vblex><imp><sg>/
-weren<vblex><pres><p1><sg>$^!/
-!<sent>$ ^ze/
-prpers<prn><subj><p3><mf><pl>/
-prpers<prn><subj><p3><f><sg>/
-prpers<prn><obj><uns><p3><mf><pl>$ ^luistert/
-luisteren<vblex><imp><pl>/
-luisteren<vblex><pres><p2><sg>/
-luisteren<vblex><pres><p3><sg>$ ^aandachtig/
-*aandachtig$^./
-.<sent>$ ^Het/
-De<det><def><nt><sg>/
-Prpers<prn><subj><p3><nt><sg>/
-Prpers<prn><obj><p3><nt><sg>$ ^is/
-zijn<vbser><pres><p3><sg>$ ^geen/
-geen<adv>/
-geen<det><ind><mf><sg>/
-geen<det><ind><nt><sg>$ ^vogel/
-vogel<n><m><sg>/
-vogel<n><m><sg><compound-R>/
-vogel<n><m><sg><cmp><compound-only-L>$ ^of/
-of<cnjcoo>/
-of<adv>$ ^een/
-een<det><ind><mf><sg>/
-een<det><ind><nt><sg>$ ^ander/
-ander<adj><pred>/
+^./.<sent>$ 
+^ze/prpers<prn><subj><p3><f><sg>$ 
+^zoekt/zoeken<vblex><pres><p3><sg>$ 
+^overal/overal<adv>$ 
+^maar/maar<cnjcoo>$ 
+^kan/kunnen<vbmod><pres><p3><sg>$ 
+^Jan/Jan<np><ant><m><sg>$ 
+^niet/niet<adv>$ 
+^vinden/vinden<vblex><inf>$
+^./.<sent>$
+^10/10<num>$	
+^Dan/Dan<adv>$ 
+^hoort/horen<vblex><pres><p3><sg>$ 
+^ze/prpers<prn><subj><p3><f><sg>$ 
+^een/een<det><ind><nt><sg>$ 
+^geluid/geluid<n><nt><sg>$
+^,/,<cm>$ 
+^het/prpers<prn><subj><p3><nt><sg>$ 
+^komt/komen<vblex><pres><p3><sg>$ 
+^van/van<pr>$ 
+^achter/achter<pr>$ 
+^de/de<det><def><mf><sg>$ 
+^grote/groot<adj><sint><attr>$ 
+^oude/oud<adj><sint><attr>$ 
+^boom/boom<n><m><sg>$
+^./.<sent>$
+^Zou/Zullen<vaux><past><p3><sg>$ 
+^dat/die<prn><dem><nt><sg>$ 
+^Jan/Jan<np><ant><m><sg>$ 
+^kunnen/kunnen<vbmod><inf>$ 
+^zijn/zijn<vbser><inf>$
+^?/?<sent>$ 
+^Daar/Daar<adv>$ 
+^is/zijn<vbser><pres><p3><sg>$ 
+^het/de<det><def><nt><sg>$ 
+^geluid/geluid<n><nt><sg>$ 
+^weer/weer<adv>$
+^!/!<sent>$ 
+^ze/prpers<prn><subj><p3><f><sg>$ 
+^luistert/luisteren<vblex><pres><p3><sg>$ 
+^aandachtig/*aandachtig$
+^./.<sent>$
+ ^Het/Prpers<prn><subj><p3><nt><sg>$ 
+^is/zijn<vbser><pres><p3><sg>$ 
+^geen/geen<det><ind><mf><sg>$ 
+^vogel/vogel<n><m><sg>$ 
+^of/of<cnjcoo>$ 
+^een/een<det><ind><nt><sg>$ 
+^ander/
 ander<det><ind><sp>/
-ander<n><m><sg>/
 ander<adj><attr><uninfl>/
-ander<prn><tn><mf><sp>/
-ander<n><m><sg><compound-R>/
-ander<n><m><sg><cmp><compound-only-L>$ ^dier/
-dier<n><nt><sg>/
-dier<n><nt><sg><compound-R>/
-dier<n><nt><sg><cmp><compound-only-L>$^./
-.<sent>$ ^ze/
+ander<prn><tn><mf><sp>$ 
+^dier/dier<n><nt><sg>$
+^./.<sent>$ 
+^ze/
 prpers<prn><subj><p3><mf><pl>/
 prpers<prn><subj><p3><f><sg>/
 prpers<prn><obj><uns><p3><mf><pl>$ ^hoort/
