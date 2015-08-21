@@ -3,10 +3,10 @@ Task
 
 We create an initial symbolic sentence `w` that would make the "last" rule fire. Then we want to make `w` so that none of the earlier rules has effect on it, because
 
- 1) conditions are out of scope (trivial, no clauses)
- 2) conditions in scope, but one or more doesn't hold
- 3) tag has been removed in target
- 4) all readings of target have the desired tag (cannot remove)
+ 1. conditions are out of scope (trivial, no clauses)
+ 2. conditions in scope, but one or more doesn't hold
+ 3. tag has been removed in target
+ 4. all readings of target have the desired tag (cannot remove)
 
 
 Examples
