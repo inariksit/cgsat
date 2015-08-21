@@ -48,12 +48,11 @@ main = do
   
             (tsets, rls) <- readRules' "data/nld.rlx"
             let rules = concat rls
-            when verbose $ mapM_ print rules
+            when debug $ mapM_ print rules
             let tcInGr = concatMap toTags tsets
             tcInLex <- (map parse . words) `fmap` readFile "data/nld_tagcombs.txt"
             let tc = nub $ tcInGr ++ tcInLex
             let spl = splits rules
-            when verbose $ mapM_ print spl
             results <- mapM (testRule verbose debug ts tc) spl
             --corpus <- concat `fmap` readData "data/nld_story.txt"
             --checkCorpus results corpus
@@ -111,7 +110,6 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
                  addClause s cl | cl <- cls ]
 
   b <- solve s []
-  print b
   if b then do
     as <- sequence [ modelValue s x | x <- concat allLits ]
     let truetoks = [ t | (True, t) <- zip as ss ]
@@ -131,9 +129,9 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
 --  print applied
   sequence_ [ do addClause s cl
 
-                 when ((verbose && length cl < 5) || debug) $ do
+                 when debug $ do
                    putStrLn $ show rl ++ ": " ++ show cl 
-                   --printFancy $ show rl ++ ": " ++ show cl
+                 printFancy $ show rl ++ ": " ++ show cl
                    -- when b $ do
                    --   as <- sequence [ modelValue s x | x <- concat allLits ]
                    --   --printFancy (map sh as)
