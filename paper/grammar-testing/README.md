@@ -7,19 +7,22 @@ We create an initial symbolic sentence `w` that would make the "last" rule fire.
  2. conditions in scope, but one or more doesn't hold
  3. tag has been removed in target
  4. all readings of target have the desired tag (cannot remove)
-
+ 
 
 Examples
 --------
 
 Last rule:
-```   REMOVE inf  IF (-1 (prn pers))```
+```
+   REMOVE inf  IF (-1 (prn pers))
+```
 
 Earlier rules:
 ```
    REMOVE:r_pr_v pr  IF (1 vblex vbmod vaux vbhaver vbser ) (NOT 0 "te" "om te" )
    REMOVE:r_adv_n adv  IF (1 n np )
-   SELECT:s_pr_v pr  + "te" "om te"  IF (1 vblex vbmod vaux vbhaver vbser  + inf )```
+   SELECT:s_pr_v pr  + "te" "om te"  IF (1 vblex vbmod vaux vbhaver vbser  + inf )
+```
 
 Examined rule creates a model with many solutions, among which the following:
 ```
