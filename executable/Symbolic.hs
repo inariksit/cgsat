@@ -12,7 +12,10 @@ import System.IO.Unsafe
 
 testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf)) ;\nREMOVE:r2 (aa) IF (-1C (acr)) ;"
 --tinyrules = concat $ snd $ parseRules False "REMOVE:r1 (v) IF (-1C (det)) ; REMOVE:r2 (adj) ; REMOVE:r3 (n) IF (-1C (det));"
-tinyrules = concat $ snd $ parseRules False "REMOVE:r1 (v) IF (-1 (det)) (NOT 0 (det)) ; REMOVE:r2 (adj); REMOVE:r3 (n) IF (-1 (det));"
+tinyrules = concat $ snd $ parseRules False 
+          ( "REMOVE:r1 (v) IF (-1 (det)) (NOT 0 (det)) ;" ++
+            "REMOVE:r2 (adj);" ++
+            "REMOVE:r3 (n) IF (-1 (det));" )
 
 main = do
   args <- getArgs
@@ -117,7 +120,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
    else do
     putStrLn "bad initial rule"
     conf <- conflict s
-    putStr "conf: "
+    putStr "conflict: "
     print conf
   putStrLn "\n---------\n"
 
@@ -125,24 +128,12 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
                                    | rl <- rules
                                    , length (width rl alltags) <= length ruleWidth ]
 
-
---  print applied
   sequence_ [ do addClause s cl
-
-                 when debug $ do
-                   putStrLn $ show rl ++ ": " ++ show cl 
-                 printFancy $ show rl ++ ": " ++ show cl
-                   -- when b $ do
-                   --   as <- sequence [ modelValue s x | x <- concat allLits ]
-                   --   --printFancy (map sh as)
-                   --   let truetoks = [ t | (True, t) <- zip as ss ]
-                   --   putStrLn $ showSentence (dechunk truetoks)
-                   --   --printFancy $ show (dechunk truetoks)
-                   -- putStrLn $ "Solution after prev clause: " ++ show b
-                   --printFancy $ "Solution after prev clause: " ++ show b
-                   
+                 when debug $ 
+                   putStrLn $ show rl ++ ": " ++ show cl                   
                  | (rl, cls) <- zip rules applied 
                  , cl <- cls ]
+
   b <- solve s []
   if b then do
     as <- sequence [ modelValue s x | x <- concat allLits ]
@@ -153,7 +144,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
        else do
          putStrLn "Could not find sentence that matches conditions" 
          conf <- conflict s
-         putStr "conf: "
+         putStr "conflict: "
          print conf
          return (False,(rule,rules))
 
@@ -170,7 +161,14 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   slCond s wn sword = --trace ("slCond: " ++ show (map snd sword)) $
    do
     let n = length tagcombs - 1 
-    newlits <- sequence --takes care of one condition with OR vs. many conditions with AND
+
+
+    -- newlits:: [[Lit]]
+    --  [Inside this list by AND (different conditions for same index) 
+    --     [Inside these lists by OR],
+    --     [(one condition with tag1 OR tag2 OR tag3)]
+    --  ]
+    newlits <- sequence
                 [ sequence [ newLit s | _ <- tagss ] | tagss <- map snd sword ] :: IO [[Lit]]
     when debug $
       putStrLn $ ("slCond.newlits: " ++ show newlits)
@@ -205,19 +203,17 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
            indY = [0..n] \\ indN
        in [ [ neg nl, neg$wn!!ind ] | ind <- indN ] ++
           [   neg nl:[  wn !! ind | ind <- indY ] ]
-
-       -- in [ neg nl:[  neg $ wn !! ind | ind <- indN ] ]
       
      notNegUnit [x] = pos x
      notNegUnit _   = True
 
   -- At index 0 there can be both targets and conditions
   slOrRm :: Solver -> [Lit] -> [(Info, [[Tag]])] -> IO [Clause]
-  slOrRm s wn ind0s = trace ("slOrRm: " ++ (show $ concatMap snd ind0s)) $ do
+  slOrRm s wn ind0s = do --trace ("slOrRm: " ++ (show $ concatMap snd ind0s)) $ do
     let n = length tagcombs - 1
     let (trgs,conds) = partition (isTarget.fst) ind0s
-    newlits <- sequence [ newLit s | _ <- trgs ]
-    --putStrLn $ ("slOrRm.newlits: " ++ show newlits)
+    newlits <- sequence [ newLit s | _ <- trgs ] --literal for each OR option in target
+    when debug $ putStrLn ("slOrRm.newlits: " ++ show newlits)
     let trgCls = 
          nub $ concat [ disj n nl tags | (nl, tags) <- zip newlits (concatMap snd trgs) ]
 
