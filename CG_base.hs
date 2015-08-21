@@ -107,7 +107,7 @@ instance Show Condition where
   show (C pos (True, ts)) = "(" ++ show pos ++ " " ++ show ts ++ ")"
   show (C pos (False, ts)) = "(NOT " ++ show pos ++ " " ++ show ts ++ ")"
   show (AND c1 c2) = show c1 ++ " " ++ show c2
-  show (OR c1 c2) = show c1 ++ " OR " ++ show c2
+  show (OR c1 c2) = show c1 ++ " ORc " ++ show c2
   show Always = ""
 
 -- | Position can be exact or at least.
@@ -116,6 +116,10 @@ instance Show Condition where
 --   * -n: to the left
 --   *  n: to the right.
 -- Bool is for cautious mode.
+
+getTagset :: Condition -> TagSet
+getTagset (C _pos (_, tagset)) = tagset
+getTagset Always = TS [[]]
 
 type Cautious = Bool
 
@@ -160,7 +164,6 @@ toConds cond = case cond of
     AND c1 Always        -> [[Always]]
     OR Always c2         -> toConds c2
     OR c1 Always         -> toConds c1
-    OR  c1@(C _ _) c2    -> [c1]:(toConds c2)
     AND c1@(C _ _) c2    -> map (c1:) (toConds c2)
     OR  c1@(C _ _) c2    -> [c1]:(toConds c2)
     AND c2  c1@(C _ _)   -> map (c1:) (toConds c2)

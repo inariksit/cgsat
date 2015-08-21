@@ -29,10 +29,19 @@ import SAT.Unary hiding ( modelValue )
 import qualified SAT.Unary as U
 import Debug.Trace
 
+--------------------------------------------------------------------------------
 
 type Clause = [Lit]
 type Token = (((Int,Cautious), [Tag]), Lit)
 
+-------------------------
+-- Operations with tokens
+
+mkCautious :: Token -> Token
+mkCautious (((i,_),tags),lit) = (((i,True),tags),lit)
+
+dummyTok :: Token
+dummyTok = (((999,False),[]),true) 
 
 getInd :: Token -> Int
 getInd (((i,_),_),_) = i
@@ -82,10 +91,10 @@ tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
 
 
 -- | Input: sentence, as in list of analyses.
--- | Output: for each word in sentence, 
--- | * its position in the sentence
--- | * one of the suggested tag sequences
--- | * id of that hypothesis in the SAT solver
+--   Output: for each word in sentence, 
+--   * its position in the sentence
+--   * one of the suggested tag sequences
+--   * id of that hypothesis in the SAT solver
 -- ((1,["the",<det>]),v0)
 -- ((2,["bear",<n>,<sg>]),v1)
 -- ((2,["bear",<vblex>,<pl>]),v2)
@@ -108,8 +117,10 @@ dechunk ts = (map.map) getTags (groupBy sameInd ts)
 anchor :: [Token] -> [[Lit]]
 anchor toks = (map.map) getLit (groupBy sameInd toks)
 
-
-analyseGrammar :: Solver -> [Token] -> Rule -> IO [[Lit]]
+-- | Apply rules to a symbolic sentence used in grammar analysis. 
+--   In addition to only applying rules, construct also clauses for the case where
+--   a rule cannot be applied, because its target are the only remaining analyses.
+analyseGrammar :: Solver -> [Token] -> Rule -> IO [Clause]
 analyseGrammar s toks rule = do
   case rule of 
     (Remove _name target conds) -> go s False True (toTags target) (toConds conds) toks
@@ -117,7 +128,7 @@ analyseGrammar s toks rule = do
 
 
 -- | Apply rules to tokens. 
-applyRule :: Solver -> [Token] -> Rule -> IO [[Lit]]
+applyRule :: Solver -> [Token] -> Rule -> IO [Clause]
 applyRule s toks rule = do
   case rule of 
     (Remove _name target conds) -> go s False False (toTags target) (toConds conds) toks
@@ -192,7 +203,6 @@ go s isSelect isGrAna target (conds:cs) allToks = do
     -- print target
     -- print onlyTrgCls
 
-    
     -- this lit will indicate that rules are applied
     rlit <- newLit s
 
@@ -280,7 +290,9 @@ the final lit is v17:
   help s []     r2 conds = do
     -- putStr "the final lit: " 
     -- print r2 
-    -- putStrLn $ "conditions: " ++ show conds ++ "\n"
+    -- putStr $ "conditions: " ++ show conds ++ " " 
+    -- putStrLn $ show (map (toTags . getTagset) conds)
+    -- putStrLn "\n"
     return r2
   help s (c:cs) r1 conds = do 
     r' <- newLit s --r' is the variable that indicates that *some condition* holds
@@ -325,58 +337,54 @@ getContext :: Token           -- ^ a single analysis
                -> [Condition] -- ^ list of conditions grouped by AND
                -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext tok allToks []          = []
-getContext tok allToks (Always:cs) = getContext tok allToks cs ++
-  [[(((999,False),[]),true)]]
-getContext tok allToks ((C position (positive,ctags)):cs) = getContext tok allToks cs ++
-  case ctags' of
-    []     -> [[dummyTok]] --empty conds = holds always
-    [[]]   -> [[dummyTok]] 
+getContext tok allToks (Always:cs) = [dummyTok] : getContext tok allToks cs 
+getContext tok allToks ((C position (positive,ctags)):cs) = trace (show result) $
+ result : getContext tok allToks cs
+ where 
+  result = case toTags ctags of
+    []     -> [dummyTok] --empty conds = holds always
+    [[]]   -> [dummyTok] 
     (t:ts) -> case position of
-                Exactly _ 0 -> if match tok 
-                                 then [[tok]] --if the feature at 0 is in the *same reading* -- important for things like REMOVE imp IF (0 imp) (0 vblex)
-                                 else [filter match $ exactly 0 tok] --feature in  different reading
+                Exactly _ 0 -> 
+                 if match tok then [tok] --feature at 0 is in the *same reading*
+                   else [ t | t <- exactly 0 tok, match t] --feature in other reading
 
-                Exactly True n -> [map makeCautious $ filter match $ exactly n tok]
-                AtLeast True n -> [map makeCautious $ filter match $ atleast n tok]
+                -- Exactly True n -> [ mkCautious t | t <- exactly n tok , match t ]
+                -- AtLeast True n -> [ mkCautious t | t <- atleast n tok , match t ]
 
-                -- normal mode
-                Exactly _ n -> [filter match $ exactly n tok]
-                AtLeast _ n -> [filter match $ atleast n tok]
-                Barrier n bs  -> [barrier n bs tok]
+                Exactly _ n -> [ t | t <- exactly n tok, match t ]
+                AtLeast _ n -> [ t | t <- atleast n tok, match t ]
+                Barrier n bs -> barrier n bs tok
 
-  where ctags' = toTags ctags
-        match  = (if positive then id else not) . tagsMatchRule ctags'
+  match :: Token -> Bool
+  match  = (if positive then id else not) . tagsMatchRule (toTags ctags)
 
-        dummyTok = (((999,False),[]),true) 
-
-        makeCautious :: Token -> Token
-        makeCautious (((i,_),tags),lit) = (((i,True),tags),lit)
-
-        --given word and n, return words that are n places away in the original sentence
-        exactly :: Int -> Token -> [Token]
-        exactly n token = [ tok' | tok' <- allToks
-                                 , getInd tok' == n + getInd token ]
+  --given word and n, return words that are n places away in the original sentence
+  exactly :: Int -> Token -> [Token]
+  exactly n token = [ tok' | tok' <- allToks
+                           , getInd tok' == n + getInd token ]
 
 
-        --same but list of tags that are at least n places away
-        atleast n token = [ tok' | tok' <- allToks
-                                 , getInd tok' >= n + getInd token ]
+  --same but list of tags that are at least n places away
+  atleast n token = [ tok' | tok' <- allToks
+                           , getInd tok' >= n + getInd token ]
 
 
-        --between m and n places away
-        between m n token = [ tok' | tok' <- allToks
-                                   , let ind' = getInd tok'
-                                   , let ind = getInd token
-                                   , ind+m <= ind' && ind' <= ind+n
-                                   , match tok ]
+  --between m and n places away
+  between m n token = [ tok' | tok' <- allToks
+                             , let ind' = getInd tok'
+                             , let ind = getInd token
+                             , ind+m <= ind' && ind' <= ind+n
+                             , match tok ]
 
-        barrier n btags tok | barinds==[] = filter match $ atleast n tok
-                            | n < 0     = between mindist n tok
-                            | otherwise = between n mindist tok
-           where barinds = [ getInd tok | tok <- allToks
-                                 , tagsMatchRule (toTags btags) tok ]
-                 dists   = map (\i -> i - getInd tok) barinds :: [Int]
-                 mindist = minimum dists
+  --from n places away until one of btags is found. if not, same as atleast.
+  barrier n btags tok | barinds==[] = filter match $ atleast n tok
+                      | n < 0     = between mindist n tok
+                      | otherwise = between n mindist tok
+     where barinds = [ getInd tok | tok <- allToks
+                                  , tagsMatchRule (toTags btags) tok ]
+           dists   = map (\i -> i - getInd tok) barinds :: [Int]
+           mindist = minimum dists
                  
 
 --------------------------------------------------------------------------------
@@ -406,7 +414,7 @@ disambiguate' withOrder verbose debug rules sentence = do
    s <- newSolver
    litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
    let toks = zip chunkedSent litsForAnas
-   applied' <- applyRule s toks `mapM` rules
+   applied' <- mapM (applyRule s toks) rules
 
    -- CHECKPOINT 2: are rules triggered       
    if null applied' || all null applied'
