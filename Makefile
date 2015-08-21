@@ -22,17 +22,16 @@ test-pride:
 
 test-spanish:
 	$(testprog) data/spa_smallset.rlx data/spa_story.txt 2>/dev/null 
-	$(testprog) data/spa_smallset.rlx data/spa_pobres.txt  2>/dev/null 
 
 test-hungarian:
-	$(testprog) data/hun_cg2.rlx data/hun_data.txt -v 2>/dev/null
+	$(testprog) data/hun_cg2.rlx data/hun_story.txt -v 2>/dev/null
 
 test-grammars:
 	cat data/eng_cg2.rlx | ./CG/Test | grep Successful
 	cat data/apertium-spa.spa.rlx | ./CG/Test | grep Successful
+	cat data/nld.rlx | ./CG/Test | grep Successful
 	cat data/hun_cg2.rlx | ./CG/Test | grep Successful
-	cat data/fin.rlx | ./CG/Test
-	cat data/bre_cg2.rlx | ./CG/Test | grep Successful
+	cat data/fin.rlx | ./CG/Test | grep Successful
 
 
 clean:

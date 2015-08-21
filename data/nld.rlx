@@ -37,7 +37,7 @@ LIST Cnjadv = cnjadv;
 LIST Det = det;
 LIST DetPos = (det pos);
 LIST DetDem = (det dem);
-LIST DetDef = (det def)
+LIST DetDef = (det def);
 LIST DetHet = (det def nt sg);
 LIST DetDe = (det def "de"i);
 
