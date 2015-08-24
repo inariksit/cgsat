@@ -68,6 +68,18 @@ main = do
             --mapM_ (findConflict ts tc) badrules
 
             putStrLn "\n---------\n"
+   (gr:r)
+      -> do let verbose = "v" `elem` r || "d" `elem` r
+            let debug = "d" `elem` r
+            (tsets, rls) <- readRules' gr
+            let rules = concat rls
+            mapM_ print rules
+
+            let tc = concatMap toTags tsets
+            let spl = splits rules
+            results <- mapM (testRule verbose debug tc tc) spl
+            let badrules = [ rule | (False,rule) <- results ]
+            mapM_ (findConflict tc tc) badrules
             
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
@@ -289,7 +301,7 @@ width rule alltags = case rule of
  where 
   doStuff t cs = 
     groupBy sameIndInfo $ nub $ sort $ fill $ 
-      (defaultTrg, toTags t) `insert` map (toTuple alltags) (concat (toConds cs))
+      (defaultTrg, toTags t) `insert` concatMap (toTuple alltags) (concat (toConds cs))
 
 
 --------------------------------------------------------------------------------
@@ -311,13 +323,26 @@ sameIndInfo (I i _ _ _, a) (I i' _ _ _, a') = i== i'
 
 --------------------------------------------------------------------------------
 
-toTuple :: [[Tag]] -> Condition -> (Info,[[Tag]])
+--toTuple :: [[Tag]] -> Condition -> (Info,[[Tag]])
+toTuple :: [[Tag]] -> Condition -> [(Info,[[Tag]])]
 toTuple _ Always              = error "toTuple applied to Always: this should not happen"
-toTuple _ (C pos (positive,tags)) = ( I { index      = ind
+toTuple _ (C (Barrier c ind btags) (positive,tags)) =
+  let condtagsEntry = ( I { index      = ind
+                          , isCautious = c
+                          , isTarget   = False
+                          , isPositive = positive}
+                      , toTags tags )  
+      bartagsEntry =  ( I { index      = ind+1 --minimal position for barrier
+                          , isCautious = False --for CBARRIER true
+                          , isTarget   = False
+                          , isPositive = True} --barrier tags always positive
+                      , toTags btags ) 
+  in [condtagsEntry, bartagsEntry]
+toTuple _ (C pos (positive,tags)) = [( I { index      = ind
                                         , isCautious = c
                                         , isTarget   = False
                                         , isPositive = positive}
-                                    , toTags tags )
+                                    , toTags tags )]
  where 
   (ind,c) = case pos of
                  Exactly c i -> (i,c)
