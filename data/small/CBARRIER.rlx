@@ -1,0 +1,32 @@
+DELIMITERS = "<.>";
+
+LIST Barrier = barrier ;
+LIST Tag = tag ;
+LIST Target = target ;
+LIST CTarget = ctarget ;
+LIST Dummy = dummy ;
+LIST Notfound = notfound ;
+
+# BARRIER: An inline keyword part of a contextual test that will halt a scan if the barrier is encountered. Only meaningful in scanning contexts.
+#
+#      SELECT (target) IF (-1* (tag) BARRIER (barrier)) ;
+
+# CBARRIER: Like BARRIER but performs the test in Careful mode, meaning it only blocks if all readings in the cohort matches. This makes it less strict than BARRIER.
+#
+#      IF (**1 SetG CBARRIER (Verb))
+
+
+#SECTION
+
+# Base case for BARRIER
+REMOVE:bar (target) IF (1* (tag) BARRIER (barrier)) ;
+
+#Base case for CBARRIER
+REMOVE:cbar (ctarget) IF ( 1* (tag) CBARRIER (barrier)) ;
+
+
+
+# barrier not found
+#REMOVE:bar_bar_notfound (target) IF (1* (tag) BARRIER (notfound)) ;
+#REMOVE:cbar_bar_notfound (ctarget) IF (1* (tag) CBARRIER (notfound)) ;
+

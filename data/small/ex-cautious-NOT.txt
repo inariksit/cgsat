@@ -1,0 +1,34 @@
+"<target>"
+	"trg" adv
+	"trg" dummy
+
+"<1adj>"
+	"w1" adj
+	"w1" dummy
+
+
+"<target>"
+	"trg" adv
+	"trg" dummy
+
+"<1Cadj>"
+	"w1" adj
+
+
+
+"<target>"
+	"trg" adv
+	"trg" dummy
+
+"<1not_adj>"
+	"w1" dummy1
+	"w1" dummy2
+
+
+
+"<target>"
+	"trg" adv
+	"trg" dummy
+
+"<1Cnot_adj>"
+	"w1" dummy

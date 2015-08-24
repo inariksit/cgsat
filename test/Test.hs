@@ -13,11 +13,13 @@ import System.Random
 import System.Random.Shuffle
 import Text.Printf
 
-ambiguous = "data/es.tagged.ambiguous"
-apertium = "data/apertium-spa.spa.rlx"
-small = "data/spa_smallset.rlx"
-esgold = "data/es.tagged"
-espre = "data/spa_pre.rlx"
+spa20k = "data/spa/20k.tagged.ambiguous"
+spa20kgold = "data/spa/20k.tagged"
+spaFull = "data/spa/apertium-spa.spa.rlx"
+spaSmall = "data/spa/spa_smallset.rlx"
+spaPre = "data/spa/spa_pre.rlx"
+
+
 rusgr = undefined
 rustext = undefined
 engr = "data/eng_cg2.rlx"
@@ -27,30 +29,30 @@ engold = "data/en.tagged"
 -- engold = "data/vietnam.tagged"
 enpre = "data/en_pre.rlx"
 
-nldgr   = "data/nld.rlx"
-nldtext = "data/nld_story.txt"
-nldgold = "data/nld_story.gold"
+nldgr   = "data/nld/nld.rlx"
+nldtext = "data/nld/nld_story.txt"
+nldgold = "data/nld/nld_story.gold"
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ["subset",n]    -> subsetN (read n) apertium espre
-    ["shuffle"]     -> shuffle_ small ambiguous esgold espre
-    [r,"shuffle"]   -> shuffle_ r ambiguous esgold espre
+    ["subset",n]    -> subsetN (read n) spaFull spaPre
+    ["shuffle"]     -> shuffle_ spaSmall spa20k spa20kgold spaPre
+    [r,"shuffle"]   -> shuffle_ r spa20k spa20kgold spaPre
     ["enshuffle"]   -> shuffle_ engr entext engold enpre
-    ["reverse"]     -> rev small ambiguous esgold espre
-    [r,"reverse"]   -> rev r ambiguous esgold espre
+    ["reverse"]     -> rev spaSmall spa20k spa20kgold spaPre
+    [r,"reverse"]   -> rev r spa20k spa20kgold spaPre
     ["enreverse"]   -> rev engr entext engold enpre
-    ["opticomp",n]  -> optiComp small ambiguous (read n)
-    ["gold","orig"] -> gold apertium ambiguous esgold
-    ["gold","opti"] -> opti small ambiguous 
-    ["gold","obs"]  -> optiBySz small ambiguous
-    ["gold"]        -> gold small ambiguous esgold --using small as default grammar
+    ["opticomp",n]  -> optiComp spaSmall spa20k (read n)
+    ["gold","orig"] -> gold spaFull spa20k spa20kgold
+    ["gold","opti"] -> opti spaSmall spa20k 
+    ["gold","obs"]  -> optiBySz spaSmall spa20k
+    ["gold"]        -> gold spaSmall spa20k spa20kgold
     ["goldrus"]     -> gold rusgr rustext undefined
     ["engold"]      -> gold engr entext engold
     ["nldgold"]     -> gold nldgr nldtext nldgold
-    [r,"gold"]      -> gold r ambiguous esgold --specify grammar
+    [r,"gold"]      -> gold r spa20k spa20kgold --specify grammar
 
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
@@ -238,7 +240,7 @@ mkRuleFile rules new orig pre = do
 
 optiBySz rl dt = do r <- concat `fmap` readRules rl
                     t <- readData dt
-                    g <- readData esgold
+                    g <- readData spa20kgold
                     let seqs = groupBy (\x y -> length x == length y) (subsequences r)
                     res <- sequence [ loop rset t g [] | rset <- seqs ]
                     putStrLn "Best rule set for each size:"
@@ -246,14 +248,14 @@ optiBySz rl dt = do r <- concat `fmap` readRules rl
 
 opti rls dat = do r <- concat `fmap` readRules rls
                   t <- readData dat
-                  g <- readData esgold
+                  g <- readData spa20kgold
                   res <- loop (subsequences r) t g []
                   putStrLn "optimal rule sequence:"
                   mapM_ pr (take 3 (sortBy (\(x,_) (y,_) -> x `compare` y) res))
 
 optiComp rls dat n = do r <- concat `fmap` readRules rls
                         t <- readData dat
-                        g <- readData esgold
+                        g <- readData spa20kgold
                         let nrules = filter (\x -> length x==n) $ subsequences r
                         res <- loop nrules t g []
                         

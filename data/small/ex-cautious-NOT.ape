@@ -1,0 +1,5 @@
+^w1/w1<adj>/w1<noun>/w1<foo>$
+^w2/w2<adv>/w2<post>/w2<bar>$
+^w3/w3<adj>/w3<foo>/w3<bar>/w3<noun>$
+
+

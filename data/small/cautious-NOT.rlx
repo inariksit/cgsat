@@ -1,0 +1,16 @@
+LIST Adj = adj ;
+LIST Adv = adv ;
+LIST Noun = noun ;
+LIST Post = post ;
+
+
+SECTION
+
+REMOVE:rm_adv Adv IF (NOT 1 Adj) ;
+
+#REMOVE:rm_post   Post IF (NOT -1  Noun OR Adj) ;
+
+#REMOVE:rm_post_C Post IF (NOT -1C Noun OR Adj) ;
+
+#REMOVE:rm_adj Adj ;
+#REMOVE:rm_foo (foo) ; 
