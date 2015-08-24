@@ -338,7 +338,7 @@ getContext :: Token       -- ^ a single analysis
            -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext ana allToks []          = []
 getContext ana allToks (Always:cs) = [dummyTok] : getContext ana allToks cs 
-getContext ana allToks ((C position (positive,ctags)):cs) = -- trace ("getContext: result="++show result) $
+getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext: ana=" ++ show ana++ ", ctags="++show c ++" result="++show result) $
  result : getContext ana allToks cs
  where 
   result = case toTags ctags of
@@ -372,14 +372,22 @@ getContext ana allToks ((C position (positive,ctags)):cs) = -- trace ("getContex
 
 
   --between m and n places away
-  between m n token = [ tok' | tok' <- allToks
-                             , let ind' = getInd tok'
+  between m n token = trace ("between " ++ show m ++ " " ++ show n ++ " " ++ show token) $
+                    let toks = [ tok | tok <- allToks
+                             , let ind' = getInd tok
                              , let ind = getInd token
-                             , ind+m <= ind' && ind' <= ind+n 
-                             , match tok' ]
+                             , ind+m <= ind' && ind' <= ind+n ]
+                    in if positive then filter match toks
+                       else if all match toks then toks else []
+
 
   --from n places away until one of btags is found. if not, same as atleast.
+  --to mimic vislcg3 behaviour with negation, the following is fine:
+  -- (NOT 1* foo BARRIER bar)  matches  ^target/lemma<ana>$ ^barrier/bar<ana>$
+  -- ie. no need to have a ~foo word, just to *not* have foo for any reason.
+  -- we mimic this behaviour by counting bar as a ~foo.
   barrier n btags token | barinds==[] = filter match $ atleast n token
+                        | mindist < 0 = filter match $ atleast n token
                         | n < 0       = between mindist n token
                         | otherwise   = between n mindist token
      where barinds = [ getInd tok | tok <- allToks
@@ -387,19 +395,23 @@ getContext ana allToks ((C position (positive,ctags)):cs) = -- trace ("getContex
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
 
-  cbarrier n btags token | cbarinds==[] = trace (show cbarinds ++ " " ++ show barinds ++ " " ++ show barindsAtMindist ++ " " ++ show allIndsAtMindist) $ filter match $ atleast n token
+  cbarrier n btags token | cbarinds==[] = filter match $ atleast n token
+                         | mindist < 0  = filter match $ atleast n token
                          | n < 0        = between mindist n token
                          | otherwise    = between n mindist token
-     where barinds = [ getInd tok | tok <- allToks
+     where trgind = getInd token
+           barinds = [ getInd tok | tok <- allToks
                                   , tagsMatchRule (toTags btags) tok ]
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
            barindsAtMindist = [ n | n <- barinds
-                                  , n==getInd token + mindist ]
+                                  , n == trgind + mindist ]
            allIndsAtMindist = [ n | tok <- allToks
                                   , let n = getInd tok
-                                  , n==mindist ]
-           cbarinds = if barindsAtMindist==allIndsAtMindist then barindsAtMindist else []
+                                  , n == trgind + mindist ]
+           cbarinds = if barindsAtMindist==allIndsAtMindist 
+                        then barindsAtMindist 
+                        else []
            
 
 --------------------------------------------------------------------------------
@@ -437,6 +449,15 @@ disambiguate' withOrder verbose debug rules sentence = do
             when verbose $ putStrLn (showSentence sentence)
             return sentence 
     else do
+      
+
+      -- to force True for all literals that are not to be removed/selected
+      let targetlits = if all null applied' then []
+                          else concatMap (map last) applied'
+      let nonAffectedLits = litsForAnas \\ (map neg targetlits)
+      ---------------------------------- ^ comment out here if old behaviour desired
+
+
       litsForClauses <- sequence [ newLit s | _ <- concat applied' ]
 
       let applied = [ (rl, cl) | (rl, cl') <- zip rules applied'
@@ -470,11 +491,13 @@ disambiguate' withOrder verbose debug rules sentence = do
                                  return b
                               | cls <- clsByRule
                               , let insts = map (neg . head) cls ]
-             return $ and bs && not (null bs)
+             b' <- solve s nonAffectedLits
+             return $ b' && (and bs && not (null bs))
 
         else
          do lc <- count s litsForClauses
             solveMaximize s [] lc
+            solve s nonAffectedLits
 
 
       --- from here identical again, just output
@@ -495,7 +518,7 @@ disambiguate' withOrder verbose debug rules sentence = do
             when debug $ do putStrLn "\nThe following tag sequence was chosen:"
                             putStrLn $ showSentence (dechunk alltoks)
             when (verbose && (not debug)) $ 
-                            putStrLn $ showSentence (dechunk truetoks)
+                            putStrLn $ showSentence (dechunk alltoks)
             return (dechunk truetoks)
         else
          do putStrLn "No solution"
