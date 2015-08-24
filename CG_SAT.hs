@@ -332,30 +332,30 @@ the final lit is v17:
                                 , tagsDontMatchRule target tok ]
 
 
-getContext :: Token           -- ^ a single analysis
-               -> [Token]     -- ^ list of all analyses
-               -> [Condition] -- ^ list of conditions grouped by AND
-               -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
-getContext tok allToks []          = []
-getContext tok allToks (Always:cs) = [dummyTok] : getContext tok allToks cs 
-getContext tok allToks ((C position (positive,ctags)):cs) = -- trace ("getContext: result="++show result) $
- result : getContext tok allToks cs
+getContext :: Token       -- ^ a single analysis
+           -> [Token]     -- ^ list of all analyses
+           -> [Condition] -- ^ list of conditions grouped by AND
+           -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
+getContext ana allToks []          = []
+getContext ana allToks (Always:cs) = [dummyTok] : getContext ana allToks cs 
+getContext ana allToks ((C position (positive,ctags)):cs) = -- trace ("getContext: result="++show result) $
+ result : getContext ana allToks cs
  where 
   result = case toTags ctags of
     []     -> [dummyTok] --empty conds = holds always
     [[]]   -> [dummyTok] 
     (t:ts) -> case position of
                 Exactly _ 0 -> 
-                 if match tok then [tok] --feature at 0 is in the *same reading*
-                   else [ t | t <- exactly 0 tok, match t] --feature in other reading
+                 if match ana then [ana] --feature at 0 is in the *same reading*
+                   else [ t | t <- exactly 0 ana, match t] --feature in other reading
 
-                -- Exactly True n -> [ mkCautious t | t <- exactly n tok , match t ]
-                -- AtLeast True n -> [ mkCautious t | t <- atleast n tok , match t ]
+                -- Exactly True n -> [ mkCautious t | t <- exactly n ana , match t ]
+                -- AtLeast True n -> [ mkCautious t | t <- atleast n ana , match t ]
 
-                Exactly _ n -> [ t | t <- exactly n tok, match t ]
-                AtLeast _ n -> [ t | t <- atleast n tok, match t ]
-                Barrier  _ n bs -> barrier n bs tok
-                CBarrier _ n bs -> barrier n bs tok
+                Exactly _ n -> [ t | t <- exactly n ana, match t ]
+                AtLeast _ n -> [ t | t <- atleast n ana, match t ]
+                Barrier  _ n bs -> barrier n bs ana
+                CBarrier _ n bs -> cbarrier n bs ana
 
   match :: Token -> Bool
   match  = (if positive then id else not) . tagsMatchRule (toTags ctags)
@@ -379,14 +379,28 @@ getContext tok allToks ((C position (positive,ctags)):cs) = -- trace ("getContex
                              , match tok' ]
 
   --from n places away until one of btags is found. if not, same as atleast.
-  barrier n btags tok | barinds==[] = trace ("barinds==[]" ++show barinds) $ filter match $ atleast n tok
-                      | n < 0     = between mindist n tok
-                      | otherwise = between n mindist tok
+  barrier n btags token | barinds==[] = filter match $ atleast n token
+                        | n < 0       = between mindist n token
+                        | otherwise   = between n mindist token
      where barinds = [ getInd tok | tok <- allToks
                                   , tagsMatchRule (toTags btags) tok ]
-           dists   = map (\i -> i - getInd tok) barinds :: [Int]
+           dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
-                 
+
+  cbarrier n btags token | cbarinds==[] = trace (show cbarinds ++ " " ++ show barinds ++ " " ++ show barindsAtMindist ++ " " ++ show allIndsAtMindist) $ filter match $ atleast n token
+                         | n < 0        = between mindist n token
+                         | otherwise    = between n mindist token
+     where barinds = [ getInd tok | tok <- allToks
+                                  , tagsMatchRule (toTags btags) tok ]
+           dists   = map (\i -> i - getInd token) barinds :: [Int]
+           mindist = minimum dists
+           barindsAtMindist = [ n | n <- barinds
+                                  , n==getInd token + mindist ]
+           allIndsAtMindist = [ n | tok <- allToks
+                                  , let n = getInd tok
+                                  , n==mindist ]
+           cbarinds = if barindsAtMindist==allIndsAtMindist then barindsAtMindist else []
+           
 
 --------------------------------------------------------------------------------
 
