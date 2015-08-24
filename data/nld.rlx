@@ -145,7 +145,7 @@ SELECT Noun IF (-3 Noun) (-2 Cnjcoo) (-1 Adj) (1 EOS);
 SELECT Rel IF (-1 Cm) (1 Adv) (2 Verb);
 
 # De goederen die men
-REMOVE Rel + mf + Sg IF (-1 (n pl)) (NOT -1 (n sg));
+REMOVE Rel + Mf + Sg IF (-1 (n pl)) (NOT -1 (n sg));
 SELECT (rel mfn pl) IF (-1 (n pl)) (1 Prn);
 SELECT (rel mfn pl) IF (-1 (n pl)) (1 DetDef);
 
