@@ -104,8 +104,10 @@ data Condition = C Position (Bool, TagSet)
                | OR Condition Condition  deriving (Eq)
 
 instance Show Condition where
-  show (C pos (True, ts)) = "(" ++ show pos ++ " " ++ show ts ++ ")"
-  show (C pos (False, ts)) = "(NOT " ++ show pos ++ " " ++ show ts ++ ")"
+  show (C pos (True, ts)) = "(" ++ fst (showPosTuple pos) ++ " " ++ show ts ++
+                                   snd (showPosTuple pos) ++ ")"
+  show (C pos (False, ts)) = "(NOT " ++ fst (showPosTuple pos) ++ " " ++ show ts
+                                     ++ snd (showPosTuple pos) ++ ")"
   show (AND c1 c2) = show c1 ++ " " ++ show c2
   show (OR c1 c2) = show c1 ++ " ORc " ++ show c2
   show Always = ""
@@ -125,7 +127,8 @@ type Cautious = Bool
 
 data Position = Exactly Cautious Int 
               | AtLeast Cautious Int
-              | Barrier Int TagSet deriving (Eq,Read)
+              | Barrier Cautious Int TagSet 
+              | CBarrier Cautious Int TagSet deriving (Eq,Read)
 
 
 instance Show Position where
@@ -133,7 +136,15 @@ instance Show Position where
   show (AtLeast True i) = "*" ++ show i ++ "C"
   show (Exactly False i) = show i
   show (AtLeast False i) = "*" ++ show i
-  show (Barrier i ts) = "*" ++ show i ++ " BARRIER " ++ show ts
+  show p                 = let (a,b) = showPosTuple p in a++b
+
+showPosTuple :: Position -> (String, String)
+showPosTuple p@(Exactly _ _) = (show p, "")
+showPosTuple p@(AtLeast _ _) = (show p, "")
+showPosTuple (Barrier  True i ts) = ("*" ++ show i ++ "C ", " BARRIER " ++ show ts)
+showPosTuple (CBarrier True i ts) = ("*" ++ show i ++ "C ", " CBARRIER " ++ show ts)
+showPosTuple (Barrier  False i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show ts)
+showPosTuple (CBarrier False i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
   
 
 
@@ -218,7 +229,7 @@ rmNounIfPron = Remove NoName noun (mkC "-1" (TS [[Tag "pron"]]))
 slPrepIfDet = Select NoName prep (mkC "1" det)
 slNounAfterConj = Select NoName noun (mkC "-1" conj)
 
-slCCifCC = Select NoName cnjcoo (C (Barrier 1 (TS [[Tag "punct"]])) (True,cnjcoo))
+slCCifCC = Select NoName cnjcoo (C (Barrier False 1 (TS [[Tag "punct"]])) (True,cnjcoo))
 
 rmPlIfSg = Remove NoName pl (C (Exactly False (-1)) (True,sg))
 rmSgIfPl = Remove NoName sg (mkC "-1" pl)

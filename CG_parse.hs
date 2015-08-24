@@ -213,18 +213,20 @@ transCondSet cs = do
 
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
-  CPos pos ts         -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
-  CNotPos pos ts      -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
-  CBarrier pos ts bar -> handleBar pos ts bar True
-  CNotBar pos ts bar  -> handleBar pos ts bar False
-  CTempl templs       -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
-                            return $ foldr1 CGB.OR cs
+  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
+  CondNotPos pos ts       -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
+  CondBarrier pos ts bts  -> barrier pos ts bts True  CGB.Barrier
+  CondNotBar pos ts bts   -> barrier pos ts bts False CGB.Barrier
+  CondCBarrier pos ts bts -> barrier pos ts bts True  CGB.CBarrier
+  CondNotCBar pos ts bts  -> barrier pos ts bts False CGB.CBarrier
+  CondTempl templs        -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
+                                return $ foldr1 CGB.OR cs
 
   --TODO there might be something strange in LINK 
-  CLinked (c:cs)      -> do first@(CGB.C pos tags) <- transCond c
-                            let base = getPos pos
-                            conds <- mapM transCond cs
-                            return $ foldr CGB.AND first (fixPos base conds [])
+  CondLinked (c:cs)       -> do first@(CGB.C pos tags) <- transCond c
+                                let base = getPos pos
+                                conds <- mapM transCond cs
+                                return $ foldr CGB.AND first (fixPos base conds [])
 
   where fixPos base []                  res = res
         fixPos base (CGB.C pos tags:cs) res = 
@@ -236,26 +238,29 @@ transCond c = case c of
           case pos of
             CGB.Exactly _ i -> i 
             CGB.AtLeast _ i -> i
-            CGB.Barrier i _ -> i 
+            CGB.Barrier  _ i _ -> i 
+            CGB.CBarrier _ i _ -> i 
 
         changePos pos newI = 
           case pos of
             CGB.Exactly b i -> CGB.Exactly b newI 
             CGB.AtLeast b i -> CGB.AtLeast b newI
-            CGB.Barrier i ts -> CGB.Barrier newI ts 
+            CGB.Barrier b i ts -> CGB.Barrier b newI ts 
+            CGB.CBarrier b i ts -> CGB.CBarrier b newI ts 
 
         transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
         transTagSet' b ts = 
           do tags <- transTagSet ts
              return (b, tags)
 
-        handleBar pos ts bar bool = 
+        barrier pos ts bts isPositive bcons =
           do pos' <- transPosition pos
-             let int = case pos' of 
-                          CGB.Exactly _ i -> i
-                          CGB.AtLeast _ i -> i
-             btags <- transBarrier bar
-             liftM (CGB.C $ CGB.Barrier int btags) (transTagSet' bool ts)
+             let (caut,int) = case pos' of 
+                          CGB.Exactly b i -> (b,i)
+                          CGB.AtLeast b i -> (b,i)
+             (_,btags) <- transTagSet' True bts  --there is no `BARRIER NOT ts' option,
+                                            --you just write `BARRIER (*)-ts'
+             liftM (CGB.C $ bcons caut int btags) (transTagSet' isPositive ts)
 
 
 
@@ -268,9 +273,6 @@ transPosition pos = case pos of
   Cautious position        -> cautious `fmap` transPosition position
   where cautious (CGB.Exactly _b num) = CGB.Exactly True num
         cautious (CGB.AtLeast _b num) = CGB.AtLeast True num
-
-transBarrier :: Barrier -> State Env CGB.TagSet
-transBarrier (Barrier ts) = transTagSet ts
 
 
 --  morpho output parsing
@@ -301,5 +303,3 @@ transAnalysis wf ana = CGB.WF wf:transAna ana
 
 transTagA :: TagA -> CGB.Tag
 transTagA (TagA (Iden id)) = CGB.Tag id
-
-

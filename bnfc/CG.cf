@@ -76,13 +76,15 @@ rules MaybeIF   ::= "IF" | "if" | ;
 rules MaybeName ::= ":" Id | ;
 
 --TODO subreading:  SELECT Inf IF (-1/0 ADV-NOT)(-1/1 VAUX-CAN);
-CNotPos.  Cond1 ::= "NOT" Position TagSet ;
-CPos.     Cond1 ::= Position TagSet ;
-CBarrier. Cond1 ::= Position TagSet Barrier ;
-CNotBar.  Cond1 ::= "NOT" Position TagSet Barrier ;
-CLinked.  Cond  ::= [Cond1] ;
-CTempl.   Cond  ::= [Template] ;
-_.        Cond ::= "(" Cond ")" ; 
+CondNotPos.  Cond1 ::= "NOT" Position TagSet ;
+CondPos.     Cond1 ::= Position TagSet ;
+CondBarrier. Cond1 ::= Position TagSet "BARRIER" TagSet ;
+CondCBarrier. Cond1 ::= Position TagSet "CBARRIER" TagSet ;
+CondNotBar.  Cond1 ::= "NOT" Position TagSet "BARRIER" TagSet ;
+CondNotCBar. Cond1 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
+CondLinked.  Cond  ::= [Cond1] ;
+CondTempl.   Cond  ::= [Template] ;
+_.           Cond ::= "(" Cond ")" ; 
 
 
 separator nonempty Cond1 "LINK" ;
@@ -116,7 +118,8 @@ AtLeastPost. Position ::= Signed "*" ;
 AtLPostCaut. Position ::= Signed "C*" ;
 Cautious. Position ::= Position "C" ; --We're not interested in the unambiguous
 
-Barrier. Barrier ::= "BARRIER" TagSet ;
+--Barrier. Barrier ::= "BARRIER" TagSet ;
+--CBarrier. Barrier ::= "CBARRIER" TagSet ;
 
 
 token UIdent ((upper)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*

@@ -338,7 +338,7 @@ getContext :: Token           -- ^ a single analysis
                -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext tok allToks []          = []
 getContext tok allToks (Always:cs) = [dummyTok] : getContext tok allToks cs 
-getContext tok allToks ((C position (positive,ctags)):cs) = trace (show result) $
+getContext tok allToks ((C position (positive,ctags)):cs) = -- trace ("getContext: result="++show result) $
  result : getContext tok allToks cs
  where 
   result = case toTags ctags of
@@ -354,7 +354,8 @@ getContext tok allToks ((C position (positive,ctags)):cs) = trace (show result) 
 
                 Exactly _ n -> [ t | t <- exactly n tok, match t ]
                 AtLeast _ n -> [ t | t <- atleast n tok, match t ]
-                Barrier n bs -> barrier n bs tok
+                Barrier  _ n bs -> barrier n bs tok
+                CBarrier _ n bs -> barrier n bs tok
 
   match :: Token -> Bool
   match  = (if positive then id else not) . tagsMatchRule (toTags ctags)
@@ -374,11 +375,11 @@ getContext tok allToks ((C position (positive,ctags)):cs) = trace (show result) 
   between m n token = [ tok' | tok' <- allToks
                              , let ind' = getInd tok'
                              , let ind = getInd token
-                             , ind+m <= ind' && ind' <= ind+n
-                             , match tok ]
+                             , ind+m <= ind' && ind' <= ind+n 
+                             , match tok' ]
 
   --from n places away until one of btags is found. if not, same as atleast.
-  barrier n btags tok | barinds==[] = filter match $ atleast n tok
+  barrier n btags tok | barinds==[] = trace ("barinds==[]" ++show barinds) $ filter match $ atleast n tok
                       | n < 0     = between mindist n tok
                       | otherwise = between n mindist tok
      where barinds = [ getInd tok | tok <- allToks

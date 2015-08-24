@@ -322,7 +322,8 @@ toTuple _ (C pos (positive,tags)) = ( I { index      = ind
   (ind,c) = case pos of
                  Exactly c i -> (i,c)
                  AtLeast c i -> (i,c)
-                 Barrier i _ -> (i,False)
+                 Barrier  c i _ -> (i,c)
+                 CBarrier c i _ -> (i,c)
 
 
 
