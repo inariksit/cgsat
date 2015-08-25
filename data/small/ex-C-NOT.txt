@@ -1,0 +1,38 @@
+"<target>"
+	"trg" target1
+	"trg" target2
+	"trg" target3
+	"trg" target4
+	"trg" targetNOT1
+	"trg" targetNOT2
+	"trg" targetNOT3
+	"trg" targetNOT4
+	"trg" dummy
+
+"<cond>"
+	"cond" tag
+	"cond" dummy
+
+"<.>"
+	"." sent
+
+
+"<target>"
+	"trg" target1
+	"trg" target2
+	"trg" target3
+	"trg" target4
+	"trg" targetNOT1
+	"trg" targetNOT2
+	"trg" targetNOT3
+	"trg" targetNOT4
+	"trg" dummy
+
+"<cond>"
+	"cond" tag
+	"cond" dummy
+	"cond" something else
+
+"<.>"
+	"." sent
+
