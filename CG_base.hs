@@ -53,12 +53,6 @@ showTagset xs    = concatMap show' xs
   where show' [y] = show y ++ " "
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
--- TODO ! Diff and Or. 
--- [a  - b c  OR b  - a c ] should normalise to
--- ([[a]], [[b],[c]]) OR ([[b]], [[a],[c]]) 
--- so that's 2 conditions really.
-
---toTags :: TagSet -> ([[Tag]],[[Tag]])
 
 toTags :: TagSet -> [ ([[Tag]],[[Tag]]) ]
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
@@ -71,10 +65,11 @@ toTags :: TagSet -> [ ([[Tag]],[[Tag]]) ]
 --    defArt = ([[Tag "det", Tag "def"]], [[]])
 --    dem    = ([[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]], [[]])
 --    fooBar = ([[Tag "foo"],[Tag "bar"]], [[Tag "baz"]])
+-- the extra list is because of disjoint Diffs. 
 toTags ts = case ts of
   Or   ts1 ts2 -> toTags ts1 ++ toTags ts2
   Diff ts1 ts2 -> [(toTags' ts, toTags' ts2)]
-  _            -> [(toTags' ts, [])]
+  _            -> [(toTags' ts, [[]])]
   where
     toTags' (TS tags) = tags
     toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2

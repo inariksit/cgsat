@@ -77,18 +77,15 @@ sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
 --At least one complete sublist in the rule must be found in the analysis.
 --And none of the sublists in diff can be found in the analysis.
 tagsMatchRule :: Token -> ([[Tag]],[[Tag]]) -> Bool
-tagsMatchRule t@((_,ta),_) (trg,dif) = go trg ta && tagsDontMatchRule t dif
-  where go []       ta = False
-        go (tr:trs) ta = if all (\t -> t `elem` ta) tr 
+tagsMatchRule t@((_,ta),_) (trg,dif) = pos trg ta && neg dif ta
+  where pos []       ta = False
+        pos (tr:trs) ta = if all (\t -> t `elem` ta) tr 
                            then True
-                           else go trs ta 
-
-tagsDontMatchRule :: Token -> [[Tag]] -> Bool
-tagsDontMatchRule ((_, ta), _) dif = go dif ta
-  where go []       ta = True
-        go (tr:trs) ta = if any (\t -> t `elem` ta) tr 
+                           else pos trs ta 
+        neg []       ta = True
+        neg (tr:trs) ta = if any (\t -> t `elem` ta) tr 
                            then False
-                           else go trs ta
+                           else neg trs ta
 
 
 -- | Input: sentence, as in list of analyses.
@@ -169,9 +166,9 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
     where chosen = remove t_ds
           other  = [ (tok, ctx) | tok <- allToks
                                 , (wantedTok, ctx) <- chosen
-                                , (trg, dif) <- t_ds --TODO check
-                                , sameInd tok wantedTok
-                                , tagsDontMatchRule tok trg || tagsMatchRule tok (dif,[]) ]
+                                , sameInd tok wantedTok 
+                               -- , tok /= wantedTok ]
+                                , not $ any (tagsMatchRule tok) t_ds ]
 
 
   --"Normal case":
@@ -308,11 +305,11 @@ the final lit is v17:
 
   help :: Solver -> [[Token]] -> Lit -> [Condition] -> IO Lit
   help s []     r2 conds = do
-    putStr "the final lit: " 
-    print r2 
-    putStr $ "conditions: " ++ show conds ++ " " 
-    putStrLn $ show (map (toTags . getTagset) conds)
-    putStrLn "\n"
+    -- putStr "the final lit: " 
+    -- print r2 
+    -- putStr $ "conditions: " ++ show conds ++ " " 
+    -- putStrLn $ show (map (toTags . getTagset) conds)
+    -- putStrLn "\n"
     return r2
   help s (c:cs) r1 conds = do 
     r' <- newLit s --r' is the variable that indicates that *some condition* holds
@@ -391,6 +388,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContex
                         | otherwise   = between n mindist token
      where barinds = [ getInd tok | tok <- allToks
                                   , any (tagsMatchRule tok) (toTags btags) ]
+                      -- BARRIER = some token at given index must match with some btag
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
 
@@ -400,13 +398,15 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContex
                          | otherwise    = between n mindist token
      where trgind = getInd token
            barinds = [ getInd tok | tok <- allToks
-                                  , all (tagsMatchRule tok) (toTags btags) ]
+                                  , any (tagsMatchRule tok) (toTags btags) 
+                                  , let toksAtSameInd = filter (sameInd tok) allToks 
+                                  , all (\tok -> any (tagsMatchRule tok) (toTags btags))
+                                         toksAtSameInd ]
+                      -- CBARRIER = all tokens at given index must match with some btag
            dists   = map (\i -> i - getInd token) barinds :: [Int]
-           mindist = minimum dists
-           barindsAtMindist = [ n | n <- barinds
-                                  , n == trgind + mindist ]
-           allIndsAtMindist = [ n | tok <- allToks
-                                  , let n = getInd tok
+           mindist = if null dists then -99 else minimum dists
+           barindsAtMindist = [ n | n <- barinds, n == trgind + mindist ]
+           allIndsAtMindist = [ n | tok <- allToks, let n = getInd tok
                                   , n == trgind + mindist ]
            cbarinds = if barindsAtMindist==allIndsAtMindist 
                         then barindsAtMindist 
@@ -418,7 +418,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContex
 disamSection ::  ([Rule] -> Sentence -> IO Sentence) -> [[Rule]] -> Sentence -> IO Sentence
 disamSection disam []         sent = return sent
 disamSection disam [rs]       sent = disam rs sent
-disamSection disam (r1:r2:rs) sent = disam (take 10 (reverse r1)) sent
+disamSection disam (r1:r2:rs) sent = disam r1 sent
                                       >>= \s -> ({-print s >>-} disamSection disam 
                                                 ((r1++r2):rs) s)
 
