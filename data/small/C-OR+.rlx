@@ -1,0 +1,24 @@
+DELIMITERS = "<.>";
+
+LIST A = a ;
+LIST B = b ;
+
+LIST AC = (a c);
+LIST BC = (b c);
+
+SET A_or_B = A OR B;
+SET AC_or_BC = A_or_B + (c);
+
+SECTION
+
+# There must be nothing else but (a c) or (b c)
+# Normalises to [a,c],[b,c]
+REMOVE:rm1 (target1) IF (1C AC_or_BC) ;
+
+REMOVE:rm2 (target2) IF (1C A OR B + (c) ) ; # parsed as A OR (B + (c))
+
+REMOVE:rm3 (target3) IF (1C AC OR BC) ;
+
+# There must be an unambiguous (a c) or an unambiguous (b c)
+REMOVE:rm4 (target4) IF ( (1C AC) OR (1C BC) );
+
