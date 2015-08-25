@@ -5,14 +5,14 @@ LIST Dummy = dummy ;
 SET  TagOrDummySet = Tag OR Dummy ;
 LIST TagOrDummyList = tag dummy ;
 
-SECTION
-
-REMOVE:rmNOT1 (targetNOT1) IF (NOT 1C* TagOrDummyList) ;
-REMOVE:rmNOT2 (targetNOT2) IF (NOT 1C* TagOrDummySet) ;
-REMOVE:rmNOT3 (targetNOT3) IF (NOT 1C* Tag OR Dummy) ;
-REMOVE:rmNOT4 (targetNOT4) IF (NOT 1C* (Tag OR Dummy)) ;
+#SECTION
 
 REMOVE:rm1 (target1) IF (1C* TagOrDummyList) ;
 REMOVE:rm2 (target2) IF (1C* TagOrDummySet) ;
 REMOVE:rm3 (target3) IF (1C* Tag OR Dummy) ;
 REMOVE:rm4 (target4) IF (1C* (Tag OR Dummy)) ;
+
+REMOVE:rmNOT1 (targetNOT1) IF (NOT 1C* TagOrDummyList) ;
+REMOVE:rmNOT2 (targetNOT2) IF (NOT 1C* TagOrDummySet) ;
+REMOVE:rmNOT3 (targetNOT3) IF (NOT 1C* Tag OR Dummy) ;
+REMOVE:rmNOT4 (targetNOT4) IF (NOT 1C* (Tag OR Dummy)) ;
