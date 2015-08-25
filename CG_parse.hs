@@ -32,7 +32,7 @@ type Env = [(String, CGB.TagSet)]
 --This is needed only for the set operation Diff.
 --Other set or list operations only have the wanted tags in the first element.
 --Also we use toTagsLIST only with LISTs so it's completely safe ^___^
-toTagsLIST = fst . CGB.toTags
+toTagsLIST = concatMap fst . CGB.toTags
 
 parseRules :: Bool -> String -> ([CGB.TagSet], [[CGB.Rule]]) -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of

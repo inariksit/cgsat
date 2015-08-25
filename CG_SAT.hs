@@ -76,15 +76,15 @@ sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
 --Analysis has [Tag].
 --At least one complete sublist in the rule must be found in the analysis.
 --And none of the sublists in diff can be found in the analysis.
-tagsMatchRule :: ([[Tag]],[[Tag]]) -> Token -> Bool
-tagsMatchRule (tr,dr) t@((_,ta),_) = go tr ta && tagsDontMatchRule dr t
+tagsMatchRule :: Token -> ([[Tag]],[[Tag]]) -> Bool
+tagsMatchRule t@((_,ta),_) (trg,dif) = go trg ta && tagsDontMatchRule t dif
   where go []       ta = False
         go (tr:trs) ta = if all (\t -> t `elem` ta) tr 
                            then True
                            else go trs ta 
 
-tagsDontMatchRule :: [[Tag]] -> Token -> Bool
-tagsDontMatchRule tagsInRule ((_, tagsInAna), _) = go tagsInRule tagsInAna
+tagsDontMatchRule :: Token -> [[Tag]] -> Bool
+tagsDontMatchRule ((_, ta), _) dif = go dif ta
   where go []       ta = True
         go (tr:trs) ta = if any (\t -> t `elem` ta) tr 
                            then False
@@ -136,15 +136,15 @@ applyRule s toks rule = do
     (Select _name target conds) -> go s True False (toTags target) (toConds conds) toks
 
     
-go :: Solver -> Bool -> Bool -> ([[Tag]],[[Tag]]) -> [[Condition]] -> [Token] -> IO [Clause]
-go s isSelect isGrAna (target,diff) []         allToks = return []
-go s isSelect isGrAna (target,diff) (conds:cs) allToks = do
+go :: Solver -> Bool -> Bool -> [([[Tag]],[[Tag]])] -> [[Condition]] -> [Token] -> IO [Clause]
+go s isSelect isGrAna trgs_diffs []         allToks = return []
+go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
    let f = if isGrAna then mkVarsGrammarAnalysis else mkVars
    if isSelect 
-     then let (trg,rm) = select (target,diff) in f trg rm conds 
-     else let trg      = remove (target,diff) in f [] trg conds
+     then let (trg,rm) = select trgs_diffs in f trg rm conds 
+     else let trg      = remove trgs_diffs in f [] trg conds
 
-   ++> go s isSelect isGrAna (target,diff) cs allToks
+   ++> go s isSelect isGrAna trgs_diffs cs allToks
 
         
  where
@@ -155,22 +155,23 @@ go s isSelect isGrAna (target,diff) (conds:cs) allToks = do
   allCondsHold ts | null conds = True
                   | otherwise  = (not.null) ts && all (not.null) ts
 
-  remove :: ([[Tag]],[[Tag]]) -> [(Token,[[Token]])]
-  remove (t,d) = [ (tok, ctx) | tok <- allToks
+  remove :: [([[Tag]],[[Tag]])] -> [(Token,[[Token]])]
+  remove t_ds = [ (tok, ctx) | tok <- allToks
                               , isAmbig tok allToks --only apply rules to ambiguous words
-                              , tagsMatchRule (t,d) tok
+                              , any (tagsMatchRule tok) t_ds
                               , let ctx = getContext tok allToks conds
                               , allCondsHold ctx]
 
-  select :: ([[Tag]],[[Tag]]) -> ([(Token,[[Token]])], [(Token,[[Token]])])
-  select (target,diff) = (chosen, other)
+  select :: [([[Tag]],[[Tag]])] -> ([(Token,[[Token]])], [(Token,[[Token]])])
+  select t_ds = (chosen, other)
     -- chosen: analyses that have the wanted readings and context
     -- other: don't have wanted readings, but some other word in the same index has.
-    where chosen = remove (target,diff)
+    where chosen = remove t_ds
           other  = [ (tok, ctx) | tok <- allToks
                                 , (wantedTok, ctx) <- chosen
+                                , (trg, dif) <- t_ds --TODO check
                                 , sameInd tok wantedTok
-                                , tagsDontMatchRule target tok || tagsMatchRule (diff,[]) tok]
+                                , tagsDontMatchRule tok trg || tagsMatchRule tok (dif,[]) ]
 
 
   --"Normal case":
@@ -307,11 +308,11 @@ the final lit is v17:
 
   help :: Solver -> [[Token]] -> Lit -> [Condition] -> IO Lit
   help s []     r2 conds = do
-    -- putStr "the final lit: " 
-    -- print r2 
-    -- putStr $ "conditions: " ++ show conds ++ " " 
-    -- putStrLn $ show (map (toTags . getTagset) conds)
-    -- putStrLn "\n"
+    putStr "the final lit: " 
+    print r2 
+    putStr $ "conditions: " ++ show conds ++ " " 
+    putStrLn $ show (map (toTags . getTagset) conds)
+    putStrLn "\n"
     return r2
   help s (c:cs) r1 conds = do 
     r' <- newLit s --r' is the variable that indicates that *some condition* holds
@@ -337,7 +338,7 @@ getContext ana allToks []          = []
 getContext ana allToks (Always:cs) = [dummyTok] : getContext ana allToks cs 
 getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContext ana allToks cs
  where 
-  result = case toTags ctags of
+  result = case head $ toTags ctags of
     ([]  ,_)   -> [dummyTok] --empty conds = holds always
     ([[]],_)   -> [dummyTok] 
     (t:ts,_) -> case position of
@@ -354,7 +355,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContex
                 CBarrier _ n bs -> cbarrier n bs ana
 
   match :: Token -> Bool
-  match = (if positive then id else not) . tagsMatchRule (toTags ctags)
+  match tok = (if positive then id else not) $ any (tagsMatchRule tok) (toTags ctags)
 
   --given word and n, return words that are n places away in the original sentence
   exactly :: Int -> Token -> [Token]
@@ -389,7 +390,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContex
                         | n < 0       = between mindist n token
                         | otherwise   = between n mindist token
      where barinds = [ getInd tok | tok <- allToks
-                                  , tagsMatchRule (toTags btags) tok ]
+                                  , any (tagsMatchRule tok) (toTags btags) ]
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
 
@@ -399,7 +400,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContex
                          | otherwise    = between n mindist token
      where trgind = getInd token
            barinds = [ getInd tok | tok <- allToks
-                                  , tagsMatchRule (toTags btags) tok ]
+                                  , all (tagsMatchRule tok) (toTags btags) ]
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
            barindsAtMindist = [ n | n <- barinds

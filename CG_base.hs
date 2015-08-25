@@ -53,7 +53,14 @@ showTagset xs    = concatMap show' xs
   where show' [y] = show y ++ " "
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
-toTags :: TagSet -> ([[Tag]],[[Tag]])
+-- TODO ! Diff and Or. 
+-- [a  - b c  OR b  - a c ] should normalise to
+-- ([[a]], [[b],[c]]) OR ([[b]], [[a],[c]]) 
+-- so that's 2 conditions really.
+
+--toTags :: TagSet -> ([[Tag]],[[Tag]])
+
+toTags :: TagSet -> [ ([[Tag]],[[Tag]]) ]
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
 --  First [[Tag]] is the target, second [[Tag]] is list of tags it should not match.
 --  For example, 
@@ -61,13 +68,13 @@ toTags :: TagSet -> ([[Tag]],[[Tag]])
 --    LIST Dem    = "az" "ez" "amaz" "emez" ;
 --    SET  FooBar = foo bar - baz ;
 --  translate into
---    defArt = ([[Tag "det", Tag "def"]], [])
---    dem    = ([[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]], [])
+--    defArt = ([[Tag "det", Tag "def"]], [[]])
+--    dem    = ([[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]], [[]])
 --    fooBar = ([[Tag "foo"],[Tag "bar"]], [[Tag "baz"]])
-
 toTags ts = case ts of
-  Diff ts1 ts2 -> (toTags' ts, toTags' ts2)
-  _            -> (toTags' ts, [])
+  Or   ts1 ts2 -> toTags ts1 ++ toTags ts2
+  Diff ts1 ts2 -> [(toTags' ts, toTags' ts2)]
+  _            -> [(toTags' ts, [])]
   where
     toTags' (TS tags) = tags
     toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2
@@ -212,7 +219,7 @@ hasBoundary rule = case rule of
   (Select _n _t c) -> findBoundary c
   (Remove _n _t c) -> findBoundary c
   where findBoundary c = any hasB (concat (toConds c))
-        hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat (fst $ toTags tags)
+        hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat ((concatMap fst . toTags) tags)
 
 -- Sets of tags
 verb = TS [[Tag "vblex"],[Tag "vbser"],[Tag "vbmod"]]
