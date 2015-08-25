@@ -55,6 +55,7 @@ showTagset xs    = concatMap show' xs
 
 toTags :: TagSet -> ([[Tag]],[[Tag]])
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
+--  First [[Tag]] is the target, second [[Tag]] is list of tags it should not match.
 --  For example, 
 --    LIST DefArt = (det def) ;
 --    LIST Dem    = "az" "ez" "amaz" "emez" ;
@@ -72,7 +73,8 @@ toTags ts = case ts of
     toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2
     toTags' (Diff ts1 ts2) = toTags' ts1 \\ toTags' ts2 
     toTags' (Cart ts1 ts2) = map concat $ sequence [(toTags' ts1), (toTags' ts2)]
-    toTags' All = [[]] --matches all
+    toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
+                       --"At least one complete sublist in the rule must be found in the analysis"
 
 -- | Analysis is just list of tags: for instance the word form "alusta" would get
 -- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]

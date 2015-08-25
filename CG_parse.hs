@@ -28,6 +28,12 @@ import qualified CG_base as CGB
 type Env = [(String, CGB.TagSet)]
 
 
+--toTags from CGB returns (target::[[Tag]], diff::[[Tag]]).
+--This is needed only for the set operation Diff.
+--Other set or list operations only have the wanted tags in the first element.
+--Also we use toTagsLIST only with LISTs so it's completely safe ^___^
+toTagsLIST = fst . CGB.toTags
+
 parseRules :: Bool -> String -> ([CGB.TagSet], [[CGB.Rule]]) -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
@@ -120,7 +126,7 @@ transSetDecl (List setname tags) =
     EOS          -> return ("<<<", CGB.TS eos)
     (SetName (UIdent name)) -> do 
       tl <- mapM transTag tags
-      let tl' = concatMap CGB.toTags tl
+      let tl' = concatMap toTagsLIST tl
       return (name, CGB.TS tl')
 
 
@@ -138,9 +144,9 @@ transTag tag = case tag of
                    _           -> return $ CGB.TS [[CGB.Lem s]]
   Tag (Id str) -> return $ CGB.TS [[CGB.Tag str]]
   AND tags     -> do ts <- mapM transTag tags
-                     let ts' = map CGB.toTags ts
+                     let ts' = map toTagsLIST ts --safe: only returs TS, no set constructors
                          allInOne = [concat (concat ts')]
-                     return $ CGB.TS allInOne
+                     return $ CGB.TS allInOne 
 
   Named setname -> case setname of
     (SetName (UIdent name)) -> do
@@ -163,10 +169,6 @@ transTagSet ts = case ts of
 
   ----TODO all set operations!
 
-  Diff All ts    -> do env <- get
-                       let allTags = concatMap (CGB.toTags . snd) env :: [[CGB.Tag]]
-                       rmTags <- transTagSet ts
-                       return $ CGB.Diff (CGB.TS allTags) rmTags
   Diff ts All    -> error "something except everything? are you a philosopher?"
   Diff ts1 ts2   -> do tags1 <- transTagSet ts1
                        tags2 <- transTagSet ts2
@@ -196,11 +198,11 @@ transRule rl = case rl of
   where cart :: CGB.TagSet -> String -> CGB.TagSet
         cart ts str = case str of
            ('"':'<':_) -> CGB.TS [[CGB.WF  (strip 2 str), t]
-                                    | t <- concat (CGB.toTags ts)]
+                                    | t <- concat (toTagsLIST ts)]
            ('"':_    ) -> CGB.TS [[CGB.Lem (strip 1 str), t] 
-                                    | t <- concat (CGB.toTags ts)]
+                                    | t <- concat (toTagsLIST ts)]
            _           -> CGB.TS [[CGB.Lem str          , t] 
-                                    | t <- concat (CGB.toTags ts)]
+                                    | t <- concat (toTagsLIST ts)]
 
         getName (MaybeName_1 (Id id)) = CGB.Name id
         getName MaybeName_2           = CGB.NoName

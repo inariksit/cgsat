@@ -72,11 +72,12 @@ sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
 
 --------------------------------------------------------------------------------
 
---Rule     has [[Tag]].
+--Rule     has target::[[Tag]], diff::[[Tag]].
 --Analysis has [Tag].
 --At least one complete sublist in the rule must be found in the analysis.
-tagsMatchRule :: [[Tag]] -> Token -> Bool
-tagsMatchRule tr ((_,ta),_) = go tr ta
+--And none of the sublists in diff can be found in the analysis.
+tagsMatchRule :: ([[Tag]],[[Tag]]) -> Token -> Bool
+tagsMatchRule (tr,dr) t@((_,ta),_) = go tr ta && tagsDontMatchRule dr t
   where go []       ta = False
         go (tr:trs) ta = if all (\t -> t `elem` ta) tr 
                            then True
@@ -135,15 +136,15 @@ applyRule s toks rule = do
     (Select _name target conds) -> go s True False (toTags target) (toConds conds) toks
 
     
-go :: Solver -> Bool -> Bool -> [[Tag]] -> [[Condition]] -> [Token] -> IO [Clause]
-go s isSelect isGrAna target []         allToks = return []
-go s isSelect isGrAna target (conds:cs) allToks = do
+go :: Solver -> Bool -> Bool -> ([[Tag]],[[Tag]]) -> [[Condition]] -> [Token] -> IO [Clause]
+go s isSelect isGrAna (target,diff) []         allToks = return []
+go s isSelect isGrAna (target,diff) (conds:cs) allToks = do
    let f = if isGrAna then mkVarsGrammarAnalysis else mkVars
    if isSelect 
-     then let (trg,rm) = select target in f trg rm conds 
-     else let trg      = remove target in f [] trg conds
+     then let (trg,rm) = select (target,diff) in f trg rm conds 
+     else let trg      = remove (target,diff) in f [] trg conds
 
-   ++> go s isSelect isGrAna target cs allToks
+   ++> go s isSelect isGrAna (target,diff) cs allToks
 
         
  where
@@ -153,6 +154,24 @@ go s isSelect isGrAna target (conds:cs) allToks = do
   allCondsHold :: [[Token]] -> Bool
   allCondsHold ts | null conds = True
                   | otherwise  = (not.null) ts && all (not.null) ts
+
+  remove :: ([[Tag]],[[Tag]]) -> [(Token,[[Token]])]
+  remove (t,d) = [ (tok, ctx) | tok <- allToks
+                              , isAmbig tok allToks --only apply rules to ambiguous words
+                              , tagsMatchRule (t,d) tok
+                              , let ctx = getContext tok allToks conds
+                              , allCondsHold ctx]
+
+  select :: ([[Tag]],[[Tag]]) -> ([(Token,[[Token]])], [(Token,[[Token]])])
+  select (target,diff) = (chosen, other)
+    -- chosen: analyses that have the wanted readings and context
+    -- other: don't have wanted readings, but some other word in the same index has.
+    where chosen = remove (target,diff)
+          other  = [ (tok, ctx) | tok <- allToks
+                                , (wantedTok, ctx) <- chosen
+                                , sameInd tok wantedTok
+                                , tagsDontMatchRule target tok || tagsMatchRule (diff,[]) tok]
+
 
   --"Normal case":
   --At this point we know that conditions hold already, now we just create clauses.
@@ -169,10 +188,10 @@ go s isSelect isGrAna target (conds:cs) allToks = do
     let ctxMap = zip onlyCtxs rs
  
     let rmClauses =  [ [neg r, neg tl] | (trg, ctx) <- rm
-                                       , let r = fromJust $ lookup ctx ctxMap
+                                       , let Just r = lookup ctx ctxMap
                                        , let tl = getLit trg ] 
     let slClauses = [ [neg r, tl] | (trg, ctx) <- sl
-                                  , let r = fromJust $ lookup ctx ctxMap
+                                  , let Just r = lookup ctx ctxMap
                                   , let tl = getLit trg ] 
 
     return $ rmClauses ++ slClauses
@@ -309,28 +328,6 @@ the final lit is v17:
 
 
 
-  remove :: [[Tag]] -> [(Token,[[Token]])]
-  remove target = [ (tok, ctx) | tok <- allToks
-                               , isAmbig tok allToks --only apply rules to ambiguous words
-                               , tagsMatchRule target tok
-                               , let ctx = getContext tok allToks conds
-                               , allCondsHold ctx]
-
-  select :: [[Tag]] -> ([(Token,[[Token]])], [(Token,[[Token]])])
-  select target = (chosen, other)
-    -- chosen: analyses that have the wanted readings and context
- 
-    -- other: analyses that don't have the wanted readings,
-    -- but some word in the same location does have the wanted reading(s).
-    --      allToks = [(1,[N,Pl]), (2,[V,Sg]), (2,[N,Pl])]
-    --      tags    = [V]
-    --      chosen  = (2,[V,Sg]), other = (2,[N,Pl])
-    where chosen = remove target
-          other  = [ (tok, ctx) | tok <- allToks
-                                , (wantedTok, ctx) <- chosen
-                                , sameInd tok wantedTok
-                                , tagsDontMatchRule target tok ]
-
 
 getContext :: Token       -- ^ a single analysis
            -> [Token]     -- ^ list of all analyses
@@ -338,13 +335,12 @@ getContext :: Token       -- ^ a single analysis
            -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext ana allToks []          = []
 getContext ana allToks (Always:cs) = [dummyTok] : getContext ana allToks cs 
-getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext: ana=" ++ show ana++ ", ctags="++show c ++" result="++show result) $
- result : getContext ana allToks cs
+getContext ana allToks ((C position c@(positive,ctags)):cs) = result : getContext ana allToks cs
  where 
   result = case toTags ctags of
-    []     -> [dummyTok] --empty conds = holds always
-    [[]]   -> [dummyTok] 
-    (t:ts) -> case position of
+    ([]  ,_)   -> [dummyTok] --empty conds = holds always
+    ([[]],_)   -> [dummyTok] 
+    (t:ts,_) -> case position of
                 Exactly _ 0 -> 
                  if match ana then [ana] --feature at 0 is in the *same reading*
                    else [ t | t <- exactly 0 ana, match t] --feature in other reading
@@ -358,7 +354,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext
                 CBarrier _ n bs -> cbarrier n bs ana
 
   match :: Token -> Bool
-  match  = (if positive then id else not) . tagsMatchRule (toTags ctags)
+  match = (if positive then id else not) . tagsMatchRule (toTags ctags)
 
   --given word and n, return words that are n places away in the original sentence
   exactly :: Int -> Token -> [Token]
@@ -372,13 +368,15 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext
 
 
   --between m and n places away
-  between m n token = trace ("between " ++ show m ++ " " ++ show n ++ " " ++ show token) $
-                    let toks = [ tok | tok <- allToks
-                             , let ind' = getInd tok
-                             , let ind = getInd token
-                             , ind+m <= ind' && ind' <= ind+n ]
-                    in if positive then filter match toks
-                       else if all match toks then toks else []
+  between m n token =
+    let toks = [ tok | tok <- allToks
+                     , let ind' = getInd tok
+                     , let ind = getInd token
+                     , ind+m <= ind' && ind' <= ind+n ]
+    in if positive
+         then filter match toks
+         else if all match toks 
+                then toks else [] --NOT: all readings between m-n must *not* match
 
 
   --from n places away until one of btags is found. if not, same as atleast.
