@@ -53,21 +53,26 @@ showTagset xs    = concatMap show' xs
   where show' [y] = show y ++ " "
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
-toTags :: TagSet -> [[Tag]]
+toTags :: TagSet -> ([[Tag]],[[Tag]])
 -- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
 --  For example, 
 --    LIST DefArt = (det def) ;
 --    LIST Dem    = "az" "ez" "amaz" "emez" ;
---
+--    SET  FooBar = foo bar - baz ;
 --  translate into
---    defArt = [[Tag "det", Tag "def"]]
---    dem    = [[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]]
+--    defArt = ([[Tag "det", Tag "def"]], [])
+--    dem    = ([[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]], [])
+--    fooBar = ([[Tag "foo"],[Tag "bar"]], [[Tag "baz"]])
 
-toTags (TS tags) = tags
-toTags (Or ts1 ts2) = toTags ts1 ++ toTags ts2
-toTags (Diff ts1 ts2) = toTags ts1 \\ toTags ts2
-toTags (Cart ts1 ts2) = map concat $ sequence [(toTags ts1), (toTags ts2)]
-toTags All = [[]] --matches all
+toTags ts = case ts of
+  Diff ts1 ts2 -> (toTags' ts, toTags' ts2)
+  _            -> (toTags' ts, [])
+  where
+    toTags' (TS tags) = tags
+    toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2
+    toTags' (Diff ts1 ts2) = toTags' ts1 \\ toTags' ts2 
+    toTags' (Cart ts1 ts2) = map concat $ sequence [(toTags' ts1), (toTags' ts2)]
+    toTags' All = [[]] --matches all
 
 -- | Analysis is just list of tags: for instance the word form "alusta" would get
 -- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
@@ -205,7 +210,7 @@ hasBoundary rule = case rule of
   (Select _n _t c) -> findBoundary c
   (Remove _n _t c) -> findBoundary c
   where findBoundary c = any hasB (concat (toConds c))
-        hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat (toTags tags)
+        hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat (fst $ toTags tags)
 
 -- Sets of tags
 verb = TS [[Tag "vblex"],[Tag "vbser"],[Tag "vbmod"]]
