@@ -78,14 +78,16 @@ sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
 --Analysis has [Tag].
 --At least one complete sublist in the rule must be found in the analysis.
 --And none of the sublists in diff can be found in the analysis.
-tagsMatchRule :: [Token] -> Token -> ([[Tag]],[[Tag]]) -> Bool
-tagsMatchRule allToks t@(((ind,isC),ta),_) (trg,dif) = trace ("tagsMatchRule: " ++ if isC then (show (filter (sameInd t) allToks)) else show t) $
+--tagsMatchRule :: [Token] -> Token -> ([[Tag]],[[Tag]]) -> Bool
+tagsMatchRule :: [Token] -> Token -> [(Trg,Dif)] -> Bool
+tagsMatchRule allToks t@(((ind,isC),ta),_) trg_difs = trace ("tagsMatchRule: " ++ if isC then (show toksAtSameInd) ++ " " ++ (show trg_difs) ++ " " ++ (show (map (\tok -> any (bothMatch tok) trg_difs) toksAtSameInd)) else "") $
   if isC 
-    then let toksAtSameInd = filter (sameInd t) allToks
-         in  all (bothMatch (trg,dif)) toksAtSameInd
-    else bothMatch (trg,dif) t
+    then let foo = True  --toksAtSameInd = filter (sameInd t) allToks
+         in  all (\tok -> any (bothMatch tok) trg_difs) toksAtSameInd
+    else any (bothMatch t) trg_difs
  where
-  bothMatch (trg,dif) t@((_,ta),_) = pos trg ta && neg dif ta
+  toksAtSameInd = filter (sameInd t) allToks
+  bothMatch t@((_,ta),_) (trg,dif) = pos trg ta && neg dif ta
   pos []       ta = False
   pos (tr:trs) ta = if all (\t -> t `elem` ta) tr 
                        then True
@@ -163,7 +165,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   remove :: [(Trg,Dif)] -> [(Token,[[Token]])]
   remove t_ds = [ (tok, ctx) | tok <- allToks
                               , isAmbig tok allToks --only apply rules to ambiguous words
-                              , any (tagsMatchRule allToks tok) t_ds --C doesn't matter at target
+                              , tagsMatchRule allToks tok t_ds --C doesn't matter at target
                               , let ctx = getContext tok allToks conds
                               , allCondsHold ctx ]
 
@@ -176,7 +178,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                                 , (wantedTok, ctx) <- chosen
                                 , sameInd tok wantedTok 
                                -- , tok /= wantedTok ]
-                                , not $ any (tagsMatchRule allToks tok) t_ds ]
+                                , not $ tagsMatchRule allToks tok t_ds ]
 
 
   --"Normal case":
@@ -362,7 +364,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext
                 CBarrier _ n bs -> cbarrier n bs ana
 
   match :: Token -> Bool
-  match tok = (if positive then id else not) $ all (tagsMatchRule allToks tok) (toTags ctags)
+  match tok = (if positive then id else not) $ tagsMatchRule allToks tok (toTags ctags)
 
   --given word and n, return words that are n places away in the original sentence
   exactly :: Int -> Token -> [Token]
@@ -397,7 +399,7 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext
                         | n < 0       = between mindist n token
                         | otherwise   = between n mindist token
      where barinds = [ getInd tok | tok <- allToks
-                                  , any (tagsMatchRule allToks tok) (toTags btags) ]
+                                  , tagsMatchRule allToks tok (toTags btags) ]
                       -- BARRIER = some token at given index must match with some btag
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
@@ -408,10 +410,13 @@ getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext
                          | otherwise    = between n mindist token
      where trgind = getInd token
            barinds = [ getInd tok | tok <- allToks
-                                  , any (tagsMatchRule allToks tok) (toTags btags) 
-                                  , let toksAtSameInd = filter (sameInd tok) allToks 
-                                  , all (\tok -> any (tagsMatchRule allToks tok) (toTags btags))
-                                         toksAtSameInd ]
+                                  , let tokC = mkCautious tok
+                                  , tagsMatchRule allToks tokC (toTags btags)
+                                  -- , any (tagsMatchRule allToks tok) (toTags btags) 
+                                  -- , let toksAtSameInd = filter (sameInd tok) allToks 
+                                  -- , all (\tok -> any (tagsMatchRule allToks tok) (toTags btags))
+                                  --        toksAtSameInd
+                                         ]
                       -- CBARRIER = all tokens at given index must match with some btag
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = if null dists then -99 else minimum dists
