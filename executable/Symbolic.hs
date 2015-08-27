@@ -17,7 +17,8 @@ tinyrules = concat $ snd $ parseRules False
             "REMOVE:r2 (adj);" ++
             "REMOVE:r3 (n) IF (-1 (det));" )
 
-toTags' ts = let (a,b) = toTags ts in a++b 
+toTags' :: TagSet -> [[Tag]]
+toTags' = concatMap (\(a,b) -> a++b) . toTags
 
 main = do
   args <- getArgs
@@ -49,13 +50,13 @@ main = do
    ("nld":r)
       -> do let verbose = "v" `elem` r || "d" `elem` r
             let debug = "d" `elem` r
-            ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/nld_tags.txt"
+            ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/nld/nld_tags.txt"
   
-            (tsets, rls) <- readRules' "data/nld.rlx"
+            (tsets, rls) <- readRules' "data/nld/nld.rlx"
             let rules = concat rls
             when debug $ mapM_ print rules
             let tcInGr = concatMap toTags' tsets
-            tcInLex <- (map parse . words) `fmap` readFile "data/nld_tagcombs.txt"
+            tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
             let tc = nub $ tcInGr ++ tcInLex
             let spl = splits rules
             results <- mapM (testRule verbose debug ts tc) spl
@@ -115,7 +116,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
 
   cls <- concat `fmap` 
               sequence [ f s wn sword | (wn, sword) <- zip allLits ruleWidth
-                                      , let f = if any (isTarget.fst) sword
+                                      , let f = if any (isTarget.info) sword
                                             then slOrRm
                                             else slCond ] 
                                                 
@@ -170,7 +171,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   sh False = '0'
 
   -- conditions for one word; there can be many but the index is the same
-  slCond :: Solver -> [Lit] -> [(Info,(Trg,Dif))] -> IO [Clause]
+  slCond :: Solver -> [Lit] -> [SymbWord] -> IO [Clause]
   slCond s wn sword = --trace ("slCond: " ++ show (map snd sword)) $
    do
     let n = length tagcombs - 1 
@@ -184,11 +185,12 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
     -- dif doesn't matter here, it will just be used later to check that
     -- there is no dif among the targets (e.g. `prn mf pers' doesn't match `prn - pers').
     newlits <- sequence
-                [ sequence [ newLit s | _ <- trg ] | (trg,df) <- map snd sword ] :: IO [[Lit]]
+                [ sequence [ newLit s | _ <- trg ] | (trg,df) <- concatMap targets sword ] :: IO [[Lit]]
     when debug $
       putStrLn $ ("slCond.newlits: " ++ show newlits)
     let disjs = map (filter notNegUnit) $ 
-                [ f n nl tags | (nlits, (info, (trg,dif)) ) <- zip newlits sword
+                [ f n nl tags | (nlits, (SW info trg_difs) ) <- zip newlits sword
+                              , (trg,dif) <- trg_difs
                               , (nl, tags) <- zip nlits trg
                               , let f = case (isPositive info, isCautious info) of
                                           (False,True)  -> negativeC
@@ -219,28 +221,31 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
        in [ [ neg nl, neg$wn!!ind ] | ind <- indN ] ++
           [   neg nl:[  wn !! ind | ind <- indY ] ]
 
+     -- (NOT -1C foo) : all foos are false, or foo and >=1 non-foo are true
      negativeC n nl ts = trace "negative C" $
        let indN = lookup' tagcombs ts
            indY = [0..n] \\ indN
        in [neg nl:[ neg $ wn!!ind | ind <- indN ] ++
           [  wn !! ind | ind <- indY ]]
-          ++ [ neg nl:[ wn!!ind | ind <- indN++indY ] ]
+        --  ++ [ neg nl:[ wn!!ind | ind <- indN++indY ] ]
         -- to force neg tag to be there along with another tag, choose following:
-        --  ++ map (neg nl:) (sequence [[ wn!!ind | ind <- indN], [ wn!!ind | ind <- indY]])
+          ++ map (neg nl:) (sequence [[ wn!!ind | ind <- indN], [ wn!!ind | ind <- indY]])
       
      notNegUnit [x] = pos x
      notNegUnit _   = True
 
   -- At index 0 there can be both targets and conditions
-  slOrRm :: Solver -> [Lit] -> [(Info,(Trg,Dif))] -> IO [Clause]
+  slOrRm :: Solver -> [Lit] -> [SymbWord] -> IO [Clause]
   slOrRm s wn ind0s = do --trace ("slOrRm: " ++ (show $ concatMap snd ind0s)) $ do
     let n = length tagcombs - 1
-    let (trgs,conds) = partition (isTarget.fst) ind0s
+    let (trgs,conds) = partition (isTarget.info) ind0s
     newlits <- sequence [ newLit s | _ <- trgs ] --literal for each OR option in target
     when debug $ putStrLn ("slOrRm.newlits: " ++ show newlits)
     --TODO do something with df here !!!
     let trgCls = 
-         nub $ concat [ disj n nl (concat tg) | (nl, (tg,df)) <- zip newlits (map snd trgs) ]
+         nub $ concat [ disj n nl (concat tg) 
+                            | (nl, tg_dfs) <- zip newlits (map targets trgs)
+                            , (tg,_df) <- tg_dfs ] ---TODO
 
     
     condCls <- if null conds
@@ -299,22 +304,23 @@ lookup' :: [[Tag]] -> [Tag] -> [Int] --list of indices where the wanted taglist 
 -- For empty tagsInCond, returns all indices in tagcombs.
 -- This is wanted behaviour; when filling conditions with empty spaces, 
 -- those spaces can have any tag.
--- TODO: Barrier case
 lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
   findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
       
+
 width :: Rule    -- ^ rule whose width to calculate 
       -> [[Tag]] -- ^ all possible tag combinations
-      -> [[(Info,(Trg,Dif))]] -- ^ conditions and target
+      -> [[SymbWord]] -- ^ conditions and target
 width rule alltags = case rule of
-  (Select _ target Always) -> [[(defaultTrg, toTags target)]]
-  (Remove _ target Always) -> [[(defaultTrg, toTags target)]]
+  (Select _ target Always) -> [[defaultTrg $ toTags target]]
+  (Remove _ target Always) -> [[defaultTrg $ toTags target]]
   (Select _ target conds) -> doStuff target conds
   (Remove _ target conds) -> doStuff target conds
  where 
+  doStuff :: TagSet -> Condition -> [[SymbWord]]
   doStuff t cs = 
     groupBy sameIndInfo $ nub $ sort $ fill $ 
-      (defaultTrg, toTags t) `insert` concatMap (toTuple alltags) (concat (toConds cs))
+      defaultTrg (toTags t) `insert` concatMap (toTuple alltags) (concat (toConds cs))
 
 
 --------------------------------------------------------------------------------
@@ -322,57 +328,59 @@ width rule alltags = case rule of
 type Trg = [[Tag]]
 type Dif = [[Tag]]
 
-type SymbWord = (Info,(Trg,Dif))
+data SymbWord = SW { info :: Info
+                   , targets :: [(Trg,Dif)] } deriving (Eq,Ord,Show)
 
 data Info = I { index      :: Int 
               , isCautious :: Bool
               , isTarget   :: Bool
               , isPositive :: Bool } deriving (Eq,Ord,Show)
 
-defaultTrg = I 0 False True True
+defaultTrg :: [(Trg,Dif)] -> SymbWord
+defaultTrg = SW (I 0 False True True)
 
 mkCond :: Int -> SymbWord
-mkCond i = ( I i False False True,
-             ([[]], [[]]) )
+mkCond i = SW ( I i False False True)
+              [ ([[]], [[]]) ]
 
 
 
-sameIndInfo :: (Info, a) -> (Info, a) -> Bool
-sameIndInfo (I i _ _ _, a) (I i' _ _ _, a') = i==i'
+sameIndInfo :: SymbWord -> SymbWord -> Bool
+sameIndInfo (SW (I i _ _ _) _) (SW (I i' _ _ _) _) = i==i'
 
 --------------------------------------------------------------------------------
 
 toTuple :: [[Tag]] -> Condition -> [SymbWord]
 toTuple _ Always              = error "toTuple applied to Always: this should not happen"
 toTuple _ (C (Barrier c ind btags) (positive,tags)) =
-  let condtagsEntry = ( I { index      = ind
-                          , isCautious = c
-                          , isTarget   = False
-                          , isPositive = positive}
-                      , toTags tags )  
-      bartagsEntry =  ( I { index      = ind+1 --minimal position for barrier
-                          , isCautious = False --for CBARRIER true
-                          , isTarget   = False
-                          , isPositive = True} --barrier tags always positive
-                      , toTags btags ) 
+  let condtagsEntry = SW ( I { index      = ind
+                             , isCautious = c
+                             , isTarget   = False
+                             , isPositive = positive })
+                         ( toTags tags )
+      bartagsEntry =  SW ( I { index      = ind+1 --minimal position for barrier
+                             , isCautious = False --for CBARRIER true
+                             , isTarget   = False
+                             , isPositive = True } ) --barrier tags always positive
+                         ( toTags btags )
   in [condtagsEntry, bartagsEntry]
 toTuple _ (C (CBarrier c ind btags) (positive,tags)) =
-  let condtagsEntry = ( I { index      = ind
-                          , isCautious = c
-                          , isTarget   = False
-                          , isPositive = positive}
-                      , toTags tags )  
-      bartagsEntry =  ( I { index      = ind+1 --minimal position for barrier
-                          , isCautious = True  --for BARRIER false
-                          , isTarget   = False
-                          , isPositive = True} --barrier tags always positive
-                      , toTags btags ) 
+  let condtagsEntry = SW ( I { index      = ind
+                             , isCautious = c
+                             , isTarget   = False
+                             , isPositive = positive })
+                         ( toTags tags )
+      bartagsEntry =  SW ( I { index      = ind+1 --minimal position for barrier
+                             , isCautious = True  --for BARRIER false
+                             , isTarget   = False
+                             , isPositive = True }) --barrier tags always positive
+                         ( toTags btags )
   in [condtagsEntry, bartagsEntry]
-toTuple _ (C pos (positive,tags)) = [( I { index     = ind
-                                        , isCautious = c
-                                        , isTarget   = False
-                                        , isPositive = positive}
-                                    , toTags tags )]
+toTuple _ (C pos (positive,tags)) = [SW ( I { index     = ind
+                                            , isCautious = c
+                                            , isTarget   = False
+                                            , isPositive = positive })
+                                        ( toTags tags )]
  where 
   (ind,c) = case pos of
                  Exactly c i -> (i,c)
@@ -382,12 +390,12 @@ toTuple _ (C pos (positive,tags)) = [( I { index     = ind
 
 -- x:xs must be sorted
 fill :: [SymbWord] -> [SymbWord]
-fill [] = []
-fill (x@((I ind c t ng),_):xs) = go (x:xs) ind []
+fill []     = []
+fill (x:xs) = go (x:xs) (index $ info x) []
  where
-  go []                       _m res = reverse res
-  go (x@((I ind c t ng),_):xs) m res | ind-m == 1 || ind-m == 0 = go xs ind (x:res)
-                                     | otherwise       = go xs ind (x:(filled++res))
+  go []                          _m res = reverse res
+  go (x@(SW (I ind c t ng) _):xs) m res | ind-m == 1 || ind-m == 0 = go xs ind (x:res)
+                                        | otherwise       = go xs ind (x:(filled++res))
            where filled = [ mkCond k | k <- [m+1..ind-1] ]
 
 
@@ -400,8 +408,9 @@ fill (x@((I ind c t ng),_):xs) = go (x:xs) ind []
 --          go (x:xs) m = map ((,) (mkInfo m)) (addWF m x) : go xs (m+1)
 --          addWF m = map (WF ("w" ++ show m) :)
 
-dechunk' :: [(Info,[Tag])] -> Sentence
-dechunk' ts = map (map snd) $ groupBy sameIndInfo ts
+---TODO
+-- dechunk' :: [SymbWord] -> Sentence
+-- dechunk' ts = map (map trgs) $ groupBy sameIndInfo ts
 
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
