@@ -21,7 +21,7 @@ test-pride:
 	$(testprog) data/eng_cg2.rlx data/pride.txt 2>/dev/null 
 
 test-spanish:
-	$(testprog) data/spa_smallset.rlx data/spa_story.txt 2>/dev/null 
+	$(testprog) data/spa/spa_smallset.rlx data/spa/spa_story.txt 2>/dev/null 
 
 test-hungarian:
 	$(testprog) data/hun_cg2.rlx data/hun_story.txt -v 2>/dev/null
@@ -32,6 +32,12 @@ test-grammars:
 	cat data/nld.rlx | ./CG/Test | grep Successful
 	cat data/hun_cg2.rlx | ./CG/Test | grep Successful
 	cat data/fin.rlx | ./CG/Test | grep Successful
+
+test-small:
+	cat data/small/ex-C-OR-.txt | cg-conv -A > /tmp/ex-C-OR-.ape
+	sudo cabal run cgsat data/small/C-OR-.rlx /tmp/ex-C-OR-.ape v 2>/dev/null | grep ";" 
+	echo "VISL CG-3:"
+	cat data/small/ex-C-OR-.txt | vislcg3 --trace -g data/small/C-OR-.rlx | grep ";"
 
 
 clean:

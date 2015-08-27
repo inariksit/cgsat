@@ -1,5 +1,0 @@
-^target/target<target><shouldmatch>/ctarget<ctarget><shouldmatch>/dummy<dummy>$^tag/tag<tag><insidebarrier>$^barrier/barrier<barrier><careful>$^dummy/dummy<target><shouldnotmatch>/dummy<ctarget><shouldnotmatch>/dummy<dummy>$^./.<sent>$
-
-^target/target<target><shouldnotmatch>/ctarget<ctarget><shouldnotmatch>/dummy<dummy>$^barrier/barrier<barrier><careful>$^tag/tag<tag><outsidebarrier><ohnoes>$^dummy/dummy<target><shouldnotmatch>/dummy<ctarget><shouldnotmatch>/dummy<dummy>$^./.<sent>$
-
-^target/target<target><shouldnotmatch>/ctarget<ctarget><shouldmatch>/dummy<dummy>$^barrier/barrier<barrier>/not<careful>$^tag/tag<tag><outsidebarrier>$^dummy/dummy<target><shouldnotmatch>/dummy<ctarget><shouldnotmatch>/dummy<dummy>$^./.<sent>$

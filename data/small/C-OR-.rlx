@@ -1,0 +1,24 @@
+DELIMITERS = "<.>";
+
+LIST A = a ;
+LIST B = b ;
+
+LIST AC = a c;
+LIST BC = b c;
+
+SET A_minus_BC = A - BC ;                     # A [^BC]*
+SET B_minus_AC = B - AC ;                     # B [^AC]*
+SET A_minus_B = A - B ;
+SET B_minus_A = B - A ;
+
+# Rules 1-4 work without C in SAT-CG
+REMOVE:rm1_a-bc (target1) IF (1C A - BC ) ; # a with anything but b or c
+			     	      	       # matches cond<a><b>/cond<a><c>  or cond<foo>
+					       # doesn't match cond<a><foo>
+REMOVE:rm2_ac-a (target2) IF (1C AC - A) ;  # c with anything but a
+REMOVE:rm3_bc-b (target3) IF (1C BC - B) ;  # c with anything but b
+
+REMOVE:rm4_notab  (target4) IF (1C A_minus_B OR B_minus_A) ;  # a and b not in same reading
+
+# Rule 5: todo
+REMOVE:rm5_weird (target5) IF (1C A_minus_BC OR B_minus_AC) ; #  a [^bc]* | b [^ac]*

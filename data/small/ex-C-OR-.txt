@@ -1,0 +1,66 @@
+"<target>"
+	"trg" target1
+	"trg" target2
+	"trg" target3 shouldmatch_BC-B
+	"trg" target4
+	"trg" dummy
+
+"<cond>"
+	"cond" c a
+	"cond" c e
+
+"<.>"
+	"." sent
+
+
+
+"<target>"
+	"trg" target1
+	"trg" target2 shouldmatch_AC-A
+	"trg" target3
+	"trg" target4
+	"trg" dummy
+
+"<cond>"
+	"cond" c b
+	"cond" c e
+
+"<.>"
+	"." sent
+
+
+
+"<target>"
+	"trg" target1
+	"trg" target2
+	"trg" target3
+	"trg" target4 shouldmatch_notAB
+	"trg" target5
+	"trg" dummy
+
+"<cond>"
+	"cond" a e
+	"cond" b c
+
+"<.>"
+	"." sent
+
+
+
+
+"<target>"
+	"trg" target1
+	"trg" target2
+	"trg" target3
+	"trg" target4 shouldmatch_notAB
+	"trg" target5 shouldmatch_weird
+	"trg" dummy
+
+"<cond>"
+	"cond" a 
+	"cond" a e
+	"cond" b f
+
+"<.>"
+	"." sent
+
