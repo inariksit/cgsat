@@ -17,17 +17,25 @@ LIST Pl = pl;
 
 LIST N = n;
 LIST Noun = n np;
+LIST Gen = gen;
+SET NGen = Noun + Gen ;
+
+
 LIST Prn = prn;
 LIST PrnPers = (prn pers);
 LIST PrnItg = (prn itg);
+LIST PrnDemSg = (prn dem sg);
+
 
 LIST Rel = rel;
 
 LIST Sep = sep;
 LIST Pr = pr;
+
 LIST Adj = adj;
 LIST AdjAttr = (adj attr);
 LIST AdjPred = (adj pred);
+LIST Cmp = cmp;
 LIST Adv = adv;
 
 LIST Cnjcoo = cnjcoo;
@@ -40,15 +48,20 @@ LIST DetDem = (det dem);
 LIST DetDef = (det def);
 LIST DetHet = (det def nt sg);
 LIST DetDe = (det def "de"i);
+LIST DezeDet  = ("deze"i det dem mfn pl);
 
 LIST Verb = vblex vbmod vaux vbhaver vbser;
 LIST Vbmod = vbmod;
 LIST VbGer = (vblex ger);
+LIST VblexInf = (vblex inf);
+LIST VblexPP = (vblex pp) ;
+LIST VbserInf = (vbser inf);
 LIST Vaux = vaux;
 LIST Imp = imp;
 LIST Inf = inf;
 
 LIST Zijn = ("zijn"i);
+LIST ZijnVerb = ("zijn"i vbser pres pl);
 
 LIST Te = "te" "om te" ;
 
@@ -63,150 +76,153 @@ SECTION
 # buiten spelen, om te spelen
 REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
 REMOVE:r_adv_n Adv IF (1 Noun);
-SELECT:s_pr_v PrTe IF (1 VerbInf) ;
+#-rm SELECT:s_pr_v PrTe IF (1 VerbInf) ;
 
 
-REMOVE Inf IF (-1 PrnPers);
+#-rm REMOVE Inf IF (-1 PrnPers);
 
 REMOVE Adj IF (-1 Pr) (1 Pr);
 
 REMOVE Cnjsub IF (1 EOS);
 
-SELECT VbGer IF (-1 DetHet) (NOT 0 Noun);
-SELECT DetHet IF (1 VbGer);
+#-rm SELECT VbGer IF (-1 DetHet) (NOT 0 Noun);
+#-rm SELECT DetHet IF (1 VbGer);
 
 # unsafe
 SET HaarN = ("haar"i) + Noun ;
-REMOVE HaarN IF (1 Noun);
+#-rm REMOVE HaarN IF (1 Noun);
 
 # unsafe
-SELECT DetPosNotZijn IF (1 Noun);
+#-rm #-rm SELECT DetPosNotZijn IF (1 Noun);
 
-REMOVE Noun IF (-1 PrnNotPers) (NOT -1 DetHet);
+#-rm REMOVE Noun IF (-1 PrnNotPers) (NOT -1 DetHet);
 # REMOVE:r_n_prNotPersNotDetHet Noun IF (-1 PrnNotPers - DetHet);
 
-SELECT Noun IF (-1 DetPos) (1 EOS);
+#-rm #-rm SELECT Noun IF (-1 DetPos) (1 EOS);
 
-# breaks ", bij niet" #SELECT Noun IF (*-1 Adj BARRIER Det) (NOT 1 Noun);
+# breaks ", bij niet" ##-rm SELECT Noun IF (*-1 Adj BARRIER Det) (NOT 1 Noun);
 
-#SELECT Inf IF (*-1 (NOT Vbmod) BARRIER Vbmod) (1 EOS);
+##-rm SELECT Inf IF (*-1 (NOT Vbmod) BARRIER Vbmod) (1 EOS);
 
-#SELECT Inf IF (-2 ("om"i)) (-1 ("te"i));
+##-rm SELECT Inf IF (-2 ("om"i)) (-1 ("te"i));
 
-SELECT DetNotZijn IF (1 Noun);
+#-rm #-rm SELECT DetNotZijn IF (1 Noun);
 
-REMOVE Sep IF (-1 ("te")) ;
+#-rm REMOVE Sep IF (-1 ("te")) ;
 
-REMOVE Pr IF (1 EOS);
+#-rm REMOVE Pr IF (1 EOS);
 
-REMOVE Pr IF (1 Pr);
+#-rm REMOVE Pr IF (1 Pr);
 
-REMOVE DetDem IF (1 DetDef);
+#-rm REMOVE DetDem IF (1 DetDef);
 
-REMOVE DetDem IF (1 Prn);
+#-rm REMOVE DetDem IF (1 Prn);
 
 SET ErPr = ("er"i) + Pr ;
-REMOVE ErPr IF (1 Verb) (NOT 1 Noun);
+#-rm REMOVE ErPr IF (1 Verb) (NOT 1 Noun);
 
-REMOVE DetHet IF (NOT *1 Noun BARRIER Verb);
+#-rm REMOVE DetHet IF (NOT *1 Noun BARRIER Verb);
 
-REMOVE (prn dem sg) IF (-1 (n pl));
+#-rm REMOVE PrnDemSg IF (-1 (n pl));
 
-#REMOVE Noun IF (0 (np));
+##-rm REMOVE Noun IF (0 (np));
 
-REMOVE (vblex pp) IF (-1 Det) (0 Noun);
+#-rm REMOVE (vblex pp) IF (-1 Det) (0 Noun);
 
 # remove p1/p2 verb readings if there is no p1/p2 pronoun in the same sentence
-REMOVE Verb + (p1) IF (NOT *-1 (prn pers p1) BARRIER BOS) (NOT *1 (prn pers p1) BARRIER EOS);
-REMOVE Verb + (p2) IF (NOT *-1 (prn pers p2) BARRIER BOS) (NOT *1 (prn pers p2) BARRIER EOS);
+SET VerbP1 = Verb + (p1) ;
+SET PrnPersP1 = PrnPers + (p1);
+SET VerbP2 = Verb + (p2) ;
+SET PrnPersP2 = PrnPers + (p2);
+
+REMOVE Verb IF (NOT -1 PrnPersP1 ); # BARRIER BOS) (NOT *1 PrnPersP1 BARRIER EOS);
+REMOVE VerbP2 IF (NOT *-1 PrnPersP2 ); #BARRIER BOS) (NOT *1 PrnPersP2 BARRIER EOS);
 
 # deze zijn
-LIST DezeDet  = ("deze"i det dem mfn pl);
-LIST ZijnVerb = ("zijn"i vbser pres pl);
-SELECT DezeDet  IF (-1 BOS)  (1 ("zijn"i));
-SELECT ZijnVerb IF (-2 BOS) (-1 ("deze"i));
+#-rm SELECT DezeDet  IF (-1 BOS) (1 Zijn);
+#-rm SELECT ZijnVerb IF (-2 BOS) (-1 ("deze"i));
 
 # . Tegenwoordig zijn
-SELECT (vbser pres pl) IF (-2 BOS) (-1 Adv) (0 ("zijn"i));
+#-rm SELECT (vbser pres pl) IF (-2 BOS) (-1 Adv) (0 ("zijn"i));
 
 # , bij niet
-SELECT Pr IF (-1 Cm) (1 Adv);
+#-rm SELECT Pr IF (-1 Cm) (1 Adv);
 
 # uit pinda's
-SELECT Noun IF (-1 Pr) (0 (gen));
+#-rm SELECT Noun IF (-1 Pr) (0 Gen);
 
 # de oliën
-#REMOVE Verb IF (-1 DetDe);
+##-rm REMOVE Verb IF (-1 DetDe);
 
 # olie of dierlijk vet.
-SELECT Noun IF (-3 Noun) (-2 Cnjcoo) (-1 Adj) (1 EOS);
+#-rm SELECT Noun IF (-3 Noun) (-2 Cnjcoo) (-1 Adj) (1 EOS);
 
 # , die tot stand kwam
-SELECT Rel IF (-1 Cm) (1 Adv) (2 Verb);
+#-rm SELECT Rel IF (-1 Cm) (1 Adv) (2 Verb);
 
 # De goederen die men
-REMOVE Rel + Mf + Sg IF (-1 (n pl)) (NOT -1 (n sg));
-SELECT (rel mfn pl) IF (-1 (n pl)) (1 Prn);
-SELECT (rel mfn pl) IF (-1 (n pl)) (1 DetDef);
+#-rm REMOVE Rel + Mf + Sg IF (-1 (n pl)) (NOT -1 (n sg));
+#-rm SELECT (rel mfn pl) IF (-1 (n pl)) (1 Prn);
+#-rm SELECT (rel mfn pl) IF (-1 (n pl)) (1 DetDef);
 
 # zeker te stellen
-SELECT (vblex inf) IF (-1 ("te"i));
+#-rm SELECT (vblex inf) IF (-1 ("te"i));
 
 # de wijs waarop
-SELECT Noun IF (-1 (det)) (1 (pr));
+#-rm SELECT Noun IF (-1 (det)) (1 (pr));
 
 # op zijn eiland aanvallen
-SELECT (vblex inf) IF (-1 Noun) (NOT -1 (cmp));
-REMOVE ("zijn"i vbser) IF (-1 (pr)) (1 Noun);
+#-rm SELECT VblexInf IF (-1 Noun) (NOT -1 Cmp);
+#-rm REMOVE ("zijn"i vbser) IF (-1 (pr)) (1 Noun);
 
 # . Heb je
-SELECT:heb_je (vbhaver pres p2 sg) IF (-1 BOS) (1 (prn obj uns p2 mf sg));
+#-rm SELECT:heb_je (vbhaver pres p2 sg) IF (-1 BOS) (1 (prn obj uns p2 mf sg));
 
-REMOVE ("s"i gen) IF (NOT -1 (np));
+#-rm REMOVE ("s"i gen) IF (NOT -1 (np));
 
 # is zijn zus
-SELECT DetPos IF (-1 (vbser pres p3 sg)) (0 ("zijn"i)) (1 Noun);
+#-rm SELECT DetPos IF (-1 (vbser pres p3 sg)) (0 ("zijn"i)) (1 Noun);
 
 # . Weet je
-SELECT (vblex pres p2 sg) IF (-1 BOS) (1 (prn obj uns p2 mf sg));
+#-rm SELECT (vblex pres p2 sg) IF (-1 BOS) (1 (prn obj uns p2 mf sg));
 
 # Ik heb je
-SELECT:ik_heb_je (prn obj uns p2 mf sg) IF (-2 (prn subj p1 mf sg)) (-1 (vbhaver p1 sg));
+#-rm SELECT:ik_heb_je (prn obj uns p2 mf sg) IF (-2 (prn subj p1 mf sg)) (-1 (vbhaver p1 sg));
 
 # Zeg me
-SELECT Imp IF (-1 BOS) (1 (prn obj));
+#-rm SELECT Imp IF (-1 BOS) (1 (prn obj));
 
 # Bij gebruik van
-SELECT Noun IF (-1 Pr) (1 Pr);
+#-rm SELECT Noun IF (-1 Pr) (1 Pr);
 
-REMOVE (det dem sg) IF (0 (det dem pl)) (*-1 (n pl) BARRIER (n sg));
+#-rm REMOVE (det dem sg) IF (0 (det dem pl)) (*-1 (n pl) BARRIER (n sg));
 
-REMOVE Adj IF (-1 Adj) (1 EOS);
-REMOVE Adj IF (-3 Det) (-2 Pr) (-1 Det) (1 Adj);
+#-rm REMOVE Adj IF (-1 Adj) (1 EOS);
+#-rm REMOVE Adj IF (-3 Det) (-2 Pr) (-1 Det) (1 Adj);
 
-REMOVE Adj IF (-1 Noun) (0 (vblex pp)) (1 EOS);
+#-rm REMOVE Adj IF (-1 Noun) (0 VblexPP) (1 EOS);
 
-REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun);
-REMOVE AdjPred IF (0 AdjAttr) (1 Noun);
+#-rm REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun);
+#-rm REMOVE AdjPred IF (0 AdjAttr) (1 Noun);
 
 # zijn ontworpen
-REMOVE (vbser inf) IF (1 (vblex pp));
-REMOVE ("zijn"i det pos) IF (1 (vblex pp));
+#-rm REMOVE VbserInf IF (1 VblexPP);
+#-rm REMOVE ("zijn"i det pos) IF (1 (vblex pp));
 
-REMOVE (vbser inf) IF (1 Adv) (2 (vblex pp));
-REMOVE ("zijn"i det pos) IF (1 Adv) (2 (vblex pp));
+#-rm REMOVE (vbser inf) IF (1 Adv) (2 (vblex pp));
+#-rm REMOVE ("zijn"i det pos) IF (1 Adv) (2 (vblex pp));
 
 # krachtiger dan
-SELECT Cnjadv IF (-1 (adj comp)) (0 ("dan"i));
+#-rm SELECT Cnjadv IF (-1 (adj comp)) (0 ("dan"i));
 
 
 SECTION
 
 # remove all imperative readings that have not been explicitly selected
-REMOVE Imp ;
+#-rm REMOVE Imp ;
 
 # remove noun reading of "bij"
-#REMOVE ("bij"i n) ;
+##-rm REMOVE ("bij"i n) ;
 
 # remove informal 2nd person singular reading of "heb"
-REMOVE (vbhaver pres p2 sg) ;
+#-rm REMOVE (vbhaver pres p2 sg) ;
