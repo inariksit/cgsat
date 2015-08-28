@@ -74,16 +74,16 @@ SET PrTe = Pr + Te ;
 SECTION
 
 # buiten spelen, om te spelen
-REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
-REMOVE:r_adv_n Adv IF (1 Noun);
+#-rm REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
+#-rm REMOVE:r_adv_n Adv IF (1 Noun);
 #-rm SELECT:s_pr_v PrTe IF (1 VerbInf) ;
 
 
 #-rm REMOVE Inf IF (-1 PrnPers);
 
-REMOVE Adj IF (-1 Pr) (1 Pr);
+#-rm REMOVE Adj IF (-1 Pr) (1 Pr);
 
-REMOVE Cnjsub IF (1 EOS);
+#-rm REMOVE Cnjsub IF (1 EOS);
 
 #-rm SELECT VbGer IF (-1 DetHet) (NOT 0 Noun);
 #-rm SELECT DetHet IF (1 VbGer);
@@ -93,12 +93,12 @@ SET HaarN = ("haar"i) + Noun ;
 #-rm REMOVE HaarN IF (1 Noun);
 
 # unsafe
-#-rm #-rm SELECT DetPosNotZijn IF (1 Noun);
+#-rm SELECT DetPosNotZijn IF (1 Noun);
 
 #-rm REMOVE Noun IF (-1 PrnNotPers) (NOT -1 DetHet);
 # REMOVE:r_n_prNotPersNotDetHet Noun IF (-1 PrnNotPers - DetHet);
 
-#-rm #-rm SELECT Noun IF (-1 DetPos) (1 EOS);
+#-rm SELECT Noun IF (-1 DetPos) (1 EOS);
 
 # breaks ", bij niet" ##-rm SELECT Noun IF (*-1 Adj BARRIER Det) (NOT 1 Noun);
 
@@ -131,12 +131,15 @@ SET ErPr = ("er"i) + Pr ;
 
 # remove p1/p2 verb readings if there is no p1/p2 pronoun in the same sentence
 SET VerbP1 = Verb + (p1) ;
-SET PrnPersP1 = PrnPers + (p1);
+LIST PrnPersP1 = (prn pers p1);
 SET VerbP2 = Verb + (p2) ;
-SET PrnPersP2 = PrnPers + (p2);
+LIST PrnPersP2 = (prn pers p2);
 
-REMOVE Verb IF (NOT -1 PrnPersP1 ); # BARRIER BOS) (NOT *1 PrnPersP1 BARRIER EOS);
-REMOVE VerbP2 IF (NOT *-1 PrnPersP2 ); #BARRIER BOS) (NOT *1 PrnPersP2 BARRIER EOS);
+SELECT PrnPersP1 IF (1 EOS);
+
+REMOVE VerbP1 IF (NOT *-1 PrnPersP1 BARRIER BOS) (NOT *1C PrnPersP1 BARRIER EOS);
+REMOVE VerbP2 IF (NOT *-1 PrnPersP2 BARRIER BOS) (NOT *1C PrnPersP2 BARRIER EOS);
+
 
 # deze zijn
 #-rm SELECT DezeDet  IF (-1 BOS) (1 Zijn);
