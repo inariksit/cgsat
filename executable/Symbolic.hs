@@ -57,7 +57,7 @@ main = do
             (tsets, rls) <- readRules' "data/nld/nld.rlx"
             let rules = concat rls
             when debug $ mapM_ print rules
-            let tcInGr = concatMap toTags' tsets
+            let tcInGr = nub $ concatMap toTags' tsets
             print tcInGr
             tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
             let tc = nub $ tcInGr  -- ++ tcInLex
@@ -117,7 +117,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   let sWordsInOrder = groupBy sameIndSW $ sort $ concat $ concat symbWords
   let sWordMap = [(sWord, lits) | (sWords, lits) <- zip sWordsInOrder allLits 
                                 , sWord <- sWords ]
-  --mapM_ print sWordMap
+  mapM_ print sWordMap
 
   when debug $ do 
     putStrLn "symbolic sentence:"
@@ -132,7 +132,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
     putStrLn $ ": "  ++ show (length cls) ++ " clauses"
   
   sequence_ [ do when debug $ print cl
-                 addClause s cl | cl <- cls ] --
+                 addClause s cl | cl <- cls ]
 
   b <- solve s []
   if b then do
@@ -246,53 +246,41 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
 
     where
      
-     -- (-1 foo) : at least one foo must be true
+     -- (-1 foo) : >=1 foo is true
      disjunction :: [Lit] -> Int -> Lit -> Trg -> Dif -> [Clause]
      disjunction wn n nl trg dif = 
        let indTrg = concatMap (lookup' tagcombs) trg
            indDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-
        in [ neg nl:[ wn !! ind | ind <- indTrg ] ] ++
-          [ [neg nl, neg(wn!!ind)] | ind <- indDif ]
+          [ [neg nl, neg (wn!!ind)] | ind <- indDif ]
 
-     -- (-1C foo) : at least one foo must be true && all non-foos false
+     -- (-1C foo) : >=1 foo is true, and all non-foos are false
      disjunctionC wn n nl trg dif = 
        let indTrg = concatMap (lookup' tagcombs) trg
            indDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-           indNeut = [0..n] \\ (indTrg ++ indDif)
-       in [ [ neg nl, neg$wn!!ind ] | ind <- indNeut ++ indDif ] ++
-          [   neg nl:[  wn !! ind | ind <- indTrg ] ]
+           trgsWoDif = indTrg \\ indDif
+           indFailsC = [0..n] \\ trgsWoDif --either it's in Dif or it's not specified
+       in [   neg nl:[  wn !! ind | ind <- trgsWoDif ] ] ++
+          [ [ neg nl, neg (wn!!ind) ] | ind <- indFailsC ]
+          
 
-     -- (NOT -1 foo) : all foos must be false, and >=1 non-foo must be true
-     negative wn n nl trg dif =  trace ("negative: " ++ show indNegTrg ++ " " ++ show indNegDif) $
-       -- let indNegTrg = concatMap (lookup' tagcombs) trg
-       --     indNegDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-       --     trgsWithoutDif = indNegTrg \\ indNegDif
-       --     indNeut = [0..n] \\ trgsWithoutDif
-        [ [ neg nl, neg$wn!!ind ] | ind <- trgsWithoutDif ] ++ 
-          [   neg nl:[  wn !! ind | ind <- indNeut ] ]
-       where 
-           indNegTrg = concatMap (lookup' tagcombs) trg
+     -- (NOT -1 foo) : all foos are false, and >=1 non-foo is true
+     negative wn n nl trg dif = 
+       let indNegTrg = concatMap (lookup' tagcombs) trg
            indNegDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
            trgsWithoutDif = indNegTrg \\ indNegDif
            indNeut = [0..n] \\ trgsWithoutDif
+       in [ [ neg nl, neg (wn!!ind) ] | ind <- trgsWithoutDif ] ++ 
+          [   neg nl:[  wn !! ind | ind <- indNeut ] ]
 
-     -- (NOT -1C foo) : all foos are false, or foo and >=1 non-foo are true
-     -- TODO check this again when more sane
+
+     -- (NOT -1C foo) : >=1 non-foo is true
      negativeC wn n nl trg dif =
        let indNegTrg = concatMap (lookup' tagcombs) trg
            indNegDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
            trgsWoDif = indNegTrg \\ indNegDif
-           indFailsC = [0..n] \\ trgsWoDif
-           indFailsDif = indNegDif
-       in [ neg nl:[ neg$wn!!ind | ind <- trgsWoDif ] ++ [wn !! ind | ind <- indFailsC] ]
-        ++ [neg nl:[  wn !! ind | ind <- [0..n] ] ]
-
-{- old: in [ neg nl:[neg $ wn!!ind | ind <- indN] ++ [wn !! ind | ind <- indY] ]
-          ++ [ neg nl:[ wn!!ind | ind <- indN++indY ] ]
-        -- to force neg tag to be there along with another tag, choose following:
-        --  ++ map (neg nl:) (sequence [[ wn!!ind | ind <- indN], [ wn!!ind | ind <- indY]])
--}
+           indFailsC = [0..n] \\ trgsWoDif --either it's in Dif or it's not specified
+       in [ neg nl:[ wn !! ind | ind <- indFailsC ] ]
       
   notNegUnit [x] = pos x
   notNegUnit _   = True
@@ -379,22 +367,17 @@ data SymbWord = SW { info :: Info
                    , targets :: [(Trg,Dif)] } deriving (Eq,Ord,Show)
 
 
---isOptional : 
---say we have a template condition IF ( (-1 foo) OR (-2 bar) ),
---and there are no other conditions for -2.
---we signal this by allowing nonexistent -2.
 data Info = I { index      :: Int 
               , isCautious :: Bool
               , isTarget   :: Bool
-              , isPositive :: Bool 
-              , isOptional :: Bool } deriving (Eq,Ord,Show)
+              , isPositive :: Bool } deriving (Eq,Ord,Show)
 
 
 defaultTrg :: [(Trg,Dif)] -> SymbWord
-defaultTrg = SW (I 0 False True True False)
+defaultTrg = SW (I 0 False True True )
 
 defaultCond :: Int -> SymbWord
-defaultCond i = SW ( I i False False True False )
+defaultCond i = SW ( I i False False True )
                    [ ([[]], [[]]) ]
 
 mkCond :: Int -> Bool -> Bool -> [(Trg,Dif)] -> SymbWord
@@ -402,23 +385,16 @@ mkCond ind caut posit targets =
   SW ( I { index  = ind
          , isCautious = caut
          , isTarget   = False
-         , isPositive = posit
-         , isOptional = False })
+         , isPositive = posit })
      targets
 
-mkOptional :: SymbWord -> SymbWord
-mkOptional (SW (I ind isC isT isPos isOpt) trg_dif) =
-           (SW (I ind isC isT isPos True) trg_dif)
 
 sameIndSW :: SymbWord -> SymbWord -> Bool
 sameIndSW sw1 sw2 = (index.info) sw1 == (index.info) sw2
 
 --------------------------------------------------------------------------------
 
---Conditions grouped by AND
--- would not work to remove []s, need to retain distinction between
--- one condition that generates 2 SymbWords and one condition that generates 2 [SymbWord]s
--- AND-conditions and one condition is the same, it will be given one variable and stuff
+--all conditions are grouped by AND
 toSymbWord :: [Condition] -> [SymbWord]
 toSymbWord [] = []
 toSymbWord (Always:_) = error "toSymbWord applied to Always: this should not happen"
@@ -435,8 +411,7 @@ toSymbWord (c:cs) = case c of
   barSW ind c ts = SW ( I { index      = if ind>=0 then ind+1 else ind-1
                           , isCautious = c
                           , isTarget   = False
-                          , isPositive = True --barrier tags always positive
-                          , isOptional = False }) 
+                          , isPositive = True }) --barrier tags always positive
                       ( toTags ts )
 
   
@@ -446,7 +421,7 @@ toSymbWord (c:cs) = case c of
 
 fill :: [[[SymbWord]]] -> (Int, [[[SymbWord]]])
 fill []        = error "fill: []"
-fill swordlist = (width, sort $ swordlist ++ (map (:[])) swords)
+fill swordlist = (width, swordlist ++ (map (:[])) swords)
  where
   (width, swords) = go flatConds minInd (1,[])
   flatConds = sort $ concat $ concat swordlist
@@ -459,13 +434,6 @@ fill swordlist = (width, sort $ swordlist ++ (map (:[])) swords)
      ind = (index.info) x 
      filled = [ defaultCond k | k <- [m+1..ind-1] ]
 
--- fill (x:xs) = go (x:xs) (index $ info x) []
---  where
---   go []                          _m res = reverse res
---   go (x@(SW (I ind c t ng _) _):xs) m res | ind-m == 1 || ind-m == 0 = go xs ind (x:res)
---                                         | otherwise       = go xs ind (x:(filled++res))
---            where filled = [ defaultCond k | k <- [m+1..ind-1] ]
-
 
 
 --------------------------------------------------------------------------------
@@ -475,10 +443,6 @@ fill swordlist = (width, sort $ swordlist ++ (map (:[])) swords)
 --    where go []    _m = []
 --          go (x:xs) m = map ((,) (mkInfo m)) (addWF m x) : go xs (m+1)
 --          addWF m = map (WF ("w" ++ show m) :)
-
----TODO
--- dechunk' :: [SymbWord] -> Sentence
--- dechunk' ts = map (map targets) $ groupBy sameIndSW ts
 
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
@@ -515,7 +479,7 @@ printFancy s =
 --------------------------------------------------------------------------------
 
 --just a naive try to prune the corpus-free method by using a corpus.
---TODO rather restrict the number/combination of tags in the SAT formulas?
+--rather restrict the number/combination of tags in the SAT formulas?
 
 checkCorpus :: [Token] -> Sentence -> IO ()
 checkCorpus symbsent corpus = do
