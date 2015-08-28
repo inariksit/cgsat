@@ -80,7 +80,7 @@ sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
 --And none of the sublists in diff can be found in the analysis.
 --tagsMatchRule :: [Token] -> Token -> ([[Tag]],[[Tag]]) -> Bool
 tagsMatchRule :: [Token] -> Token -> [(Trg,Dif)] -> Bool
-tagsMatchRule allToks t@(((ind,isC),ta),_) trg_difs = trace ("tagsMatchRule: " ++ if isC then (show toksAtSameInd) ++ " " ++ (show trg_difs) ++ " " ++ (show (map (\tok -> any (bothMatch tok) trg_difs) toksAtSameInd)) else "") $
+tagsMatchRule allToks t@(((ind,isC),ta),_) trg_difs = --trace ("tagsMatchRule: " ++ if isC then (show toksAtSameInd) ++ " " ++ (show trg_difs) ++ " " ++ (show (map (\tok -> any (bothMatch tok) trg_difs) toksAtSameInd)) else "") $
   if isC 
     then let foo = True  --toksAtSameInd = filter (sameInd t) allToks
          in  all (\tok -> any (bothMatch tok) trg_difs) toksAtSameInd
@@ -210,6 +210,9 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   --In addition, stuff only for grammar analysis:
   --We want to find a sentence for which a rule /does not/ fire.
   --It can be because of there is no target left, or because there is /only/ target left.
+  --TODO: why this happens?
+     -- REMOVE target  IF (1C tag  - dummy ): [v19,v18]
+     -- REMOVE target  IF (1C tag  - dummy ): [~v19] <----- ??????
   mkVarsGrammarAnalysis :: [(Token,[[Token]])] -> [(Token,[[Token]])] -> [Condition] ->  IO [Clause]
   mkVarsGrammarAnalysis sl rm conds = do
     let onlyCtxs = [ ctx | tctx <- groupBy sndEq (sl++rm)
@@ -343,7 +346,7 @@ getContext :: Token       -- ^ a single analysis
            -> [[Token]]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Token lists as Conditions.
 getContext ana allToks []          = []
 getContext ana allToks (Always:cs) = [dummyTok] : getContext ana allToks cs 
-getContext ana allToks ((C position c@(positive,ctags)):cs) = trace ("getContext.c: " ++ show c ++ "\n" ++ "result: " ++ show result) $ result : getContext ana allToks cs
+getContext ana allToks ((C position c@(positive,ctags)):cs) = {-trace ("getContext.c: " ++ show c ++ "\n" ++ "result: " ++ show result) $ -} result : getContext ana allToks cs
  where 
   result = case head $ toTags ctags of
     ([]  ,_)   -> [dummyTok] --empty conds = holds always
