@@ -42,7 +42,7 @@ data TagSet =
 
 instance Show TagSet where
   show (TS tags) = showTagset tags
-  show (Or ts1 ts2) = show ts1 ++ " OR " ++ show ts2
+  show (Or ts1 ts2) = show ts1 ++ " ORt " ++ show ts2
   show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2 
   show (Cart ts1 ts2) = show ts1 ++ " + " ++ show ts2
   show All = "(*)"
@@ -118,7 +118,7 @@ instance Show Condition where
   show (C pos (False, ts)) = "(NOT " ++ fst (showPosTuple pos) ++ " " ++ show ts
                                      ++ snd (showPosTuple pos) ++ ")"
   show (AND c1 c2) = show c1 ++ " " ++ show c2
-  show (OR c1 c2) = show c1 ++ " ORc " ++ show c2
+  show (OR c1 c2) = "( " ++ show c1 ++ " ORc " ++ show c2 ++ " )"
   show Always = ""
 
 -- | Position can be exact or at least.
