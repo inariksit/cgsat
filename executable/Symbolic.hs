@@ -209,7 +209,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
      disj :: [Lit] -> Int -> Lit -> Trg -> Dif -> [Clause]
      disj wn n nl trg dif = 
        let indTrg = concatMap (lookup' tagcombs) trg
-           indDif = if null (concat dif) then [] else lookup' tagcombs (concat dif)
+           indDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
            indNeut = [0..n] \\ (indTrg ++ indDif)
 
        in [ neg nl:[ wn !! ind | ind <- indTrg ] ] ++
