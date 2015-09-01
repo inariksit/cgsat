@@ -32,34 +32,36 @@ import Debug.Trace
 --------------------------------------------------------------------------------
 
 type Clause = [Lit]
-type Token = (((Int,Cautious), [Tag]), Lit)
-type Trg = [[Tag]]
-type Dif = [[Tag]]
+
+data Token = T { getInd  :: Int
+               , getTags :: [Tag]
+               , getLit  :: Lit
+               , isCautious :: Bool
+               , isPositive :: Bool } deriving (Eq,Ord,Show)
+
+
 type Context = (Condition,[Token])
 
 -------------------------
 -- Operations with tokens
 
 mkCautious :: Token -> Token
-mkCautious (((i,_),tags),lit) = (((i,True),tags),lit)
+mkCautious (T i tags lit _ pos) = T i tags lit True pos
+
+mkNegative :: Token -> Token
+mkNegative (T i tags lit c _) = T i tags lit c False
 
 dummyTok :: Token
-dummyTok = (((999,False),[]),true) 
+dummyTok = T { getInd  = 999
+             , getTags = []
+             , getLit  = true
+             , isCautious = False
+             , isPositive = True }
 
-getInd :: Token -> Int
-getInd (((i,_),_),_) = i
 
-getTags :: Token -> [Tag]
-getTags ((_,t),_) = t
-
-getLit :: Token -> Lit
-getLit (_,l) = l
 
 isBoundary :: Token -> Bool
-isBoundary ((_,ts),_) = not $ null ([BOS,EOS] `intersect` ts)
-
-isCautious :: Token -> Bool
-isCautious (((_,b),_),_) = b
+isBoundary t = not $ null ([BOS,EOS] `intersect` getTags t)
 
 -- we don't need to apply rules to tokens that are already unambiguous
 isAmbig :: Token -> [Token] -> Bool
@@ -71,7 +73,7 @@ isAmbig tok toks = atLeast 2 (filter (sameInd tok) toks)
 
 --we want to often compare the indices
 sameInd :: Token -> Token -> Bool
-sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
+sameInd t1 t2 = getInd t1 == getInd t2
 
 --------------------------------------------------------------------------------
 
@@ -80,9 +82,9 @@ sameInd (((i,_),_),_) (((i',_),_),_) = i == i'
 -- In the analysis there must be at least one complete trg-sublist,
 -- which does NOT include tags from any dif-sublist in its (Trg,Dif) pair.
 tagsMatchRule :: [Token] -> Token -> [(Trg,Dif)] -> Bool
-tagsMatchRule allToks t@(((ind,isC),ta),_) trg_difs = any (bothMatch t) trg_difs
+tagsMatchRule allToks t trg_difs = any (bothMatch t) trg_difs
  where
-  bothMatch t@((_,ta),_) (trg,dif) = pos trg ta && neg dif ta
+  bothMatch t (trg,dif) = let ta = getTags t in pos trg ta && neg dif ta
   pos []       ta = False
   pos (tr:trs) ta = if all (\t -> t `elem` ta) tr 
                        then True
@@ -98,18 +100,21 @@ tagsMatchRule allToks t@(((ind,isC),ta),_) trg_difs = any (bothMatch t) trg_difs
 --   * its position in the sentence
 --   * one of the suggested tag sequences
 --   * id of that hypothesis in the SAT solver
--- ((1,["the",<det>]),v0)
--- ((2,["bear",<n>,<sg>]),v1)
--- ((2,["bear",<vblex>,<pl>]),v2)
--- ((3,["sleep",<n>,<pl>]),v4)
--- ((3,["sleep",<vblex>,<sg>,<p3>]),v5)
-chunk :: Sentence -> [((Int,Cautious), [Tag])]
+-- (1,["the",<det>],v0)
+-- (2,["bear",<n>,<sg>],v1)
+-- (2,["bear",<vblex>,<pl>],v2)
+-- (3,["sleep",<n>,<pl>],v4)
+-- (3,["sleep",<vblex>,<sg>,<p3>],v5)
+chunk :: Sentence -> [(Int,[Tag])]
 chunk sent = concat $ go sent 1
    where go []    _n = []
-         go (x:xs) n = map ((,) (n,False)) x : go xs (n+1)
+         go (x:xs) n = map ((,) n) x : go xs (n+1)
 
 dechunk :: [Token] -> Sentence
 dechunk ts = (map.map) getTags (groupBy sameInd ts)
+
+makeTok :: (Int,[Tag]) -> Lit -> Token
+makeTok (i,ts) lit = T { getInd = i , getTags = ts, getLit = lit , isPositive = True, isCautious = False}
         
 
 --------------------------------------------------------------------------------
@@ -328,7 +333,8 @@ the final lit is v17:
                    putStr "mkVars.help.cautiousClauses: "
                    print cautiousClauses
                    --mapM_ (addClause s) cautiousClauses --TODO check later
-                   | tok@(_,lit) <- toks --context 
+                   | tok <- toks --context 
+                   , let lit = getLit tok
                    , let sameIndToks = filter (sameInd tok) allToks
                    , let nonmatching = map getLit $ sameIndToks \\ toks
                    , let nonC = map neg nonmatching
@@ -358,21 +364,23 @@ getContext ana allToks (ctx@(C position ts@(positive,ctags)):cs) = trace ("getCo
                 Exactly False 0 -> 
                 --TODO: rethink the next line, is this a good idea?
                  if match ana then [ana] --feature at 0 is in the *same reading*
-                   else [ t | t <- exactly 0 ana, match t] --feature in other reading
+                   else [ f t | t <- exactly 0 ana, match t] --feature in other reading
 
                 Exactly True 0 ->
                  if match ana then [mkCautious ana]
-                   else [ mkCautious t | t <- exactly 0 ana, match t] 
+                   else [ f $ mkCautious t | t <- exactly 0 ana, match t] 
 
-                Exactly True n -> [ mkCautious t | t <- exactly n ana 
+                Exactly True n -> [ f $ mkCautious t | t <- exactly n ana 
                                                  , match t ]
-                AtLeast True n -> [ mkCautious t | t <- atleast n ana
+                AtLeast True n -> [ f $ mkCautious t | t <- atleast n ana
                                                  , match t ]
 
-                Exactly _ n -> [ t | t <- exactly n ana, match t ]
-                AtLeast _ n -> [ t | t <- atleast n ana, match t ]
+                Exactly _ n -> [ f t | t <- exactly n ana, match t ]
+                AtLeast _ n -> [ f t | t <- atleast n ana, match t ]
                 Barrier  _ n bs -> barrier n bs ana
                 CBarrier _ n bs -> cbarrier n bs ana
+  f :: Token -> Token
+  f = if positive then id else mkNegative
 
   match :: Token -> Bool
   match tok = (if positive then id else not) $ tagsMatchRule allToks tok (toTags ctags)
@@ -463,7 +471,7 @@ disambiguate' withOrder verbose debug rules sentence = do
   else do 
    s <- newSolver
    litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
-   let toks = zip chunkedSent litsForAnas
+   let toks = zipWith makeTok chunkedSent litsForAnas
    applied' <- mapM (applyRule s toks) rules
 
    -- CHECKPOINT 2: are rules triggered       
@@ -550,8 +558,8 @@ disambiguate' withOrder verbose debug rules sentence = do
             return []
 
  where 
-  insertStr str ((i, (WF t:ts)), lit) = ((i,  WF t:Tag str:ts), lit)
-  insertStr str ((i, ts), lit) = ((i, Tag str:ts), lit)
+  insertStr str (T i (WF t:ts) lit c p) = (T i (WF t:Tag str:ts) lit c p)
+  insertStr str (T i        ts lit c p) = (T i (     Tag str:ts) lit c p)
 
 
 

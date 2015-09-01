@@ -54,8 +54,10 @@ showTagset xs    = concatMap show' xs
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
 
-toTags :: TagSet -> [ ([[Tag]],[[Tag]]) ]
--- | TagSet translates to [[Tag]] : outer list is bound by OR, inner lists by AND
+type Trg = [[Tag]]
+type Dif = [[Tag]]
+toTags :: TagSet -> [ (Trg,Dif) ]
+-- | TagSet translates to pair of [[Tag]]s : outer list is bound by OR, inner lists by AND
 --  First [[Tag]] is the target, second [[Tag]] is list of tags it should not match.
 --  For example, 
 --    LIST DefArt = (det def) ;
@@ -65,7 +67,8 @@ toTags :: TagSet -> [ ([[Tag]],[[Tag]]) ]
 --    defArt = ([[Tag "det", Tag "def"]], [[]])
 --    dem    = ([[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]], [[]])
 --    fooBar = ([[Tag "foo"],[Tag "bar"]], [[Tag "baz"]])
--- the extra list is because of disjoint Diffs. 
+-- it's a list of pairs is because of disjoint Diffs. 
+-- also a list can be a set in CG, so we just coerce list to set automatically
 toTags ts = case ts of
   Or   ts1 ts2 -> toTags ts1 ++ toTags ts2
   Diff ts1 ts2 -> [(toTags' ts, toTags' ts2)]
