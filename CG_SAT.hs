@@ -37,8 +37,16 @@ data Token = T { getInd  :: Int
                , getTags :: [Tag]
                , getLit  :: Lit
                , isCautious :: Bool
-               , isPositive :: Bool } deriving (Eq,Ord,Show)
+               , isPositive :: Bool } deriving (Eq,Ord)
 
+showToken :: Token -> String
+showToken (T i ts lit False True) = show i ++ " " ++ show ts ++ ": " ++ show lit
+showToken (T i ts lit True True)  = show i ++ "C " ++ show ts ++ ": " ++ show lit
+showToken (T i ts lit False False)  = show i ++ " is NOT " ++ show ts ++ ": " ++ show lit
+showToken (T i ts lit True False)  = show i ++ "C is NOT " ++ show ts ++ ": " ++ show lit
+
+instance Show Token where
+  show = showToken
 
 type Context = (Condition,[Token])
 
