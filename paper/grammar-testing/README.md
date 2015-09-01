@@ -83,3 +83,49 @@ Solution after all clauses:
 "<w2>"
         vblex inf
 ```
+
+
+Implementation of Careful mode
+------------------------------
+
+Let us look at the following rules and input sentence.
+
+```
+REMOVE (target2) IF (1 (tag)) ;
+REMOVE (target1) IF (1C (tag)) ;
+REMOVE (target4) IF (NOT 1 (tag)) ;
+REMOVE (target3) IF (NOT 1C (tag)) ;
+
+
+"<target>"
+	"trg" target1        --v1
+	"trg" target2        --v2
+	"trg" target3        --v3
+	"trg" target4        --v4
+	"trg" dummy          --v5
+
+"<cond>"
+	"cond" tag           --v6
+	"cond" dummy         --v7
+
+```
+
+Applying the `tagsMatchRule` function to `target[1-4]` will return, respectively, the following contexts to the target literals `v[1-4]`:
+
+```
+(v1, [v6])
+(v2, [v6]) --tagsMatchRule doesn't care about C
+(v3, [v7]) --not . tagsMatchRule 
+(v4, [v7])
+```
+
+Now when we make the context variable, which to use in all clauses that have the same context. Even if `tagsMatchRule` returns the same context for (NOT) 1 and (NOT) 1C, they should have different contexts. 
+
+```
+r =: new literal
+
+    1  tag: r => v6
+    1C tag: r => v6 ; r => ~v7
+NOT 1  tag: r => v7 ; r => ~v6
+NOT 1C tag: r => ~v6
+```
