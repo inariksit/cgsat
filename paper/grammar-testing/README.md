@@ -122,10 +122,19 @@ Applying the `tagsMatchRule` function to `target[1-4]` will return, respectively
 Now when we make the context variable, which to use in all clauses that have the same context. Even if `tagsMatchRule` returns the same context for (NOT) 1 and (NOT) 1C, they should have different contexts. 
 
 ```
-r =: new literal
+r[1-4] := new literal
 
-    1  tag: r => v6
-    1C tag: r => v6 ; r => ~v7
-NOT 1  tag: r => v7 ; r => ~v6
-NOT 1C tag: r => ~v6
+    1  tag: v6        => r1
+    1C tag: v6 && ~v7 => r2
+NOT 1  tag: v7 && ~v6 => r3
+NOT 1C tag: ~v6       => r4
+```
+
+Then we make the following clauses:
+
+```
+r1 => ~v1
+r2 => ~v2
+r3 => ~v3
+r4 => ~v4
 ```
