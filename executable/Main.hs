@@ -2,6 +2,7 @@ module Main where
 
 import CG_parse ( readRules, readData, parseData )
 import CG_SAT
+import qualified CG_simple as Simple
 import CG_base ( Sentence, showSentence, Rule )
 import Control.Monad
 import System.Environment
@@ -17,8 +18,7 @@ main = do
                           loop True (disambiguate True True rules)
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
-                  let is2 = "2" `elem` o
-                      verbose = "v" `elem` o
+                  let verbose = "v" `elem` o
                       debug = "d" `elem` o
                       disam = if "noord" `elem` o 
                                 then disambiguateUnordered verbose debug
@@ -26,7 +26,11 @@ main = do
                       disec = if "sec" `elem` o
                                 then disamSection disam rules
                                 else disam (concat rules)
-                  mapM_ disec text
+                      dirul = if "s" `elem` o || "simple" `elem` o
+                              --  then Simple.disamRule (concat rules)
+                                then Simple.disamSecRule rules
+                                else disec
+                  mapM_ dirul text
     ("test":_) -> CG_SAT.test
     _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"
   
