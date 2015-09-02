@@ -105,7 +105,7 @@ split p [] = []
 split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
 
 bos = [[CGB.BOS]]
-eos = [[CGB.EOS]]
+eos = [[CGB.EOS, CGB.Tag "sent"]]
 
 strip :: Int -> String -> String
 strip n = drop n . reverse . drop n . reverse
