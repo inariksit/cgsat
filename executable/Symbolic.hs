@@ -1,5 +1,5 @@
 import CG_base
-import CG_SAT 
+import CG_SAT hiding ( isCautious, isPositive )
 import CG_parse
 import Control.Monad ( when )
 import Data.List
@@ -14,10 +14,10 @@ testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf
 tinyrules = concat $ snd $ parseRules False 
           ( "SET DetNoAdj = (det) - (adj) ;" ++
             "SET AdjNoDet = (adj) - (det) ;" ++
-           -- "REMOVE:r1 (v) IF (-1C (det)) (NOT 0 (det)) ;" ++
-           -- "REMOVE:r2 (adj) - (attr);" ++
-           "REMOVE:r3 (n) IF (-1 DetNoAdj OR AdjNoDet) (-1 (v) OR (n)) ;" ++
-           "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) ;" )
+           "REMOVE:r1 (v) IF (-1C (det)) (NOT 0 (det)) ;" ++
+           "REMOVE:r2 (adj) ;" ++
+--           "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
+           "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
 
 toTags' :: TagSet -> [[Tag]]
 toTags' = concatMap (nub . (\(a,b) -> if all null b then a else b)) . toTags
@@ -42,8 +42,9 @@ main = do
 
    ("tiny":_)
       -> do let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
-            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
-            let spl = splits $ reverse tinyrules
+            let tc = ts 
+--            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
+            let spl = splits  tinyrules
             let (verbose,debug) = (True, True)
             results <- mapM (testRule verbose debug ts tc) spl
             let badrules = [ rule | (False,rule) <- results ]
@@ -110,7 +111,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
               [ sequence [ newLit s | _ <- tagcombs ] | _ <- [1..ruleWidth] ] :: IO [[Lit]]
 
   let ss = concat
-             [ [ (((m,False), addWF m tags),lit) | (lit, tags) <- zip lits tagcombs ]
+             [ [ mkToken m (addWF m tags) lit | (lit, tags) <- zip lits tagcombs ]
                    | (lits, m) <- zip allLits [1..length allLits]
              ]  :: [Token]
 
@@ -146,18 +147,24 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
     print conf
   putStrLn "\n---------\n"
 
-  applied <- nub `fmap` sequence [ analyseGrammar s ss rl
+  (applied, helps) <- (unzip . concat) `fmap` sequence [ analyseGrammar s ss rl
                                    | rl <- rules
                                    , (fst $ width rl) <= ruleWidth ]
 
   sequence_ [ do addClause s cl
                  when debug $ 
                    putStrLn $ show rl ++ ": " ++ show cl                   
-                 | (rl, cls) <- zip rules applied 
-                 , cl <- cls ]
+                 | (rl, appCls) <- zip rules applied 
+                 , cl <- appCls ]
 
   b <- solve s []
   if b then do
+    mapM_ (\x -> putStr (show x ++ " ")) (concat helps) 
+    putStrLn ""
+    hs <- sequence [ modelValue s x | x <- concat helps ]
+    sequence_ [ putStr (if h then "1   " else "0   ") | h <- hs ]
+    putStrLn ""
+
     as <- sequence [ modelValue s x | x <- concat allLits ]
     let truetoks = [ t | (True, t) <- zip as ss ]
     when verbose $ putStrLn $ showSentence (dechunk truetoks)
@@ -360,9 +367,6 @@ width rule = case rule of
       (i, foo) = fill $ [[defaultTrg (toTags t)]] : [map toSymbWord (toConds cs)]
 --------------------------------------------------------------------------------
 
-type Trg = [[Tag]]
-type Dif = [[Tag]]
-
 data SymbWord = SW { info :: Info
                    , targets :: [(Trg,Dif)] } deriving (Eq,Ord,Show)
 
@@ -444,8 +448,8 @@ fill swordlist = (width, swordlist ++ (map (:[])) swords)
 --          go (x:xs) m = map ((,) (mkInfo m)) (addWF m x) : go xs (m+1)
 --          addWF m = map (WF ("w" ++ show m) :)
 
-dechunk :: [Token] -> Sentence
-dechunk ts = (map.map) getTags (groupBy sameInd ts)
+-- dechunk :: [Token] -> Sentence
+-- dechunk ts = (map.map) getTags (groupBy sameInd ts)
 
 
 fstEq (a,_) (b,_) = a==b

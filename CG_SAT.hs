@@ -60,8 +60,6 @@ mkToken :: Int -> [Tag] -> Lit -> Token
 mkToken i ts lit = T { getInd = i , getTags = ts , getLit = lit 
                      , isPositive = True, isCautious = False }
 
-
-
 mkCautious :: Token -> Token
 mkCautious (T i tags lit _ pos) = T i tags lit True pos
 
@@ -74,7 +72,6 @@ dummyTok = T { getInd  = 999
              , getLit  = true
              , isCautious = False
              , isPositive = True }
-
 
 
 isBoundary :: Token -> Bool
@@ -116,12 +113,11 @@ tagsMatchRule t trg_difs = any (bothMatch t) trg_difs
 --   Output: for each word in sentence, 
 --   * its position in the sentence
 --   * one of the suggested tag sequences
---   * id of that hypothesis in the SAT solver
--- (1,["the",<det>],v0)
--- (2,["bear",<n>,<sg>],v1)
--- (2,["bear",<vblex>,<pl>],v2)
--- (3,["sleep",<n>,<pl>],v4)
--- (3,["sleep",<vblex>,<sg>,<p3>],v5)
+-- (1,["the",<det>])
+-- (2,["bear",<n>,<sg>])
+-- (2,["bear",<vblex>,<pl>])
+-- (3,["sleep",<n>,<pl>])
+-- (3,["sleep",<vblex>,<sg>,<p3>])
 chunk :: Sentence -> [(Int,[Tag])]
 chunk sent = concat $ go sent 1
    where go []    _n = []
@@ -177,6 +173,8 @@ applyRule s toks rule = do
 go :: Solver -> Bool -> Bool -> [(Trg,Dif)] -> [[Condition]] -> [Token] -> IO [([Clause], [Lit])]
 go s isSelect isGrAna trgs_diffs []         allToks = return []
 go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
+   putStrLn $ "\ngo with conds=" ++ show conds
+   putStrLn "-----------------------------"
    let f = if isGrAna then mkVarsGrammarAnalysis else mkVars
    if isSelect 
      then let (trg,rm) = select trgs_diffs in f trg rm
@@ -356,11 +354,11 @@ the final lit is v17:
 
   help :: Int -> Solver -> [Context] -> Lit -> [Lit] -> IO (Lit, [Lit])
   help i s []     r2 helpers = do
-    putStrLn $ "the final lit: " ++ show r2 
-    putStr $ "conditions: " ++ show conds ++ " " 
+    -- putStrLn $ "the final lit: " ++ show r2 
+    -- putStrLn $ "conditions: " ++ show conds ++ " " 
     --putStrLn $ show (map (toTags . getTagset) conds)
     return (r2, helpers)
-  help i s (toks:cs) r1 helpers = trace ("help" ++ (show i) ++ ": " ++ show toks ++ " " ++ show helpers) $do 
+  help i s (toks:cs) r1 helpers = do --trace ("help" ++ (show i) ++ ": " ++ show toks ++ " " ++ show helpers) $do 
     r <- newLit s 
     r' <- newLit s --if C or NOT
     let matchlits   = map getLit toks
@@ -381,7 +379,8 @@ the final lit is v17:
                  (False, True)  -> return [ [neg r1, neg l, r] | l <- nomatchlits ] --NOT 1C
                  (_,     _   )  -> return $                                     --1C or NOT 1
                                     [ [neg r1, neg l, r'] | l <- matchlits ] ++
-                                    [ neg r':nomatchlits++[r] ]
+                                    if null nomatchlits then []
+                                      else [ neg r':nomatchlits++[r] ]
                                         -- ++ [neg r:map neg nomatchlits]
                                         -- ++ [neg r':matchlits]
     mapM_ (addClause s >> print) clauses
@@ -390,8 +389,6 @@ the final lit is v17:
                      (False, False) -> r':r:helpers
                      _              -> r:helpers
 
-    -- putStrLn "helpers at help:"
-    -- unsafePrValues helpers' s []
     help (i+1) s cs r helpers'
 
 
@@ -410,9 +407,7 @@ getContext ana allToks (ctx@(C position ts@(positive,ctags)):cs) = trace ("getCo
     ([[]],_)   -> [dummyTok] 
     (t:ts,_) -> case position of
                 Exactly False 0 -> 
-                --TODO: rethink the next line, is this a good idea?
-                --terrible idea for NOT
-                  [ f t | t <- exactly 0 ana, match t] --feature in other reading
+                  [ f t | t <- exactly 0 ana, match t]
 
                 Exactly True 0 ->
                  if match ana then [ f $ mkCautious ana ]
@@ -427,6 +422,7 @@ getContext ana allToks (ctx@(C position ts@(positive,ctags)):cs) = trace ("getCo
                 AtLeast _ n -> [ f t | t <- atleast n ana, match t ]
                 Barrier  _ n bs -> map f $ barrier n bs ana
                 CBarrier _ n bs -> map f $ cbarrier n bs ana
+
   f :: Token -> Token
   f = if positive then id else mkNegative
 
@@ -520,8 +516,8 @@ disambiguate' withOrder verbose debug rules sentence = do
    litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
    let toks = zipWith (uncurry mkToken) chunkedSent litsForAnas
    rls_applied_helps <- concat `fmap` mapM (applyRule s toks) rules :: IO [(Rule, [Clause], [Lit])]
-   let helps = map (\(_,_,c) -> c) rls_applied_helps :: [[Lit]]
-   let applied = map (\(_,b,_) -> b) rls_applied_helps :: [[Clause]]
+   let helps = concatMap (\(_,_,c) -> c) rls_applied_helps :: [Lit]
+   let applied = concatMap (\(_,b,_) -> b) rls_applied_helps :: [Clause]
    -- CHECKPOINT 2: are rules triggered       
    if null applied || all null applied
     then do when debug $ putStrLn "No rules triggered"
@@ -531,44 +527,33 @@ disambiguate' withOrder verbose debug rules sentence = do
 
       -- to force True for all literals that are not to be removed/selected
       let targetlits = let safeLastLit = (\x -> if null x then true else last x) 
-                       in concatMap (map safeLastLit) applied
+                       in map safeLastLit applied
       let nonAffectedLits = litsForAnas  \\ (map neg targetlits)
 
 
-
-      litsForClauses <- sequence [ newLit s | _ <- concat applied ]
-
-      let rlsCls = [ (rl, neg b:cl) | (b, (rl, cls, _)) <- zip litsForClauses rls_applied_helps
-                                    , cl <- cls ] :: [(Rule, [Lit])]
-
+      (litsForClauses,
+        rls_cls) <- unzip `fmap` sequence 
+                      [ do b <- newLit s
+                           print b
+                           return (b, (rl, neg b:cl))
+                        | (rl, cls, _) <- rls_applied_helps , cl <- cls ] :: IO ([Lit], [(Rule, Clause)])
+                                                      
       when debug $ do
         putStrLn "\ntokens:"
         mapM_ print toks
 
       sequence_ [ addClause s cl | cl <- anchor toks ]
       sequence_ [ addClause s [l] >> when debug (print l) | l <- nonAffectedLits ]
-      sequence_ [ addClause s cl >> when debug (print cl) | (_, cl) <- rlsCls ]
+      sequence_ [ addClause s cl >> when debug (print cl) | (_, cl) <- rls_cls ]
       --- up to here identical
       
-
-      --unsafePrValues (concat helps) s nonAffectedLits
-      --unsafePrValues litsForClauses s  nonAffectedLits
-
 
       b <- 
        if withOrder 
          then 
-          do let clsByRule = (map.map) snd $ groupBy fstEq rlsCls
-             print "helpers,clauses,anas while solving!"
-             --safePrValues  (concat helps) s --nonAffectedLits
-             unsafePrValues  (litsForClauses++litsForAnas) s nonAffectedLits
-             unsafePrValues  (litsForAnas) s nonAffectedLits
+          do let clsByRule = (map.map) snd $ groupBy fstEq rls_cls
              bs_ls <- sequence [ do k <- count s insts :: IO Unary
                                     b <- solveMaximize s [] k
-                                    -- print "helpers,clauses,anas while solving!"
-                                    -- unsafePrValues (concat helps++insts++litsForAnas) s nonAffectedLits
---                                    unsafePrValues (concat helps++litsForClauses++litsForAnas) s [] --nonAffectedLits
-
                                     is <- sequence [ modelValue s x | x <- insts ] 
                                     sequence_ [ addClause s [lit]
                                        | (True, lit) <- zip is insts ]
@@ -577,7 +562,7 @@ disambiguate' withOrder verbose debug rules sentence = do
                               | cls <- clsByRule
                               , let insts = map (neg . head) cls ]
              let (bs,ls) = unzip bs_ls
-             n <- count s litsForAnas
+             --n <- count s litsForAnas
              b' <- return True -- solveMaximize s (concat ls) n
              return $ (and bs && not (null bs)) && b'
 
@@ -590,10 +575,10 @@ disambiguate' withOrder verbose debug rules sentence = do
       when debug $ do cs <- sequence [ modelValue s x | x <- litsForClauses ]
                       putStrLn "\nUsed clauses:"
                       mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
-                                       | (True, (rl,cl)) <- zip cs rlsCls  ]
+                                       | (True, (rl,cl)) <- zip cs rls_cls  ]
                       putStrLn "\nUnused clauses:"
                       mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
-                                       | (False, (rl,cl)) <- zip cs rlsCls ]
+                                       | (False, (rl,cl)) <- zip cs rls_cls ]
 
       if b 
         then
@@ -608,7 +593,7 @@ disambiguate' withOrder verbose debug rules sentence = do
 
             
             putStrLn "helper lits after solving:"
-            safePrValues (concat helps++litsForClauses) s
+            safePrValues (helps++litsForClauses) s
 
             return (dechunk truetoks)
         else

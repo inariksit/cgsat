@@ -1,20 +1,34 @@
 DELIMITERS = "<.>";
 
 LIST Target = target ;
+LIST DummyTrg = (target dummy) ;
 LIST Tag = tag ;
 LIST Dummy = dummy ;
+LIST Foo = foo;
 SET  TagOrDummySet = Tag OR Dummy ;
 LIST TagOrDummyList = tag dummy ;
-LIST Foo = foo;
-LIST TagDummy = (tag dummy);
-LIST FooDummy = (foo dummy);
+
+# LIST TagDummy = (tag dummy);
+# LIST FooDummy = (foo dummy);
+# SET TagFoo = Tag + (foo) ;
+
+LIST Target1 = (target1) ;
+LIST Target2 = (target2) ;
+LIST Target3 = (target3) ;
+LIST Target4 = (target4) ;
+
 
 #SECTION
 
-REMOVE (target) IF (1C Tag - Dummy) ;
-REMOVE (target) IF (1 Tag - Dummy) ;
-REMOVE (target) IF (NOT 1C Tag - Dummy) ;
-REMOVE (target) IF (NOT 1 Tag - Dummy) ;
+# REMOVE Target1 IF ( (1C Tag) OR (0 Dummy) ) (2 Dummy);
+# REMOVE Target IF (1C TagDummy) ;
+
+REMOVE (target2) IF (1 Tag) ;
+REMOVE (target1) IF (1C Tag) (2 (sent));
+REMOVE (dummy) ;
+# REMOVE (target3) IF (NOT 1C Tag) ;
+# REMOVE (target4) IF (NOT 1 Tag) ;
+
 
 # REMOVE:rm1 (target1) IF (1C* TagOrDummyList) ;
 # REMOVE:rm2 (target2) IF (1C* TagOrDummySet) ;

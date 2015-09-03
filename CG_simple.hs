@@ -240,7 +240,7 @@ disambiguate verbose debug rules sentence = do
   else do 
    s <- newSolver
    litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
-   let toks = zipWith makeTok chunkedSent litsForAnas
+   let toks = zipWith (uncurry mkToken) chunkedSent litsForAnas
    applied' <- mapM (applyRule s toks) rules  -- :: IO [([Clause], [Lit])]
    
 
@@ -254,11 +254,11 @@ disambiguate verbose debug rules sentence = do
     else do
       
 
-      -- to force True for all literals that are not to be removed/selected
-      let targetlits = let safeLast = (\x -> if null x then true else last x) 
-                       in concatMap (map safeLast) applied'
-      let nonAffectedLits = litsForAnas  \\ (map neg targetlits)
-      ---------------------------------- ^ comment out here if old behaviour desired
+      -- to force True for all literals that are not targets
+      let targetlits = let safeLastLit = (\x -> if null x then true else last x) 
+                       in concatMap (map safeLastLit) applied'
+      let nonAffectedLits = litsForAnas \\ (map neg targetlits)
+
 
 
       litsForClauses <- sequence [ newLit s | _ <- concat applied' ]

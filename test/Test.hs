@@ -76,9 +76,9 @@ gold rl dt g = do rules <- readRules rl
                   text <- readData dt
                   gold <- readData g
 
-                  -- resSAT <- mapM (disamSection (disambiguate False False) rules) text
+                  resSAT <- mapM (disamSection (disambiguate False False) rules) text
                   -- resSAT <- mapM (Simple.disamRule (concat rules)) text
-                  resSAT <- mapM (Simple.disamSecRule rules) text
+                  --resSAT <- mapM (Simple.disamSecRule rules) text
                   resVISL <- vislcg3 rl dt True
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 10 --change if you want different output
