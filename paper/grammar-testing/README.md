@@ -138,3 +138,70 @@ r2 => ~v2
 r3 => ~v3
 r4 => ~v4
 ```
+
+### Problem
+
+First try, just what I described above.
+I got results like following:
+
+```
+Used clauses:
+REMOVE target1  IF (1C tag )
+* [~v9,~v1]
+REMOVE dummy 
+* [~v11,~v5]
+REMOVE dummy 
+* [~v11,~v7]
+REMOVE target3  IF (1C tag )
+* [~v13,~v3]
+
+Unused clauses:
+
+The following tag sequence was chosen:
+
+"<target>"
+	;  "trg" target1     --v1
+	 "trg" target2       
+	;  "trg" target3     --v3
+	 "trg" target4       
+	;  "trg" dummy       --v5
+"<cond>"
+	 "cond" tag          
+	;  "cond" dummy      --v7
+"<EOS>"
+	 <<< sent
+
+
+helper lits after solving:
+v9  v11 v13 v15 v16 v17 v18 
+0   0   0   1   1   1   1  
+```
+
+The conditions for all of the REMOVE-clauses were False (v9-v13), and applyRule clauses are true (v15-v18), thus the tags were still removed.
+
+Second try: maximise the conditions every time when applying clauses produced by one rule.
+
+Getting the same results, but now with the following values for the conditions:
+
+```
+helper lits after solving:
+v9  v11 v13 v15 v16 v17 v18 
+1   1   0   1   1   1   1
+```
+
+The order is really backwards: it should be v13 that is True, because the rule `REMOVE target3 IF (1C tag)` is applied after `REMOVE dummy`. And in any case, `target3` is removed even if the condition doesn't hold.
+
+Third try: make implications as equivalences
+
+Now it doesn't remove `target3` when `v13` is false. Still not good, because order is messed up.
+
+I tried to print out all possible intermediate literals when making conditions. For instance, this is when I make the requirement for `(1C tag)`. `v6` is `tag` and `v7` is `dummy`, so v6 should be true and v7 false:
+
+```
+matchlits: [v6]
+nomatchlits: [v7]
+[False,~v6,v10]
+[~v10,v7,v9]
+```
+
+When I was printing intermediate variables' values, `v10` could be true and `v9` false. Make equivalences there too?
