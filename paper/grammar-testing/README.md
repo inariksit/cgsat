@@ -205,3 +205,47 @@ nomatchlits: [v7]
 ```
 
 When I was printing intermediate variables' values, `v10` could be true and `v9` false. Make equivalences there too?
+
+
+## A couple of words about BARRIERs and indices
+
+Base case: `REMOVE foo IF (1 bar)`, will match if there is
+
+```
+"<target>"
+        foo
+	notfoo
+"<cond>"
+	bar
+	anything
+```
+
+With negation: `REMOVE foo IF (NOT 1 bar)`, will match both
+
+```
+"<target>"
+        foo
+	notfoo
+"<cond>"
+	notbar
+```
+
+and 
+
+```
+"<target>"
+        foo
+	notfoo
+<EOS>
+```
+
+Let's look at these rules.
+```
+REMOVE:oob_not target  IF (NOT *10  tag  BARRIER barrier )
+REMOVE:c_oob_not ctarget  IF (NOT *10  tag  CBARRIER barrier )
+```
+
+First of all, the sentences are not 10 words long, so we will not find a barrier after the 10th word.
+The helper functions cbarrier and barrier actually work for this too. The case where `cbarinds==[]` triggers that we call `atleast n token`, and now I made a change, that if we're on negative cond *and* index is out of bounds, return `dummyTok`. Then we filter with match, and again, the negative mode makes it so that it wants something that does *not* match, which `dummyTok` does. So actually it worked pretty ok.
+
+Except that the condition making is all fucked up now, and the clauses don't end up right. ;___;
