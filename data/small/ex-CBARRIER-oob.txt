@@ -1,0 +1,175 @@
+"<target>"
+	"target" target noob shouldmatch
+	"ctarget" ctarget noob shouldmatch
+	"target" target oob 
+	"ctarget" ctarget oob 
+	"dummy" dummy
+
+"<tag>"
+	"tag" tag insidebarrier but before three
+"<dummy>"
+	"dummy" dummy
+"<dummy>"
+	"dummy" dummy
+"<barrier>"
+	"barrier" barrier careful
+
+"<.>"
+	"." sent
+
+----
+
+"<target>"
+	"target" target noob shouldmatch
+	"ctarget" ctarget noob shouldmatch
+	"target" target oob 
+	"ctarget" ctarget oob 
+	"dummy" dummy
+"<tag>"
+	"tag" tag insidebarrier 
+"<barrier>"
+	"barrier" now even barrier is before three
+	"careful" or not doesnt matter
+	"cause" we are out of bounds
+"<.>"
+	"." sent
+
+
+
+----
+"<target>"
+	"target" target oob shouldmatch
+	"ctarget" ctarget oob shouldmatch
+	"target" target noob 
+	"ctarget" ctarget noob 
+	"dummy" dummy
+
+"<dummy>"
+	"dummy" dummy
+"<dummy>"
+	"dummy" dummy
+
+"<tag>"
+	"tag" tag insidebarrier and at three
+
+"<barrier>"
+	"barrier" barrier careful
+
+"<.>"
+	"." sent
+
+
+
+----
+
+"<target>"
+	"target" target oob shouldmatch
+	"ctarget" ctarget oob shouldmatch
+	"target" target noob 
+	"ctarget" ctarget noob 
+	"dummy" dummy
+
+"<dummy>"
+	"dummy" dummy
+"<dummy>"
+	"dummy" dummy
+
+"<tag>"
+	"tag" tag insidebarrier and at three
+
+"<barrier>"
+	"barrier" barrier not careful
+	"wont" be a problem for cbarrier
+	"cause" this just wont be registered as barrier
+	"and" theres a tag within three anyways
+
+"<.>"
+	"." sent
+
+
+
+----
+
+"<target>"
+	"target" target oob 
+	"ctarget" ctarget oob 
+	"target" target noob shouldmatch
+	"ctarget" ctarget noob shouldmatch
+	"dummy" dummy
+
+"<barrier>"
+	"barrier" barrier careful
+
+"<tag>"
+	"tag" tag outsidebarrier
+	"will" match NOT cause its before three
+
+"<.>"
+	"." sent
+----
+
+
+"<target>"
+	"target" target oob 
+	"ctarget" ctarget oob 
+	"target" target noob shouldmatch
+	"ctarget" ctarget noob shouldmatch
+	"dummy" dummy
+
+"<barrier>"
+	"barrier" barrier
+	"not" careful
+
+"<tag>"
+	"tag" tag outsidebarrier
+	"will" match NOT cause its before three
+
+"<.>"
+	"." sent
+
+---
+
+"<target>"
+	"target" target oob shouldmatch
+	"ctarget" ctarget oob shouldmatch
+	"target" target noob 
+	"ctarget" ctarget noob 
+	"dummy" dummy
+
+"<barrier>"
+	"barrier" barrier careful or not doesnt matter cause oob
+
+"<dummy>"
+	"dummy" dummy
+
+"<tag>"
+	"tag" tag outsidebarrier
+	"will" match c_oob and oob cause its three
+	"and" it will ignore the barthingy
+
+"<.>"
+	"." sent
+
+---
+
+"<target>"
+	"target" target oob shouldmatch
+	"ctarget" ctarget oob shouldmatch
+	"target" target noob 
+	"ctarget" ctarget noob 
+	"dummy" dummy
+
+"<barrier>"
+	"barrier" barrier 
+	"careful" or not doesnt matter cause oob
+
+"<dummy>"
+	"dummy" dummy
+
+"<tag>"
+	"tag" tag outsidebarrier
+	"will" match c_oob and oob cause its three
+	"and" it will ignore the barthingy
+
+"<.>"
+	"." sent

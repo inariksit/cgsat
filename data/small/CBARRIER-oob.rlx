@@ -1,0 +1,20 @@
+DELIMITERS = "<.>";
+
+LIST Barrier = barrier ;
+LIST Tag = tag ;
+LIST TrgOOB = (target oob) ;
+LIST CTrgOOB = (ctarget oob) ;
+LIST TrgNOOB = (target noob) ;
+LIST CTrgNOOB = (ctarget noob) ;
+LIST Dummy = dummy ;
+LIST Notfound = notfound ;
+
+
+#Test for index out of bounds
+REMOVE:oob TrgOOB IF (3* Tag BARRIER Barrier) ;
+REMOVE:c_oob CTrgOOB IF (3* Tag CBARRIER Barrier) ;
+
+#Test for NOT & index out of bounds
+REMOVE:noob TrgNOOB IF (NOT 3* Tag BARRIER Barrier) ;
+REMOVE:c_noob CTrgNOOB IF (NOT 3* Tag CBARRIER Barrier) ;
+
