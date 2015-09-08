@@ -22,9 +22,7 @@ LIST Notfound = notfound ;
 REMOVE:bar (target) IF (1* (tag) BARRIER (barrier)) ;
 
 #Base case for CBARRIER
-REMOVE:cbar (ctarget) IF ( 1* (tag) CBARRIER (barrier)) ;
-
-
+REMOVE:cbar (ctarget) IF (1* (tag) CBARRIER (barrier)) ;
 
 # barrier not found
 #REMOVE:bar_bar_notfound (target) IF (1* (tag) BARRIER (notfound)) ;

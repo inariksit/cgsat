@@ -17,6 +17,46 @@
 	"." sent
 
 
+"<target>"
+	"target" target shouldmatch
+	"ctarget" ctarget shouldmatch
+	"dummy" dummy
+
+"<tag>"
+	"tag" tag insidebarrier
+
+"<barrier>"
+	"barrier" barrier 
+	"not" careful
+
+"<dummy>"
+	"dummy" target shouldnotmatch
+	"dummy" ctarget shouldnotmatch
+	"dummy" dummy
+"<.>"
+	"." sent
+
+"<target>"
+	"target" target shouldmatch
+	"ctarget" ctarget shouldmatch
+	"dummy" dummy
+
+"<tag>"
+	"tag" tag insidebarrier
+
+"<notabarrier>"
+	"this" is not a barthingy
+	"also" not careful
+	"thus" barthingy and cbarthingy act like regular one_or_more
+	"and" will match because tag_called_tag
+
+"<dummy>"
+	"dummy" target shouldnotmatch
+	"dummy" ctarget shouldnotmatch
+	"dummy" dummy
+"<.>"
+	"." sent
+
 
 "<target>"
 	"target" target shouldnotmatch
@@ -49,7 +89,6 @@
 	"not" careful
 
 "<tag>"
-	"tag" tag outsidebarrier
 	"tag" tag outsidebarrier
 
 "<dummy>"
