@@ -1,23 +1,29 @@
 import CG_base
-import CG_SAT hiding ( isCautious, isPositive )
+import CG_SAT hiding ( isCautious, isPositive, showToken )
 import CG_parse
+import SAT.Named
+import SAT ( Solver, newSolver, conflict )
+
 import Control.Monad ( when )
 import Data.List
 import Debug.Trace
-import SAT
+
 import System.Environment
 import System.IO ( hFlush, stdout )
 import System.IO.Unsafe
 
 
+showToken = show . getLit
+
 testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf)) ;\nREMOVE:r2 (aa) IF (-1C (acr)) ;"
 tinyrules = concat $ snd $ parseRules False 
           ( "SET DetNoAdj = (det) - (adj) ;" ++
             "SET AdjNoDet = (adj) - (det) ;" ++
-           "REMOVE:r1 (v) IF (-1C (det)) (NOT 0 (det)) ;" ++
-           "REMOVE:r2 (adj) ;" ++
+           "REMOVE:r1 (v) IF (-1 (det)) ;" ++ -- (NOT 0 (det)) ;" ++
+--           "REMOVE:r2 (adj) IF (-1C det) ;" ++
+           "REMOVE:r3 (v) IF (-1C det) ;" ) 
 --           "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
-           "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
+--           "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
 
 toTags' :: TagSet -> [[Tag]]
 toTags' = concatMap (nub . (\(a,b) -> if all null b then a else b)) . toTags
@@ -97,6 +103,9 @@ main = do
 
 --------------------------------------------------------------------------------
 
+shTC :: [Tag] -> Int -> String
+shTC ts i = "w" ++ show i ++ (unwords $ map (\t -> '<':show t++">") ts)
+
 --testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,[Token])
 testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,(Rule,[Rule]))
 testRule verbose debug alltags tagcombs (rule, rules) = do
@@ -108,7 +117,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   s <- newSolver
   let (ruleWidth,symbWords) = width rule
   allLits <- sequence 
-              [ sequence [ newLit s | _ <- tagcombs ] | _ <- [1..ruleWidth] ] :: IO [[Lit]]
+              [ sequence [ newLit s (shTC t n) | t <- tagcombs ] | n <- [1..ruleWidth] ] :: IO [[Lit]]
 
   let ss = concat
              [ [ mkToken m (addWF m tags) lit | (lit, tags) <- zip lits tagcombs ]
@@ -147,14 +156,24 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
     print conf
   putStrLn "\n---------\n"
 
-  (applied, helps) <- (unzip . concat) `fmap` sequence [ analyseGrammar s ss rl
+  applied_helps <- sequence [ analyseGrammar s ss rl
                                    | rl <- rules
-                                   , (fst $ width rl) <= ruleWidth ]
+                                   , (fst $ width rl) <= ruleWidth ] 
+
+  let applied = [ cls | foo <- applied_helps 
+                      , (cls, _)  <- foo ]
+               
+  let helps = [ cls | foo <- applied_helps 
+                      , ( _, cls)  <- foo ]
+
+  putStrLn "applied rules:"
+  mapM_ print applied
+
 
   sequence_ [ do addClause s cl
-                 when debug $ 
+                 when True $ --debug $ 
                    putStrLn $ show rl ++ ": " ++ show cl                   
-                 | (rl, appCls) <- zip rules applied 
+                 | (rl, appCls) <- zip rules applied
                  , cl <- appCls ]
 
   b <- solve s []
@@ -200,7 +219,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   slOrRm' s sWordMap ind0s = do 
     let n = length tagcombs - 1
     let (trgs,conds) = partition (isTarget.info) ind0s
-    newlits <- sequence [ newLit s | _ <- trgs ] --literal for each OR option in target
+    newlits <- sequence [ newLit s ("trg"++(show $ index $ info t)) | t <- trgs ] --literal for each OR option in target
     when debug $ putStrLn ("slOrRm.newlits: " ++ show newlits)
     let trgCls = concatMap (filter notNegUnit) $ 
              [ concatMap (uncurry (disj wn n nl)) tg_difs
@@ -235,7 +254,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
     --  nope there is no consistency with the order in toConds, thanks for asking ^_^
     --  ]
     newlits <- sequence 
-                 [ sequence [ newLit s | _ <- trg_difs ] 
+                 [ sequence [ newLit s "" | n <- [0..length trg_difs-1] ] 
                             | trg_difs <- map targets swords ] :: IO [[Lit]]
     when debug $
       putStrLn $ ("slCond'.newlits: " ++ show newlits)
@@ -361,7 +380,7 @@ width rule = case rule of
   --   ]
   -- ]
   doStuff :: TagSet -> Condition -> (Int, [[[SymbWord]]])
-  doStuff t cs = trace ("doStuff: " ++ show (toTags t) ++ " IF " ++ show (toConds cs) ++ " width:" ++ show i) $ 
+  doStuff t cs = --trace ("doStuff: " ++ show (toTags t) ++ " IF " ++ show (toConds cs) ++ " width:" ++ show i) $ 
     (i, foo)
     where 
       (i, foo) = fill $ [[defaultTrg (toTags t)]] : [map toSymbWord (toConds cs)]

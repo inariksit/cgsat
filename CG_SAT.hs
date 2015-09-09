@@ -24,12 +24,11 @@ import CG_base
 import CG_data
 import Data.List
 import Data.Maybe
-import Control.Monad ( liftM2, when )
-import SAT
-import SAT.Bool
-import SAT.Optimize
-import SAT.Unary hiding ( modelValue )
-import qualified SAT.Unary as U
+import Control.Monad ( liftM, liftM2, when )
+import SAT.Named -- Add name for variables, for nicer looking output
+import SAT (Solver,newSolver,conflict,modelValueMaybe)
+import SAT.Unary ( Unary )
+--import qualified SAT.Unary as U
 import Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -48,16 +47,22 @@ showToken (T i ts lit True True)  = show i ++ "C " ++ prTags ts ++ ": " ++ show 
 showToken (T i ts lit False False)  = show i ++ " (negative match)" ++ prTags ts ++ ": " ++ show lit
 showToken (T i ts lit True False)  = show i ++ "C  (negative match)" ++ prTags ts ++ ": " ++ show lit
 
-instance Show Token where
-  show = showToken
+show' :: Token -> String 
+show' (T i (t:ts) lit _ _) = show (i, t, lit)
 
-type Context = [Token]
+prTags :: [Tag] -> String
+prTags = unwords . map show
+
+instance Show Token where
+  show = show . getLit --Token
+
+type Context = (Condition, [Token])
 
 -------------------------
 -- Operations with tokens
 
 mkToken :: Int -> [Tag] -> Lit -> Token
-mkToken i ts lit = T { getInd = i , getTags = ts , getLit = lit 
+mkToken i ts lit = T { getInd = i , getTags = ts , getLit = lit
                      , isPositive = True, isCautious = False }
 
 mkCautious :: Token -> Token
@@ -173,8 +178,8 @@ applyRule s toks rule = do
 go :: Solver -> Bool -> Bool -> [(Trg,Dif)] -> [[Condition]] -> [Token] -> IO [([Clause], [Lit])]
 go s isSelect isGrAna trgs_diffs []         allToks = return []
 go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
-   putStrLn $ "\ngo with conds=" ++ show conds
-   putStrLn "-----------------------------"
+   -- putStrLn $ "\ngo with conds=" ++ show conds
+   -- putStrLn "-----------------------------"
    let f = if isGrAna then mkVarsGrammarAnalysis else mkVars
    if isSelect 
      then let (trg,rm) = select trgs_diffs in f trg rm
@@ -189,7 +194,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   -- check if getContext has returned non-empty context for each condition
   allCondsHold :: [Context] -> Bool
   allCondsHold ts | null conds = True
-                  | otherwise  = (not.null) ts && all (not.null) ts
+                  | otherwise  = (not.null) ts && all (not.null.snd) ts
 
   remove :: [(Trg,Dif)] -> [(Token,[Context])]
   remove t_ds = [ (tok, ctx) | tok <- allToks
@@ -217,16 +222,19 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   mkVars :: [(Token,[Context])] -- ^ Tokens to be selected, each with its context tokens
          -> [(Token,[Context])] -- ^ Tokens to be removed, each with its context tokens
          -> IO ([Clause], [Lit])
-  mkVars sl rm = do
+  mkVars sl rm = do 
     let onlyCtxs = [ ctx | tctx <- groupBy sndEq (sl++rm)
                          , let ctx = snd (head tctx) ]
     (rs, helps) <- unzip `fmap` sequence [ help 0 s ctx true []| ctx <- nub $ onlyCtxs ] --collapsed var for each ctx
     let ctxMap = zip onlyCtxs rs
  
     let rmClauses =  [ [neg r, neg tl] | (trg, ctx) <- rm
+--    rmClauses <- sequence [ equiv s r (neg tl) | (trg, ctx) <- rm
                                        , let Just r = lookup ctx ctxMap
                                        , let tl = getLit trg ] 
+
     let slClauses = [ [neg r, tl] | (trg, ctx) <- sl
+--    slClauses <- sequence [ equiv s r tl | (trg, ctx) <- sl
                                   , let Just r = lookup ctx ctxMap
                                   , let tl = getLit trg ] 
 
@@ -235,7 +243,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
     -- putStr $ "mkVars.slClauses: " ++ show sl
     -- print slClauses 
 
-    return $ (rmClauses ++ slClauses, concat helps)
+    return $ (rmClauses ++ slClauses, concat helps) 
 
 
   -- | Creating clauses for grammar analysis.
@@ -244,113 +252,91 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   -- We want to find a sentence for which a rule /does not/ fire.
   -- It can be because of there is no target left, or because there is /only/ target left.
   mkVarsGrammarAnalysis :: [(Token,[Context])] -> [(Token,[Context])] -> IO ([Clause], [Lit])
-  mkVarsGrammarAnalysis sl rm = do
-  -- TODO: why this happens?
-     -- REMOVE target  IF (1C tag  - dummy ): [v19,v18]
-     -- REMOVE target  IF (1C tag  - dummy ): [~v19] <----- ??????
+  mkVarsGrammarAnalysis sl rm = do 
 
-    let onlyCtxs = [ ctx | tctx <- groupBy sndEq (sl++rm)
-                         , let ctx = snd (head tctx) ]
-    (rs, helpers) <- unzip `fmap` sequence [ help 0 s ctx true [] | ctx <- nub $ onlyCtxs ]
-    let ctxMap = zip onlyCtxs rs
 
+    (rmHelps,rmCls) <- unzip `fmap`sequence
+                      [ do condLits <- findCondLits s ctx
+                           print condLits
+                           if_ctx_holds <- andl s ctxName condLits
+                           print if_ctx_holds
+                           rm_trg <- implies s trgName if_ctx_holds (neg $ getLit trg)
+                           print rm_trg
+                           return (if_ctx_holds, rm_trg)
+                         | (trg, ctx) <- rm 
+                         , let condNames = unwords $ map (show.fst) ctx
+                         , let ctxName = "v<IF ("++condNames++")>" 
+                         , let trgName = "REMOVE " ++ show trg ]
+                         
+
+    slCls <- sequence [ do condLits <- findCondLits s ctx
+                           if_ctx_holds <- andl s ctxName condLits
+                           print if_ctx_holds
+                           sl_trg <- implies s trgName if_ctx_holds (getLit trg)
+                           print sl_trg
+                           return sl_trg
+                         | (trg, ctx) <- sl 
+                         , let condNames = unwords $ map (show.fst) ctx
+                         , let ctxName = "v<IF ("++condNames++")>" 
+                         , let trgName = "SELECT " ++ show trg ]
+
+    let target = if null sl then rm else sl 
+    onlyTrgs <- sequence [ onlyTargetLeft s trg | (trg, ctx) <- target ]
 
     --should onlyTrgCls only apply to the original target of the rule that is analysed?
     --no  : a rule cannot apply selectively if context is met
     --yes : if ctx word isn't analysed as <target>, no need for rule in the first place
-    let target = if null sl then rm else sl 
-    trgLits <- sequence [ newLit s | _ <- target ]
-    let onlyTrgCls = concat [ onlyTargetLeft lit trg conds
-                              | (lit, (trg, ctx)) <- zip trgLits target ] 
-
-    -- this lit will indicate that rules are applied
-    rlit <- newLit s
-
-    --we apply one, but not both, of:
+ 
+    {--we apply one, but not both, of:
     --    rmClauses and slClauses 
-    --    onlyTrg
-    let rmClauses = [ [neg rlit, neg r, neg tl]
-                        | (trg, ctx) <- rm
-                        , let Just r = lookup ctx ctxMap
-                        , let tl = getLit trg 
-                        ]
-    let slClauses = [ [neg rlit, neg r, tl] 
-                        | (trg, ctx) <-  sl
-                        , let Just r = lookup ctx ctxMap
-                        , let tl = getLit trg 
-                        ]  
-    -- putStrLn ("rmClauses: " ++ show rmClauses)
-    -- putStrLn ("slClauses: " ++ show slClauses)
+    --    onlyTrg -}
 
-    -- a <- newLit s
-    -- let ruleApplied = [a, rlit]
-    -- let onlyTrg = neg a : trgLits
-    -- let notBoth = map neg ruleApplied
-
-    onlyTrg <- orl s trgLits
-    notBoth <- xorl s [onlyTrg, rlit]
-    let ruleApplied = []
-
-    putStr "ruleApplied: "
-    --print ruleApplied
-    putStr "onlyTrg: "
-    print onlyTrg
-    putStr "notBoth: "
-    print notBoth
-
-    return $ ([notBoth] : onlyTrgCls ++ rmClauses ++ slClauses, concat helpers) 
+--    return $ (ruleApplied : onlyTrg : rmCls : slCls : onlyTrgCls, concat helpers) 
+    return $ (filter (not.null) [rmCls,slCls], rmHelps) 
     
    where
-    --TODO: pass information about the target from Symbolic
-    --intersect (getTags tok) (getTags trg)  won't work in general case
-    onlyTargetLeft :: Lit -> Token -> [Condition] -> [Clause]
-    onlyTargetLeft newlit trg conds = -- trace ("onlyTargetLeft: " ++ (show trg) ++ (show conds)) $ 
-      [ neg newlit:[getLit tok | tok <- allToks
-                               , sameInd tok trg
-                               , not $ null $ sameTags tok trg ] ] ++
-      [ [neg newlit, neg $ getLit tok] | tok <- allToks 
-                                       , sameInd tok trg
-                                       , null $ sameTags tok trg] 
-
-    sameTags tok trg = 
-      intersect [ tag | tag@(Tag foo) <- getTags tok ]
-                [ tag | tag@(Tag foo) <- getTags trg ]
+    onlyTargetLeft :: Solver -> Token -> IO Lit
+    onlyTargetLeft s trg = do
+      let sameIndToks = filter (sameInd trg) allToks
+      let (hasTargets,noTarget) = partition (\t -> tagsMatchRule t trgs_diffs) sameIndToks
+      print ("***",hasTargets,noTarget)
+      newLit s "onlyTargetLeft" 
 
 
-{-
-Examples:
 
-analyses:
-  v6 ... (7,["<la>","el",det,def,f,sg])
-  v7 ... (7,["<la>","lo",prn,pro,p3,f,sg])
-  v8 ... (8,["<casa>","casa",n,f,sg])
-  v9 ... (8,["<casa>","casar",vblex,pri,p3,sg])
-  v10 .. (8,["<casa>","casar",vblex,imp,p2,sg])
-  v11 .. (9,["<,>", ",", cm])
-rule: 
-  SELECT:i08_s_pro PrnIndep IF (1 VerbFin)
 
-both v9 and v10 are VerbFin, so we create these clauses:
-  [False,~v9,v15]
-  [False,~v10,v15]
+  --OBS. ctx::[Context] includes things that match to the tags in the cond,
+  -- *taking into account NOT*. 
+  --OBS2. Ignoring BARRIER case for now; assuming that in a list of [Token] in Context
+  -- there are only tokens of one index
+  findCondLits :: Solver -> [Context] -> IO [Lit]
+  findCondLits s ctx = do
+    let (allConds,allCtxs) = unzip ctx
+    ls <- (concat) `fmap` sequence
+          [ do let condLits = map getLit cToks
+               let sameIndToks = filter (sameInd (head cToks)) allToks
+               let nomatch = [ getLit tok | tok <- sameIndToks, noMatch tok ]
+               -- putStrLn $ "findCondLits: " ++ show c ++ "," ++ show cToks
+               -- putStrLn $ "condLits: " ++ show condLits
+               case (positive, any isCautious cToks) of
+                      (True, False) -> return condLits --1
+                      (True,  True) -> return $ condLits ++ map neg nomatch --1C
 
-the final lit to be used in the rule is v15:
-  [~v15,~v6], [~v15,v7]
+                      --NOT 1 --- obs. condLits contains tokens that do NOT match ctags!
+                      -- all NOT-anas are false, and >=1 non-prohibited ana must be true.
+                      -- is it even necessary to specify? doesn't anchor do that?
+                      (False,False) -> do c_NOT1 <- orl s ">=1_non-NOT_ana_true" condLits 
+                                          return $ c_NOT1:map neg nomatch 
+                      --NOT 1C
+                      (False, True) -> (:[]) `liftM` orl s ">=1_NOT_ana_true" condLits
+            | (c@(C _pos (positive,ctags)), cToks) <- ctx 
+            , let noMatch t = (if positive then not else id) $ tagsMatchRule t (toTags ctags)]
 
-the old way would be 
-  [~v9,~v6], [~v9,v7], [~v10,~v6], [~v10,v7]
+    putStrLn $ "*** findCondLits: final list of all condLits=" ++ show ls
+    return ls
 
-Example with two conditions:
-
-rule:
-  SELECT:i02_s_n_adj n  IF (-1C Det) (NOT 1 N)
-
-v11 is not N and v6 is a det, so we create these clauses:
- [False,~v11,v16] -- first round:   dummy && NOT 1 N => v16
- [~v16,~v6,v17]   -- second round:  v16   && -1 Det  => v17 
-
-the final lit is v17:
- [~v17,v8], [~v17,~v9], [~v17,~v10]  -}
+                                 
+    --can we concat? all of them need to hold ....
 
   help :: Int -> Solver -> [Context] -> Lit -> [Lit] -> IO (Lit, [Lit])
   help i s []     r2 helpers = do
@@ -358,16 +344,16 @@ the final lit is v17:
     -- putStrLn $ "conditions: " ++ show conds ++ " " 
     --putStrLn $ show (map (toTags . getTagset) conds)
     return (r2, helpers)
-  help i s (toks:cs) r1 helpers = do --trace ("help" ++ (show i) ++ ": " ++ show toks ++ " " ++ show helpers) $do 
-    r <- newLit s 
-    r' <- newLit s --if C or NOT
+  help i s ((cond,toks):cs) r1 helpers = do --trace ("help" ++ (show i) ++ ": " ++ show toks ++ " " ++ show helpers) $do 
+    r <- newLit s ""
+    r' <- newLit s "" --if C or NOT
     let matchlits   = map getLit toks
     let nomatchlits = (nub $ map getLit $ concat
                       [ filter (sameInd tok) allToks | tok <- toks ]) \\ matchlits
 
-    putStr "matchlits: "
+    putStr $ "help" ++ show i ++ ": matchlits="
     print matchlits
-    putStr "nomatchlits: "
+    putStr "nomatchlits="
     print nomatchlits
 
                     --IF (1C Foo OR Bar), you get both foos and bars at 1C
@@ -399,46 +385,56 @@ getContext :: Token       -- ^ a single analysis
            -> [Condition] -- ^ list of conditions grouped by AND
            -> [Context]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Contexts ([Token]) as Conditions.
 getContext ana allToks []          = []
-getContext ana allToks (Always:cs) = [dummyTok] : getContext ana allToks cs 
-getContext ana allToks (ctx@(C position ts@(positive,ctags)):cs) = trace ("getContext.c: " ++ show ts ++ " position:" ++ show position ++  " result:" ++ show result) $ result : getContext ana allToks cs
+getContext ana allToks (Always:cs) = (Always, [dummyTok]) : getContext ana allToks cs 
+getContext ana allToks (cond@(C position ts@(positive,ctags)):cs) = trace ("getContext.ana: " ++ show ana ++ ", cond:" ++ show cond ++ ", result:" ++ show result) $ (cond, result) : getContext ana allToks cs
  where 
   result = case head $ toTags ctags of
     ([]  ,_)   -> [dummyTok] --empty conds = holds always
     ([[]],_)   -> [dummyTok] 
     (t:ts,_) -> case position of
-                Exactly False 0 -> 
+                 Exactly False 0 -> 
                   [ f t | t <- exactly 0 ana, match t]
 
-                Exactly True 0 ->
-                 if match ana then [ f $ mkCautious ana ]
-                   else [ f $ mkCautious t | t <- exactly 0 ana, match t] 
+                 Exactly True 0 ->
+                  if match ana then [ f $ mkCautious ana ]
+                   else [ fc t | t <- exactly 0 ana, match t] 
 
-                Exactly True n -> [ f $ mkCautious t | t <- exactly n ana 
-                                                 , match t ]
-                AtLeast True n -> [ f $ mkCautious t | t <- atleast n ana
-                                                 , match t ]
+                 Exactly True n -> [ fc t | t <- exactly n ana, match t ]
+                 AtLeast True n -> [ fc t | t <- atleast n ana, match t ]
 
-                Exactly _ n -> [ f t | t <- exactly n ana, match t ]
-                AtLeast _ n -> [ f t | t <- atleast n ana, match t ]
-                Barrier  _ n bs -> map f $ barrier n bs ana
-                CBarrier _ n bs -> map f $ cbarrier n bs ana
+                 Exactly _ n -> [ f t | t <- exactly n ana, match t ]
+                 AtLeast _ n -> [ f t | t <- atleast n ana, match t ]
+                 Barrier  _ n bs -> map f $ barrier n bs ana
+                 CBarrier _ n bs -> map f $ cbarrier n bs ana
 
   f :: Token -> Token
   f = if positive then id else mkNegative
+
+  fc :: Token -> Token 
+  fc = f . mkCautious
 
   match :: Token -> Bool
   match tok = (if positive then id else not) $ tagsMatchRule tok (toTags ctags)
 
   --given word and n, return words that are n places away in the original sentence
+  --If n is out of bounds AND the condition is negative, then return [dummyTok],
+  --it will signal that a condition /is/ met:
+  --there is no <tag> in a word n places away if there is no word n places away!
   exactly :: Int -> Token -> [Token]
-  exactly n token = [ tok' | tok' <- allToks
-                           , getInd tok' == n + getInd token ]
-
+  exactly n token = let potentialToks = 
+                         [ tok' | tok' <- allToks
+                                , getInd tok' == n + getInd token ]
+                    in if null potentialToks && not positive 
+                         then [dummyTok]
+                         else potentialToks
 
   --same but list of tags that are at least n places away
-  atleast n token = [ tok' | tok' <- allToks
-                           , getInd tok' >= n + getInd token ]
-
+  atleast n token = let potentialToks = 
+                         [ tok' | tok' <- allToks
+                                , getInd tok' >= n + getInd token ]
+                    in if null potentialToks && not positive 
+                         then [dummyTok]
+                         else potentialToks
 
   --between m and n places away
   between m n token =
@@ -457,8 +453,8 @@ getContext ana allToks (ctx@(C position ts@(positive,ctags)):cs) = trace ("getCo
   -- (NOT 1* foo BARRIER bar)  matches  ^target/lemma<ana>$ ^barrier/bar<ana>$
   -- ie. no need to have a ~foo word, just to *not* have foo for any reason.
   -- we mimic this behaviour by counting bar as a ~foo.
-  barrier n btags token | barinds==[] = filter match $ atleast n token
-                        | mindist < 0 = filter match $ atleast n token
+  barrier n btags token | barinds==[] = trace "barrier.bi==[]" $ filter match $ atleast n token
+                        | mindist < 0 = trace "barrier.md<0" $  filter match $ atleast n token
                         | n < 0       = between mindist n token
                         | otherwise   = between n mindist token
      where barinds = [ getInd tok | tok <- allToks
@@ -467,8 +463,8 @@ getContext ana allToks (ctx@(C position ts@(positive,ctags)):cs) = trace ("getCo
            dists   = map (\i -> i - getInd token) barinds :: [Int]
            mindist = minimum dists
 
-  cbarrier n btags token | cbarinds==[] = filter match $ atleast n token
-                         | mindist < 0  = filter match $ atleast n token
+  cbarrier n btags token | cbarinds==[] = trace "cbarrier.bi==[]" $ filter match $ atleast n token
+                         | mindist < 0  = trace "cbarrier.md<0" $ filter match $ atleast n token
                          | n < 0        = between mindist n token
                          | otherwise    = between n mindist token
      where trgind = getInd token
@@ -513,7 +509,7 @@ disambiguate' withOrder verbose debug rules sentence = do
  if length chunkedSent == length sentence then return sentence 
   else do 
    s <- newSolver
-   litsForAnas  <- sequence [ newLit s | _ <- chunkedSent ]
+   litsForAnas  <- sequence [ newLit s (show chunk) | chunk <- chunkedSent ]
    let toks = zipWith (uncurry mkToken) chunkedSent litsForAnas
    rls_applied_helps <- concat `fmap` mapM (applyRule s toks) rules :: IO [(Rule, [Clause], [Lit])]
    let helps = concatMap (\(_,_,c) -> c) rls_applied_helps :: [Lit]
@@ -525,7 +521,7 @@ disambiguate' withOrder verbose debug rules sentence = do
             return sentence 
     else do
 
-      -- to force True for all literals that are not to be removed/selected
+      -- to force True for all literals that are not to be removed/selected by any rule
       let targetlits = let safeLastLit = (\x -> if null x then true else last x) 
                        in map safeLastLit applied
       let nonAffectedLits = litsForAnas  \\ (map neg targetlits)
@@ -533,8 +529,7 @@ disambiguate' withOrder verbose debug rules sentence = do
 
       (litsForClauses,
         rls_cls) <- unzip `fmap` sequence 
-                      [ do b <- newLit s
-                           print b
+                      [ do b <- newLit s (show rl)
                            return (b, (rl, neg b:cl))
                         | (rl, cls, _) <- rls_applied_helps , cl <- cls ] :: IO ([Lit], [(Rule, Clause)])
                                                       
@@ -543,7 +538,7 @@ disambiguate' withOrder verbose debug rules sentence = do
         mapM_ print toks
 
       sequence_ [ addClause s cl | cl <- anchor toks ]
-      sequence_ [ addClause s [l] >> when debug (print l) | l <- nonAffectedLits ]
+      sequence_ [ addClause s [l] | l <- nonAffectedLits ]
       sequence_ [ addClause s cl >> when debug (print cl) | (_, cl) <- rls_cls ]
       --- up to here identical
       
@@ -552,7 +547,7 @@ disambiguate' withOrder verbose debug rules sentence = do
        if withOrder 
          then 
           do let clsByRule = (map.map) snd $ groupBy fstEq rls_cls
-             bs_ls <- sequence [ do k <- count s insts :: IO Unary
+             bs_ls <- sequence [ do k <- SAT.Named.count s insts :: IO Unary
                                     b <- solveMaximize s [] k
                                     is <- sequence [ modelValue s x | x <- insts ] 
                                     sequence_ [ addClause s [lit]
@@ -575,10 +570,10 @@ disambiguate' withOrder verbose debug rules sentence = do
       when debug $ do cs <- sequence [ modelValue s x | x <- litsForClauses ]
                       putStrLn "\nUsed clauses:"
                       mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
-                                       | (True, (rl,cl)) <- zip cs rls_cls  ]
+                                       | (True, (rl,l:cl)) <- zip cs rls_cls  ]
                       putStrLn "\nUnused clauses:"
                       mapM_ putStrLn [ show rl ++ "\n* " ++ show cl 
-                                       | (False, (rl,cl)) <- zip cs rls_cls ]
+                                       | (False, (rl,l:cl)) <- zip cs rls_cls ]
 
       if b 
         then
@@ -632,19 +627,18 @@ test = mapM_ (disambiguate True True rls) CG_data.exs
 fstEq (a,_) (b,_) = a==b
 sndEq (_,a) (_,b) = a==b
 
-pr' :: Maybe Bool ->  String
-pr' (Just True)  = "1   "
-pr' (Just False) = "0   "
-pr' Nothing      = "?   "
+pr' :: Bool ->  String
+pr' True  = "1   "
+pr' False = "0   "
 
 unsafePrValues :: [Lit] -> Solver -> [Lit] -> IO ()
 unsafePrValues lits s ass = do
   mapM_ (\x -> putStr (show x ++ (if length (show x) == 2 then "  " else " "))) lits
   putStrLn ""
-  k <- count s lits
+  --k <- count s lits
   --solveMaximize s ass k
   solve s ass
-  hs <- sequence [ modelValueMaybe s x | x <- lits ]
+  hs <- sequence [ modelValue s x | x <- lits ]
   sequence_ [ putStr (pr' h) | h <- hs ]
   putStrLn ""
 
@@ -652,9 +646,6 @@ safePrValues :: [Lit] -> Solver -> IO ()
 safePrValues lits s = do
   mapM_ (\x -> putStr (show x ++ (if length (show x) == 2 then "  " else " "))) lits
   putStrLn ""
-  hs <- sequence [ modelValueMaybe s x | x <- lits ]
+  hs <- sequence [ modelValue s x | x <- lits ]
   sequence_ [ putStr (pr' h) | h <- hs ]
   putStrLn ""
-
-prTags :: [Tag] -> String
-prTags = unwords . map show
