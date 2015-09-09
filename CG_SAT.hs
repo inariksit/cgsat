@@ -269,38 +269,45 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                          , let trgName = "REMOVE " ++ show trg ]
                          
 
-    slCls <- sequence [ do condLits <- findCondLits s ctx
+    (slHelps,slCls) <- unzip `fmap` sequence
+                      [ do condLits <- findCondLits s ctx
                            if_ctx_holds <- andl s ctxName condLits
                            print if_ctx_holds
                            sl_trg <- implies s trgName if_ctx_holds (getLit trg)
                            print sl_trg
-                           return sl_trg
+                           return (if_ctx_holds, sl_trg)
                          | (trg, ctx) <- sl 
                          , let condNames = unwords $ map (show.fst) ctx
                          , let ctxName = "v<IF ("++condNames++")>" 
                          , let trgName = "SELECT " ++ show trg ]
 
     let target = if null sl then rm else sl 
-    onlyTrgs <- sequence [ onlyTargetLeft s trg | (trg, ctx) <- target ]
+    -- OBS. this might not scale up if a sentence triggers rule in many places
+    onlyTrgLits <- sequence [ onlyTargetLeft s trg | (trg, ctx) <- target ]
 
-    --should onlyTrgCls only apply to the original target of the rule that is analysed?
-    --no  : a rule cannot apply selectively if context is met
-    --yes : if ctx word isn't analysed as <target>, no need for rule in the first place
- 
-    {--we apply one, but not both, of:
-    --    rmClauses and slClauses 
-    --    onlyTrg -}
+    ruleApplied <- andl s "ruleApplied" (rmCls++slCls)
+    onlyTrgLeft <- if length onlyTrgLits==1
+                    then return $ head onlyTrgLits
+                    else andl s "onlyTrgLeft" onlyTrgLits
+    print ("*** onlyTrgLeft:",onlyTrgLeft)
 
---    return $ (ruleApplied : onlyTrg : rmCls : slCls : onlyTrgCls, concat helpers) 
-    return $ (filter (not.null) [rmCls,slCls], rmHelps) 
+    notBoth <- xorl s "ruleApplied_or_onlyTrgLeft" [ruleApplied, onlyTrgLeft]
+    
+    
+    return $ ([[notBoth]], [] )
+--              onlyTrgLeft:ruleApplied:(concat $ rmHelps++rmCls++slCls++slHelps)) 
     
    where
     onlyTargetLeft :: Solver -> Token -> IO Lit
     onlyTargetLeft s trg = do
       let sameIndToks = filter (sameInd trg) allToks
       let (hasTargets,noTarget) = partition (\t -> tagsMatchRule t trgs_diffs) sameIndToks
-      print ("***",hasTargets,noTarget)
-      newLit s "onlyTargetLeft" 
+      --print ("*** hasTargets and noTargets",hasTargets,noTarget)
+      let trgNames = [ showTagset trg ++ dstr  | (trg,dif) <- trgs_diffs
+                                         , let dstr = if all null dif then "" else "\\" ++ showTagset dif ]
+      let litName = "only <" ++ intercalate "OR" trgNames  ++ "> left"
+      print litName
+      andl s litName $ map getLit hasTargets++map (neg.getLit) noTarget
 
 
 
