@@ -28,7 +28,6 @@ import Control.Monad ( liftM, liftM2, when )
 import SAT.Named -- Add name for variables, for nicer looking output
 import SAT (Solver,newSolver,conflict,modelValueMaybe)
 import SAT.Unary ( Unary )
---import qualified SAT.Unary as U
 import Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -234,80 +233,75 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                                        , let tl = getLit trg ] 
 
     let slClauses = [ [neg r, tl] | (trg, ctx) <- sl
---    slClauses <- sequence [ equiv s r tl | (trg, ctx) <- sl
                                   , let Just r = lookup ctx ctxMap
                                   , let tl = getLit trg ] 
 
-    -- putStr $ "mkVars.rmClauses: " ++ show rm
-    -- print rmClauses
-    -- putStr $ "mkVars.slClauses: " ++ show sl
-    -- print slClauses 
 
     return $ (rmClauses ++ slClauses, concat helps) 
 
 
-  -- | Creating clauses for grammar analysis.
-  -- As before, we collapse multiple conditions into one SAT variable and create clauses.
-  -- In addition, only for grammar analysis:
-  -- We want to find a sentence for which a rule /does not/ fire.
-  -- It can be because of there is no target left, or because there is /only/ target left.
+
   mkVarsGrammarAnalysis :: [(Token,[Context])] -> [(Token,[Context])] -> IO ([Clause], [Lit])
   mkVarsGrammarAnalysis sl rm = do 
 
 
     (rmHelps,rmCls) <- unzip `fmap`sequence
                       [ do condLits <- findCondLits s ctx
-                           print condLits
                            if_ctx_holds <- andl s ctxName condLits
-                           print if_ctx_holds
                            rm_trg <- implies s trgName if_ctx_holds (neg $ getLit trg)
-                           print rm_trg
                            return (if_ctx_holds, rm_trg)
                          | (trg, ctx) <- rm 
                          , let condNames = unwords $ map (show.fst) ctx
-                         , let ctxName = "v<IF ("++condNames++")>" 
+                         , let ctxName = "IF ("++condNames++")" 
                          , let trgName = "REMOVE " ++ show trg ]
                          
 
     (slHelps,slCls) <- unzip `fmap` sequence
                       [ do condLits <- findCondLits s ctx
                            if_ctx_holds <- andl s ctxName condLits
-                           print if_ctx_holds
                            sl_trg <- implies s trgName if_ctx_holds (getLit trg)
-                           print sl_trg
                            return (if_ctx_holds, sl_trg)
                          | (trg, ctx) <- sl 
                          , let condNames = unwords $ map (show.fst) ctx
-                         , let ctxName = "v<IF ("++condNames++")>" 
+                         , let ctxName = "IF ("++condNames++")" 
                          , let trgName = "SELECT " ++ show trg ]
 
+    -- option 2: only target left, cannot apply rule
     let target = if null sl then rm else sl 
-    -- OBS. this might not scale up if a sentence triggers rule in many places
-    onlyTrgLits <- sequence [ onlyTargetLeft s trg | (trg, ctx) <- target ]
+    let trgNames = [ ts ++ ds  | (trg,dif) <- trgs_diffs
+                               , let ts = showTagset trg
+                               , let ds = if all null dif then "" else "-" ++ showTagset dif ]
+    let onlyTrgName = "only_<" ++ intercalate "|" trgNames  ++ ">_left"
 
-    ruleApplied <- andl s "ruleApplied" (rmCls++slCls)
+    -- OBS. this might not scale up if a sentence triggers rule in many places
+    -- TODO check
+    onlyTrgLits <- sequence [ onlyTargetLeft s trg onlyTrgName | (trg, ctx) <- target ]
+
+
+    ruleApplied <- andl s "rule_applied" (rmCls++slCls)
     onlyTrgLeft <- if length onlyTrgLits==1
                     then return $ head onlyTrgLits
-                    else andl s "onlyTrgLeft" onlyTrgLits
-    print ("*** onlyTrgLeft:",onlyTrgLeft)
+                    else do 
+                     let trgNames = intercalate "|" $
+                            map (reverse . drop 4 . reverse . drop 4. show) onlyTrgLits
+                     andl s onlyTrgName onlyTrgLits
 
     notBoth <- xorl s "ruleApplied_or_onlyTrgLeft" [ruleApplied, onlyTrgLeft]
     
     
-    return $ ([[notBoth]], [] )
---              onlyTrgLeft:ruleApplied:(concat $ rmHelps++rmCls++slCls++slHelps)) 
+    return $ ([[notBoth]], 
+              onlyTrgLeft:ruleApplied:(rmHelps++rmCls++slCls++slHelps)) 
     
    where
-    onlyTargetLeft :: Solver -> Token -> IO Lit
-    onlyTargetLeft s trg = do
+    -- TODO: what does onlyTargetLeft mean in the context of SELECT? 
+    onlyTargetLeft :: Solver -> Token -> String -> IO Lit
+    onlyTargetLeft s trg tname = do
       let sameIndToks = filter (sameInd trg) allToks
       let (hasTargets,noTarget) = partition (\t -> tagsMatchRule t trgs_diffs) sameIndToks
-      --print ("*** hasTargets and noTargets",hasTargets,noTarget)
-      let trgNames = [ showTagset trg ++ dstr  | (trg,dif) <- trgs_diffs
-                                         , let dstr = if all null dif then "" else "\\" ++ showTagset dif ]
-      let litName = "only <" ++ intercalate "OR" trgNames  ++ "> left"
-      print litName
-      andl s litName $ map getLit hasTargets++map (neg.getLit) noTarget
+      
+      noOthers <- andl s ""   (map (neg.getLit) noTarget)
+      someTargets <- orl s "" (map getLit hasTargets)
+      andl s tname [someTargets, noOthers]
 
 
 
@@ -319,12 +313,10 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   findCondLits :: Solver -> [Context] -> IO [Lit]
   findCondLits s ctx = do
     let (allConds,allCtxs) = unzip ctx
-    ls <- (concat) `fmap` sequence
+    concat `fmap` sequence
           [ do let condLits = map getLit cToks
                let sameIndToks = filter (sameInd (head cToks)) allToks
                let nomatch = [ getLit tok | tok <- sameIndToks, noMatch tok ]
-               -- putStrLn $ "findCondLits: " ++ show c ++ "," ++ show cToks
-               -- putStrLn $ "condLits: " ++ show condLits
                case (positive, any isCautious cToks) of
                       (True, False) -> return condLits --1
                       (True,  True) -> return $ condLits ++ map neg nomatch --1C
@@ -339,11 +331,9 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
             | (c@(C _pos (positive,ctags)), cToks) <- ctx 
             , let noMatch t = (if positive then not else id) $ tagsMatchRule t (toTags ctags)]
 
-    putStrLn $ "*** findCondLits: final list of all condLits=" ++ show ls
-    return ls
+  --  return ls
 
                                  
-    --can we concat? all of them need to hold ....
 
   help :: Int -> Solver -> [Context] -> Lit -> [Lit] -> IO (Lit, [Lit])
   help i s []     r2 helpers = do
@@ -393,7 +383,8 @@ getContext :: Token       -- ^ a single analysis
            -> [Context]   -- ^ context for the first arg. If all conditions match for a token, there will be as many non-empty Contexts ([Token]) as Conditions.
 getContext ana allToks []          = []
 getContext ana allToks (Always:cs) = (Always, [dummyTok]) : getContext ana allToks cs 
-getContext ana allToks (cond@(C position ts@(positive,ctags)):cs) = trace ("getContext.ana: " ++ show ana ++ ", cond:" ++ show cond ++ ", result:" ++ show result) $ (cond, result) : getContext ana allToks cs
+getContext ana allToks (cond@(C position ts@(positive,ctags)):cs) = --trace ("getContext.ana: " ++ show ana ++ ", cond:" ++ show cond ++ ", result:" ++ show result) $ 
+ (cond, result) : getContext ana allToks cs
  where 
   result = case head $ toTags ctags of
     ([]  ,_)   -> [dummyTok] --empty conds = holds always
@@ -635,8 +626,8 @@ fstEq (a,_) (b,_) = a==b
 sndEq (_,a) (_,b) = a==b
 
 pr' :: Bool ->  String
-pr' True  = "1   "
-pr' False = "0   "
+pr' True  = "1"
+pr' False = "0"
 
 unsafePrValues :: [Lit] -> Solver -> [Lit] -> IO ()
 unsafePrValues lits s ass = do
@@ -651,8 +642,6 @@ unsafePrValues lits s ass = do
 
 safePrValues :: [Lit] -> Solver -> IO ()
 safePrValues lits s = do
-  mapM_ (\x -> putStr (show x ++ (if length (show x) == 2 then "  " else " "))) lits
-  putStrLn ""
   hs <- sequence [ modelValue s x | x <- lits ]
-  sequence_ [ putStr (pr' h) | h <- hs ]
+  sequence_ [ putStrLn (show x ++ "\t" ++ show h) | (x,h) <-zip lits hs ]
   putStrLn ""

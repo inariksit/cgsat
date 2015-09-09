@@ -48,8 +48,8 @@ instance Show TagSet where
   show All = "(*)"
 
 showTagset :: [[Tag]] -> String
---showTagset [[x]] = show x ++ " "
-showTagset xs    = concatMap show' xs
+showTagset [[x]] = show x ++ " "
+showTagset xs    = intercalate "|" $ map show' xs --concatMap show' xs
   where show' [y] = show y 
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
