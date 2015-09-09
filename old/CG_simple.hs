@@ -3,7 +3,7 @@
 module CG_simple where
 
 import CG_base
-import CG_SAT hiding ( tagsMatchRule, applyRule, go, disambiguate, getContext )
+import CG_SAT hiding ( tagsMatchRule, applyRule, go, disambiguate, getContext, Context )
 import Data.List
 import Control.Monad ( liftM2, when )
 import SAT
@@ -13,7 +13,7 @@ import qualified SAT.Unary as U
 import Debug.Trace
 
 --------------------------------------------------------------------------------
-
+type Context = [Token]
 
 -- Rule     has [(trg::[[Tag]], dif::[[Tag]])] , disjoint.
 -- Analysis has [Tag].

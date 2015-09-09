@@ -3,7 +3,6 @@ module Main where
 import CG_base
 import CG_parse
 import CG_SAT
-import qualified CG_simple as Simple
 import Control.Monad
 import Data.List
 import Data.Maybe
@@ -77,8 +76,6 @@ gold rl dt g = do rules <- readRules rl
                   gold <- readData g
 
                   resSAT <- mapM (disamSection (disambiguate False False) rules) text
-                  -- resSAT <- mapM (Simple.disamRule (concat rules)) text
-                  --resSAT <- mapM (Simple.disamSecRule rules) text
                   resVISL <- vislcg3 rl dt True
                   putStrLn "SAT-CG in comparison to gold standard"
                   let verbose = length text < 10 --change if you want different output

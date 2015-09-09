@@ -2,62 +2,38 @@ import CG_base
 import Control.Monad (liftM2, when)
 import Data.List
 import Data.Maybe
-import SAT
-import SAT.Bool
+import SAT.Named -- Add name for variables, for nicer looking output
+import SAT (Solver,newSolver)
+--import SAT
+--import SAT.Bool
 
---------------------------------------------------------------------------------
--- Add name for variables, for nicer looking output
 
-data Lit' = LP {nm :: String, lt :: Lit} deriving (Ord,Eq)
-type RuleTarget = (Lit',Lit')
-
-instance Show Lit' where
-  show (LP name lit) = name
-
-newLit' :: Solver -> String -> IO Lit'
-newLit' s name = LP name `fmap` newLit s
-
-solve' :: Solver -> [Lit'] -> IO Bool
-solve' s = solve s . map lt 
-
-addClause' :: Solver -> [Lit'] -> IO ()
-addClause' s  = addClause s . map lt 
-
-andl' :: Solver -> String -> [Lit'] -> IO Lit'
-andl' s name lps = LP name `fmap` andl s (map lt lps)
-
-neg' :: Lit' -> Lit'
-neg' (LP name lit) = LP name (neg lit)
-
-modelValue' s = modelValue s . lt
-
-equiv' :: Solver -> String -> Lit' -> Lit' -> IO Lit'
-equiv' s name lp1 lp2 = LP name `fmap` equiv s (lt lp1) (lt lp2)
-
-implies' :: Solver -> String -> Lit' -> Lit' -> IO Lit'
-implies' s name lp1 lp2 = LP name `fmap` implies s (lt lp1) (lt lp2)
+type RuleTarget = (Lit,Lit)
 
 --------------------------------------------------------------------------------
 
 main = do
   s <- newSolver
-  in_prep <- newLit' s "in<prep>"
-  in_adv <- newLit' s "in<adv>"
-  target <- newLit' s "target"
-  dummy  <- newLit' s "dummy"
-  if_1C_prep <- andl' s "IF (-1C prep)" [in_prep, neg' in_adv]
-  rm_trg <- implies' s "REMOVE target" if_1C_prep (neg' target) 
-  rm_adv <- implies' s "REMOVE adv" (LP "always" true) (neg' in_adv) 
-  rm_prep <- implies' s "REMOVE prep" (LP "always" true) (neg' in_prep) 
+  in_prep <- newLit s "in<prep>"
+  in_adv <- newLit s "in<adv>"
+  target <- newLit s "target"
+  dummy  <- newLit s "dummy"
+  the_det <- newLit s "the<det>"
+  if__1C_prep <- andl s "IF (-1C prep)" [in_prep, neg in_adv]
+  if__1C_prep_1_det <- andl s "IF (-1C prep) (1 det)" [the_det,if__1C_prep]
+  rm_trg <- implies s "REMOVE target" if__1C_prep_1_det (neg target) 
+  rm_adv <- implies s "REMOVE adv"   true (neg in_adv) 
+  rm_prep <- implies s "REMOVE prep" true (neg in_prep) 
 
-  -- rm_trg <- equiv' s "REMOVE target" if_1C_prep (neg' target) 
-  -- rm_adv <- equiv' s "REMOVE adv" (LP "always" true) (neg' in_adv) 
-  -- rm_prep <- equiv' s "REMOVE prep" (LP "always" true) (neg' in_prep) 
+  -- rm_trg <- equiv s "REMOVE target" if__1C_prep_1_det (neg target) 
+  -- rm_adv <- equiv s "REMOVE adv" (Lit "always" true) (neg in_adv) 
+  -- rm_prep <- equiv s "REMOVE prep" (Lit "always" true) (neg in_prep) 
 
-  addClause' s [in_prep,in_adv] -- >=1 analysis must be true
-  addClause' s [target,dummy]
+  addClause s [in_prep,in_adv] -- >=1 analysis must be true
+  addClause s [target,dummy]
+  addClause s [the_det]
 
-  let lits = [in_prep,in_adv,target,dummy,if_1C_prep,rm_trg,rm_adv,rm_prep]
+  let lits = [in_prep,in_adv,target,dummy,the_det,if__1C_prep,if__1C_prep_1_det,rm_trg,rm_adv,rm_prep]
 
   let clsAndTrgs = [ (rm_trg,target), (rm_adv,in_adv), (rm_prep,in_prep),  (rm_trg,target)] :: [RuleTarget]
 
@@ -89,10 +65,10 @@ main = do
 
    for = flip fmap
 
-   doStuff :: Bool -> Solver -> [Lit'] -> [Lit'] -> [RuleTarget] -> IO [Maybe RuleTarget]
+   doStuff :: Bool -> Solver -> [Lit] -> [Lit] -> [RuleTarget] -> IO [Maybe RuleTarget]
    doStuff _ _ _    _   []          = return []
    doStuff v s lits ass ((r,t):rts) = do
-     (newAss, maybeRT) <- testSolve v s lits (r,t) ass :: IO ([Lit'], Maybe RuleTarget)
+     (newAss, maybeRT) <- testSolve v s lits (r,t) ass :: IO ([Lit], Maybe RuleTarget)
      newList <- doStuff v s lits (ass++newAss) rts
      return (maybeRT:newList)
 
@@ -106,9 +82,9 @@ main = do
 --------------------------------------------------------------------------------
 
 
-testSolve :: Bool -> Solver -> [Lit'] -> RuleTarget -> [Lit'] -> IO ([Lit'], Maybe RuleTarget)
+testSolve :: Bool -> Solver -> [Lit] -> RuleTarget -> [Lit] -> IO ([Lit], Maybe RuleTarget)
 testSolve v s lits (rule,trg) ass = do
-     b <- solve' s (rule:ass)
+     b <- solve s (rule:ass)
      if b then 
          do newAss <- afterSolving v s trg lits
             when v $ print (ass,newAss)
@@ -124,20 +100,20 @@ testSolve v s lits (rule,trg) ass = do
 
 afterSolving :: Bool -- ^ verbose or not
              -> Solver -- ^ solver to use
-             -> Lit'   -- ^ target lits
-             -> [Lit'] -- ^ all lits, just for printing purposes
-             -> IO [Lit'] -- ^ assumptions to carry to next round
+             -> Lit   -- ^ target lits
+             -> [Lit] -- ^ all lits, just for printing purposes
+             -> IO [Lit] -- ^ assumptions to carry to next round
 afterSolving v s trgLit allLits = do
-  targetVal <- modelValue' s trgLit
+  targetVal <- modelValue s trgLit
   if v 
     then do
-      vs <- sequence [ modelValue s x | (LP name x) <- allLits ] 
+      vs <- sequence [ modelValue s x | x <- allLits ] 
       sequence_ [ putStrLn (show x ++ shB v) | (x, v) <- zip allLits vs ]
       print (trgLit, targetVal)
     else return ()
            --if target is removed, add that as a clause -- cannot retain it anymore
   if not targetVal
-   then return [neg' trgLit] --addClause' s [neg' trgLit]
+   then return [neg trgLit] --addClause s [neg trgLit]
    else return [] -- ()
 
 

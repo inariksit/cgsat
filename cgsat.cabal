@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, CG_simple
+  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse
   other-modules:       CG.ErrM, Apertium.ErrM,
                        Apertium.Abs, Apertium.Lex, Apertium.Par,
                        CG.Abs, CG.Lex, CG.Par, CG.Print
@@ -81,13 +81,15 @@ executable test-cgsat
   default-language:    Haskell2010
 
 
-Test-Suite qctest
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             QCTest.hs
-  build-depends:       base,
-                       cgsat,
-                       minisat,
-                       satplus,
-                       QuickCheck
-  default-language:    Haskell2010
+
+-- Test-Suite qctest
+--  type:                exitcode-stdio-1.0
+--  hs-source-dirs:      test
+--  main-is:             QCTest.hs
+--  build-depends:       base,
+--                       cgsat,
+--                       minisat,
+--                       satplus,
+--                       QuickCheck
+--  default-language:    Haskell2010
+
