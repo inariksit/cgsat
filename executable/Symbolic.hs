@@ -19,9 +19,10 @@ testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf
 tinyrules = concat $ snd $ parseRules False 
           ( "SET DetNoAdj = (det) - (adj) ;" ++
             "SET AdjNoDet = (adj) - (det) ;" ++
-           "REMOVE:r1 (v) IF (-1 (det)) (NOT 0 (n)) ;" ++
+           "REMOVE:r1 (v) IF (-1C (det)) (NOT 0 (n)) ;" ++
            "REMOVE:r2 (det) IF (1 (v)) ;" ++
-           "REMOVE:r3 (v) IF (-1C det) ;" ) 
+           "REMOVE:long (adj) IF (-2 (det)) (1 (det)) ;" ++
+           "REMOVE:r3 (v) IF (-1 det) ;" ) 
 --           "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
 --           "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
 
@@ -48,8 +49,8 @@ main = do
 
    ("tiny":_)
       -> do let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
-            let tc = ts 
---            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
+            --let tc = ts 
+            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
             let spl = splits  tinyrules
             let (verbose,debug) = (True, True)
             results <- mapM (testRule verbose debug ts tc) spl
@@ -156,34 +157,28 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
     print conf
   putStrLn "\n---------\n"
 
-  applied_helps <- sequence [ analyseGrammar s ss rl
+  rls_applied_helps <- sequence [ do as_hs <- analyseGrammar s ss rl
+                                     let rl_as_hs = map (\(a,b) -> (rl,a,b)) as_hs
+                                     return rl_as_hs --to make sure only applied rules come in
                                    | rl <- rules
                                    , (fst $ width rl) <= ruleWidth ] 
 
-  let applied = [ cls | foo <- applied_helps 
-                      , (cls, _)  <- foo ]
+  let rls_applied = [ (rls,cls) | foo <- rls_applied_helps 
+                    , (rls, cls, _)  <- foo ]
                
-  let helps = [ cls | foo <- applied_helps 
-                      , ( _, cls)  <- foo ]
-
-  putStrLn "applied rules:"
-  mapM_ print applied
-
+  let helps = nub $ concat
+               [ cls | foo <- rls_applied_helps 
+                     , (_, _, cls)  <- foo ]
 
   sequence_ [ do addClause s cl
                  when True $ --debug $ 
                    putStrLn $ show rl ++ ": " ++ show cl                   
-                 | (rl, appCls) <- zip rules applied
+                 | (rl, appCls) <- rls_applied
                  , cl <- appCls ]
 
   b <- solve s []
   if b then do
-    mapM_ (\x -> putStr (show x ++ " ")) (concat helps) 
-    putStrLn ""
-    hs <- sequence [ modelValue s x | x <- concat helps ]
-    sequence_ [ putStr (if h then "1   " else "0   ") | h <- hs ]
-    putStrLn ""
-
+    when verbose $ safePrValues helps s
     as <- sequence [ modelValue s x | x <- concat allLits ]
     let truetoks = [ t | (True, t) <- zip as ss ]
     when verbose $ putStrLn $ showSentence (dechunk truetoks)
@@ -211,7 +206,6 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   slOrRm s sWordMap swordsFromOneCond = -- trace ("slOrRm: " ++ show swordsFromOneCond) $
    do
     (newlits,cls) <- unzip `fmap` mapM (slOrRm' s sWordMap) swordsFromOneCond
-    --when debug $ putStrLn ("slOrRm: " ++ show  newlits ++ " " ++ show cls)
     let nlCls = if length swordsFromOneCond > 1 
                   then [concat $ concat newlits] else concat newlits
     return $ nlCls ++ concat cls
@@ -262,12 +256,13 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
                 [ uncurry f trg_dif 
                               | (nlits, sw@(SW info trg_difs) ) <- zip newlits swords
                               , (nl, trg_dif) <- zip nlits trg_difs
-                              , let Just wn = lookup sw sWordMap
-                              , let f = case (isPositive info, isCautious info) of
-                                          (False,True)  -> negativeC wn n nl
-                                          (False,False) -> negative wn n nl
-                                          (True,True) -> disjunctionC wn n nl
-                                          (True,False) -> disjunction wn n nl ]
+                              , let sWord = lookup sw sWordMap
+                              , let f = case (isPositive info, isCautious info,sWord) of
+                                          (False,True,Just wn)  -> negativeC wn n nl
+                                          (False,False,Just wn) -> negative wn n nl
+                                          (True,True,Just wn) -> disjunctionC wn n nl
+                                          (True,False,Just wn) -> disjunction wn n nl 
+                                          _                    -> (\x y -> [[true]]) ] --TODO check what's wrong!
     return (newlits, disjs)
 
     where
@@ -380,7 +375,7 @@ width rule = case rule of
   --   ]
   -- ]
   doStuff :: TagSet -> Condition -> (Int, [[[SymbWord]]])
-  doStuff t cs = --trace ("doStuff: " ++ show (toTags t) ++ " IF " ++ show (toConds cs) ++ " width:" ++ show i) $ 
+  doStuff t cs = trace ("doStuff: " ++ show (toTags t) ++ " IF " ++ show (toConds cs) ++ " width:" ++ show i) $ 
     (i, foo)
     where 
       (i, foo) = fill $ [[defaultTrg (toTags t)]] : [map toSymbWord (toConds cs)]
@@ -441,7 +436,7 @@ toSymbWord (c:cs) = case c of
 
 
 
-
+--TODO error maybe here ???
 fill :: [[[SymbWord]]] -> (Int, [[[SymbWord]]])
 fill []        = error "fill: []"
 fill swordlist = (width, swordlist ++ (map (:[])) swords)
@@ -456,22 +451,6 @@ fill swordlist = (width, swordlist ++ (map (:[])) swords)
     where
      ind = (index.info) x 
      filled = [ defaultCond k | k <- [m+1..ind-1] ]
-
-
-
---------------------------------------------------------------------------------
-
--- chunk :: Sentence -> [(Info, [Tag])]
--- chunk sent = concat $ go sent 1
---    where go []    _m = []
---          go (x:xs) m = map ((,) (mkInfo m)) (addWF m x) : go xs (m+1)
---          addWF m = map (WF ("w" ++ show m) :)
-
--- dechunk :: [Token] -> Sentence
--- dechunk ts = (map.map) getTags (groupBy sameInd ts)
-
-
-fstEq (a,_) (b,_) = a==b
 
 --------------------------------------------------------------------------------
 
