@@ -19,8 +19,8 @@ testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf
 tinyrules = concat $ snd $ parseRules False 
           ( "SET DetNoAdj = (det) - (adj) ;" ++
             "SET AdjNoDet = (adj) - (det) ;" ++
-           "REMOVE:r1 (v) IF (-1 (det)) ;" ++ -- (NOT 0 (det)) ;" ++
---           "REMOVE:r2 (adj) IF (-1C det) ;" ++
+           "REMOVE:r1 (v) IF (-1 (det)) (NOT 0 (n)) ;" ++
+           "REMOVE:r2 (det) IF (1 (v)) ;" ++
            "REMOVE:r3 (v) IF (-1C det) ;" ) 
 --           "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
 --           "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
