@@ -50,7 +50,7 @@ instance Show TagSet where
 showTagset :: [[Tag]] -> String
 --showTagset [[x]] = show x ++ " "
 showTagset xs    = concatMap show' xs
-  where show' [y] = show y ++ " "
+  where show' [y] = show y 
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
 
