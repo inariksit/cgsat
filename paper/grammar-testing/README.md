@@ -249,3 +249,43 @@ First of all, the sentences are not 10 words long, so we will not find a barrier
 The helper functions cbarrier and barrier actually work for this too. The case where `cbarinds==[]` triggers that we call `atleast n token`, and now I made a change, that if we're on negative cond *and* index is out of bounds, return `dummyTok`. Then we filter with match, and again, the negative mode makes it so that it wants something that does *not* match, which `dummyTok` does. So actually it worked pretty ok.
 
 Except that the condition making is all fucked up now, and the clauses don't end up right. ;___;
+
+---
+
+## Low-level way of creating one variable per context
+
+Just putting this here, switched to using SAT+ high-level functions in the code
+
+```
+analyses:
+  v6 ... (7,["<la>","el",det,def,f,sg])
+  v7 ... (7,["<la>","lo",prn,pro,p3,f,sg])
+  v8 ... (8,["<casa>","casa",n,f,sg])
+  v9 ... (8,["<casa>","casar",vblex,pri,p3,sg])
+  v10 .. (8,["<casa>","casar",vblex,imp,p2,sg])
+  v11 .. (9,["<,>", ",", cm])
+rule: 
+  SELECT:i08_s_pro PrnIndep IF (1 VerbFin)
+
+both v9 and v10 are VerbFin, so we create these clauses:
+  [False,~v9,v15]
+  [False,~v10,v15]
+
+the final lit to be used in the rule is v15:
+  [~v15,~v6], [~v15,v7]
+
+the old way would be 
+  [~v9,~v6], [~v9,v7], [~v10,~v6], [~v10,v7]
+
+Example with two conditions:
+
+rule:
+  SELECT:i02_s_n_adj n  IF (-1C Det) (NOT 1 N)
+
+v11 is not N and v6 is a det, so we create these clauses:
+ [False,~v11,v16] -- first round:   dummy && NOT 1 N => v16
+ [~v16,~v6,v17]   -- second round:  v16   && -1 Det  => v17 
+
+the final lit is v17:
+ [~v17,v8], [~v17,~v9], [~v17,~v10]
+``` 
