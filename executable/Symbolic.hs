@@ -1,5 +1,5 @@
 import CG_base
-import CG_SAT hiding ( isCautious, isPositive, showToken )
+import CG_SAT hiding ( isCautious, isPositive )
 import CG_parse
 import SAT.Named
 import SAT ( Solver, newSolver, conflict )
@@ -10,20 +10,27 @@ import Debug.Trace
 
 import System.Environment
 import System.IO ( hFlush, stdout )
-import System.IO.Unsafe
 
 
-showToken = show . getLit
+ex_onlyTrgLeft = concat $ snd $ parseRules False
+    -- ( "REMOVE:r1 (adj OR det) IF (1 v) ;" ++
+     ( "REMOVE:r1 (adj OR det) ;" ++
+       "REMOVE:r2 v IF (-1 adj LINK 0 det ) ;" ) 
 
-testrules = concat $ snd $ parseRules False "SELECT:r1 (aa) OR (acr) IF (-1C (mf)) ;\nREMOVE:r2 (aa) IF (-1C (acr)) ;"
-tinyrules = concat $ snd $ parseRules False 
-          ( "SET DetNoAdj = (det) - (adj) ;" ++
-            "SET AdjNoDet = (adj) - (det) ;" ++
-           "REMOVE:r1 (v) IF (-1C (det)) (NOT 0 (n)) ;" ++
-           "REMOVE:r2 (det) IF (1 (v)) ;" ++
-           "REMOVE:r3 (v) IF (-1 det) (1 (det));" ) 
---           "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
---           "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
+ex_firstRuleStricter = concat $ snd $ parseRules False
+     ( "REMOVE:r1 v IF (-1C det) ;" ++
+       "REMOVE:r2 v IF (-1  det) ;" ) 
+
+ex_threerules = concat $ snd $ parseRules False 
+     ( "REMOVE:r1 (v) IF (-1C (det))  ;" ++
+       "REMOVE:r2 (det) IF (1 (v)) ;"    ++
+       "REMOVE:r3 (v) IF (-1 (det) ) ;" ) 
+
+ex_testDisj = concat $ snd $ parseRules False
+     ( "SET DetNoAdj = (det) - (adj) ;" ++
+       "SET AdjNoDet = (adj) - (det) ;" ++
+       "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
+       "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
 
 toTags' :: TagSet -> [[Tag]]
 toTags' = concatMap (nub . (\(a,b) -> if all null b then a else b)) . toTags
@@ -35,7 +42,7 @@ main = do
             ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/spa_tags.txt"
   
             print ts
-            let spl = splits testrules
+            let spl = splits ex_threerules
             print spl
             (tsets, _) <- readRules' "data/spa_smallset.rlx"
             let tc = nub $ ts ++ concatMap toTags' tsets
@@ -48,13 +55,30 @@ main = do
 
    ("tiny":_)
       -> do let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
-            --let tc = ts 
-            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
-            let spl = splits  tinyrules
-            let (verbose,debug) = (True, True)
-            results <- mapM (testRule verbose debug ts tc) spl
-            let badrules = [ rule | (False,rule) <- results ]
-            mapM_ (findConflict ts tc) badrules
+            let tc = ts 
+            --let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
+            let otl_spl  = splits ex_onlyTrgLeft
+            let first_stricter_spl = splits ex_firstRuleStricter
+            let second_stricter_spl = splits $ reverse ex_firstRuleStricter
+            let shitshit = splits ex_threerules
+
+            
+
+            let doEverything spl = do 
+                     putStrLn "Next test!\n***********"
+                     let (verbose, debug) = (True, True)
+                     results <- mapM (testRule verbose debug ts tc) spl
+                     mapM_ (findConflict ts tc) [ rule | (False,rule) <- results ]
+
+            mapM_ doEverything 
+                  [ otl_spl
+                  -- , first_stricter_spl
+                  -- , second_stricter_spl
+                  -- , shitshit
+                  ]
+
+
+
 
    ("nld":r)
       -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -236,10 +260,9 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
           [ [neg nl, neg$wn!!ind] | ind <- indDif ]
 
   slCond' :: Solver -> [(SymbWord,[Lit])] -> [SymbWord] -> IO ([Clause],[Clause])
-  slCond' s sWordMap swords = trace ("slCond': " ++ show  (map targets swords)) $
+  slCond' s sWordMap swords = 
    do
     let n = length tagcombs - 1 
-
 
     -- newlits:: [[Lit]]
     --  [Inside this list separate conditions grouped by AND
@@ -309,11 +332,11 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
 
 --------------------------------------------------------------------------------
 
-findConflict :: [[Tag]]                        -- ^ All tags
-                -> [[Tag]]                     -- ^ All tag combinations
-                -> (Rule,                      -- ^ Rule to be tested
-                    [Rule])                    -- ^ Rules before the tested rule
-                -> IO (Rule,([Rule],[Rule]))   -- ^ Rule, non-conf rules, conf rules
+findConflict :: [[Tag]]                     -- ^ All tags
+             -> [[Tag]]                     -- ^ All tag combinations
+             -> (Rule,                      -- ^ Rule to be tested
+                 [Rule])                    -- ^ Rules before the tested rule
+             -> IO (Rule,([Rule],[Rule]))   -- ^ Rule, non-conf rules, conf rules
 findConflict alltags tagcombs (rule, rules) = do
   let rulecombs = [ (rule, delRules) | delRules <- delOne rules ]
   results <- mapM (testRule False False alltags tagcombs) rulecombs
@@ -325,10 +348,6 @@ findConflict alltags tagcombs (rule, rules) = do
   let onlybad = allbad \\ allgood
 
   putStrLn ( "rule: " ++ show rule)
-  putStrLn "good:"
-  mapM_ print allgood
-  putStrLn "bad:"
-  mapM_ print onlybad
 
   putStrLn "bad combinations:"
   mapM_ print badcombs
@@ -443,9 +462,10 @@ fill swordlist = (width, swordlist ++ (map (:[])) swords)
   (width, swords) = go flatConds minInd (1,[])
   flatConds = sort $ concat $ concat swordlist
   minInd = index $ info $ head flatConds
-  go []     oldInd (w,res)  = (w, res)
-  go (x:xs) oldInd (w,res) | n >= 1 = go xs ind (w+n,res)
-                           | otherwise  = go xs ind (w+n,filled:res)
+  go []     oldInd (wc,res)  = (wc, res)
+  go (x:xs) oldInd (wc,res) | n == 1 = go xs ind (wc+n,res)
+                            | n == 0 = go xs ind (wc, res)
+                            | otherwise  = go xs ind (wc+n,filled:res)
     where
      ind = (index.info) x 
      n = ind-oldInd

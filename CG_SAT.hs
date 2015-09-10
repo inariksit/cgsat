@@ -20,13 +20,14 @@ module CG_SAT
 where 
 
 
-import CG_base
+import CG_base hiding ( name )
 import CG_data
 import Data.List
 import Data.Maybe
 import Control.Monad ( liftM, liftM2, when )
-import SAT.Named -- Add name for variables, for nicer looking output
+import SAT.Named -- Added name for variables, for nicer looking output
 import SAT (Solver,newSolver,conflict,modelValueMaybe)
+import qualified SAT
 import SAT.Unary ( Unary )
 import Debug.Trace
 
@@ -53,7 +54,7 @@ prTags :: [Tag] -> String
 prTags = unwords . map show
 
 instance Show Token where
-  show = show . getLit --Token
+  show = show . getLit 
 
 type Context = (Condition, [Token])
 
@@ -73,7 +74,7 @@ mkNegative (T i tags lit c _) = T i tags lit c False
 dummyTok :: Token
 dummyTok = T { getInd  = 999
              , getTags = []
-             , getLit  = true
+             , getLit  = Lit "ALWAYS" SAT.true
              , isCautious = False
              , isPositive = True }
 
@@ -239,6 +240,8 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
 
     return $ (rmClauses ++ slClauses, concat helps) 
 
+  mapT :: (a -> b) -> (a, a) -> (b, b)
+  mapT f (a1, a2) = (f a1, f a2)
 
 
   mkVarsGrammarAnalysis :: [(Token,[Context])] -> [(Token,[Context])] -> IO ([Clause], [Lit])
@@ -251,9 +254,12 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                            rm_trg <- implies s trgName if_ctx_holds (neg $ getLit trg)
                            return (if_ctx_holds, rm_trg)
                          | (trg, ctx) <- rm 
-                         , let condNames = unwords $ map (show.fst) ctx
+                         , let (conds,insts) = unzip ctx
+--                         , let instNames = map show insts
+                         , let condNames = unwords $ map show conds
                          , let ctxName = "IF ("++condNames++")" 
-                         , let trgName = "REMOVE " ++ show trg ]
+                         , let thisInstanceName = " if_(" ++ (intercalate "," (map (show.head) insts ++ ["etc."])) ++ ")"
+                         , let trgName = "rm_" ++ show trg ++ thisInstanceName ]
                          
 
     (slHelps,slCls) <- unzip `fmap` sequence
@@ -267,30 +273,22 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                          , let trgName = "SELECT " ++ show trg ]
 
     -- option 2: only target left, cannot apply rule
-    let target = if null sl then rm else sl 
+    let (target,trgCls) = if null sl then (rm,rmCls) else (sl,slCls)
     let trgNames = [ ts ++ ds  | (trg,dif) <- trgs_diffs
                                , let ts = showTagset trg
                                , let ds = if all null dif then "" else "-" ++ showTagset dif ]
     let onlyTrgName = "only_<" ++ intercalate "|" trgNames  ++ ">_left"
 
-    -- OBS. this might not scale up if a sentence triggers rule in many places
-    -- TODO check
+
     onlyTrgLits <- sequence [ onlyTargetLeft s trg onlyTrgName | (trg, ctx) <- target ]
 
+    notBoth <- sequence [ xorl s notBothName [ruleApplied, onlyTrg] 
+                          | (onlyTrg, ruleApplied, n) <- zip3 onlyTrgLits trgCls [1..]
+                          , let nm = name . getLit
+                          , let notBothName = name onlyTrg ++ "_XOR_" ++ name ruleApplied ++ show n]
 
-    ruleApplied <- andl s "rule_applied" (rmCls++slCls)
-    onlyTrgLeft <- if length onlyTrgLits==1
-                    then return $ head onlyTrgLits
-                    else do 
-                     let trgNames = intercalate "|" $
-                            map (reverse . drop 4 . reverse . drop 4. show) onlyTrgLits
-                     andl s onlyTrgName onlyTrgLits
-
-    notBoth <- xorl s "ruleApplied_or_onlyTrgLeft" [ruleApplied, onlyTrgLeft]
-    
-    
-    return $ ([[notBoth]], 
-              onlyTrgLeft:ruleApplied:(rmHelps++rmCls++slCls++slHelps)) 
+    return $ (map (:[]) notBoth,
+              notBoth++onlyTrgLits++rmHelps++rmCls++slCls++slHelps) 
     
    where
     -- TODO: what does onlyTargetLeft mean in the context of SELECT? 
@@ -451,8 +449,8 @@ getContext ana allToks (cond@(C position ts@(positive,ctags)):cs) = --trace ("ge
   -- (NOT 1* foo BARRIER bar)  matches  ^target/lemma<ana>$ ^barrier/bar<ana>$
   -- ie. no need to have a ~foo word, just to *not* have foo for any reason.
   -- we mimic this behaviour by counting bar as a ~foo.
-  barrier n btags token | barinds==[] = trace "barrier.bi==[]" $ filter match $ atleast n token
-                        | mindist < 0 = trace "barrier.md<0" $  filter match $ atleast n token
+  barrier n btags token | barinds==[] = filter match $ atleast n token
+                        | mindist < 0 = filter match $ atleast n token
                         | n < 0       = between mindist n token
                         | otherwise   = between n mindist token
      where barinds = [ getInd tok | tok <- allToks
