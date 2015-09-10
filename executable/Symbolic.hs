@@ -21,8 +21,7 @@ tinyrules = concat $ snd $ parseRules False
             "SET AdjNoDet = (adj) - (det) ;" ++
            "REMOVE:r1 (v) IF (-1C (det)) (NOT 0 (n)) ;" ++
            "REMOVE:r2 (det) IF (1 (v)) ;" ++
-           "REMOVE:long (adj) IF (-2 (det)) (1 (det)) ;" ++
-           "REMOVE:r3 (v) IF (-1 det) ;" ) 
+           "REMOVE:r3 (v) IF (-1 det) (1 (det));" ) 
 --           "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
 --           "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
 
@@ -105,7 +104,7 @@ main = do
 --------------------------------------------------------------------------------
 
 shTC :: [Tag] -> Int -> String
-shTC ts i = "w" ++ show i ++ (unwords $ map (\t -> '<':show t++">") ts)
+shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
 
 --testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,[Token])
 testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,(Rule,[Rule]))
@@ -128,7 +127,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   let sWordsInOrder = groupBy sameIndSW $ sort $ concat $ concat symbWords
   let sWordMap = [(sWord, lits) | (sWords, lits) <- zip sWordsInOrder allLits 
                                 , sWord <- sWords ]
-  mapM_ print sWordMap
+  --mapM_ print sWordMap
 
   when debug $ do 
     putStrLn "symbolic sentence:"
@@ -254,15 +253,15 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
       putStrLn $ ("slCond'.newlits: " ++ show newlits)
     let disjs = concatMap (filter notNegUnit) $ 
                 [ uncurry f trg_dif 
-                              | (nlits, sw@(SW info trg_difs) ) <- zip newlits swords
-                              , (nl, trg_dif) <- zip nlits trg_difs
-                              , let sWord = lookup sw sWordMap
-                              , let f = case (isPositive info, isCautious info,sWord) of
-                                          (False,True,Just wn)  -> negativeC wn n nl
-                                          (False,False,Just wn) -> negative wn n nl
-                                          (True,True,Just wn) -> disjunctionC wn n nl
-                                          (True,False,Just wn) -> disjunction wn n nl 
-                                          _                    -> (\x y -> [[true]]) ] --TODO check what's wrong!
+                    | (nlits, sw@(SW info trg_difs) ) <- zip newlits swords
+                    , (nl, trg_dif) <- zip nlits trg_difs
+                    , let f = case (isPositive info, isCautious info,lookup sw sWordMap) of
+                               (True, True, Just wn) -> disjunctionC wn n nl
+                               (True, False,Just wn) -> disjunction wn n nl 
+                               (False,False,Just wn) -> negative wn n nl
+                               (False,True, Just wn)  -> negativeC wn n nl
+                               (_,   _,    Nothing) -> error "slCond.index out of bounds" ]
+
     return (newlits, disjs)
 
     where
@@ -369,13 +368,13 @@ width rule = case rule of
   -- a template should then generate [[SymbWord]]
   -- [ [[ SW (0 isTarget foo bar) [(trg, dif)] ]]
   -- , [[ SW (1 notTargt har gle) [(trg, dif)]     <- e.g. barrier rule
-  --    , SW (2 notTrgt bar gle) [(trg, dif)] ]]
+  --    , SW (2 notTargt bar gle) [(trg, dif)] ]]
   -- , [ [ SW -1 something  [(trg,dif)] ]            <- template rule
   --     [ SW -2 otherthing [(trg,dif)] ] 
   --   ]
   -- ]
   doStuff :: TagSet -> Condition -> (Int, [[[SymbWord]]])
-  doStuff t cs = trace ("doStuff: " ++ show (toTags t) ++ " IF " ++ show (toConds cs) ++ " width:" ++ show i) $ 
+  doStuff t cs = --trace ("doStuff: " ++ show (toTags t) ++ " IF " ++ show (toConds cs) ++ " width:" ++ show i) $ 
     (i, foo)
     where 
       (i, foo) = fill $ [[defaultTrg (toTags t)]] : [map toSymbWord (toConds cs)]
@@ -444,13 +443,14 @@ fill swordlist = (width, swordlist ++ (map (:[])) swords)
   (width, swords) = go flatConds minInd (1,[])
   flatConds = sort $ concat $ concat swordlist
   minInd = index $ info $ head flatConds
-  go []     m (w,res)  = (w, res)
-  go (x:xs) m (w,res) | ind-m == 1 = go xs ind (w+1,res)
-                      | ind-m == 0 = go xs ind (w,res)
-                      | otherwise  = go xs ind (w+1,filled:res)
+  go []     oldInd (w,res)  = (w, res)
+  go (x:xs) oldInd (w,res) | n >= 1 = go xs ind (w+n,res)
+                           | otherwise  = go xs ind (w+n,filled:res)
     where
      ind = (index.info) x 
-     filled = [ defaultCond k | k <- [m+1..ind-1] ]
+     n = ind-oldInd
+     filled = [ defaultCond k | k <- [oldInd+1..ind-1] ]
+
 
 --------------------------------------------------------------------------------
 
