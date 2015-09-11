@@ -243,6 +243,9 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   mapT :: (a -> b) -> (a, a) -> (b, b)
   mapT f (a1, a2) = (f a1, f a2)
 
+  showHds :: (Show a) => [[a]] -> String
+  showHds [[x]] = show x
+  showHds xss   = intercalate "," ((map (show.head) xss) ++ ["etc."])
 
   mkVarsGrammarAnalysis :: [(Token,[Context])] -> [(Token,[Context])] -> IO ([Clause], [Lit])
   mkVarsGrammarAnalysis sl rm = do 
@@ -255,10 +258,9 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                            return (if_ctx_holds, rm_trg)
                          | (trg, ctx) <- rm 
                          , let (conds,insts) = unzip ctx
---                         , let instNames = map show insts
                          , let condNames = unwords $ map show conds
-                         , let ctxName = "IF ("++condNames++")" 
-                         , let thisInstanceName = " if_(" ++ (intercalate "," (map (show.head) insts ++ ["etc."])) ++ ")"
+                         , let ctxName = "("++condNames++")" 
+                         , let thisInstanceName = "_if_(" ++ showHds insts ++ ")"
                          , let trgName = "rm_" ++ show trg ++ thisInstanceName ]
                          
 
@@ -269,7 +271,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                            return (if_ctx_holds, sl_trg)
                          | (trg, ctx) <- sl 
                          , let condNames = unwords $ map (show.fst) ctx
-                         , let ctxName = "IF ("++condNames++")" 
+                         , let ctxName = "if_("++condNames++")" 
                          , let trgName = "SELECT " ++ show trg ]
 
     -- option 2: only target left, cannot apply rule
@@ -316,16 +318,17 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                let sameIndToks = filter (sameInd (head cToks)) allToks
                let nomatch = [ getLit tok | tok <- sameIndToks, noMatch tok ]
                case (positive, any isCautious cToks) of
-                      (True, False) -> return condLits --1
-                      (True,  True) -> return $ condLits ++ map neg nomatch --1C
+                      (True, False) -> (:[]) `liftM` orl s "--1" condLits --1
+                      (True,  True) -> do oneCondHolds <- orl s "--1C" condLits
+                                          return $ oneCondHolds:map neg nomatch --1C
 
                       --NOT 1 --- obs. condLits contains tokens that do NOT match ctags!
-                      -- all NOT-anas are false, and >=1 non-prohibited ana must be true.
+                      -- all NOT-anas are false, and >=1 non-NOT ana must be true.
                       -- is it even necessary to specify? doesn't anchor do that?
-                      (False,False) -> do c_NOT1 <- orl s ">=1_non-NOT_ana_true" condLits 
+                      (False,False) -> do c_NOT1 <- orl s "--NOT_1" condLits 
                                           return $ c_NOT1:map neg nomatch 
                       --NOT 1C
-                      (False, True) -> (:[]) `liftM` orl s ">=1_NOT_ana_true" condLits
+                      (False, True) -> (:[]) `liftM` orl s "--NOT_1C" condLits
             | (c@(C _pos (positive,ctags)), cToks) <- ctx 
             , let noMatch t = (if positive then not else id) $ tagsMatchRule t (toTags ctags)]
 

@@ -13,8 +13,8 @@ import System.IO ( hFlush, stdout )
 
 
 ex_onlyTrgLeft = concat $ snd $ parseRules False
-    -- ( "REMOVE:r1 (adj OR det) IF (1 v) ;" ++
-     ( "REMOVE:r1 (adj OR det) ;" ++
+     ( "REMOVE:r1 (adj OR det) IF (1 v) ;" ++
+    -- ( "REMOVE:r1 (adj OR det) ;" ++
        "REMOVE:r2 v IF (-1 adj LINK 0 det ) ;" ) 
 
 ex_firstRuleStricter = concat $ snd $ parseRules False
@@ -39,28 +39,28 @@ main = do
   args <- getArgs
   case args of
    [] -> do putStrLn "test"
-            ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/spa_tags.txt"
-  
+            let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
+            let tc = ts
+           -- let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
             print ts
             let spl = splits ex_threerules
             print spl
-            (tsets, _) <- readRules' "data/spa_smallset.rlx"
-            let tc = nub $ ts ++ concatMap toTags' tsets
             print tc
-            results <- mapM (testRule True False ts tc) spl
-            corpus <- concat `fmap` readData "data/spa_story.txt"
+            results <- mapM (testRule True True ts tc) spl
+            corpus <- concat `fmap` readData "data/spa/spa_story.txt"
             --mapM_ ( (flip checkCorpus) corpus . snd) results
             putStrLn "\n---------\n"
 
 
    ("tiny":_)
       -> do let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
-            let tc = ts 
-            --let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
-            let otl_spl  = splits ex_onlyTrgLeft
-            let first_stricter_spl = splits ex_firstRuleStricter
-            let second_stricter_spl = splits $ reverse ex_firstRuleStricter
-            let shitshit = splits ex_threerules
+            --let tc = ts 
+            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
+            let splits' x = [last (splits x)]
+            let otl_spl  = splits' ex_onlyTrgLeft
+            let first_stricter_spl = splits' ex_firstRuleStricter
+            let second_stricter_spl = splits' $ reverse ex_firstRuleStricter
+            let shitshit = splits' ex_threerules
 
             
 
@@ -72,9 +72,9 @@ main = do
 
             mapM_ doEverything 
                   [ otl_spl
-                  -- , first_stricter_spl
-                  -- , second_stricter_spl
-                  -- , shitshit
+                  , first_stricter_spl
+                  , second_stricter_spl
+                  , shitshit
                   ]
 
 
@@ -105,6 +105,11 @@ main = do
             --mapM_ (findConflict ts tc) badrules
 
             putStrLn "\n---------\n"
+   ("spa":r)
+      -> do ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/spa_tags.txt"
+            (tsets, _) <- readRules' "data/spa/spa_smallset.rlx"
+            let tc = nub $ ts ++ concatMap toTags' tsets
+            print "spa"
    (gr:r)
       -> do let verbose = "v" `elem` r || "d" `elem` r
             let debug = "d" `elem` r
@@ -117,6 +122,9 @@ main = do
             results <- mapM (testRule verbose debug tc tc) spl
             let badrules = [ rule | (False,rule) <- results ]
             mapM_ (findConflict tc tc) badrules
+
+
+
             
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
