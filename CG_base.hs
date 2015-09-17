@@ -42,7 +42,7 @@ data TagSet =
 
 instance Show TagSet where
   show (TS tags) = showTagset tags
-  show (Or ts1 ts2) = show ts1 ++ " ORt " ++ show ts2
+  show (Or ts1 ts2) = show ts1 ++ "|" ++ show ts2
   show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2 
   show (Cart ts1 ts2) = show ts1 ++ " + " ++ show ts2
   show All = "(*)"
