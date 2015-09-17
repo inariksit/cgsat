@@ -174,7 +174,6 @@ applyRule s toks rule = do
   where
    insertRule rule (cls, helps) = (rule, cls, helps)
     
---go :: Solver -> Bool -> Bool -> [(Trg,Dif)] -> [[Condition]] -> [Token] -> IO [Clause]
 go :: Solver -> Bool -> Bool -> [(Trg,Dif)] -> [[Condition]] -> [Token] -> IO [([Clause], [Lit])]
 go s isSelect isGrAna trgs_diffs []         allToks = return []
 go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
@@ -270,36 +269,42 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                            sl_trg <- implies s trgName if_ctx_holds (getLit trg)
                            return (if_ctx_holds, sl_trg)
                          | (trg, ctx) <- sl 
-                         , let condNames = unwords $ map (show.fst) ctx
+                         , let (conds,insts) = unzip ctx
+                         , let condNames = unwords $ map show conds
                          , let ctxName = "if_("++condNames++")" 
-                         , let trgName = "SELECT " ++ show trg ]
+                         , let thisInstanceName = "_if_(" ++ showHds insts ++ ")"
+                         , let trgName = "sl_" ++ show trg ++ thisInstanceName ]
 
-    -- option 2: only target left, cannot apply rule
-    let (target,trgCls) = if null sl then (rm,rmCls) else (sl,slCls)
-    let trgNames = [ ts ++ ds  | (trg,dif) <- trgs_diffs
-                               , let ts = showTagset trg
-                               , let ds = if all null dif then "" else "-" ++ showTagset dif ]
-    let onlyTrgName = "only_<" ++ intercalate "|" trgNames  ++ ">_left"
+    -- option 2: only target left, cannot apply REMOVE rule
+    -- Only for REMOVE, because SELECT rule cannot lead into an empty cohort.
+    -- SELECT in itself already means "only targets, nothing else".
+    -- Actually if we do SELECT (*) - (*), would it then select nothing => remove everything?
+    -- TODO investigate
+    if null sl then do 
+      let trgNames = [ ts ++ ds  | (trg,dif) <- trgs_diffs
+                                 , let ts = showTagset trg
+                                 , let ds = if all null dif then "" else "-" ++ showTagset dif ]
+      let onlyTrgName = ("only_", intercalate "|" trgNames ++ "_left")
 
 
-    onlyTrgLits <- sequence [ onlyTargetLeft s trg onlyTrgName | (trg, ctx) <- target ]
+      onlyTrgLits <- sequence [ onlyTargetLeft s trg onlyTrgName | (trg, ctx) <- rm ]
 
-    notBoth <- sequence [ xorl s notBothName [ruleApplied, onlyTrg] 
-                          | (onlyTrg, ruleApplied, n) <- zip3 onlyTrgLits trgCls [1..]
-                          , let nm = name . getLit
-                          , let notBothName = name onlyTrg ++ "_XOR_" ++ name ruleApplied ++ show n]
+      notBoth <- sequence [ xorl s notBothName [ruleApplied, onlyTrg] 
+                            | (onlyTrg, ruleApplied) <- zip onlyTrgLits rmCls
+                            , let notBothName = name onlyTrg ++ "_XOR_" ++ name ruleApplied ]
 
-    return $ (map (:[]) notBoth,
+      return $ (map (:[]) notBoth,
               notBoth++onlyTrgLits++rmHelps++rmCls++slCls++slHelps) 
-    
+     else do
+      return (map (:[]) (rmCls++slCls),
+              rmHelps++rmCls++slCls++slHelps) 
    where
-    -- TODO: what does onlyTargetLeft mean in the context of SELECT? 
-    onlyTargetLeft :: Solver -> Token -> String -> IO Lit
-    onlyTargetLeft s trg tname = do
+    onlyTargetLeft :: Solver -> Token -> (String,String) -> IO Lit
+    onlyTargetLeft s trg (only,left) = do
       let sameIndToks = filter (sameInd trg) allToks
       let (hasTargets,noTarget) = partition (\t -> tagsMatchRule t trgs_diffs) sameIndToks
-      
-      noOthers <- andl s ""   (map (neg.getLit) noTarget)
+      let tname = only ++ (show.head.getTags) trg ++ left
+      noOthers <- andl s ""  (map (neg.getLit) noTarget)
       someTargets <- orl s "" (map getLit hasTargets)
       andl s tname [someTargets, noOthers]
 
@@ -561,7 +566,8 @@ disambiguate' withOrder verbose debug rules sentence = do
              return $ (and bs && not (null bs)) && b'
 
         else
-         do lc <- count s litsForClauses
+         do print "No order!"
+            lc <- count s litsForClauses
             solveMaximize s [] lc
 
 
