@@ -111,3 +111,38 @@ Is there an input which can go through the rules and trigger at the last?
    * Tries to go for "ok what if the target (`w1`) *only* has a `det` analysis!" 
    * In that case, the input would already trigger `r1`
    * Cannot do neither => conflict
+
+
+
+~~~~
+
+
+### Experimental new stuff, sequential, not adding clauses but just the results:
+
+```
+REMOVE:r1 adj|det IF (1 v): 
+(w1<det>,~only_"<w1>"adj|det_left_XOR_rm_w1<det>_if_(w2<v>)),
+(w1<adj><pred>,~only_"<w1>"adj|det_left_XOR_rm_w1<adj><pred>_if_(w2<v>))
+(w1<adj><attr>,~only_"<w1>"adj|det_left_XOR_rm_w1<adj><attr>_if_(w2<v>))
+(w1<det><def>,~only_"<w1>"adj|det_left_XOR_rm_w1<det><def>_if_(w2<v>))
+w1<det>=True
+w1<adj><pred>=True
+w1<adj><attr>=False
+w1<det><def>=False
+~only_"<w1>"adj|det_left_XOR_rm_w1<det>_if_(w2<v>)=True
+~only_"<w1>"adj|det_left_XOR_rm_w1<adj><pred>_if_(w2<v>)=True
+~only_"<w1>"adj|det_left_XOR_rm_w1<adj><attr>_if_(w2<v>)=True
+~only_"<w1>"adj|det_left_XOR_rm_w1<det><def>_if_(w2<v>)=True
+([],[~w1<adj><attr>,~w1<det><def>])
+     ^---- Seems like these are negative just at random D:
+           But it still fits the rules "only w1 adj|det left", it does have both
+	   But it's still bad to have such arbitrary stuff propagated early ...
+           maybe maximise?
+----
+"<w1>"
+	det
+	adj pred
+"<w2>"
+	det
+	v
+```
