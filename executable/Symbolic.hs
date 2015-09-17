@@ -26,11 +26,23 @@ ex_threerules = concat $ snd $ parseRules False
        "REMOVE:r2 (det) IF (1 (v)) ;"    ++
        "REMOVE:r3 (v) IF (-1 (det) ) ;" ) 
 
+ex_barrier = concat $ snd $ parseRules False 
+     ( "REMOVE:r1 (det) IF (1* (adj)) ; " ++ --will go for only (det def) left
+       "REMOVE:r2 (v)   IF (1* (def) BARRIER (adj)) ;" )
+
 ex_testDisj = concat $ snd $ parseRules False
-     ( "SET DetNoAdj = (det) - (adj) ;" ++
-       "SET AdjNoDet = (adj) - (det) ;" ++
-       "REMOVE:r3 (n) IF ( (-1 DetNoAdj OR AdjNoDet) OR (-2 (v)) ) (-2 (adj)) ;" ++
-       "REMOVE:r3 (n) IF (-1C DetNoAdj OR AdjNoDet) ;" )
+     ( "SET DetNoDef  = (det) - (def) ;" ++
+       "SET AdjNoAttr = (adj) - (attr) ;" ++
+       "REMOVE:r1 (n) IF (-1 DetNoDef OR AdjNoAttr) (-1 (det) OR (adj)) ;" ++
+       "REMOVE:r2 (n) IF ( (-1 DetNoDef OR AdjNoAttr) OR (-2 (v)) ) (-2 (adj)) ;" )
+
+
+ex_complex = concat $ snd $ parseRules False 
+     ( "REMOVE:r1 (n) IF (-1C (det));"  ++
+       "SELECT:s2 (det) IF (1 (v));" ++
+--     "REMOVE:r2 (*) - (det) IF (1 (v)) ; " ++
+       "REMOVE:r3  (v) IF (-1 (det)) (0 (n)) ;" )
+
 
 toTags' :: TagSet -> [[Tag]]
 toTags' = concatMap (nub . (\(a,b) -> if all null b then a else b)) . toTags
@@ -41,7 +53,7 @@ main = do
    [] -> do putStrLn "test"
             let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
             let tc = ts
-           -- let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
+           -- let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "pron", Tag "def"], [Tag "det", Tag "def"]]
             print ts
             let spl = splits ex_threerules
             print spl
@@ -55,14 +67,15 @@ main = do
    ("tiny":_)
       -> do let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
             --let tc = ts 
-            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "adj", Tag "det"], [Tag "def", Tag "det"]]
+            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "pron", Tag "def"], [Tag "det", Tag "def"]]
             let splits' x = [last (splits x)]
             let otl_spl  = splits' ex_onlyTrgLeft
             let first_stricter_spl = splits' ex_firstRuleStricter
             let second_stricter_spl = splits' $ reverse ex_firstRuleStricter
-            let shitshit = splits' ex_threerules
-
-            
+            let three = splits' ex_threerules
+            let barrier = splits' ex_barrier
+            let disj = splits' ex_testDisj
+            let complex = splits' ex_complex
 
             let doEverything spl = do 
                      putStrLn "Next test!\n***********"
@@ -74,7 +87,10 @@ main = do
                   [ otl_spl
                   , first_stricter_spl
                   , second_stricter_spl
-                  , shitshit
+                  , three
+                  , barrier
+                  , disj
+                  , complex
                   ]
 
 
@@ -138,6 +154,9 @@ main = do
 shTC :: [Tag] -> Int -> String
 shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
 
+
+--------------------------------------------------------------------------------
+
 --testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,[Token])
 testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,(Rule,[Rule]))
 testRule verbose debug alltags tagcombs (rule, rules) = do
@@ -194,22 +213,28 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
                                    | rl <- rules
                                    , (fst $ width rl) <= ruleWidth ] 
 
-  let rls_applied = [ (rls,cls) | foo <- rls_applied_helps 
-                    , (rls, cls, _)  <- foo ]
+  let rls_applied = [ (rl,lits) | foo <- rls_applied_helps 
+                               , (rl, lits, _) <- foo ]
                
   let helps = nub $ concat
                [ cls | foo <- rls_applied_helps 
                      , (_, _, cls)  <- foo ]
 
-  sequence_ [ do addClause s cl
+
+
+--  ass <- doStuff True s helps [] rls_applied
+
+
+  sequence_ [ do addClause s [lit]
                  when True $ --debug $ 
-                   putStrLn $ show rl ++ ": " ++ show cl                   
-                 | (rl, appCls) <- rls_applied
-                 , cl <- appCls ]
+                   putStrLn $ show rl ++ ": " ++ show lit
+                 | (rl, lits) <- rls_applied 
+                 , lit <- lits ] 
+
 
   b <- solve s []
   if b then do
-    when verbose $ safePrValues helps s
+--    when debug $ safePrValues helps s
     as <- sequence [ modelValue s x | x <- concat allLits ]
     let truetoks = [ t | (True, t) <- zip as ss ]
     when verbose $ putStrLn $ showSentence (dechunk truetoks)
