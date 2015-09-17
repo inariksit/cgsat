@@ -146,3 +146,6 @@ w1<det><def>=False
 	det
 	v
 ```
+
+Or what if we do like
+...if rule has no effect, then we don't add it

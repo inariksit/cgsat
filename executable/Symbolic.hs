@@ -213,8 +213,8 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
                                    | rl <- rules
                                    , (fst $ width rl) <= ruleWidth ] 
 
-  let rls_applied = [ (rl,lits) | foo <- rls_applied_helps 
-                               , (rl, lits, _) <- foo ]
+  let rls_applied = [ (rl,cls) | foo <- rls_applied_helps 
+                               , (rl, cls, _) <- foo ]
                
   let helps = nub $ concat
                [ cls | foo <- rls_applied_helps 
@@ -225,11 +225,11 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
 --  ass <- doStuff True s helps [] rls_applied
 
 
-  sequence_ [ do addClause s [lit]
+  sequence_ [ do addClause s cl
                  when True $ --debug $ 
-                   putStrLn $ show rl ++ ": " ++ show lit
-                 | (rl, lits) <- rls_applied 
-                 , lit <- lits ] 
+                   putStrLn $ show rl ++ ": " ++ show cl
+                 | (rl, cls) <- rls_applied 
+                 , cl <- cls ] 
 
 
   b <- solve s []
