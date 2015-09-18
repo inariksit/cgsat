@@ -112,12 +112,50 @@ Is there an input which can go through the rules and trigger at the last?
    * In that case, the input would already trigger `r1`
    * Cannot do neither => conflict
 
+But if we apply it to SELECT det instead, we have a problem:
 
+## Problem:
 
-~~~~
+Rule sequence
 
+```
+REMOVE:r1 v IF (-1C det)
+SELECT:s2 det IF (1 v)
+REMOVE:r3 v IF (-1 det)
+```
 
-### Experimental new stuff, sequential, not adding clauses but just the results:
+Something that will get past the first rule *and* will trigger the 3rd rule:
+
+```
+"<w1>"
+	det def
+	foo
+"<w2>"
+	v
+	n
+```
+
+`v` is not removed, because `w1` is not unambiguously `det`.
+
+Something that will get past the second rule and will trigger the 3rd rule:
+
+```
+"<w1>"
+	det def
+"<w2>"
+	v
+	n
+```
+
+`w2` must be `v` in order to trigger `r3`.
+
+The rule `s2` should be fine after `r1`. But when we input all clauses to the SAT solver, they conflict.
+
+Solutions?
+
+* Add clause to solver only if it removes something?
+* Add only results of each solving to solver? ie. not the clause, but [~w1<foo>] as a clause.
+
 
 ```
 REMOVE:r1 adj|det IF (1 v): 
@@ -147,5 +185,5 @@ w1<det><def>=False
 	v
 ```
 
-Or what if we do like
-...if rule has no effect, then we don't add it
+
+
