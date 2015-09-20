@@ -227,7 +227,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
 
 
   sequence_ [ do addClause s cl
-                 when True $ --debug $ 
+                 when verbose $ --debug $ 
                    putStrLn $ show rl ++ ": " ++ show cl
                  | (rl, cls) <- rls_applied 
                  , cl <- cls ] 
