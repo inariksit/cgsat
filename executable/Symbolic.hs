@@ -27,7 +27,8 @@ ex_threerules = concat $ snd $ parseRules False
        "REMOVE:r3 (v) IF (-1 (det) ) ;" ) 
 
 ex_barrier = concat $ snd $ parseRules False 
-     ( "REMOVE:r1 (det) IF (1* (adj)) ; " ++ --will go for only (det def) left
+     ( "REMOVE:r1 (det) IF (1 (adj)) ; " ++ 
+       "SELECT:s1 (det) IF (1 (adj)) ; " ++ --twist!
        "REMOVE:r2 (v)   IF (1* (def) BARRIER (adj)) ;" )
 
 ex_testDisj = concat $ snd $ parseRules False
@@ -468,10 +469,12 @@ toSymbWord :: [Condition] -> [SymbWord]
 toSymbWord [] = []
 toSymbWord (Always:_) = error "toSymbWord applied to Always: this should not happen"
 toSymbWord (c:cs) = case c of
-  C (Barrier  c ind btags) (positive,tags) -> [ mkCond ind c positive (toTags tags),
-                                                barSW ind False btags ]
-  C (CBarrier c ind btags) (positive,tags) -> [ mkCond ind c positive (toTags tags),
-                                                barSW ind True btags ]
+  C (Barrier  c ind btags) (positive,tags) -> [ mkCond ind c positive (toTags tags)
+                                              , mkCond ind c (not positive) (toTags btags)
+                                              , barSW ind False btags ]
+  C (CBarrier c ind btags) (positive,tags) -> [ mkCond ind c positive (toTags tags)
+                                              , mkCond ind c (not positive) (toTags btags)
+                                              , barSW ind True btags ]
   C (Exactly  c ind      ) (positive,tags) -> [ mkCond ind c positive (toTags tags) ]
   C (AtLeast  c ind      ) (positive,tags) -> [ mkCond ind c positive (toTags tags) ]
  
