@@ -39,10 +39,10 @@ ex_testDisj = concat $ snd $ parseRules False
 
 
 ex_complex = concat $ snd $ parseRules False 
-     ( "REMOVE:r1 (n) IF (-1C (det));"  ++
+     ( "REMOVE:r1 (v) IF (-1C (det));"  ++
        "SELECT:s2 (det) IF (1 (v));" ++
 --     "REMOVE:r2 (*) - (det) IF (1 (v)) ; " ++
-       "REMOVE:r3  (v) IF (-1 (det)) (0 (n)) ;" )
+       "REMOVE:r3  (v) IF (-1 (det)) ;" )
 
 
 toTags' :: TagSet -> [[Tag]]
@@ -205,7 +205,13 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
     putStrLn "bad initial rule"
     conf <- conflict s
     putStr "conflict: "
-    print conf
+    let confNamed = [ named | lit <- conf
+                            , let litMap = [ (l, n) | (Lit n l) <- concat allLits ] 
+                            , let named = case lookup lit litMap of
+                                                 Just nm -> nm
+                                                 Nothing -> show lit
+                    ]
+    print confNamed
   putStrLn "\n---------\n"
 
   rls_applied_helps <- sequence [ do as_hs <- analyseGrammar s ss rl
