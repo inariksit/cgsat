@@ -12,6 +12,117 @@ We create an initial symbolic sentence `w` that would make the "last" rule fire.
 Examples
 --------
 
+### Conditions out of scope
+
+### Conditions don't hold
+
+```
+r1 = REMOVE v IF (-1C det)
+rl = REMOVE v IF (-1 det)
+
+one possible symbolic sentence:
+
+w2<v>
+or [w2<det>,w2<n>,...]
+or [w1<det>,w1<det><def>]
+
+
+"<w1>"
+        det def
+"<w2>"
+        det
+        v
+```
+
+Try to apply `REMOVE v IF (-1C det)` s.t. result will still trigger `rl`
+* remove `v` not possible
+* only `v` left not possible
+* only chance is to make such conditions that trigger `rl` but not `r1`:
+
+```
+"<w1>"
+        n
+        det def
+"<w2>"
+        det
+        v
+```
+
+### Only target left
+
+```
+r1 = REMOVE det IF (1 v)
+rl = REMOVE v IF (-1 det)
+
+one possible symbolic sentence:
+w2<v>
+or [w2<det>,w2<n>,...]
+
+or [w1<det>,w1<det><def>]
+
+"<w1>"
+        det def
+        pron def
+"<w2>"
+        n
+        v
+```
+
+Try to apply `REMOVE det IF (1 v)` s.t. will trigger `rl`
+* can't change conditions: `w2` must have a `v` in order to remove it
+* remove `det` not possible: `w2` must have a `det`
+* only `det` left` works:
+
+```
+or [w1<det>, w1<det><def>]
+and [~w1<n>, ~w1<v>, ...]
+
+"<w1>"
+        det def
+"<w2>"
+        v
+        n
+```
+
+### Remove target
+
+```
+r1 = REMOVE adj IF (1 v)
+rl = REMOVE v IF (-1 det)
+
+one possible symbolic sentence:
+w2<v>
+or [w2<det>,w2<n>,...]
+
+or [w1<det>,w1<det><def>]
+
+"<w1>"
+        det def
+	adv
+	adj
+"<w2>"
+        n
+        v
+```
+
+Try to apply `REMOVE adj IF (1 v)` s.t. will trigger `rl`
+* can't change conditions: `w2` must have a `v` in order to remove it
+* only `adj` left not possible: `w2` must have a `det`
+* remove `adj`
+
+```
+or [w1<det>, w1<det><def>]
+and [~w1<adj><attr>, ~w1<adj><pred>, ...]
+
+"<w1>"
+        det def
+	adv
+"<w2>"
+        v
+        n
+```
+
+
 Last rule:
 ```
    REMOVE inf  IF (-1 (prn pers))
