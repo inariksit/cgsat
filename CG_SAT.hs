@@ -252,18 +252,28 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
 
     (rmHelps,rmCls) <- unzip `fmap`sequence
                       [ do condLits <- findCondLits s ctx
-                           if_ctx_holds <- andl s ctxName condLits
-                           rm_trg <- implies s trgName if_ctx_holds (neg $ getLit trg)
-                           return (if_ctx_holds, rm_trg)
+                           ctx_holds <- andl s ctxName condLits
+                           -- print ("ctx_holds", ctx_holds)
+                           -- print ("~ctx_holds", neg ctx_holds)
+                           --rm_trg <- implies s trgName ctx_holds (neg $ getLit trg)
+                           return ([ctx_holds, getLit trg],  --just to get the helper literal
+                                   [neg ctx_holds, neg $ getLit trg])
                          | (trg, ctx) <- rm 
                          , let (conds,insts) = unzip ctx
                          , let condNames = unwords $ map show conds
-                         , let ctxName = "("++condNames++")" 
-                         , let thisInstanceName = "_if_(" ++ showHds insts ++ ")"
-                         , let trgName = "rm_" ++ show trg ++ thisInstanceName ]
+
+                         , let ctxName =  if null insts || null (head insts) || null (getTags $ head $ head insts)
+                                then ""
+                                else (show.head.getTags.head.head) insts ++ condNames
+                         , let thisInstanceName = "(" ++ showHds insts ++ ")"
+                         , let trgName = "rm_" ++ show trg ++ "_if_" ++ thisInstanceName ]
                          
 
-    (slHelps,slCls) <- unzip `fmap` sequence
+    let slCls = map (getLit.fst) sl
+    let slHelps = []
+    --print slCls
+
+{-    (slHelps,slCls) <- unzip `fmap` sequence
                       [ do condLits <- findCondLits s ctx
                            if_ctx_holds <- andl s ctxName condLits
                            sl_trg <- implies s trgName if_ctx_holds (getLit trg)
@@ -274,6 +284,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                          , let ctxName = "if_("++condNames++")" 
                          , let thisInstanceName = "_if_(" ++ showHds insts ++ ")"
                          , let trgName = "sl_" ++ show trg ++ thisInstanceName ]
+-}
 
     -- option 2: only target left, cannot apply REMOVE rule
     -- Only for REMOVE, because SELECT rule cannot lead into an empty cohort.
@@ -284,20 +295,23 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
       let trgNames = [ ts ++ ds  | (trg,dif) <- trgs_diffs
                                  , let ts = showTagset trg
                                  , let ds = if all null dif then "" else "-" ++ showTagset dif ]
-      let onlyTrgName = ("only_", intercalate "|" trgNames ++ "_left")
+      let onlyTrgName = ("only_", intercalate "|" trgNames ++ "_left ")
 
 
       onlyTrgLits <- sequence [ onlyTargetLeft s trg onlyTrgName | (trg, ctx) <- rm ]
 
-      notBoth <- sequence [ xorl s notBothName [ruleApplied, onlyTrg] 
-                            | (onlyTrg, ruleApplied) <- zip onlyTrgLits rmCls
-                            , let notBothName = name onlyTrg ++ "_XOR_" ++ name ruleApplied ]
+      -- notBoth <- sequence [ xorl s notBothName [ruleApplied, onlyTrg] 
+      --            | (onlyTrg, ruleApplied) <- zip onlyTrgLits rmCls
+      --             , let notBothName = name onlyTrg ++ "_XOR_" ++ name ruleApplied ]
 
-      return $ (map (:[]) notBoth,
-              notBoth++onlyTrgLits++rmHelps++rmCls++slCls++slHelps) 
+      -- return $ (map (:[]) notBoth,
+      --         notBoth++onlyTrgLits++rmHelps++rmCls++slCls++slHelps)
+
+      return $ (zipWith (:) onlyTrgLits rmCls,
+                onlyTrgLits++concat rmHelps++slHelps) 
      else do
-      return (map (:[]) (rmCls++slCls),
-              rmHelps++rmCls++slCls++slHelps) 
+      return (slCls:rmCls,
+              concat rmHelps++slHelps) 
    where
     onlyTargetLeft :: Solver -> Token -> (String,String) -> IO Lit
     onlyTargetLeft s trg (only,left) = do
@@ -336,10 +350,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                       (False, True) -> (:[]) `liftM` orl s "--NOT_1C" condLits
             | (c@(C _pos (positive,ctags)), cToks) <- ctx 
             , let noMatch t = (if positive then not else id) $ tagsMatchRule t (toTags ctags)]
-
-  --  return ls
-
-                                 
+                          
 
   help :: Int -> Solver -> [Context] -> Lit -> [Lit] -> IO (Lit, [Lit])
   help i s []     r2 helpers = do
@@ -393,8 +404,7 @@ getContext ana allToks (cond@(C position ts@(positive,ctags)):cs) = --trace ("ge
  (cond, result) : getContext ana allToks cs
  where 
   result = case head $ toTags ctags of
-    ([]  ,_)   -> [dummyTok] --empty conds = holds always
-    ([[]],_)   -> [dummyTok] 
+    ([[]],[[]]) -> [dummyTok] 
     (t:ts,_) -> case position of
                  Exactly False 0 -> 
                   [ f t | t <- exactly 0 ana, match t]

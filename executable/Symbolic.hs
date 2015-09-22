@@ -22,9 +22,9 @@ ex_firstRuleStricter = concat $ snd $ parseRules False
        "REMOVE:r2 v IF (-1  det) ;" ) 
 
 ex_threerules = concat $ snd $ parseRules False 
-     ( "REMOVE:r1 (v) IF (-1C (det))  ;" ++
+     ( "REMOVE:r1 (v) IF (-1 (det))  ;" ++
        "REMOVE:r2 (det) IF (1 (v)) ;"    ++
-       "REMOVE:r3 (v) IF (-1 (det) ) ;" ) 
+       "REMOVE:r3 (v) IF (-1C (det) ) ;" ) 
 
 ex_barrier = concat $ snd $ parseRules False 
      ( "REMOVE:r1 (det) IF (1 (adj)) ; " ++ 
@@ -44,6 +44,18 @@ ex_complex = concat $ snd $ parseRules False
 --     "REMOVE:r2 (*) - (det) IF (1 (v)) ; " ++
        "REMOVE:r3  (v) IF (-1 (det)) ;" )
 
+ex_foobar1 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (foo) IF (-1 (foo)) ; " ++
+     --  "REMOVE:r2 (bar) IF (-1 (*) - (foo)) ; " ++
+       "REMOVE:r2 (bar) IF (NOT -1 (foo)) ; " ++
+       "REMOVE:r3 (bar) IF (-1 (foo)) ; " ++
+       "REMOVE:r2 (foo) IF (NOT -1 (foo)) ; " ++
+       "REMOVE:l (baz) IF (-1 (baz)) ; ")
+
+ex_foobar2 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (foo) IF (-1 (baz)) ; " ++
+       "REMOVE:r2 (bar) IF (-1 (baz)) ; " ++
+       "REMOVE:r3 (baz) IF (-1 (baz)) ; ")
 
 toTags' :: TagSet -> [[Tag]]
 toTags' = concatMap (nub . (\(a,b) -> if all null b then a else b)) . toTags
@@ -52,17 +64,13 @@ main = do
   args <- getArgs
   case args of
    [] -> do putStrLn "test"
-            let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
+            let ts = map ((:[]) . Tag) ["foo","bar","baz"] 
             let tc = ts
-           -- let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "pron", Tag "def"], [Tag "det", Tag "def"]]
-            print ts
-            let spl = splits ex_threerules
-            print spl
-            print tc
-            results <- mapM (testRule True True ts tc) spl
-            corpus <- concat `fmap` readData "data/spa/spa_story.txt"
-            --mapM_ ( (flip checkCorpus) corpus . snd) results
+            let foobar1 = splits ex_foobar1
+            let foobar2 = splits ex_foobar2 
+            mapM_ (testRule True True ts tc) foobar1
             putStrLn "\n---------\n"
+            --mapM_ (testRule True True ts tc) foobar2
 
 
    ("tiny":_)
@@ -196,6 +204,8 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
   sequence_ [ do when debug $ print cl
                  addClause s cl | cl <- cls ]
 
+
+
   b <- solve s []
   if b then do
     as <- sequence [ modelValue s x | x <- concat allLits ]
@@ -228,10 +238,6 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
                      , (_, _, cls)  <- foo ]
 
 
-
---  ass <- doStuff True s helps [] rls_applied
-
-
   sequence_ [ do addClause s cl
                  when verbose $ --debug $ 
                    putStrLn $ show rl ++ ": " ++ show cl
@@ -241,7 +247,7 @@ testRule verbose debug alltags tagcombs (rule, rules) = do
 
   b <- solve s []
   if b then do
---    when debug $ safePrValues helps s
+    when debug $ safePrValues helps s
     as <- sequence [ modelValue s x | x <- concat allLits ]
     let truetoks = [ t | (True, t) <- zip as ss ]
     when verbose $ putStrLn $ showSentence (dechunk truetoks)
