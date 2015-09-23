@@ -337,17 +337,20 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                let sameIndToks = filter (sameInd (head cToks)) allToks
                let nomatch = [ getLit tok | tok <- sameIndToks, noMatch tok ]
                case (positive, any isCautious cToks) of
-                      (True, False) -> (:[]) `liftM` orl s "--1" condLits --1
-                      (True,  True) -> do oneCondHolds <- orl s "--1C" condLits
-                                          return $ oneCondHolds:map neg nomatch --1C
+                 (True, False) -> case toTags ctags of
+                   ((_, [[]]):_) -> (:[]) `liftM` orl s "--1" condLits --1
+                   ((_, x:xs):_) -> do oneCondHolds <- orl s "--1_dif" condLits
+                                       return $ oneCondHolds:map neg nomatch --dif!
+                 (True,  True) -> do oneCondHolds <- orl s "--1C" condLits
+                                     return $ oneCondHolds:map neg nomatch --1C
 
-                      --NOT 1 --- obs. condLits contains tokens that do NOT match ctags!
-                      -- all NOT-anas are false, and >=1 non-NOT ana must be true.
-                      -- is it even necessary to specify? doesn't anchor do that?
-                      (False,False) -> do c_NOT1 <- orl s "--NOT_1" condLits 
-                                          return $ c_NOT1:map neg nomatch 
-                      --NOT 1C
-                      (False, True) -> (:[]) `liftM` orl s "--NOT_1C" condLits
+                 --NOT 1 --- obs. condLits contains tokens that do NOT match ctags!
+                 -- all NOT-anas are false, and >=1 non-NOT ana must be true.
+                 -- is it even necessary to specify? doesn't anchor do that?
+                 (False,False) -> do c_NOT1 <- orl s "--NOT_1" condLits 
+                                     return $ c_NOT1:map neg nomatch 
+                 --NOT 1C
+                 (False, True) -> (:[]) `liftM` orl s "--NOT_1C" condLits
             | (c@(C _pos (positive,ctags)), cToks) <- ctx 
             , let noMatch t = (if positive then not else id) $ tagsMatchRule t (toTags ctags)]
                           
