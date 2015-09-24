@@ -9,6 +9,139 @@ We create an initial symbolic sentence `w` that would make the "last" rule fire.
  4. all readings of target have the desired tag (cannot remove)
  
 
+## New algorithm
+
+
+Motivating example.
+
+```
+r1 = REMOVE a IF (-1 (*) - b) ;
+r2 = REMOVE b IF (1 a) ;
+r3 = REMOVE a IF (-1 b) ;
+
+l  = REMOVE a IF (-1 c) ;
+```
+
+Sequence `r1-r2-r3-l` should be fine: we can make condition not hold and `r1` to not fire.
+Sequence `r1-r3-l` should conflict: the conditions of `r1` and `r3` are `~b` and `b`, which makes r1 and r3 effectively `REMOVE a IF (-1 (*))`.
+
+With the old scheme (construct all clauses & apply at the same time), the sequence `r1-r2-l` would conflict. The only way to pass `r1` is to make `(-1 (*) - b)` false, i.e. `w1<b>` true. Then `r2` is going to remove the `w1<b>` reading (again the only choice, because `r1`'s condition cannot be false). This will still leave `w1<c>`, `w2<a>` and `w2<c>` true, enough to trigger `l`.
+
+We need to distinguish if a reading is removed by a rule or by the need to match a condition. Also, if a condition requires a reading to be true, that should not be permanent: it can be overridden by a rule (`r1-r2`), but not by another condition (`r1-r3`).
+
+My idea: introduce two sets of literals for readings, `wⁿ<tag>_TRG` and  `wⁿ<tag>_COND`. Like this:
+
+```
+[[w1<a>_T, w1<b>_T, w1<c>_T],    [[w1<a>_C, w1<b>_C, w1<c>_C],    
+ [w2<a>_T, w2<b>_T, w2<c>_T]]     [w2<a>_C, w2<b>_C, w2<c>_C]] 
+```
+
+And the relation between the literals is
+
+```
+ trg  => cond
+~cond => ~trg
+```
+
+i.e. if a literal is true at the target layer, it leaks to the condition layer. If something gets negative at the condition layer, it leaks to the target layer. But if something is positive at the condition layer, it doesn't mean yet anything at the target layer. In other words, `(zipWith $ zipWith (\t c -> [neg t, c])) targets conditions`.
+
+The initial symbolic sentence is made at the target layer:
+
+```
+l  = REMOVE a IF (-1 c) ;
+
+[w1<c>_T]
+[w2<a>_T]
+[w2<b>_T, w2<c>_T]
+```
+
+Also the type `Token` requires a change: instead of `getLit`, there will be `getTrgLit` and `getCondLit`. Each token is initialised with distinct trg and cond lits.
+The tokens are updated sometimes, so we cannot form all clauses at once. 
+
+We apply the first rule: `r1 = REMOVE a IF (-1 (*) - b)`.
+
+For the condition, we access the condition layer of `w1` and the target layer of `w2`:
+
+```
+getContext w2<a>
+          [w1<a>, w1<b>, w1<c>, w2<a>, w2<b>, w2<c>]
+  	  (-1 (*) - b) 
+  = [([w1<a>,w1<c>],    --match
+      [w1<b>])]         --diff
+
+-- now we have our context, with match and diff, time to form clauses
+
+w1_a_c  <- orl s [getCondLit w1<a>, --w1<a>_C
+	      	  getCondLit w1<c>] --w1<c>_C
+w1_not_b <- andl s [neg $ getCondLit w1<b>] --~w1<b>_C
+
+w1_(*)_minus_b <- andl [w1_a_c, w1_not_b]
+
+w2<a>_trg = getTrgLit w2<a>
+only_w2<a>_left = ...
+```
+
+**Update `w2<a>_C` to `w2<a>_T`: now we have actually had a clause that has `w2<a>` as a target. 
+We form the old clause with the cond layer of w2<a>, but after accessing those literals, we make the `getCondLit w2<a> == w2<a>_T` and `getTrgLit w2<a> == w2<a>_T`.
+```
+clause = [~w1_(*)_minus_b,  ~w2<a>_trg,  only_w2<a>_left]
+```
+
+We can see already now that `~w2<a>_trg` and `only_w2<a>_left` evaluate to False, so the first literal must be true. The negation of `w1_(*)_minus_b` will actually imply that `w1<b>_C` is True. But since this is at the condition layer, it doesn't imply anything at the target layer.
+
+Apply next rule!
+
+```
+r2 = REMOVE b IF (1 a) ;
+
+getContext w1<b>
+          [w1<a>, w1<b>, w1<c>, w2<a>, w2<b>, w2<c>]
+  	  (1 a) 
+  = [([w2<a>],    --match
+      [])]        --diff empty because condition doesn't has no diff nor is cautious
+
+
+let w2<a>_cond = getCondLit w2<a> --now pointing to w2<a>_T
+
+w1<b>_trg = getTrgLit w1<b>
+only_w1<b>_left = ...
+```
+
+**Stateful update again! `getCondLit w1<b> == w1<b>_T`
+
+```
+clause = [~w2<a>_cond, ~w1<b>_trg, only_w1<b>_left]
+```
+
+We see again that `~w2<a>_cond` and `only_w1<b>_left` are false. `~w1<b>_trg` must be true. Since we have done the state update, now whenever `w1<b>` is a condition literal, it points to `w1<b>_T` and its value is False.
+
+Apply third rule.
+
+```
+r3 = REMOVE a IF (-1 b) ;
+
+getContext w2<a>
+          [w1<a>, w1<b>, w1<c>, w2<a>, w2<b>, w2<c>]
+  	  (-1 b) 
+  = [([w1<b>],    --match
+      [])]        --diff empty because condition doesn't has no diff nor is cautious
+
+
+let w1<b>_cond = getCondLit w1<b> --now pointing to w1<b>_T
+
+w2<a>_trg = getTrgLit w2<a>
+only_w2<a>_left = ...
+```
+
+**Doing the state update, though no difference, because `w2<a>` has already been a target.
+
+```
+clause = [~w1<b>_cond, ~w2<a>_trg, only_w2<a>_left]
+```
+
+
+
+
 Examples
 --------
 
