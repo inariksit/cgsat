@@ -89,7 +89,14 @@ We form the old clause with the cond layer of w2<a>, but after accessing those l
 clause = [~w1_(*)_minus_b,  ~w2<a>_trg,  only_w2<a>_left]
 ```
 
-We can see already now that `~w2<a>_trg` and `only_w2<a>_left` evaluate to False, so the first literal must be true. The negation of `w1_(*)_minus_b` will actually imply that `w1<b>_C` is True. But since this is at the condition layer, it doesn't imply anything at the target layer.
+Which actually means
+
+```
+clause = [w1<b>_C,  ~w2<a>_T,  only_w2<a>_left]
+```
+
+
+We can see already now that `~w2<a>_T` and `only_w2<a>_left` evaluate to False, so the first literal must be true. The negation of `w1_(*)_minus_b` will actually imply that `w1<b>_C` is True. But since this is at the condition layer, it doesn't imply anything at the target layer.
 
 Apply `r2 = REMOVE b IF (1 a)`:
 
@@ -111,9 +118,10 @@ only_w1<b>_left = ...
 
 ```
 clause = [~w2<a>_cond, ~w1<b>_trg, only_w1<b>_left]
+       = [~w2<a>_T,    ~w1<b>_T,   only_w1<b>_left]
 ```
 
-We see again that `~w2<a>_cond` and `only_w1<b>_left` are false. `~w1<b>_trg` must be true. Since we have done the state update, now whenever `w1<b>` is a condition literal, it points to `w1<b>_T` and its value is False.
+We see again that `~w2<a>_T` and `only_w1<b>_left` are false. `~w1<b>_T` must be true. Since we have done the state update, now whenever `w1<b>` is a condition literal, it points to `w1<b>_T` and its value is False.
 
 Apply third rule.
 
@@ -133,10 +141,11 @@ w2<a>_trg = getTrgLit w2<a>
 only_w2<a>_left = ...
 ```
 
-**Doing the state update, though no difference, because `w2<a>` has already been a target.
+**Doing the state update for w2<a>, though no difference, because `w2<a>` has already been a target.
 
 ```
 clause = [~w1<b>_cond, ~w2<a>_trg, only_w2<a>_left]
+          = ~w1<b>_T,   = ~w2<a>_T
 ```
 
 All fine, `~w2<a>_trg` and `only_w2<a>_left` are obviously false again, and `~w1<b>_cond` (really `~w1<b>_T`) is false like it was in the last iteration.
@@ -171,6 +180,7 @@ only_w2<a>_left = ...
 
 ```
 clause = [~w1<b>_cond, ~w2<a>_trg, only_w2<a>_left]
+           = ~w1<b>_C   = ~w2<a>_T
 ```
 
 `~w2<a>_trg` and `only_w2<a>_left` still evaluate to False, so `~w1<b>_cond` is left as the only choice. But `r1` has left `w1<b>_C` as True, so this will conflict.
@@ -197,14 +207,18 @@ only_w2<a>_left = ...
 
 ```
 clause = [~w1<b>_cond, ~w2<a>_trg, only_w2<a>_left]
+           = ~w1<b>_C  = ~w2<a>_T
 ```
 
 `~w2<a>_trg` and `only_w2<a>_left` evaluate to False as always, thus `~w1<b>_cond` must hold. Now since `w1<b>_C` is False, it makes `w1<b>_T` False as well. This means that any future clause that assumes `w1<b>_T` to be True will cause a conflict.
 
+----
+
 ### Applying `r2` or not makes no difference. If we apply it, it will just make the update of `w1<b>_cond == w1<b>_T` explicit. But already the negation has made `~w1<b>_C` to imply `~w1<b>_T`.
 
 Here you go anyway, just for completeness' sake. Apply `r2 = REMOVE b IF (1 a)`:
-----
+
+
 ```
 getContext w1<b>
           [w1<a>, w1<b>, w1<c>, w2<a>, w2<b>, w2<c>]
@@ -255,9 +269,9 @@ l  = REMOVE a IF (-1 c) ;
 
 Motivation: if `r1` forces `~w1<b>`
 
-* r1 : [~w1<b>_cond, ~w2<a>_trg] (and `getCondLit w2<a>` updated)
+* r1 : `[~w1<b>_cond, ~w2<a>_trg]` (and `getCondLit w2<a>` updated)
 * `~w2<a>_trg` is false. `~w1<b>_cond` must hold, binds `w1<b>_T` by implication
-* r2 : [~w1<b>_cond, ~w2<b>_trg] (and `getCondLit w2<b>` updated)
+* r2 : `[~w1<b>_cond, ~w2<b>_trg]` (and `getCondLit w2<b>` updated)
  * With just this rule, both literals could be true. Can remove `w2<b>` or not.
  * `~w1<b>_cond` is the same lit in both clauses: this prevents scenario where r2 fired and condition held--it didn't hold last time, it cannot hold now.
 
