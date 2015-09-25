@@ -53,10 +53,9 @@ executable cgsat
 
 executable symbolic
   hs-source-dirs:      executable
-  main-is:             Symbolic.hs
+  main-is:             NewSymbolic.hs
   build-depends:       base,
                        cgsat,
-                       lens,
                        mtl,
                        minisat,
                        satplus,

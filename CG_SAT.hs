@@ -210,7 +210,6 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
           other  = [ (tok, ctx) | tok <- allToks
                                 , (wantedTok, ctx) <- chosen
                                 , sameInd tok wantedTok 
-                               -- , tok /= wantedTok ]
                                 , not $ tagsMatchRule tok t_ds ]
 
 
@@ -228,7 +227,6 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
     let ctxMap = zip onlyCtxs rs
  
     let rmClauses =  [ [neg r, neg tl] | (trg, ctx) <- rm
---    rmClauses <- sequence [ equiv s r (neg tl) | (trg, ctx) <- rm
                                        , let Just r = lookup ctx ctxMap
                                        , let tl = getLit trg ] 
 
@@ -339,12 +337,13 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                case (positive, any isCautious cToks) of
                  (True, False) -> case toTags ctags of
                    ((_, [[]]):_) -> (:[]) `liftM` orl s "--1" condLits --1
-                   ((_, x:xs):_) -> do oneCondHolds <- orl s "--1_dif" condLits
-                                       return $ oneCondHolds:map neg nomatch --dif!
-                 (True,  True) -> do oneCondHolds <- orl s "--1C" condLits
-                                     return $ oneCondHolds:map neg nomatch --1C
+                   ((_, x:xs):_) -> do c_1dif <- orl s "--1_dif" condLits
+                                       return $ c_1dif:map neg nomatch --dif!
+                 (True,  True) -> do c_1C <- orl s "--1C" condLits
+                                     return $ c_1C:map neg nomatch --1C
 
                  --NOT 1 --- obs. condLits contains tokens that do NOT match ctags!
+                 -- ie. they match the rule because they do NOT match the tags.
                  -- all NOT-anas are false, and >=1 non-NOT ana must be true.
                  -- is it even necessary to specify? doesn't anchor do that?
                  (False,False) -> do c_NOT1 <- orl s "--NOT_1" condLits 
@@ -352,8 +351,8 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
                  --NOT 1C
                  (False, True) -> (:[]) `liftM` orl s "--NOT_1C" condLits
             | (c@(C _pos (positive,ctags)), cToks) <- ctx 
-            , let noMatch t = (if positive then not else id) $ tagsMatchRule t (toTags ctags)]
-                          
+            , let noMatch t = (if positive then not else id) $ 
+                                                tagsMatchRule t (toTags ctags) ]
 
   help :: Int -> Solver -> [Context] -> Lit -> [Lit] -> IO (Lit, [Lit])
   help i s []     r2 helpers = do
@@ -396,7 +395,7 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
 
 
 
-
+--TODO: add nomatch here! type Context = ([match],[nomatch])
 getContext :: Token       -- ^ a single analysis
            -> [Token]     -- ^ list of all analyses
            -> [Condition] -- ^ list of conditions grouped by AND
