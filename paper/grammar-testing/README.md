@@ -214,7 +214,7 @@ clause = [~w1<b>_cond, ~w2<a>_trg, only_w2<a>_left]
 
 ----
 
-### Applying `r2` or not makes no difference. If we apply it, it will just make the update of `w1<b>_cond == w1<b>_T` explicit. But already the negation has made `~w1<b>_C` to imply `~w1<b>_T`.
+#### Applying `r2` or not makes no difference. If we apply it, it will just make the update of `w1<b>_cond == w1<b>_T` explicit. But already the negation has made `~w1<b>_C` to imply `~w1<b>_T`.
 
 Here you go anyway, just for completeness' sake. Apply `r2 = REMOVE b IF (1 a)`:
 
@@ -253,6 +253,7 @@ w1_(*)_minus_b <- andl [w1<a|c>_cond, ~w1<b>_cond]
 redundant update of w2<a>
 
 clause = [~w1_(*)_minus_b,  ~w2<a>_trg,  only_w2<a>_left]
+          = w1<b>_T          = ~w2<a>_T
 ```
 
 Same old business, `~w2<a>_trg` and `only_w2<a>_left` are obviously false. But also `~w1_(*)_minus_b` cannot hold because `r1` has made `w1<b>_T` false by implication (or `r2` has made it false explicitly).
