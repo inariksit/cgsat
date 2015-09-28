@@ -4,6 +4,7 @@ import CG_SAT
 import SAT (newSolver)
 import SAT.Named
 
+import Control.Monad
 import Data.List
 import System.Environment
 
@@ -42,8 +43,6 @@ main = do
 
 width :: Rule -> Int
 width rule = case rule of
-  (Select _ _ Always) -> 1
-  (Remove _ _ Always) -> 1
   (Select _ _ conds) -> fill (toConds conds)
   (Remove _ _ conds) -> fill (toConds conds)
 
@@ -72,7 +71,8 @@ testRule tcs (x,xs) = do
   let w = width x
   s <- newSolver
   sws <- sequence 
-          [ sequence [ newLit s (shTC t n) | t <- tcs ] | n <- [1..w] ] :: IO [[Lit]]
+          [ (,) n `fmap` sequence [ newLit s (shTC t n) | t <- tcs ]
+              | n <- [1..w] ] :: IO [(Int,[Lit])]
   print sws
   
   return False
@@ -93,24 +93,39 @@ apply r ws = undefined
   So we don't need actually a getContext, we need just (!!).
 
   for rule@(Remove target conds):
-    for sw in sentence:
-       trgLits  = lookupTrg target sw
+    for (i,sw) in sentence:
+       trgLits  = lookup target sw
 
-       *clause forming part*
-       for trgLit in trgLits:
-         condLits = lookupCnd conds trgLit sentence
+       let condInds = map posToInt conds
+       condLits
+        <- if all (\j -> withinRange i+j) then do
+             cond@C cautious pos (positive,ctags) <- conds
+             let yes_nos = toTags ctags
+             let posInt = posToInt pos
+             let sw = lookup (i+posInt) sentence
+             
+             case (cautious, positive) of
+                (False, True) -> do (yes,nos) <- yes_nos
+                                    let difInds  = map lookupTagMap nos
+                                    let yesInds = map lookupTagMap yes \\ difInds
+                                    yesLit <- orl  s (map lookupLit yesInds)
+                                    noLit  <- andl s ... difInds
+                                    return [yesLit, noLit]
+                (True, True)  -> do ...
+                                    difInds = map lookupTagMap nos
+                                    yesInds = map lookupTagMap yes \\ difInds
+                                    notCInds = allInds \\ yesInds
+                                    return [yesLit, noLit]
 
-         condsHold <- case conds of
-                        notCautious,notNegative -> foo condLits
-                        isCautious, notNegative -> bar condLits
-                        ...
-         trgLit'   <- andl s [ trgLit, or [ condsHold
+       trgLit'   <- andl s [ trgLit, or [ condsHold
                                           , trgLit_is_only_reading ]
                              ]
-         addClause ......
+       addClause ......
 
   If the rule made new trgLit', make an update to sentence.
   Otherwise not.
+
+  lookupTagMap tags = fold intersect [] $ map (lookup tagMap) tags
 
   State monad?
   (oldw1:xs) <- get
