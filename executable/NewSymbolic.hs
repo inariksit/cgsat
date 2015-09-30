@@ -20,10 +20,8 @@ ex_abc1 = concat $ snd $ parseRules False
        "REMOVE:l (c) IF (-1 (c)) ; ")
 
 ex_abc2 = concat $ snd $ parseRules False
-     ( "REMOVE (a) IF (-1 (*) - (c)) ;" ++
-       "REMOVE (c) IF (NOT 1 (a)-(b)) ;" ++
-       "REMOVE (a) IF (-1C CNotB OR (a b)) ;" ++
-       "REMOVE (a) IF (-1* (b) BARRIER (c)) ;" )
+     ( "REMOVE (a) IF (-1 (c)) ;" ++
+       "REMOVE (a) IF (-1C (c)) ;" )
 
 main = do
   args <- getArgs
@@ -33,7 +31,7 @@ main = do
     [] -> do let abc1 = splits ex_abc1
              let abc2 = splits ex_abc2
              
-             mapM (testRule ts tc) (abc1) -- ++abc2)
+             mapM (testRule ts tc) (abc2) -- ++abc1)
 
     _  -> mapM (testRule ts tc) (splits ex_abc2)
 
@@ -86,7 +84,11 @@ testRule ts tcs (rule,rules) = do
   afterRules <- foldM (apply s taglookup l) symbwords rules
   print afterRules
   finalSent <- apply s taglookup l afterRules rule
-  b <- solve s []
+
+  --TODO: form clauses about how the output should be after solving
+  assumptions <- return []
+
+  b <- solve s assumptions
   if b 
    then do 
     printSentence s finalSent
@@ -122,6 +124,7 @@ apply s alltags taginds sentence rule = do
                          else orl s (show $ cond rule) disjConds
           newTrgLits <- sequence
             [ do impl <- implies s implName condsHold (nt trgLit)
+                 --TODO add only targets left option
                  addClause s [impl]
                  newTrgLit <- newLit s (show trgLit ++ "'")
                  oldEquivNew <- equiv s "" trgLit newTrgLit
@@ -133,9 +136,13 @@ apply s alltags taginds sentence rule = do
                            (Remove _ _ _) -> neg
                            (Select _ _ _) -> id 
                , let implName = show condsHold ++ "=>" ++ show (nt trgLit) ]
-          
+
           let newWord = foldl changeAna sw (zip trgInds newTrgLits)
           --print newWord
+          b <- solve s []
+          if b 
+            then printSentence s sentence
+            else putStrLn "applyToWord: no solution"
           return $ changeWord sentence i newWord
 
 
