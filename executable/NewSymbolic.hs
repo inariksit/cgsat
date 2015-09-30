@@ -1,4 +1,4 @@
-import CG_base hiding ( Sentence )
+import CG_base hiding ( Sentence, showSentence )
 import CG_parse
 import CG_SAT
 import SAT ( Solver(..), newSolver )
@@ -55,6 +55,19 @@ type TagMap   = Map Tag [WIndex]
 type WIndex   = Int
 type SIndex   = Int
 
+printSentence :: Solver -> Sentence -> IO ()
+printSentence s sent = do
+  vals <- sequence 
+           [ sequence  [ modelValue s lit | (wind,lit) <- toAscList word ] 
+             | (sind,word) <- toAscList sent ]
+  let trueAnas =
+       [ "\"word" ++ show sind ++ "\"\n"
+                ++ concat [ "\t"++show ana++"\n" | ((_,ana), True) <- zip (toAscList word) vs ]
+         | ((sind,word), vs) <- zip (toAscList sent) vals ]
+  mapM_ putStrLn trueAnas
+
+--------------------------------------------------------------------------------
+
 testRule :: [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
 testRule ts tcs (x,xs) = do 
   print $ (x, width x)
@@ -73,7 +86,11 @@ testRule ts tcs (x,xs) = do
   finalSent <- foldM (apply s taglookup l) symbwords (x:xs)
   print finalSent
   b <- solve s []
-  return b
+  if b 
+   then do 
+    printSentence s finalSent
+    return b
+   else return b
 
 apply :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
 apply s alltags taginds sentence rule = do
@@ -102,7 +119,7 @@ apply s alltags taginds sentence rule = do
           newTrgLits <- sequence
             [ do il <- implies s implName condsHold (nt trgLit)
                  addClause s [il]
-                 newLit s (show trgLit)
+                 newLit s (show trgLit ++ "'")
                | trgInd <- trgInds
                , let Just trgLit = lookup trgInd sw
                , let nt = case rule of
