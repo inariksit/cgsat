@@ -1,7 +1,7 @@
 import CG_base hiding ( Sentence )
 import CG_parse
 import CG_SAT
-import SAT ( newSolver )
+import SAT ( Solver(..), newSolver )
 import SAT.Named
 
 import Control.Monad
@@ -47,7 +47,7 @@ main = do
 --------------------------------------------------------------------------------
 
 --Indices start at 1. More intuitive to talk about w1, w2 vs. w0, w1.
---Using map because lookup is nicer to write than (\x -> xs !! (x+1)) :-P
+--Using Data.Map because it's nicer to write lookup than (\x -> xs !! (x+1)) :-P
 type Sentence = Map Index [Lit]
 type TagMap   = Map Tag [Index]
 type Index = Int
@@ -65,44 +65,79 @@ testRule ts tcs (x,xs) = do
   print $ (xs, map width xs)
   let w = width x
   s <- newSolver
-  symbwords <- sequence 
+  symbwords <- fromList `fmap` sequence 
           [ (,) n `fmap` sequence [ newLit s (shTC t n) | t <- tcs ]
-              | n <- [1..w] ] :: IO [(Index,[Lit])]
-  let taglookup = ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
-                                 in  (t, getInds tcs) 
-  let initialWorld = W (fromList symbwords) (fromList taglookup)
-  finalWorld <- execStateT (apply x) initialWorld 
+              | n <- [1..w] ] :: IO Sentence
+  let taglookup = fromList $
+                    ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
+                                   in  (t, getInds tcs) 
+  finalSent <- foldM (apply s taglookup) symbwords xs
+  print finalSent
   b <- solve s []
   return b
 
-apply :: Rule -> StateT World IO ()
-apply r = do
+apply :: Solver -> TagMap -> Sentence -> Rule -> IO Sentence
+apply s alltags sentence rule = do
 
-  let trg_difs = toTags $ target r
-  let conds    = toConds $ cond r
+  let trg_difs = toTags $ target rule
+  let conds    = toConds $ cond rule
 
-  sentence <- gets ssent
-    -- [(1,[w1<a>,w1<b>,...]),(2,[...])]
-  let words = toAscList sentence 
-  return ()
-  -- let applyToWord w = do
-  --    let trgLits = lookupTagMap trg w
+      -- :: Sentence -> (Index,[Lit]) -> Sentence
+  let applyToWord sentence (i,sw) = do
+       let trgInds_difInds = map lookupTagMap trg_difs -- [([Index],[Index])]
+       let conds_positions =
+            [ (cs, ps) | (cs, ps) <- conds `zip` (map.map) getPos conds
+                       , all (\j -> member (i+j) sentence) (concat ps) ]
+       if null conds_positions
+        then do 
+          print i
+          return sentence --out of scope, nothing changed in the sentence
+        else do
+          --for each condition, make a literal "condition holds"
+          --final condition_holds is an OR of all those "this condition holds" literals
+          disjConds <- mapM mkCond conds_positions
+          condsHold <- if singleton disjConds && (not.null) disjConds
+                         then return (head disjConds)
+                         else orl s "some_cond_holds" disjConds
+          
+          return $ changeWord sentence i [condsHold]
 
- -- modify (\w -> w { ssent = ssent w `changeWord` i sw })
 
-  where
+  foldM applyToWord sentence (toAscList sentence)
+
+  where     
+   mkCond :: ([Condition], --conjunction of conditions
+              [[Index]])   --corresponding list of indices for each
+           -> IO Lit       --all of that represented by just one literal   
+   mkCond (conds,indss) = do
+     let cond_inds = zip conds indss
+     print cond_inds
+     andl s "" =<< sequence 
+      [ case (cautious, positive) of
+          (False, True) -> do let (yesInds,noInds) = lookupTagMap $ head yes_nos --TODO
+                              yesLit <- orl  s "" [true] --(map lookupLit yesInds)
+                              noLit  <- andl s "" [false] --(map lookupLit noInds)
+                              andl s "" [yesLit, noLit]
+          _ -> return true
+        | (C position (positive,ctags), inds) <- zip conds indss
+        , let yes_nos = toTags ctags
+        , let cautious = isCareful position ]
+
    changeWord ssent i newsw = adjust (const newsw) i ssent
 
-   lookupTagMap :: (Trg,Dif) -> TagMap -> [Index]
-   lookupTagMap (trg,dif) w = 
+   lookupTagMap :: (Trg,Dif) -> ([Index],[Index])
+   lookupTagMap (trg,dif) = 
       let trgInds = concatMap (go []) trg --trg::[[Tag]]
           difInds = concatMap (go []) dif --dif::[[Tag]]
           
-      in  trgInds \\ difInds
+      in  (trgInds\\difInds, difInds)
     where
-     go acc []     = acc
-     go acc (t:ts) = let inds = [] `fromMaybe` lookup t w
+     go acc []     = acc         --default is [] because intersect [] _ == []
+     go acc (t:ts) = let inds = [] `fromMaybe` lookup t alltags
                      in go (intersect acc inds) ts
+   lookupLit ind = [] `fromMaybe` lookup ind sentence
+
+
 {-
  TODO:
 
@@ -144,18 +179,9 @@ apply r = do
 
   If the rule made new trgLit', make an update to sentence.
   Otherwise not.
-
-  lookupTagMap tags = fold intersect [] $ map (lookup tagMap) tags
-
-  State monad?
-  (oldw1:xs) <- get
-  newss = [w1<a>, trgLit', w1<b>]:xs
-  modify (const newss)
 -}
 
 --------------------------------------------------------------------------------
-
-for = flip fmap
 
 width :: Rule -> Int
 width = fill . toConds . cond
@@ -176,5 +202,27 @@ posToInt (AtLeast _ i) = i
 posToInt (Barrier _ i _)  = if i<0 then i-1 else i+1
 posToInt (CBarrier _ i _) = if i<0 then i-1 else i+1
 
+isCareful :: Position -> Bool
+isCareful (Exactly b _) = b
+isCareful (AtLeast b _) = b
+isCareful (Barrier b _ _) = b
+isCareful (CBarrier b _ _) = b
+
+getPos :: Condition -> [Index]
+getPos (C (Barrier  _ i _) _) = if i<0 then [i-1, i] else [i, i+1]
+getPos (C (CBarrier _ i _) _) = if i<0 then [i-1, i] else [i, i+1]
+getPos (C  position        _) = [posToInt position]
+getPos _ = error "trying to apply to complex condition"
+
+
 shTC :: [Tag] -> Int -> String 
 shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
+
+for :: (Functor f) => f a -> (a -> b) -> f b
+for = flip fmap
+
+singleton :: [a] -> Bool
+singleton [x] = True
+singleton _   = False
+
+
