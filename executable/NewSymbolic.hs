@@ -5,10 +5,10 @@ import SAT ( Solver(..), newSolver )
 import SAT.Named
 
 import Control.Monad
-import Control.Monad.State.Lazy
 import Data.List hiding ( lookup )
 import Data.Map ( Map(..), fromList, toAscList, member, adjust, lookup )
 import Data.Maybe
+import Debug.Trace
 import Prelude hiding ( lookup )
 import System.Environment
 
@@ -20,10 +20,11 @@ ex_abc1 = concat $ snd $ parseRules False
        "REMOVE:l (c) IF (-1 (c)) ; ")
 
 ex_abc2 = concat $ snd $ parseRules False
-     ( "REMOVE (a) IF (-1 (*) - (c)) ;" ++
-       "REMOVE (c) IF (1 (a)) ;" ++
-       "REMOVE (a) IF (-1 (c)) ;" ++
-       "REMOVE (a) IF (-1 (b)) ;" )
+     ( "SET CNotB = (c) - (b) ;" ++
+       "REMOVE (a) IF (-1 (*) - (c)) ;" ++
+       "REMOVE (c) IF (NOT 1 (a)-(b)) ;" ++
+       "REMOVE (a) IF (-1C CNotB OR (a b)) ;" ++
+       "REMOVE (a) IF (-1* (b) BARRIER (c)) ;" )
 
 main = do
   args <- getArgs
@@ -47,139 +48,155 @@ main = do
 --------------------------------------------------------------------------------
 
 --Indices start at 1. More intuitive to talk about w1, w2 vs. w0, w1.
---Using Data.Map because it's nicer to write lookup than (\x -> xs !! (x+1)) :-P
-type Sentence = Map Index [Lit]
-type TagMap   = Map Tag [Index]
-type Index = Int
-
-data World = W { ssent  :: Sentence
-               , tagmap :: Map Tag [Index] } deriving (Show,Eq)
-
-
-inRange :: Index -> Sentence -> Bool
-inRange i ssent = i `member` ssent
+--(Ab)using Data.Map because lookup and updates go nicely with builtin functions
+type Word     = Map WIndex Lit
+type Sentence = Map SIndex Word
+type TagMap   = Map Tag [WIndex]
+type WIndex   = Int
+type SIndex   = Int
 
 testRule :: [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
 testRule ts tcs (x,xs) = do 
   print $ (x, width x)
   print $ (xs, map width xs)
   let w = width x
+  let l = [1..length tcs]
   s <- newSolver
   symbwords <- fromList `fmap` sequence 
-          [ (,) n `fmap` sequence [ newLit s (shTC t n) | t <- tcs ]
+          [ (,) n `fmap` 
+                  (fromList `fmap` sequence 
+                    [ (,) m `fmap` newLit s (shTC t n) | (t,m) <- zip tcs [1..] ])
               | n <- [1..w] ] :: IO Sentence
   let taglookup = fromList $
                     ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
-                                   in  (t, getInds tcs) 
-  finalSent <- foldM (apply s taglookup) symbwords xs
+                                   in (t, getInds tcs) 
+  finalSent <- foldM (apply s taglookup l) symbwords (x:xs)
   print finalSent
   b <- solve s []
   return b
 
-apply :: Solver -> TagMap -> Sentence -> Rule -> IO Sentence
-apply s alltags sentence rule = do
+apply :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
+apply s alltags taginds sentence rule = do
 
   let trg_difs = toTags $ target rule
   let conds    = toConds $ cond rule
 
-      -- :: Sentence -> (Index,[Lit]) -> Sentence
+      -- :: Sentence -> (SIndex, Map WIndex Lit) -> Sentence
   let applyToWord sentence (i,sw) = do
-       let trgInds_difInds = map lookupTagMap trg_difs -- [([Index],[Index])]
+       let trgInds = concatMap (fst.lookupTag) trg_difs --[Int]; difs already included
        let conds_positions =
-            [ (cs, ps) | (cs, ps) <- conds `zip` (map.map) getPos conds
-                       , all (\j -> member (i+j) sentence) (concat ps) ]
+            [ (cs, map (i+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds
+                                , all (inRange i) cs ]
        if null conds_positions
         then do 
-          print i
+          print ("out of scope:",i,sw)
           return sentence --out of scope, nothing changed in the sentence
         else do
           --for each condition, make a literal "condition holds"
           --final condition_holds is an OR of all those "this condition holds" literals
           disjConds <- mapM mkCond conds_positions
-          condsHold <- if singleton disjConds && (not.null) disjConds
+          condsHold <- if singleton disjConds
                          then return (head disjConds)
-                         else orl s "some_cond_holds" disjConds
+                         else orl s (show $ cond rule) disjConds
+          print ("condsHold",disjConds,condsHold)
+          newTrgLits <- sequence
+            [ do il <- implies s implName condsHold (nt trgLit)
+                 addClause s [il]
+                 newLit s (show trgLit)
+               | trgInd <- trgInds
+               , let Just trgLit = lookup trgInd sw
+               , let nt = case rule of
+                           (Remove _ _ _) -> neg
+                           (Select _ _ _) -> id 
+               , let implName = show condsHold ++ "=>" ++ show (nt trgLit) ]
           
-          return $ changeWord sentence i [condsHold]
+          let newWord = foldl changeAna sw (zip trgInds newTrgLits)
+          print newWord
+          return $ changeWord sentence i newWord
 
 
   foldM applyToWord sentence (toAscList sentence)
 
-  where     
+  where
+   inRange :: SIndex -> Condition -> Bool
+   inRange i (C pos (b,ctags)) = not b -- `NOT -100 a' is always true
+                                 || member (i+posToInt pos) sentence
+
+   changeWord :: Sentence -> SIndex -> Word -> Sentence
+   changeWord sent i newsw = adjust (const newsw) i sent
+
+   changeAna :: Word -> (WIndex,Lit) -> Word
+   changeAna word (i,newana) = adjust (const newana) i word
+   
    mkCond :: ([Condition], --conjunction of conditions
-              [[Index]])   --corresponding list of indices for each
+              [WIndex])    --corresponding indices for each
            -> IO Lit       --all of that represented by just one literal   
-   mkCond (conds,indss) = do
-     let cond_inds = zip conds indss
-     print cond_inds
-     andl s "" =<< sequence 
-      [ case (cautious, positive) of
-          (False, True) -> do let (yesInds,noInds) = lookupTagMap $ head yes_nos --TODO
-                              yesLit <- orl  s "" [true] --(map lookupLit yesInds)
-                              noLit  <- andl s "" [false] --(map lookupLit noInds)
-                              andl s "" [yesLit, noLit]
-          _ -> return true
-        | (C position (positive,ctags), inds) <- zip conds indss
-        , let yes_nos = toTags ctags
-        , let cautious = isCareful position ]
+   mkCond (conds,inds) = andl s (show conds) =<< 
+     sequence 
+      [ do case position of
+             (Barrier  _ _ btags) 
+                -> do let byes_bnos = map lookupTag (toTags btags)
+                      let bi = if ind<0 then ind-1 else ind+1
+                      addClause s [true]
+                                         
+             (CBarrier _ _ btags)
+                -> do let byes_bnos = map lookupTag (toTags btags)
+                      let bi = if ind<0 then ind-1 else ind+1
+                      addClause s [true]
+             _  -> return ()
 
-   changeWord ssent i newsw = adjust (const newsw) i ssent
+           disjTags <- case (positive, cautious) of
+                         (True, False) ->
+                           sequence [ do y <- orl  s "" yesLits
+                                         n <- andl s "" (map neg difLits)
+                                         andl s "" [y,n]
+                                       | (yi, di) <- yesInds_difInds
+                                       , let yesLits = map (lookupLit ind) yi
+                                       , let difLits  = map (lookupLit ind) di ]
+                         (True, True)  ->
+                           sequence [ do y <- orl  s "" yesLits
+                                         n <- andl s "" (map neg other)
+                                         andl s "" [y,n]
+                                       | (yi, _) <- yesInds_difInds
+                                       , let yesLits = map (lookupLit ind) yi
+                                       , let other = map (lookupLit ind) (ti \\ yi) ]
+                         (False, False) ->
+                           sequence [ do n <- andl s "" (map neg noLits)
+                                         y <- orl s "" other --need something positive
+                                         andl s "" [y,n]
+                                       | (yi, di) <- yesInds_difInds
+                                       , let noLits = map (lookupLit ind) yi 
+                                       , let other = map (lookupLit ind) (ti \\ yi) ]
+                         (False, True)  ->
+                           sequence [ do orl s "" other
+                                       | (yi, di) <- yesInds_difInds
+                                       , let other = map (lookupLit ind) (ti \\ yi) ]
+           orl s (show c) disjTags
+        | (c@(C position (positive,ctags)), ind) <- zip conds inds
+        , let yesInds_difInds = map lookupTag $ toTags ctags
+        , let cautious = isCareful position 
+        , let ti = taginds ]
 
-   lookupTagMap :: (Trg,Dif) -> ([Index],[Index])
-   lookupTagMap (trg,dif) = 
-      let trgInds = concatMap (go []) trg --trg::[[Tag]]
-          difInds = concatMap (go []) dif --dif::[[Tag]]
+   lookupTag :: (Trg,Dif) -> ([WIndex],[WIndex])
+   lookupTag (trg,dif) = 
+      let trgInds = if trg==[[]] then taginds
+                      else concatMap (go taginds) trg --trg::[[Tag]]
+          difInds = if dif==[[]] then [] 
+                      else concatMap (go taginds) dif --dif::[[Tag]]
           
       in  (trgInds\\difInds, difInds)
     where
      go acc []     = acc         --default is [] because intersect [] _ == []
      go acc (t:ts) = let inds = [] `fromMaybe` lookup t alltags
                      in go (intersect acc inds) ts
-   lookupLit ind = [] `fromMaybe` lookup ind sentence
 
-
-{-
- TODO:
-
-  We don't need such a heavy machinery as in normal CG_SAT for *finding* context.
-  Unless run into a word boundary, then every word has the context to trigger a rule,
-  and it will always be the same nth element of the mth word.
-  So we don't need actually a getContext, we need just (!!).
-
-    for (i,sw) in sentence:
-       trgLits  = lookup target sw
-
-       let condInds = map posToInt conds
-       condLits
-        <- if all (\j -> withinRange i+j) condInds then do
-             cond@C cautious pos (positive,ctags) <- conds
-             let yes_nos = toTags ctags
-             let posInt = posToInt pos
-             let sw = lookup (i+posInt) sentence
-             
-             case (cautious, positive) of
-                (False, True) -> do (yes,nos) <- yes_nos
-                                    let difInds  = map lookupTagMap nos
-                                    let yesInds = map lookupTagMap yes \\ difInds
-                                    yesLit <- orl  s (map lookupLit yesInds)
-                                    noLit  <- andl s ... difInds
-                                    return [yesLit, noLit]
-                (True, True)  -> do ...
-                                    difInds = map lookupTagMap nos
-                                    yesInds = map lookupTagMap yes \\ difInds
-                                    notCInds = allInds \\ yesInds
-                                    return [yesLit, noLit]
-            else do
-              return 
-             
-       trgLit'   <- andl s [ trgLit, or [ condsHold
-                                          , trgLit_is_only_reading ]
-                             ]
-       addClause ......
-
-  If the rule made new trgLit', make an update to sentence.
-  Otherwise not.
--}
+   lookupLit :: SIndex -> WIndex -> Lit
+   lookupLit si wi = case lookup si sentence of
+                       Just ts -> case lookup wi ts of
+                                   Just tag -> tag
+                                   Nothing  -> error "lookupLit: tag combination not found"
+                       Nothing -> true  --we've been sent here by negated rule,
+                                        --`NOT -1000 foo' is always true
 
 --------------------------------------------------------------------------------
 
@@ -208,10 +225,10 @@ isCareful (AtLeast b _) = b
 isCareful (Barrier b _ _) = b
 isCareful (CBarrier b _ _) = b
 
-getPos :: Condition -> [Index]
-getPos (C (Barrier  _ i _) _) = if i<0 then [i-1, i] else [i, i+1]
-getPos (C (CBarrier _ i _) _) = if i<0 then [i-1, i] else [i, i+1]
-getPos (C  position        _) = [posToInt position]
+getPos :: Condition -> SIndex
+getPos (C (Barrier  _ i _) _) = i
+getPos (C (CBarrier _ i _) _) = i
+getPos (C  position        _) = posToInt position
 getPos _ = error "trying to apply to complex condition"
 
 
