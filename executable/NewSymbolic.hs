@@ -6,7 +6,7 @@ import SAT.Named
 
 import Control.Monad
 import Data.List hiding ( lookup )
-import Data.Map ( Map(..), fromList, toAscList, member, adjust, lookup )
+import Data.Map ( Map(..), fromList, toAscList, elems, member, adjust, lookup )
 import Data.Maybe
 import Debug.Trace
 import Prelude hiding ( lookup )
@@ -20,8 +20,7 @@ ex_abc1 = concat $ snd $ parseRules False
        "REMOVE:l (c) IF (-1 (c)) ; ")
 
 ex_abc2 = concat $ snd $ parseRules False
-     ( "SET CNotB = (c) - (b) ;" ++
-       "REMOVE (a) IF (-1 (*) - (c)) ;" ++
+     ( "REMOVE (a) IF (-1 (*) - (c)) ;" ++
        "REMOVE (c) IF (NOT 1 (a)-(b)) ;" ++
        "REMOVE (a) IF (-1C CNotB OR (a b)) ;" ++
        "REMOVE (a) IF (-1* (b) BARRIER (c)) ;" )
@@ -34,7 +33,7 @@ main = do
     [] -> do let abc1 = splits ex_abc1
              let abc2 = splits ex_abc2
              
-             mapM (testRule ts tc) (abc1++abc2)
+             mapM (testRule ts tc) (abc1) -- ++abc2)
 
     _  -> mapM (testRule ts tc) (splits ex_abc2)
 
@@ -69,10 +68,11 @@ printSentence s sent = do
 --------------------------------------------------------------------------------
 
 testRule :: [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
-testRule ts tcs (x,xs) = do 
-  print $ (x, width x)
-  print $ (xs, map width xs)
-  let w = width x
+testRule ts tcs (rule,rules) = do 
+  putStrLn "************* testRule ***************"
+  putStrLn $ "Testing with " ++ show rule ++ " as the last rule"
+  putStrLn "the rest of the rules: " >> mapM_ print rules
+  let w = width rule
   let l = [1..length tcs]
   s <- newSolver
   symbwords <- fromList `fmap` sequence 
@@ -83,8 +83,9 @@ testRule ts tcs (x,xs) = do
   let taglookup = fromList $
                     ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
                                    in (t, getInds tcs) 
-  finalSent <- foldM (apply s taglookup l) symbwords (x:xs)
-  print finalSent
+  afterRules <- foldM (apply s taglookup l) symbwords rules
+  print afterRules
+  finalSent <- apply s taglookup l afterRules rule
   b <- solve s []
   if b 
    then do 
@@ -98,6 +99,11 @@ apply s alltags taginds sentence rule = do
   let trg_difs = toTags $ target rule
   let conds    = toConds $ cond rule
 
+  sequence_ 
+   [ do let lits = elems word
+        addClause s lits
+     | (sind,word) <- toAscList sentence ]
+
       -- :: Sentence -> (SIndex, Map WIndex Lit) -> Sentence
   let applyToWord sentence (i,sw) = do
        let trgInds = concatMap (fst.lookupTag) trg_difs --[Int]; difs already included
@@ -106,7 +112,6 @@ apply s alltags taginds sentence rule = do
                                 , all (inRange i) cs ]
        if null conds_positions
         then do 
-          print ("out of scope:",i,sw)
           return sentence --out of scope, nothing changed in the sentence
         else do
           --for each condition, make a literal "condition holds"
@@ -115,11 +120,13 @@ apply s alltags taginds sentence rule = do
           condsHold <- if singleton disjConds
                          then return (head disjConds)
                          else orl s (show $ cond rule) disjConds
-          print ("condsHold",disjConds,condsHold)
           newTrgLits <- sequence
-            [ do il <- implies s implName condsHold (nt trgLit)
-                 addClause s [il]
-                 newLit s (show trgLit ++ "'")
+            [ do impl <- implies s implName condsHold (nt trgLit)
+                 addClause s [impl]
+                 newTrgLit <- newLit s (show trgLit ++ "'")
+                 oldEquivNew <- equiv s "" trgLit newTrgLit
+                 addClause s [oldEquivNew]
+                 return newTrgLit
                | trgInd <- trgInds
                , let Just trgLit = lookup trgInd sw
                , let nt = case rule of
@@ -128,7 +135,7 @@ apply s alltags taginds sentence rule = do
                , let implName = show condsHold ++ "=>" ++ show (nt trgLit) ]
           
           let newWord = foldl changeAna sw (zip trgInds newTrgLits)
-          print newWord
+          --print newWord
           return $ changeWord sentence i newWord
 
 
