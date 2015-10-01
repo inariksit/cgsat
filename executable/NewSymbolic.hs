@@ -13,28 +13,37 @@ import Prelude hiding ( lookup )
 import System.Environment
 
 ex_abc1 = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (-1 (b)) ; " ++
-       "REMOVE:r2 (a) IF (-1 (*) - (b)) ; " ++
-       "REMOVE:r3 (b) IF (-1 (a)) ; " ++
-       "REMOVE:r4 (b) IF (-1 (*) - (a)) ; " ++
-       "REMOVE:l (c) IF (-1 (c)) ; ")
+     ( "REMOVE:r1 (a) IF (-1C (c)) ; " ++
+       "REMOVE:l  (c) IF (-1  (c)) ; ")
 
 ex_abc2 = concat $ snd $ parseRules False
-     ( "REMOVE (a) IF (-1C  (c)) ;" ++
-       "REMOVE (a) IF (-1 (c)) ;" )
+     ( "REMOVE:r1 (a) IF (-1 (*) - (b)) ;" ++
+       "REMOVE:r2 (b) IF ( 1 (a)) ;" ++
+       "REMOVE:r3 (a) IF (-1 (b)) ;" ++
+       "REMOVE:l  (a) IF (-1 (c)) ;" )
 
 main = do
   args <- getArgs
   let ts = map (Tag . (:[])) "abc"
-  let tc = sequence [ts]  ++ [[Tag "a",Tag "c"]]
-  --[[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
+  let tc = sequence [ts]  ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
   case args of 
-    [] -> do let abc1 = splits ex_abc1
+    [] -> do let abc1 = last $ splits ex_abc1
              let abc2 = splits ex_abc2
              
-             mapM (testRule ts tc) (abc2++abc1)
+             mapM (testRule (True,True) ts tc) (abc1:last abc2:[])
 
-    _  -> mapM (testRule ts tc) (splits ex_abc2)
+    ("nld":r)
+       -> do let verbose = "v" `elem` r || "d" `elem` r
+             let debug = "d" `elem` r
+             ts <- (concat . filter (not.null) . map parse . words) 
+                       `fmap` readFile "data/nld/nld_tags.txt"
+             (tsets, rls) <- readRules' "data/nld/nld.rlx"
+             let rules = concat rls
+             let tcInGr = nub $ concatMap toTags' tsets
+             print tcInGr
+             tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
+             let tc = nub $ tcInGr ++ tcInLex
+             mapM (testRule (verbose,debug) ts tc) (splits rules)
 
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
@@ -43,6 +52,8 @@ main = do
 
    for = flip fmap
 
+   toTags' :: TagSet -> [[Tag]]
+   toTags' = concatMap (nub . (\(a,b) -> if all null b then a else a++b)) . toTags
 --------------------------------------------------------------------------------
 
 --Indices start at 1. More intuitive to talk about w1, w2 vs. w0, w1.
@@ -55,6 +66,11 @@ type SIndex   = Int
 
 solveAndPrintSentence :: Solver -> Sentence -> IO ()
 solveAndPrintSentence s sent = do
+  let lits = concatMap elems (elems sent)
+  --print lits
+  --litsU <- count s lits
+  --solveMaximize s [] litsU
+  solve s []
   vals <- sequence 
            [ sequence  [ modelValue s lit | lit <- elems word ] 
              | (sind,word) <- toAscList sent ]
@@ -67,15 +83,15 @@ solveAndPrintSentence s sent = do
 printSentence :: Sentence -> IO ()
 printSentence sent = do
   let allAnas =
-       [ "\"w" ++ show sind ++ "\"---->"
+       [ "  \"w" ++ show sind ++ "\" ----> "
                ++ intercalate ", " [ show ana | ana <- elems word ]
          | (sind,word) <- toAscList sent ]
   mapM_ putStrLn allAnas
 
 --------------------------------------------------------------------------------
 
-testRule :: [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
-testRule ts tcs (lastrule,rules) = do 
+testRule :: (Bool,Bool) -> [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
+testRule (verbose,debug) ts tcs (lastrule,rules) = do 
   putStrLn "************* testRule ***************"
   putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
   putStrLn "the rest of the rules: " >> mapM_ print rules
@@ -88,7 +104,7 @@ testRule ts tcs (lastrule,rules) = do
                                    in (t, getInds tcs) 
 
   afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
-  printSentence afterRules
+  when verbose $ printSentence afterRules
 
   shouldTriggerLast <-  do
     let luTag = lookupTag taglookup taginds
@@ -97,17 +113,18 @@ testRule ts tcs (lastrule,rules) = do
     let conds_positions =
          [ (cs, map (trgSInd+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds]
     let trgWInds@((yes,no):_) = map luTag trg_difs
-    print ("***testRule.trgWInds: ",trgWInds)
     let trgLits = map (lookupLit afterRules trgSInd) yes
     let otherLits = map (lookupLit afterRules trgSInd) (taginds \\ yes)
-    mustHaveTrg <- orl s "" trgLits
-    mustHaveOther <- orl s "" otherLits
+    mustHaveTrg  <- orl s ("must have: " ++ show trgLits) trgLits
+    mustHaveOther <- orl s ("must have: " ++ show otherLits) otherLits
     condLits <- mapM (mkCond s luTag (lookupLit afterRules) taginds) conds_positions
-    print ("***condLits: ",condLits)
-    allCondsHold <- andl s "" condLits
+    -- print ("***trgLits:   ",trgLits)
+    -- print ("***otherLits: ",otherLits)
+    -- print ("***condLits:  ",condLits)
+    allCondsHold <- andl s ("must hold: " ++ unwords (map show condLits)) condLits
     return [mustHaveTrg, mustHaveOther, allCondsHold]
     
-
+  when debug $ print shouldTriggerLast
   b <- solve s shouldTriggerLast
   if b 
    then solveAndPrintSentence s afterRules
@@ -117,10 +134,16 @@ testRule ts tcs (lastrule,rules) = do
  where
   applyAndPrint :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
   applyAndPrint s tl ti sent rule = do
-    putStrLn $ "Rule " ++ show rule ++ ":"
+    when verbose $ do
+      putStrLn $ "Rule " ++ show rule ++ ":"
+      putStrLn "Old sentence: "
+      printSentence sent
+      solveAndPrintSentence s sent
     newsent <- apply s tl ti sent rule
-    solveAndPrintSentence s newsent
-    putStrLn "-----"
+    when verbose $ do 
+      printSentence newsent
+      solveAndPrintSentence s newsent
+      putStrLn "-----"
     return newsent
 
 --------------------------------------------------------------------------------
@@ -310,4 +333,17 @@ singleton :: [a] -> Bool
 singleton [x] = True
 singleton _   = False
 
+--------------------------------------------------------------------------------
 
+parse :: String -> [Tag]
+parse str = map toTag $ filter (not.null) $ split isValid str
+ where 
+  isValid c = c=='<' || c=='+'
+  toTag ">>>" = BOS
+  toTag "<<<" = EOS
+  toTag []    = error "empty tag"
+  toTag str = if last str=='>' then Tag (init str) else Lem str
+
+split :: (a -> Bool) -> [a] -> [[a]]
+split p [] = []
+split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))

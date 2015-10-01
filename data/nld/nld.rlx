@@ -74,16 +74,16 @@ SET PrTe = Pr + Te ;
 SECTION
 
 # buiten spelen, om te spelen
-#-rm REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
-#-rm REMOVE:r_adv_n Adv IF (1 Noun);
-#-rm SELECT:s_pr_v PrTe IF (1 VerbInf) ;
+ REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
+ REMOVE:r_adv_n Adv IF (1 Noun);
+ SELECT:s_pr_v PrTe IF (1 VerbInf) ;
 
 
-#-rm REMOVE Inf IF (-1 PrnPers);
+ REMOVE Inf IF (-1 PrnPers);
 
-#-rm REMOVE Adj IF (-1 Pr) (1 Pr);
+ REMOVE Adj IF (-1 Pr) (1 Pr);
 
-#-rm REMOVE Cnjsub IF (1 EOS);
+ REMOVE Cnjsub IF (1 EOS);
 
 #-rm SELECT VbGer IF (-1 DetHet) (NOT 0 Noun);
 #-rm SELECT DetHet IF (1 VbGer);
@@ -137,8 +137,8 @@ LIST PrnPersP2 = (prn pers p2);
 
 SELECT PrnPersP1 IF (1 EOS);
 
-REMOVE VerbP1 IF (NOT *-1 PrnPersP1 BARRIER BOS) (NOT *1C PrnPersP1 BARRIER EOS);
-REMOVE VerbP2 IF (NOT *-1 PrnPersP2 BARRIER BOS) (NOT *1C PrnPersP2 BARRIER EOS);
+#-rm REMOVE VerbP1 IF (NOT *-1 PrnPersP1 BARRIER BOS) (NOT *1C PrnPersP1 BARRIER EOS);
+#-rm REMOVE VerbP2 IF (NOT *-1 PrnPersP2 BARRIER BOS) (NOT *1C PrnPersP2 BARRIER EOS);
 
 
 # deze zijn
