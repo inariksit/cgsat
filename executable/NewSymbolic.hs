@@ -22,15 +22,21 @@ ex_abc2 = concat $ snd $ parseRules False
        "REMOVE:r3 (a) IF (-1 (b)) ;" ++
        "REMOVE:l  (a) IF (-1 (c)) ;" )
 
+ex_not = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (NOT -1 (c)) ;" ++
+       "REMOVE:r2 (a) IF (-1 (a)) ;" ++
+       "REMOVE:l  (b) IF (-1 (c)) ;" )
+
 main = do
   args <- getArgs
   let ts = map (Tag . (:[])) "abc"
-  let tc = sequence [ts]  ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
+  let tc = sequence [ts] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
   case args of 
-    [] -> do let abc1 = last $ splits ex_abc1
+    [] -> do let abc1 = splits ex_abc1
              let abc2 = splits ex_abc2
+             let not_ = splits ex_not
              
-             mapM (testRule (True,True) ts tc) (abc1:last abc2:[])
+             mapM (testRule (True,True) ts tc) (last abc1:last abc2:last not_:[])
 
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -64,13 +70,13 @@ type TagMap   = Map Tag [WIndex]
 type WIndex   = Int
 type SIndex   = Int
 
-solveAndPrintSentence :: Solver -> Sentence -> IO ()
-solveAndPrintSentence s sent = do
+solveAndPrintSentence :: Solver -> [Lit] -> Sentence -> IO ()
+solveAndPrintSentence s ass sent = do
   let lits = concatMap elems (elems sent)
   --print lits
   --litsU <- count s lits
-  --solveMaximize s [] litsU
-  solve s []
+  --solveMaximize s ass litsU
+  solve s ass
   vals <- sequence 
            [ sequence  [ modelValue s lit | lit <- elems word ] 
              | (sind,word) <- toAscList sent ]
@@ -102,9 +108,12 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   let taglookup = fromList $
                     ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
                                    in (t, getInds tcs) 
-
+  when verbose $ do
+    putStrLn "Initial sentence:"
+    printSentence initialSentence
+    --solveAndPrintSentence s [] initialSentence
+    putStrLn "----"
   afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
-  when verbose $ printSentence afterRules
 
   shouldTriggerLast <-  do
     let luTag = lookupTag taglookup taginds
@@ -127,22 +136,21 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   when debug $ print shouldTriggerLast
   b <- solve s shouldTriggerLast
   if b 
-   then solveAndPrintSentence s afterRules
+   then do 
+      putStrLn $ "Following triggers last rule: " ++ show lastrule
+      solveAndPrintSentence s shouldTriggerLast afterRules
    else putStrLn "conflict!"
   return b
 
  where
   applyAndPrint :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
   applyAndPrint s tl ti sent rule = do
-    when verbose $ do
-      putStrLn $ "Rule " ++ show rule ++ ":"
-      putStrLn "Old sentence: "
-      printSentence sent
-      solveAndPrintSentence s sent
     newsent <- apply s tl ti sent rule
     when verbose $ do 
-      printSentence newsent
-      solveAndPrintSentence s newsent
+      putStrLn $ "Applied rule " ++ show rule 
+      putStrLn "New sentence:"
+      when debug $ printSentence newsent
+      solveAndPrintSentence s [] newsent
       putStrLn "-----"
     return newsent
 
@@ -172,14 +180,13 @@ apply s alltags taginds sentence rule = do
           return sentence --out of scope, nothing changed in the sentence
         else do
           disjConds <- mapM mkCondition conds_positions --for disj. cond. templates
-          condsHold <- if singleton disjConds
-                         then return (head disjConds)
-                         else orl s (show $ cond rule) disjConds
-          onlyTrgLeft <- do onlyTrg <- orl s "" $ map (lu sw) trgInds
-                            noOther <- andl s "" $ map (neg . lu sw) otherInds
-                            andl s "onlyTarget" [onlyTrg, noOther]
-
-          cannotApply <- orl s "cannotApply" [ neg condsHold, onlyTrgLeft ]
+          condsHold <- orl' s disjConds
+          onlyTrg <- orl' s  $ map (lu sw) trgInds
+          let othersNeg = map (neg . lu sw) otherInds
+          noOther <- andl' s othersNeg
+          onlyTrgLeft <- andl s ("("++show onlyTrg ++ " & " ++ show othersNeg ++ ")")
+                                [onlyTrg, noOther]
+          cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
           
           newTrgLits <- sequence
              --wN<a>' is true if both of the following:
@@ -188,6 +195,7 @@ apply s alltags taginds sentence rule = do
                | trgInd <- trgInds
                , let Just oldTrgLit = lookup trgInd sw 
                , let newTrgName = show oldTrgLit ++ "'"]
+          print $ "*** reasons why we couldn't apply: " ++ show cannotApply
 
           b <- solve s []
           let newsw = foldl changeAna sw (zip trgInds newTrgLits)
@@ -221,7 +229,7 @@ mkCond :: Solver                                -- ^ solver to use
        -> ([Condition],                         -- ^ list of conditions (conjunction)
            [WIndex])                            -- ^ corresponding indices for each
        -> IO Lit                                -- ^ conjunction of all conditions in one literal 
-mkCond s luTag luLit ti (conds,inds) = andl s (show conds) =<< sequence 
+mkCond s luTag luLit ti (conds,inds) = andl' s  =<< sequence 
   [ do case position of
              (Barrier  foo bar btags) 
                -> do let byes_bnos = map luTag (toTags btags)
@@ -235,7 +243,7 @@ mkCond s luTag luLit ti (conds,inds) = andl s (show conds) =<< sequence
              foo -> return ()
 
        -- disjunction of *tags* in one condition
-       orl s (show c) =<< sequence 
+       orl s (show c ++ " in " ++ show ind) =<< sequence 
         ( case (positive, cautious) of
            (True, False)  -> [ do y <- orl  s "" yesLits
                                   n <- andl s "" (map neg difLits)

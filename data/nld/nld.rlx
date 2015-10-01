@@ -76,7 +76,7 @@ SECTION
 # buiten spelen, om te spelen
  REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
  REMOVE:r_adv_n Adv IF (1 Noun);
- SELECT:s_pr_v PrTe IF (1 VerbInf) ;
+#-rm SELECT:s_pr_v PrTe IF (1 VerbInf) ;
 
 
  REMOVE Inf IF (-1 PrnPers);
