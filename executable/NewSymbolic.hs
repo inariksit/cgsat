@@ -20,7 +20,7 @@ ex_abc1 = concat $ snd $ parseRules False
        "REMOVE:l (c) IF (-1 (c)) ; ")
 
 ex_abc2 = concat $ snd $ parseRules False
-     ( "REMOVE (a) IF (-1 (c)) ;" ++
+     ( "REMOVE (a) IF (-1  (c)) ;" ++
        "REMOVE (a) IF (-1C (c)) ;" )
 
 main = do
@@ -55,45 +55,55 @@ type SIndex   = Int
 printSentence :: Solver -> Sentence -> IO ()
 printSentence s sent = do
   vals <- sequence 
-           [ sequence  [ modelValue s lit | (wind,lit) <- toAscList word ] 
+           [ sequence  [ modelValue s lit | lit <- elems word ] 
              | (sind,word) <- toAscList sent ]
   let trueAnas =
-       [ "\"word" ++ show sind ++ "\"\n"
-                ++ concat [ "\t"++show ana++"\n" | ((_,ana), True) <- zip (toAscList word) vs ]
+       [ "\"w" ++ show sind ++ "\"\n"
+               ++ unlines [ "\t"++show ana | (ana, True) <- zip (elems word) vs ]
          | ((sind,word), vs) <- zip (toAscList sent) vals ]
   mapM_ putStrLn trueAnas
 
 --------------------------------------------------------------------------------
 
 testRule :: [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
-testRule ts tcs (rule,rules) = do 
+testRule ts tcs (lastrule,rules) = do 
   putStrLn "************* testRule ***************"
-  putStrLn $ "Testing with " ++ show rule ++ " as the last rule"
+  putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
   putStrLn "the rest of the rules: " >> mapM_ print rules
-  let w = width rule
-  let l = [1..length tcs]
+  let (w,trgSInd) = width lastrule
+  print (w,trgSInd)
+  let taginds = [1..length tcs]
   s <- newSolver
   symbwords <- fromList `fmap` sequence 
-          [ (,) n `fmap` 
-                  (fromList `fmap` sequence 
-                    [ (,) m `fmap` newLit s (shTC t n) | (t,m) <- zip tcs [1..] ])
-              | n <- [1..w] ] :: IO Sentence
+          [ ((,) n . fromList) `fmap` sequence 
+            [ (,) m `fmap` newLit s (shTC t n) | (m, t) <- zip [1..] tcs ]
+               | n <- [1..w] ] :: IO Sentence
   let taglookup = fromList $
                     ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
                                    in (t, getInds tcs) 
-  afterRules <- foldM (apply s taglookup l) symbwords rules
+
+  afterRules <- foldM (apply s taglookup taginds) symbwords rules
   print afterRules
-  finalSent <- apply s taglookup l afterRules rule
 
   --TODO: form clauses about how the output should be after solving
-  assumptions <- return []
 
-  b <- solve s assumptions
+  shouldTriggerLast <-  do
+    let trg_difs = toTags $ target lastrule
+    let conds    = toConds $ cond lastrule
+    
+    let trgWInds@((yes,dif):_) = map (lookupTag taglookup taginds) trg_difs
+    print ("***mkAssumptions.trgWInds: ",trgWInds)
+    let trgLits = map (lookupLit afterRules trgSInd) yes
+    (:[]) `fmap` orl s (show lastrule) trgLits
+
+  b <- solve s shouldTriggerLast
   if b 
    then do 
-    printSentence s finalSent
+    printSentence s afterRules
     return b
    else return b
+
+
 
 apply :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
 apply s alltags taginds sentence rule = do
@@ -108,7 +118,9 @@ apply s alltags taginds sentence rule = do
 
       -- :: Sentence -> (SIndex, Map WIndex Lit) -> Sentence
   let applyToWord sentence (i,sw) = do
-       let trgInds = concatMap (fst.lookupTag) trg_difs --[Int]; difs already included
+       let trgInds = concatMap (fst.luTag) trg_difs --[Int]; difs already included
+       let otherInds = taginds \\ trgInds
+
        let conds_positions =
             [ (cs, map (i+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds
                                 , all (inRange i) cs ]
@@ -122,20 +134,20 @@ apply s alltags taginds sentence rule = do
           condsHold <- if singleton disjConds
                          then return (head disjConds)
                          else orl s (show $ cond rule) disjConds
+          onlyTrgLeft <- do onlyTrg <- orl s "" $ map (lu sw) trgInds
+                            noOther <- andl s "" $ map (neg . lu sw) otherInds
+                            andl s "onlyTarget" [onlyTrg, noOther]
+
+          cannotApply <- orl s "cannotApply" [ neg condsHold, onlyTrgLeft ]
+          
           newTrgLits <- sequence
-            [ do impl <- implies s implName condsHold (nt trgLit)
-                 --TODO add only targets left option
-                 addClause s [impl]
-                 newTrgLit <- newLit s (show trgLit ++ "'")
-                 oldEquivNew <- equiv s "" trgLit newTrgLit
-                 addClause s [oldEquivNew]
-                 return newTrgLit
+             --wN<a>' is true if both of the following:
+           [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
+                               , cannotApply ] --rule cannot apply 
                | trgInd <- trgInds
-               , let Just trgLit = lookup trgInd sw
-               , let nt = case rule of
-                           (Remove _ _ _) -> neg
-                           (Select _ _ _) -> id 
-               , let implName = show condsHold ++ "=>" ++ show (nt trgLit) ]
+               , let Just oldTrgLit = lookup trgInd sw 
+               , let newTrgName = show oldTrgLit ++ "'"]
+
 
           let newWord = foldl changeAna sw (zip trgInds newTrgLits)
           --print newWord
@@ -149,6 +161,10 @@ apply s alltags taginds sentence rule = do
   foldM applyToWord sentence (toAscList sentence)
 
   where
+   luTag   = lookupTag alltags taginds
+   luLit   = lookupLit sentence 
+   lu xs x = fromMaybe false $ lookup x xs
+
    inRange :: SIndex -> Condition -> Bool
    inRange i (C pos (b,ctags)) = not b -- `NOT -100 a' is always true
                                  || member (i+posToInt pos) sentence
@@ -166,12 +182,12 @@ apply s alltags taginds sentence rule = do
      sequence 
       [ do case position of
              (Barrier  _ _ btags) 
-                -> do let byes_bnos = map lookupTag (toTags btags)
+                -> do let byes_bnos = map luTag (toTags btags)
                       let bi = if ind<0 then ind-1 else ind+1
                       addClause s [true]
                                          
              (CBarrier _ _ btags)
-                -> do let byes_bnos = map lookupTag (toTags btags)
+                -> do let byes_bnos = map luTag (toTags btags)
                       let bi = if ind<0 then ind-1 else ind+1
                       addClause s [true]
              _  -> return ()
@@ -182,62 +198,63 @@ apply s alltags taginds sentence rule = do
                                          n <- andl s "" (map neg difLits)
                                          andl s "" [y,n]
                                        | (yi, di) <- yesInds_difInds
-                                       , let yesLits = map (lookupLit ind) yi
-                                       , let difLits  = map (lookupLit ind) di ]
+                                       , let yesLits = map (luLit ind) yi
+                                       , let difLits  = map (luLit ind) di ]
                          (True, True)  ->
                            sequence [ do y <- orl  s "" yesLits
                                          n <- andl s "" (map neg other)
                                          andl s "" [y,n]
                                        | (yi, _) <- yesInds_difInds
-                                       , let yesLits = map (lookupLit ind) yi
-                                       , let other = map (lookupLit ind) (ti \\ yi) ]
+                                       , let yesLits = map (luLit ind) yi
+                                       , let other = map (luLit ind) (ti \\ yi) ]
                          (False, False) ->
                            sequence [ do n <- andl s "" (map neg noLits)
                                          y <- orl s "" other --need something positive
                                          andl s "" [y,n]
                                        | (yi, di) <- yesInds_difInds
-                                       , let noLits = map (lookupLit ind) yi 
-                                       , let other = map (lookupLit ind) (ti \\ yi) ]
+                                       , let noLits = map (luLit ind) yi 
+                                       , let other = map (luLit ind) (ti \\ yi) ]
                          (False, True)  ->
                            sequence [ do orl s "" other
                                        | (yi, di) <- yesInds_difInds
-                                       , let other = map (lookupLit ind) (ti \\ yi) ]
+                                       , let other = map (luLit ind) (ti \\ yi) ]
            orl s (show c) disjTags
         | (c@(C position (positive,ctags)), ind) <- zip conds inds
-        , let yesInds_difInds = map lookupTag $ toTags ctags
+        , let yesInds_difInds = map luTag (toTags ctags)
         , let cautious = isCareful position 
         , let ti = taginds ]
 
-   lookupTag :: (Trg,Dif) -> ([WIndex],[WIndex])
-   lookupTag (trg,dif) = 
-      let trgInds = if trg==[[]] then taginds
-                      else concatMap (go taginds) trg --trg::[[Tag]]
-          difInds = if dif==[[]] then [] 
-                      else concatMap (go taginds) dif --dif::[[Tag]]
+lookupTag :: TagMap -> [WIndex] -> (Trg,Dif) -> ([WIndex],[WIndex])
+lookupTag alltags allinds (trg,dif) = 
+  let trgInds = if trg==[[]] then allinds
+                   else concatMap (go allinds) trg --trg::[[Tag]]
+      difInds = if dif==[[]] then [] 
+                      else concatMap (go allinds) dif --dif::[[Tag]]
           
-      in  (trgInds\\difInds, difInds)
-    where
-     go acc []     = acc         --default is [] because intersect [] _ == []
-     go acc (t:ts) = let inds = [] `fromMaybe` lookup t alltags
-                     in go (intersect acc inds) ts
+  in  (trgInds\\difInds, difInds)
+ where
+  go acc []     = acc         --default is [] because intersect [] _ == []
+  go acc (t:ts) = let inds = [] `fromMaybe` lookup t alltags
+                  in go (intersect acc inds) ts
 
-   lookupLit :: SIndex -> WIndex -> Lit
-   lookupLit si wi = case lookup si sentence of
-                       Just ts -> case lookup wi ts of
-                                   Just tag -> tag
-                                   Nothing  -> error "lookupLit: tag combination not found"
-                       Nothing -> true  --we've been sent here by negated rule,
+lookupLit :: Sentence -> SIndex -> WIndex -> Lit
+lookupLit sentence si wi = case lookup si sentence of
+                    Just ts -> case lookup wi ts of
+                                 Just tag -> tag
+                                 Nothing  -> error "lookupLit: tag combination not found"
+                    Nothing -> true  --we've been sent here by negated rule,
                                         --`NOT -1000 foo' is always true
 
 --------------------------------------------------------------------------------
 
-width :: Rule -> Int
+width :: Rule -> (Int,SIndex) --width of rule + index of target
 width = fill . toConds . cond
 
-fill :: [[Condition]] -> Int
-fill []   = 1 -- should not happen, toConds returns [[]] as the default option
-fill [[]] = 1
-fill css = length [minInd..maxInd]
+fill :: [[Condition]] -> (Int,SIndex)
+fill []   = (1,1) -- should not happen, toConds returns [[]] as the default option
+fill [[]] = (1,1)
+fill css = (length [minInd..maxInd], 
+            1+(fromJust $ elemIndex 0 [minInd..maxInd]))
  where
   minInd = 0 `min` minimum poss
   maxInd = 0 `max` maximum poss
