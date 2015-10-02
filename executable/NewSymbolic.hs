@@ -110,8 +110,8 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                                    in (t, getInds tcs) 
   when verbose $ do
     putStrLn "Initial sentence:"
-    printSentence initialSentence
-    --solveAndPrintSentence s [] initialSentence
+    --printSentence initialSentence
+    solveAndPrintSentence s [] initialSentence
     putStrLn "----"
   afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
 
@@ -124,12 +124,13 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     let trgWInds@((yes,no):_) = map luTag trg_difs
     let trgLits = map (lookupLit afterRules trgSInd) yes
     let otherLits = map (lookupLit afterRules trgSInd) (taginds \\ yes)
+    let otherLitsName = if length otherLits > 3 
+                           then show (take 3 otherLits) ++ "..."
+                           else show otherLits
+
     mustHaveTrg  <- orl s ("must have: " ++ show trgLits) trgLits
-    mustHaveOther <- orl s ("must have: " ++ show otherLits) otherLits
+    mustHaveOther <- orl s ("must have: " ++ otherLitsName) otherLits
     condLits <- mapM (mkCond s luTag (lookupLit afterRules) taginds) conds_positions
-    -- print ("***trgLits:   ",trgLits)
-    -- print ("***otherLits: ",otherLits)
-    -- print ("***condLits:  ",condLits)
     allCondsHold <- andl s ("must hold: " ++ unwords (map show condLits)) condLits
     return [mustHaveTrg, mustHaveOther, allCondsHold]
     
@@ -139,20 +140,35 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
    then do 
       putStrLn $ "Following triggers last rule: " ++ show lastrule
       solveAndPrintSentence s shouldTriggerLast afterRules
-   else putStrLn "conflict!"
+   else do
+      putStrLn "Conflict!"
+      putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
+      putStrLn $ "The sentence should have these properties:"
+      mapM_ (\x -> putStrLn ("* " ++ show x)) shouldTriggerLast
+      putStrLn "This is the next best thing we can do:"
+      shouldTriggerLast `forM_` \req -> solveAndPrintSentence s [req] afterRules >> putStrLn "--"
+
+
+      
   return b
 
  where
   applyAndPrint :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
   applyAndPrint s tl ti sent rule = do
-    newsent <- apply s tl ti sent rule
-    when verbose $ do 
+    let (w,_) = width rule
+    if w > length (elems sent) then do
+      putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
+      putStrLn "----"
+      return sent
+     else do
       putStrLn $ "Applied rule " ++ show rule 
-      putStrLn "New sentence:"
-      when debug $ printSentence newsent
-      solveAndPrintSentence s [] newsent
-      putStrLn "-----"
-    return newsent
+      newsent <- apply s tl ti sent rule
+      when verbose $ do
+        putStrLn "One possible new sentence:"
+        when debug $ printSentence newsent
+        solveAndPrintSentence s [] newsent
+        putStrLn "-----"
+      return newsent
 
 --------------------------------------------------------------------------------
 
@@ -182,9 +198,10 @@ apply s alltags taginds sentence rule = do
           disjConds <- mapM mkCondition conds_positions --for disj. cond. templates
           condsHold <- orl' s disjConds
           onlyTrg <- orl' s  $ map (lu sw) trgInds
-          let othersNeg = map (neg . lu sw) otherInds
-          noOther <- andl' s othersNeg
-          onlyTrgLeft <- andl s ("("++show onlyTrg ++ " & " ++ show othersNeg ++ ")")
+          let otherNeg = map (neg . lu sw) otherInds
+          noOther <- andl' s otherNeg
+          let noOtherName = if length otherNeg < 3 then show otherNeg else "~<everything else>"
+          onlyTrgLeft <- andl s ("("++show onlyTrg ++ " & " ++ noOtherName ++ ")")
                                 [onlyTrg, noOther]
           cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
           
@@ -195,7 +212,7 @@ apply s alltags taginds sentence rule = do
                | trgInd <- trgInds
                , let Just oldTrgLit = lookup trgInd sw 
                , let newTrgName = show oldTrgLit ++ "'"]
-          print $ "*** reasons why we couldn't apply: " ++ show cannotApply
+          putStrLn $ "*** reasons why we couldn't apply: " ++ show cannotApply
 
           b <- solve s []
           let newsw = foldl changeAna sw (zip trgInds newTrgLits)
