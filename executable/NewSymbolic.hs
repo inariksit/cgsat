@@ -6,7 +6,7 @@ import SAT.Named
 
 import Control.Monad
 import Data.List hiding ( lookup )
-import Data.Map ( Map(..), fromList, toAscList, elems, member, adjust, lookup )
+import Data.Map ( Map(..), fromList, toAscList, keys, elems, member, adjust, lookup )
 import Data.Maybe
 import Debug.Trace
 import Prelude hiding ( lookup )
@@ -118,10 +118,10 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   shouldTriggerLast <-  do
     let luTag = lookupTag taglookup taginds
     let trg_difs = toTags $ target lastrule
-    let conds    = toConds $ cond lastrule
+    let conds = toConds $ cond lastrule
     let conds_positions =
          [ (cs, map (trgSInd+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds]
-    let trgWInds@((yes,no):_) = map luTag trg_difs
+    let trgWInds@((yes,no):_) = map luTag trg_difs --TODO
     let trgLits = map (lookupLit afterRules trgSInd) yes
     let otherLits = map (lookupLit afterRules trgSInd) (taginds \\ yes)
     let otherLitsName = if length otherLits > 3 
@@ -158,11 +158,12 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     let (w,_) = width rule
     if w > length (elems sent) then do
       putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
-      putStrLn "----"
+      putStrLn "-----"
       return sent
      else do
       putStrLn $ "Applied rule " ++ show rule 
       newsent <- apply s tl ti sent rule
+      constrainBoundaries s sent tl
       when verbose $ do
         putStrLn "One possible new sentence:"
         when debug $ printSentence newsent
@@ -287,14 +288,30 @@ mkCond s luTag luLit ti (conds,inds) = andl' s  =<< sequence
         , let yesInds_difInds = map luTag (toTags ctags)
         , let cautious = isCareful position ]
 
+--------------------------------------------------------------------------------
+
+constrainBoundaries :: Solver -> Sentence -> TagMap -> IO ()
+constrainBoundaries s sent alltags = do
+  let bdTags = map Tag ["EOS", ">>>", "<<<", "sent"]
+  let bdInds = concat $ catMaybes $ map (\x -> lookup x alltags) bdTags
+  print ("* constrainBoundaries",bdInds)
+  sequence_ [ do let bds    = catMaybes $ map (\x -> lookup x word) bdInds
+                 let nonbds = catMaybes $ map (\x -> lookup x word) nonBdInds
+                 isBd <- orl' s bds
+                 nonBd <- andl s "not boundary" (map neg nonbds)
+                 addClause s [neg isBd, neg nonBd]
+               | word <- elems sent
+               , let allInds = keys word 
+               , let nonBdInds = allInds \\ bdInds]
+
+--------------------------------------------------------------------------------
+
 mkSentence :: Solver -> Int -> [[Tag]] -> IO Sentence
 mkSentence s w tcs = fromList `fmap` sequence 
                        [ ((,) n . fromList) `fmap` sequence 
                          [ (,) m `fmap` newLit s (shTC t n) | (m, t) <- zip [1..] tcs ]
                             | n <- [1..w] ] 
  where shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
-
---------------------------------------------------------------------------------
 
 lookupTag :: TagMap -> [WIndex] -> (Trg,Dif) -> ([WIndex],[WIndex])
 lookupTag alltags allinds (trg,dif) = 
