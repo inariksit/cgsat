@@ -1,7 +1,7 @@
 import CG_base hiding ( Sentence, showSentence )
 import CG_parse
 import CG_SAT
-import SAT ( Solver(..), newSolver )
+import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
 import Control.Monad
@@ -13,8 +13,8 @@ import Prelude hiding ( lookup )
 import System.Environment
 
 ex_abc1 = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (-1C (c)) ; " ++
-       "REMOVE:l  (c) IF (-1  (c)) ; ")
+     ( "REMOVE:r1 (a) IF (-1 (c)) ; " ++
+       "REMOVE:l  (a) IF (-1C  (c)) ; ")
 
 ex_abc2 = concat $ snd $ parseRules False
      ( "REMOVE:r1 (a) IF (-1 (*) - (b)) ;" ++
@@ -36,7 +36,7 @@ main = do
              let abc2 = splits ex_abc2
              let not_ = splits ex_not
              
-             mapM (testRule (True,True) ts tc) (last abc1:last abc2:last not_:[])
+             mapM (testRule (True,True) ts tc) (last abc1:[]) --last abc2:last not_:[])
 
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -110,10 +110,11 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                                    in (t, getInds tcs) 
   when verbose $ do
     putStrLn "Initial sentence:"
-    --printSentence initialSentence
+    printSentence initialSentence
     solveAndPrintSentence s [] initialSentence
     putStrLn "----"
   afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
+  --mapM_ (constrainBoundaries s taglookup) (elems afterRules)
 
   shouldTriggerLast <-  do
     let luTag = lookupTag taglookup taginds
@@ -149,7 +150,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
       shouldTriggerLast `forM_` \req -> solveAndPrintSentence s [req] afterRules >> putStrLn "--"
 
 
-      
+  deleteSolver s 
   return b
 
  where
@@ -163,7 +164,6 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
      else do
       putStrLn $ "Applied rule " ++ show rule 
       newsent <- apply s tl ti sent rule
-      constrainBoundaries s sent tl
       when verbose $ do
         putStrLn "One possible new sentence:"
         when debug $ printSentence newsent
@@ -179,10 +179,7 @@ apply s alltags taginds sentence rule = do
   let trg_difs = toTags $ target rule
   let conds    = toConds $ cond rule
 
-  sequence_ 
-   [ do let lits = elems word
-        addClause s lits
-     | (sind,word) <- toAscList sentence ]
+  sequence_ [ addClause s (elems word) | word <- elems sentence ]
 
       -- :: Sentence -> (SIndex, Map WIndex Lit) -> Sentence
   let applyToWord sentence (i,sw) = do
@@ -217,7 +214,9 @@ apply s alltags taginds sentence rule = do
 
           b <- solve s []
           let newsw = foldl changeAna sw (zip trgInds newTrgLits)
+          constrainBoundaries s alltags newsw
           return $ changeWord sentence i newsw
+          
 
 
   foldM applyToWord sentence (toAscList sentence)
@@ -290,19 +289,20 @@ mkCond s luTag luLit ti (conds,inds) = andl' s  =<< sequence
 
 --------------------------------------------------------------------------------
 
-constrainBoundaries :: Solver -> Sentence -> TagMap -> IO ()
-constrainBoundaries s sent alltags = do
-  let bdTags = map Tag ["EOS", ">>>", "<<<", "sent"]
+constrainBoundaries :: Solver -> TagMap -> Word -> IO ()
+constrainBoundaries s alltags word = do
+  let allInds = keys word 
+  let bdTags = [EOS, BOS, Tag "sent", Tag "cm"]
   let bdInds = concat $ catMaybes $ map (\x -> lookup x alltags) bdTags
+  let nonBdInds = allInds \\ bdInds
   print ("* constrainBoundaries",bdInds)
-  sequence_ [ do let bds    = catMaybes $ map (\x -> lookup x word) bdInds
-                 let nonbds = catMaybes $ map (\x -> lookup x word) nonBdInds
-                 isBd <- orl' s bds
-                 nonBd <- andl s "not boundary" (map neg nonbds)
-                 addClause s [neg isBd, neg nonBd]
-               | word <- elems sent
-               , let allInds = keys word 
-               , let nonBdInds = allInds \\ bdInds]
+
+  let bds    = catMaybes $ map (\x -> lookup x word) bdInds
+  let nonbds = catMaybes $ map (\x -> lookup x word) nonBdInds
+  isBd  <- orl' s bds
+  nonBd <- andl s "not boundary" (map neg nonbds)
+  print [neg isBd, nonBd]
+  addClause s [neg isBd, nonBd]
 
 --------------------------------------------------------------------------------
 
