@@ -86,6 +86,7 @@ solveAndPrintSentence s ass sent = do
                ++ unlines [ "\t"++show ana | (ana, True) <- zip (elems word) vs ]
          | ((sind,word), vs) <- zip (toAscList sent) vals ]
   mapM_ putStrLn trueAnas
+  putStrLn "----"
 
 printSentence :: Sentence -> IO ()
 printSentence sent = do
@@ -148,7 +149,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
       putStrLn $ "The sentence should have these properties:"
       mapM_ (\x -> putStrLn ("* " ++ show x)) shouldTriggerLast
       putStrLn "This is the next best thing we can do:"
-      shouldTriggerLast `forM_` \req -> solveAndPrintSentence s [req] afterRules >> putStrLn "--"
+      shouldTriggerLast `forM_` \req -> solveAndPrintSentence s [req] afterRules
 
 
   deleteSolver s 
@@ -169,7 +170,6 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
         putStrLn "One possible new sentence:"
         when debug $ printSentence newsent
         solveAndPrintSentence s [] newsent
-        putStrLn "-----"
       return newsent
 
 --------------------------------------------------------------------------------
