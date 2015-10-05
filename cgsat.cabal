@@ -53,7 +53,7 @@ executable cgsat
 
 executable symbolic
   hs-source-dirs:      executable
-  main-is:             NewSymbolic.hs
+  main-is:             Symbolic.hs
   build-depends:       base,
                        cgsat,
                        mtl,

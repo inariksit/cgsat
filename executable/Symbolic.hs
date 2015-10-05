@@ -1,159 +1,57 @@
-import CG_base
-import CG_SAT hiding ( isCautious, isPositive )
+import CG_base hiding ( Sentence, showSentence )
 import CG_parse
+import CG_SAT
+import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
-import SAT ( Solver, newSolver, conflict )
 
-import Control.Monad ( when )
-import Data.List
+import Control.Monad
+import Data.List hiding ( lookup )
+import Data.Map ( Map(..), fromList, toAscList, keys, elems, member, adjust, lookup )
+import Data.Maybe
 import Debug.Trace
-
+import Prelude hiding ( lookup )
 import System.Environment
-import System.IO ( hFlush, stdout )
 
+ex_abc1 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1 (c)) ; " ++
+       "REMOVE:l  (a) IF (-1C  (c)) ; ")
 
-ex_onlyTrgLeft = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (adj OR det) IF (1 v) ;" ++
-    -- ( "REMOVE:r1 (adj OR det) ;" ++
-       "REMOVE:r2 v IF (-1 adj LINK 0 det ) ;" ) 
+ex_abc2 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1 (*) - (b)) ;" ++
+       "REMOVE:r2 (b) IF ( 1 (a)) ;" ++
+       "REMOVE:r3 (a) IF (-1 (b)) ;" ++
+       "REMOVE:l  (a) IF (-1 (c)) ;" )
 
-ex_firstRuleStricter = concat $ snd $ parseRules False
-     ( "REMOVE:r1 v IF (-1C det) ;" ++
-       "REMOVE:r2 v IF (-1  det) ;" ) 
-
-ex_threerules = concat $ snd $ parseRules False 
-     ( "REMOVE:r1 (v) IF (-1 (det))  ;" ++
-       "REMOVE:r2 (det) IF (1 (v)) ;"    ++
-       "REMOVE:r3 (v) IF (-1C (det) ) ;" ) 
-
-ex_barrier = concat $ snd $ parseRules False 
-     ( "REMOVE:r1 (det) IF (1 (adj)) ; " ++ 
-       "SELECT:s1 (det) IF (1 (adj)) ; " ++ --twist!
-       "REMOVE:r2 (v)   IF (1* (def) BARRIER (adj)) ;" )
-
-ex_testDisj = concat $ snd $ parseRules False
-     ( "SET DetNoDef  = (det) - (def) ;" ++
-       "SET AdjNoAttr = (adj) - (attr) ;" ++
-       "REMOVE:r1 (n) IF (-1 DetNoDef OR AdjNoAttr) (-1 (det) OR (adj)) ;" ++
-       "REMOVE:r2 (n) IF ( (-1 DetNoDef OR AdjNoAttr) OR (-2 (v)) ) (-2 (adj)) ;" )
-
-
-ex_complex = concat $ snd $ parseRules False 
-     ( "REMOVE:r1 (v) IF (-1C (det));"  ++
-       "SELECT:s2 (det) IF (1 (v));" ++
---     "REMOVE:r2 (*) - (det) IF (1 (v)) ; " ++
-       "REMOVE:r3  (v) IF (-1 (det)) ;" )
-
-ex_foobar1 = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (foo) IF (-1 (baz)) ; " ++
-       "REMOVE:r2 (foo) IF (-1 (*) - (foo)) ; " ++
-     --  "REMOVE:r3 (bar) IF (-1 (foo)) ; " ++
-     --  "REMOVE:r4 (bar) IF (-1 (*) - (foo)) ; " ++
-     --  "REMOVE:r2 (bar) IF (NOT -1 (foo)) ; " ++
-     --  "REMOVE:r4 (foo) IF (NOT -1 (foo)) ; " ++
-       "REMOVE:l (baz) IF (-1 (baz)) ; ")
-
-ex_foobar2 = concat $ snd $ parseRules False
-     ( "REMOVE (foo) IF (-1 (*) - (baz)) ;" ++
-       "REMOVE (baz) IF (1 (foo)) ;" ++
-     --  "REMOVE (foo) IF (-1 (baz)) ;" ++
-       "REMOVE (foo) IF (-1 (bar)) ;" )
-
-
-toTags' :: TagSet -> [[Tag]]
-toTags' = concatMap (nub . (\(a,b) -> if all null b then a else b)) . toTags
+ex_not = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (NOT -1 (c)) ;" ++
+       "REMOVE:r2 (a) IF (-1 (a)) ;" ++
+       "REMOVE:l  (b) IF (-1 (c)) ;" )
 
 main = do
   args <- getArgs
-  case args of
-   [] -> do putStrLn "test"
-            let ts = map ((:[]) . Tag) ["foo","bar","baz"] 
-            let tc = ts
-            let foobar1 = splits ex_foobar1
-            let foobar2 = splits ex_foobar2 
-            --mapM_ (testRule True True ts tc) foobar1
-            putStrLn "\n---------\n"
-            mapM_ (testRule True True ts tc) foobar2
+  let ts = map (Tag . (:[])) "abc"
+  let tc = sequence [ts] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
+  case args of 
+    [] -> do let abc1 = splits ex_abc1
+             let abc2 = splits ex_abc2
+             let not_ = splits ex_not
+             
+             mapM (testRule (True,True) ts tc) (last abc1:[]) --last abc2:last not_:[])
 
+    ("nld":r)
+       -> do let verbose = "v" `elem` r || "d" `elem` r
+             let debug = "d" `elem` r
+             -- ts <- (concat . filter (not.null) . map parse . words) 
+             --           `fmap` readFile "data/nld/nld_tags.txt"
+             (tsets, rls) <- readRules' "data/nld/nld.rlx"
+             let rules = concat rls
+             let tcInGr = nub $ concatMap toTags' tsets
+             print tcInGr
+             tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
+             let tc = nub $ tcInGr ++ tcInLex
+             let ts = nub $ concat tc
+             mapM (testRule (verbose,debug) ts tc) (splits rules)
 
-   ("tiny":_)
-      -> do let ts = map ((:[]) . Tag) ["adj","det","v","n"] 
-            --let tc = ts 
-            let tc = drop 1 ts ++ [[Tag "adj", Tag "pred"], [Tag "adj", Tag "attr"], [Tag "pron", Tag "def"], [Tag "det", Tag "def"]]
-            let splits' x = [last (splits x)]
-            let otl_spl  = splits' ex_onlyTrgLeft
-            let first_stricter_spl = splits' ex_firstRuleStricter
-            let second_stricter_spl = splits' $ reverse ex_firstRuleStricter
-            let three = splits' ex_threerules
-            let barrier = splits' ex_barrier
-            let disj = splits' ex_testDisj
-            let complex = splits' ex_complex
-
-            let doEverything spl = do 
-                     putStrLn "Next test!\n***********"
-                     let (verbose, debug) = (True, True)
-                     results <- mapM (testRule verbose debug ts tc) spl
-                     mapM_ (findConflict ts tc) [ rule | (False,rule) <- results ]
-
-            mapM_ doEverything 
-                  [ otl_spl
-                  , first_stricter_spl
-                  , second_stricter_spl
-                  , three
-                  , barrier
-                  , disj
-                  , complex
-                  ]
-
-
-
-
-   ("nld":r)
-      -> do let verbose = "v" `elem` r || "d" `elem` r
-            let debug = "d" `elem` r
-            ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/nld/nld_tags.txt"
-  
-            (tsets, rls) <- readRules' "data/nld/nld.rlx"
-            let rules = concat rls
-            when debug $ mapM_ print rules
-            let tcInGr = nub $ concatMap toTags' tsets
-            print tcInGr
-            tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
-            let tc = nub $ tcInGr  -- ++ tcInLex
-            let spl = splits rules
-            results <- mapM (testRule verbose debug ts tc) spl
-            --corpus <- concat `fmap` readData "data/nld_story.txt"
-            --checkCorpus results corpus
-            
-            let badrules = [ rule | (False,rule) <- results ]
-
-            putStrLn "bad rules:"
-            --mapM_ print badrules
-            
-            --mapM_ (findConflict ts tc) badrules
-
-            putStrLn "\n---------\n"
-   ("spa":r)
-      -> do ts <- (filter (not.null) . map parse . words) `fmap` readFile "data/spa_tags.txt"
-            (tsets, _) <- readRules' "data/spa/spa_smallset.rlx"
-            let tc = nub $ ts ++ concatMap toTags' tsets
-            print "spa"
-   (gr:r)
-      -> do let verbose = "v" `elem` r || "d" `elem` r
-            let debug = "d" `elem` r
-            (tsets, rls) <- readRules' gr
-            let rules = concat rls
-            mapM_ print rules
-
-            let tc = nub $ concatMap toTags' tsets
-            let spl = splits rules
-            results <- mapM (testRule verbose debug tc tc) spl
-            let badrules = [ rule | (False,rule) <- results ]
-            mapM_ (findConflict tc tc) badrules
-
-
-
-            
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
    splits xs = xs `for` \x -> let Just ind = elemIndex x xs
@@ -161,365 +59,322 @@ main = do
 
    for = flip fmap
 
+   toTags' :: TagSet -> [[Tag]]
+   toTags' = concatMap (nub . (\(a,b) -> if all null b then a else a++b)) . toTags
 --------------------------------------------------------------------------------
 
-shTC :: [Tag] -> Int -> String
-shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
+--Indices start at 1. More intuitive to talk about w1, w2 vs. w0, w1.
+--(Ab)using Data.Map because lookup and updates go nicely with builtin functions
+type Word     = Map WIndex Lit
+type Sentence = Map SIndex Word
+type TagMap   = Map Tag [WIndex]
+type WIndex   = Int
+type SIndex   = Int
 
+solveAndPrintSentence :: Solver -> [Lit] -> Sentence -> IO ()
+solveAndPrintSentence s ass sent = do
+  let lits = concatMap elems (elems sent)
+  --print lits
+  --litsU <- count s lits
+  --solveMaximize s ass litsU
+  solve s ass
+  vals <- sequence 
+           [ sequence  [ modelValue s lit | lit <- elems word ] 
+             | (sind,word) <- toAscList sent ]
+  let trueAnas =
+       [ "\"w" ++ show sind ++ "\"\n"
+               ++ unlines [ "\t"++show ana | (ana, True) <- zip (elems word) vs ]
+         | ((sind,word), vs) <- zip (toAscList sent) vals ]
+  mapM_ putStrLn trueAnas
+
+printSentence :: Sentence -> IO ()
+printSentence sent = do
+  let allAnas =
+       [ "  \"w" ++ show sind ++ "\" ----> "
+               ++ intercalate ", " [ show ana | ana <- elems word ]
+         | (sind,word) <- toAscList sent ]
+  mapM_ putStrLn allAnas
 
 --------------------------------------------------------------------------------
 
---testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,[Token])
-testRule :: Bool -> Bool -> [[Tag]] -> [[Tag]] -> (Rule, [Rule]) -> IO (Bool,(Rule,[Rule]))
-testRule verbose debug alltags tagcombs (rule, rules) = do
-  when verbose $ do
-    putStrLn "************* testRule ***************"
-    putStrLn $ "Testing with " ++ show rule ++ " as the last rule"
-    putStrLn "the rest of the rules: " >> mapM_ print rules
-
+testRule :: (Bool,Bool) -> [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
+testRule (verbose,debug) ts tcs (lastrule,rules) = do 
+  putStrLn "************* testRule ***************"
+  putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
+  putStrLn "the rest of the rules: " >> mapM_ print rules
+  let (w,trgSInd) = width lastrule
+  let taginds = [1..length tcs]
   s <- newSolver
-  let (ruleWidth,symbWords) = width rule
-  allLits <- sequence 
-              [ sequence [ newLit s (shTC t n) | t <- tagcombs ] | n <- [1..ruleWidth] ] :: IO [[Lit]]
-
-  let ss = concat
-             [ [ mkToken m (addWF m tags) lit | (lit, tags) <- zip lits tagcombs ]
-                   | (lits, m) <- zip allLits [1..length allLits]
-             ]  :: [Token]
-
-  let sWordsInOrder = groupBy sameIndSW $ sort $ concat $ concat symbWords
-  let sWordMap = [(sWord, lits) | (sWords, lits) <- zip sWordsInOrder allLits 
-                                , sWord <- sWords ]
-  --mapM_ print sWordMap
-
-  when debug $ do 
-    putStrLn "symbolic sentence:"
-    mapM_ print ss
-
-  cls <- concat `fmap` 
-              sequence [ f swords | swords <- symbWords :: [[[SymbWord]]]
-                                  , let f = slOrRm s sWordMap ]
-                                                
+  initialSentence <- mkSentence s w tcs
+  let taglookup = fromList $
+                    ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
+                                   in (t, getInds tcs) 
   when verbose $ do
-    putStr $ "rule " ++ show rule
-    putStrLn $ ": "  ++ show (length cls) ++ " clauses"
-  
-  sequence_ [ do when debug $ print cl
-                 addClause s cl | cl <- cls ]
+    putStrLn "Initial sentence:"
+    printSentence initialSentence
+    solveAndPrintSentence s [] initialSentence
+    putStrLn "----"
+  afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
+  --mapM_ (constrainBoundaries s taglookup) (elems afterRules)
 
+  shouldTriggerLast <-  do
+    let luTag = lookupTag taglookup taginds
+    let trg_difs = toTags $ target lastrule
+    let conds = toConds $ cond lastrule
+    let conds_positions =
+         [ (cs, map (trgSInd+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds]
+    let trgWInds@((yes,no):_) = map luTag trg_difs --TODO
+    let trgLits = map (lookupLit afterRules trgSInd) yes
+    let otherLits = map (lookupLit afterRules trgSInd) (taginds \\ yes)
+    let otherLitsName = if length otherLits > 3 
+                           then show (take 3 otherLits) ++ "..."
+                           else show otherLits
 
-
-  b <- solve s []
-  if b then do
-    as <- sequence [ modelValue s x | x <- concat allLits ]
-    let truetoks = [ t | (True, t) <- zip as ss ]
-    when verbose $ putStrLn $ showSentence (dechunk truetoks)
-   else do
-    putStrLn "bad initial rule"
-    conf <- conflict s
-    putStr "conflict: "
-    let confNamed = [ named | lit <- conf
-                            , let litMap = [ (l, n) | (Lit n l) <- concat allLits ] 
-                            , let named = case lookup lit litMap of
-                                                 Just nm -> nm
-                                                 Nothing -> show lit
-                    ]
-    print confNamed
-  putStrLn "\n---------\n"
-
-  rls_applied_helps <- sequence [ do as_hs <- analyseGrammar s ss rl
-                                     let rl_as_hs = map (\(a,b) -> (rl,a,b)) as_hs
-                                     return rl_as_hs --to make sure only applied rules come in
-                                   | rl <- rules
-                                   , (fst $ width rl) <= ruleWidth ] 
-
-  let rls_applied = [ (rl,cls) | foo <- rls_applied_helps 
-                               , (rl, cls, _) <- foo ]
-               
-  let helps = nub $ concat
-               [ cls | foo <- rls_applied_helps 
-                     , (_, _, cls)  <- foo ]
-
-
-  sequence_ [ do addClause s cl
-                 when verbose $ --debug $ 
-                   putStrLn $ show rl ++ ": " ++ show cl
-                 | (rl, cls) <- rls_applied 
-                 , cl <- cls ] 
-
-
-  b <- solve s []
-  if b then do
-    when debug $ safePrValues helps s
-    as <- sequence [ modelValue s x | x <- concat allLits ]
-    let truetoks = [ t | (True, t) <- zip as ss ]
-    when verbose $ putStrLn $ showSentence (dechunk truetoks)
---    return (True,truetoks)
-    return (True,(rule,rules))
-       else do
-         putStrLn "Could not find sentence that matches conditions" 
-         conf <- conflict s
-         putStr "conflict: "
-         print conf
-         return (False,(rule,rules))
-
-
- where 
-  addWF m = (WF ("w" ++ show m) :)
-
-  sh True = '1' 
-  sh False = '0'
-
-  -- one condition corresponds to [[SymbWord]]s:
-  -- for template,  [ [c1], [c2] ]
-  -- for AND or barrier, [[c1,c2]]
-  -- for single condition,  [[c1]]
-  slOrRm :: Solver -> [(SymbWord,[Lit])] -> [[SymbWord]] -> IO [Clause]
-  slOrRm s sWordMap swordsFromOneCond = -- trace ("slOrRm: " ++ show swordsFromOneCond) $
-   do
-    (newlits,cls) <- unzip `fmap` mapM (slOrRm' s sWordMap) swordsFromOneCond
-    let nlCls = if length swordsFromOneCond > 1 
-                  then [concat $ concat newlits] else concat newlits
-    return $ nlCls ++ concat cls
-
-  slOrRm' s sWordMap ind0s = do 
-    let n = length tagcombs - 1
-    let (trgs,conds) = partition (isTarget.info) ind0s
-    newlits <- sequence [ newLit s ("trg"++(show $ index $ info t)) | t <- trgs ] --literal for each OR option in target
-    when debug $ putStrLn ("slOrRm.newlits: " ++ show newlits)
-    let trgCls = concatMap (filter notNegUnit) $ 
-             [ concatMap (uncurry (disj wn n nl)) tg_difs
-                            | (nl, sw@(SW info tg_difs)) <- zip newlits trgs
-                            , let Just wn = lookup sw sWordMap ]  :: [Clause]
-
+    mustHaveTrg  <- orl s ("must have: " ++ show trgLits) trgLits
+    mustHaveOther <- orl s ("must have: " ++ otherLitsName) otherLits
+    condLits <- mapM (mkCond s luTag (lookupLit afterRules) taginds) conds_positions
+    allCondsHold <- andl s ("must hold: " ++ unwords (map show condLits)) condLits
+    return [mustHaveTrg, mustHaveOther, allCondsHold]
     
-    (cNls, cCls) <- if null conds then return ([],[]) 
-                     else slCond' s sWordMap conds
-    return $ (if null newlits then cNls else newlits:cNls, trgCls ++ cCls)
+  when debug $ print shouldTriggerLast
+  b <- solve s shouldTriggerLast
+  if b 
+   then do 
+      putStrLn $ "Following triggers last rule: " ++ show lastrule
+      solveAndPrintSentence s shouldTriggerLast afterRules
+   else do
+      putStrLn "Conflict!"
+      putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
+      putStrLn $ "The sentence should have these properties:"
+      mapM_ (\x -> putStrLn ("* " ++ show x)) shouldTriggerLast
+      putStrLn "This is the next best thing we can do:"
+      shouldTriggerLast `forM_` \req -> solveAndPrintSentence s [req] afterRules >> putStrLn "--"
 
-    where
-     disj :: [Lit] -> Int -> Lit -> Trg -> Dif -> [Clause]
-     disj wn n nl trg dif = 
-       let indTrg = concatMap (lookup' tagcombs) trg
-           indDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-           indNeut = [0..n] \\ (indTrg ++ indDif)
 
-       in [ neg nl:[ wn !! ind | ind <- indTrg ] ] ++
-          [ neg nl:[ wn !! ind | ind <- indNeut ] ] ++
-          [ [neg nl, neg$wn!!ind] | ind <- indDif ]
+  deleteSolver s 
+  return b
 
-  slCond' :: Solver -> [(SymbWord,[Lit])] -> [SymbWord] -> IO ([Clause],[Clause])
-  slCond' s sWordMap swords = 
-   do
-    let n = length tagcombs - 1 
+ where
+  applyAndPrint :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
+  applyAndPrint s tl ti sent rule = do
+    let (w,_) = width rule
+    if w > length (elems sent) then do
+      putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
+      putStrLn "-----"
+      return sent
+     else do
+      putStrLn $ "Applied rule " ++ show rule 
+      newsent <- apply s tl ti sent rule
+      when verbose $ do
+        putStrLn "One possible new sentence:"
+        when debug $ printSentence newsent
+        solveAndPrintSentence s [] newsent
+        putStrLn "-----"
+      return newsent
 
-    -- newlits:: [[Lit]]
-    --  [Inside this list separate conditions grouped by AND
-    --     [Inside these lists: tagsets grouped by OR]
-    --  nope there is no consistency with the order in toConds, thanks for asking ^_^
-    --  ]
-    newlits <- sequence 
-                 [ sequence [ newLit s "" | n <- [0..length trg_difs-1] ] 
-                            | trg_difs <- map targets swords ] :: IO [[Lit]]
-    when debug $
-      putStrLn $ ("slCond'.newlits: " ++ show newlits)
-    let disjs = concatMap (filter notNegUnit) $ 
-                [ uncurry f trg_dif 
-                    | (nlits, sw@(SW info trg_difs) ) <- zip newlits swords
-                    , (nl, trg_dif) <- zip nlits trg_difs
-                    , let f = case (isPositive info, isCautious info,lookup sw sWordMap) of
-                               (True, True, Just wn) -> disjunctionC wn n nl
-                               (True, False,Just wn) -> disjunction wn n nl 
-                               (False,False,Just wn) -> negative wn n nl
-                               (False,True, Just wn)  -> negativeC wn n nl
-                               (_,   _,    Nothing) -> error "slCond.index out of bounds" ]
+--------------------------------------------------------------------------------
 
-    return (newlits, disjs)
+apply :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
+apply s alltags taginds sentence rule = do
 
-    where
-     
-     -- (-1 foo) : >=1 foo is true
-     disjunction :: [Lit] -> Int -> Lit -> Trg -> Dif -> [Clause]
-     disjunction wn n nl trg dif = 
-       let indTrg = concatMap (lookup' tagcombs) trg
-           indDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-       in [ neg nl:[ wn !! ind | ind <- indTrg ] ] ++
-          [ [neg nl, neg (wn!!ind)] | ind <- indDif ]
+  let trg_difs = toTags $ target rule
+  let conds    = toConds $ cond rule
 
-     -- (-1C foo) : >=1 foo is true, and all non-foos are false
-     disjunctionC wn n nl trg dif = 
-       let indTrg = concatMap (lookup' tagcombs) trg
-           indDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-           trgsWoDif = indTrg \\ indDif
-           indFailsC = [0..n] \\ trgsWoDif --either it's in Dif or it's not specified
-       in [   neg nl:[  wn !! ind | ind <- trgsWoDif ] ] ++
-          [ [ neg nl, neg (wn!!ind) ] | ind <- indFailsC ]
+  sequence_ [ addClause s (elems word) | word <- elems sentence ]
+
+      -- :: Sentence -> (SIndex, Map WIndex Lit) -> Sentence
+  let applyToWord sentence (i,sw) = do
+       let trgInds = concatMap (fst.luTag) trg_difs --[Int]; difs already included
+       let otherInds = taginds \\ trgInds
+
+       let conds_positions =
+            [ (cs, map (i+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds
+                                , all (inRange i) cs ]
+       if null conds_positions
+        then do 
+          return sentence --out of scope, nothing changed in the sentence
+        else do
+          disjConds <- mapM mkCondition conds_positions --for disj. cond. templates
+          condsHold <- orl' s disjConds
+          onlyTrg <- orl' s  $ map (lu sw) trgInds
+          let otherNeg = map (neg . lu sw) otherInds
+          noOther <- andl' s otherNeg
+          let noOtherName = if length otherNeg < 3 then show otherNeg else "~<everything else>"
+          onlyTrgLeft <- andl s ("("++show onlyTrg ++ " & " ++ noOtherName ++ ")")
+                                [onlyTrg, noOther]
+          cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
+          
+          newTrgLits <- sequence
+             --wN<a>' is true if both of the following:
+           [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
+                               , cannotApply ] --rule cannot apply 
+               | trgInd <- trgInds
+               , let Just oldTrgLit = lookup trgInd sw 
+               , let newTrgName = show oldTrgLit ++ "'"]
+          putStrLn $ "*** reasons why we couldn't apply: " ++ show cannotApply
+
+          b <- solve s []
+          let newsw = foldl changeAna sw (zip trgInds newTrgLits)
+          constrainBoundaries s alltags newsw
+          return $ changeWord sentence i newsw
           
 
-     -- (NOT -1 foo) : all foos are false, and >=1 non-foo is true
-     negative wn n nl trg dif = 
-       let indNegTrg = concatMap (lookup' tagcombs) trg
-           indNegDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-           trgsWithoutDif = indNegTrg \\ indNegDif
-           indNeut = [0..n] \\ trgsWithoutDif
-       in [ [ neg nl, neg (wn!!ind) ] | ind <- trgsWithoutDif ] ++ 
-          [   neg nl:[  wn !! ind | ind <- indNeut ] ]
 
-
-     -- (NOT -1C foo) : >=1 non-foo is true
-     negativeC wn n nl trg dif =
-       let indNegTrg = concatMap (lookup' tagcombs) trg
-           indNegDif = if null (concat dif) then [] else concatMap (lookup' tagcombs) dif
-           trgsWoDif = indNegTrg \\ indNegDif
-           indFailsC = [0..n] \\ trgsWoDif --either it's in Dif or it's not specified
-       in [ neg nl:[ wn !! ind | ind <- indFailsC ] ]
-      
-  notNegUnit [x] = pos x
-  notNegUnit _   = True
-
-
-
---------------------------------------------------------------------------------
-
-findConflict :: [[Tag]]                     -- ^ All tags
-             -> [[Tag]]                     -- ^ All tag combinations
-             -> (Rule,                      -- ^ Rule to be tested
-                 [Rule])                    -- ^ Rules before the tested rule
-             -> IO (Rule,([Rule],[Rule]))   -- ^ Rule, non-conf rules, conf rules
-findConflict alltags tagcombs (rule, rules) = do
-  let rulecombs = [ (rule, delRules) | delRules <- delOne rules ]
-  results <- mapM (testRule False False alltags tagcombs) rulecombs
-  let badcombs = [ rules' | (False,(rule', rules')) <- results ]
-  let goodcombs = [ rules' | (True,(rule', rules')) <- results ]
-  
-  let allbad  = nub $ concat badcombs
-  let allgood = nub $ concat goodcombs
-  let onlybad = allbad \\ allgood
-
-  putStrLn ( "rule: " ++ show rule)
-
-  putStrLn "bad combinations:"
-  mapM_ print badcombs
-  putStrLn "good combinations:"
-  mapM_ print goodcombs
-
-  return (rule, (allgood, onlybad))
-  -- print "bad combs:"
-  -- mapM_ print badcombs
-  -- putStrLn "--------"
-  -- print "ok combs:"
-  -- mapM_ print goodcombs
+  foldM applyToWord sentence (toAscList sentence)
 
   where
-   delOne xs = xs : map (\x -> delete x xs) xs
---------------------------------------------------------------------------------
+   luTag   = lookupTag alltags taginds
+   luLit   = lookupLit sentence 
+   lu xs x = fromMaybe false $ lookup x xs
+   mkCondition = mkCond s luTag luLit taginds
 
-lookup' :: [[Tag]] -> [Tag] -> [Int] --list of indices where the wanted taglist is found
--- For empty tagsInCond, returns all indices in tagcombs.
--- This is wanted behaviour; when filling conditions with empty spaces, 
--- those spaces can have any tag.
-lookup' tagcombs tagsInCond = --trace ("lookup': " ++ show tagsInCond) $
-  findIndices (\tc -> all (\t -> t `elem` tc) tagsInCond) tagcombs
-      
+   inRange :: SIndex -> Condition -> Bool
+   inRange i (C pos (b,ctags)) = not b -- `NOT -100 a' is always true
+                                 || member (i+posToInt pos) sentence
 
-width :: Rule    -- ^ rule whose width to calculate 
-      -> (Int,   -- ^ width of the rule
-          [[[SymbWord]]]) -- ^ whole symbolic sentence: conditions and target
-width rule = case rule of
-  (Select _ target Always) -> (1, [[[defaultTrg $ toTags target]]])
-  (Remove _ target Always) -> (1, [[[defaultTrg $ toTags target]]])
-  (Select _ target conds) -> fill $ 
-                               [[defaultTrg (toTags target)]] :
-                                      [map toSymbWord (toConds conds)]
-  (Remove _ target conds) -> fill $
-                               [[defaultTrg (toTags target)]] : 
-                                       [map toSymbWord (toConds cs)]
-  -- [SymbWord] : sWords generated by one condition.
-  -- for instance Barrier generates at least 2 sWords.
-  -- a template should then generate [[SymbWord]]
-  -- [ [[ SW (0 isTarget foo bar) [(trg, dif)] ]]
-  -- , [[ SW (1 notTargt har gle) [(trg, dif)]     <- e.g. barrier rule
-  --    , SW (2 notTargt bar gle) [(trg, dif)] ]]
-  -- , [ [ SW -1 something  [(trg,dif)] ]            <- template rule
-  --     [ SW -2 otherthing [(trg,dif)] ] 
-  --   ]
-  -- ]
---------------------------------------------------------------------------------
+   changeWord :: Sentence -> SIndex -> Word -> Sentence
+   changeWord sent i newsw = adjust (const newsw) i sent
 
-data SymbWord = SW { info :: Info
-                   , targets :: [(Trg,Dif)] } deriving (Eq,Ord,Show)
-
-
-data Info = I { index      :: Int 
-              , isCautious :: Bool
-              , isTarget   :: Bool
-              , isPositive :: Bool } deriving (Eq,Ord,Show)
-
-
-defaultTrg :: [(Trg,Dif)] -> SymbWord
-defaultTrg = SW (I 0 False True True )
-
-defaultCond :: Int -> SymbWord
-defaultCond i = SW ( I i False False True )
-                   [ ([[]], [[]]) ]
-
-mkCond :: Int -> Bool -> Bool -> [(Trg,Dif)] -> SymbWord
-mkCond ind caut posit targets = 
-  SW ( I { index  = ind
-         , isCautious = caut
-         , isTarget   = False
-         , isPositive = posit })
-     targets
-
-
-sameIndSW :: SymbWord -> SymbWord -> Bool
-sameIndSW sw1 sw2 = (index.info) sw1 == (index.info) sw2
+   changeAna :: Word -> (WIndex,Lit) -> Word
+   changeAna word (i,newana) = adjust (const newana) i word
 
 --------------------------------------------------------------------------------
+   
+mkCond :: Solver                                -- ^ solver to use
+       -> ((Trg,Dif) -> ([WIndex],[WIndex]))    -- ^ lookupTag function
+       -> (SIndex -> WIndex -> Lit)             -- ^ lookupLit function
+       -> [WIndex]                              -- ^ list of all tag indices
+       -> ([Condition],                         -- ^ list of conditions (conjunction)
+           [WIndex])                            -- ^ corresponding indices for each
+       -> IO Lit                                -- ^ conjunction of all conditions in one literal 
+mkCond s luTag luLit ti (conds,inds) = andl' s  =<< sequence 
+  [ do case position of
+             (Barrier  foo bar btags) 
+               -> do let byes_bnos = map luTag (toTags btags)
+                     let bi = if ind<0 then ind-1 else ind+1
+                     addClause s [true] --TODO
+                                         
+             (CBarrier foo bar btags)
+               -> do let byes_bnos = map luTag (toTags btags)
+                     let bi = if ind<0 then ind-1 else ind+1
+                     addClause s [true] --TODO
+             foo -> return ()
 
---all conditions are grouped by AND
-toSymbWord :: [Condition] -> [SymbWord]
-toSymbWord [] = []
-toSymbWord (Always:_) = error "toSymbWord applied to Always: this should not happen"
-toSymbWord (c:cs) = case c of
-  C (Barrier  c ind btags) (positive,tags) -> [ mkCond ind c positive (toTags tags)
-                                              , mkCond ind c (not positive) (toTags btags)
-                                              , barSW ind False btags ]
-  C (CBarrier c ind btags) (positive,tags) -> [ mkCond ind c positive (toTags tags)
-                                              , mkCond ind c (not positive) (toTags btags)
-                                              , barSW ind True btags ]
-  C (Exactly  c ind      ) (positive,tags) -> [ mkCond ind c positive (toTags tags) ]
-  C (AtLeast  c ind      ) (positive,tags) -> [ mkCond ind c positive (toTags tags) ]
- 
- ++ toSymbWord cs
+       -- disjunction of *tags* in one condition
+       orl s (show c ++ " in " ++ show ind) =<< sequence 
+        ( case (positive, cautious) of
+           (True, False)  -> [ do y <- orl  s "" yesLits
+                                  n <- andl s "" (map neg difLits)
+                                  andl s "" [y,n]
+                                | (yi, di) <- yesInds_difInds
+                                , let yesLits = map (luLit ind) yi
+                                , let difLits  = map (luLit ind) di ]
+           (True, True)   -> [ do y <- orl  s "" yesLits
+                                  n <- andl s "" (map neg other)
+                                  andl s "" [y,n]
+                                | (yi, di) <- yesInds_difInds
+                                , let yesLits = map (luLit ind) yi
+                                , let other = map (luLit ind) (ti \\ yi) ]
+           (False, False) -> [ do n <- andl s "" (map neg noLits)
+                                  y <- orl s "" other --need something positive
+                                  andl s "" [y,n]
+                                | (yi, di) <- yesInds_difInds
+                                , let noLits = map (luLit ind) yi 
+                                , let other = map (luLit ind) (ti \\ yi) ]
+           (False, True)  -> [ orl s "" other
+                                | (yi, di) <- yesInds_difInds
+                                , let other = map (luLit ind) (ti \\ yi) ] )
+        | (c@(C position (positive,ctags)), ind) <- zip conds inds
+        , let yesInds_difInds = map luTag (toTags ctags)
+        , let cautious = isCareful position ]
+
+--------------------------------------------------------------------------------
+
+constrainBoundaries :: Solver -> TagMap -> Word -> IO ()
+constrainBoundaries s alltags word = do
+  let allInds = keys word 
+  let bdTags = [EOS, BOS, Tag "sent", Tag "cm"]
+  let bdInds = concat $ catMaybes $ map (\x -> lookup x alltags) bdTags
+  let nonBdInds = allInds \\ bdInds
+  print ("* constrainBoundaries",bdInds)
+
+  let bds    = catMaybes $ map (\x -> lookup x word) bdInds
+  let nonbds = catMaybes $ map (\x -> lookup x word) nonBdInds
+  isBd  <- orl' s bds
+  nonBd <- andl s "not boundary" (map neg nonbds)
+  print [neg isBd, nonBd]
+  addClause s [neg isBd, nonBd]
+
+--------------------------------------------------------------------------------
+
+mkSentence :: Solver -> Int -> [[Tag]] -> IO Sentence
+mkSentence s w tcs = fromList `fmap` sequence 
+                       [ ((,) n . fromList) `fmap` sequence 
+                         [ (,) m `fmap` newLit s (shTC t n) | (m, t) <- zip [1..] tcs ]
+                            | n <- [1..w] ] 
+ where shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
+
+lookupTag :: TagMap -> [WIndex] -> (Trg,Dif) -> ([WIndex],[WIndex])
+lookupTag alltags allinds (trg,dif) = 
+  let trgInds = if trg==[[]] then allinds
+                   else concatMap (go allinds) trg --trg::[[Tag]]
+      difInds = if dif==[[]] then [] 
+                      else concatMap (go allinds) dif --dif::[[Tag]]
+          
+  in  (trgInds\\difInds, difInds)
  where
-  barSW ind c ts = SW ( I { index      = if ind>=0 then ind+1 else ind-1
-                          , isCautious = c
-                          , isTarget   = False
-                          , isPositive = True }) --barrier tags always positive
-                      ( toTags ts )
+  go acc []     = acc         --default is [] because intersect [] _ == []
+  go acc (t:ts) = let inds = [] `fromMaybe` lookup t alltags
+                  in go (intersect acc inds) ts
 
-  
+lookupLit :: Sentence -> SIndex -> WIndex -> Lit
+lookupLit sentence si wi = 
+  case lookup si sentence of
+    Just ts -> case lookup wi ts of
+                 Just tag -> tag
+                 Nothing  -> error "lookupLit: tag combination not found"
+    Nothing -> true --sent here by negated rule: `NOT -1000 foo' is always true
 
+--------------------------------------------------------------------------------
 
+width :: Rule -> (Int,SIndex) --width of rule + index of target
+width = fill . toConds . cond
 
---TODO error maybe here ???
-fill :: [[[SymbWord]]] -> (Int, [[[SymbWord]]])
-fill []        = error "fill: []"
-fill swordlist = (width, swordlist ++ (map (:[])) swords)
+fill :: [[Condition]] -> (Int,SIndex)
+fill []   = (1,1) -- should not happen, toConds returns [[]] as the default option
+fill [[]] = (1,1)
+fill css = (length [minInd..maxInd], 
+            1+(fromJust $ elemIndex 0 [minInd..maxInd]))
  where
-  (width, swords) = go flatConds minInd (1,[])
-  flatConds = sort $ concat $ concat swordlist
-  minInd = index $ info $ head flatConds
-  go []     oldInd (wc,res)  = (wc, res)
-  go (x:xs) oldInd (wc,res) | n == 1 = go xs ind (wc+n,res)
-                            | n == 0 = go xs ind (wc, res)
-                            | otherwise  = go xs ind (wc+n,filled:res)
-    where
-     ind = (index.info) x 
-     n = ind-oldInd
-     filled = [ defaultCond k | k <- [oldInd+1..ind-1] ]
+  minInd = 0 `min` minimum poss
+  maxInd = 0 `max` maximum poss
+  poss = map (\(C pos _) -> posToInt pos) (concat css)
 
+--for (C)BARRIER, count an extra place to place the barrier tag
+posToInt :: Position -> Int
+posToInt (Exactly _ i) = i
+posToInt (AtLeast _ i) = i
+posToInt (Barrier _ i _)  = if i<0 then i-1 else i+1
+posToInt (CBarrier _ i _) = if i<0 then i-1 else i+1
+
+isCareful :: Position -> Bool
+isCareful (Exactly b _) = b
+isCareful (AtLeast b _) = b
+isCareful (Barrier b _ _) = b
+isCareful (CBarrier b _ _) = b
+
+getPos :: Condition -> SIndex
+getPos (C (Barrier  _ i _) _) = i
+getPos (C (CBarrier _ i _) _) = i
+getPos (C  position        _) = posToInt position
+getPos _ = error "trying to apply to complex condition"
+
+for :: (Functor f) => f a -> (a -> b) -> f b
+for = flip fmap
+
+singleton :: [a] -> Bool
+singleton [x] = True
+singleton _   = False
 
 --------------------------------------------------------------------------------
 
@@ -535,100 +390,3 @@ parse str = map toTag $ filter (not.null) $ split isValid str
 split :: (a -> Bool) -> [a] -> [[a]]
 split p [] = []
 split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
-
-printFancy :: String -> IO ()
-printFancy s = 
-  do putStr (s ++ back)
-     hFlush stdout
-     putStr (wipe ++ back)
- where
-  n   = length s
-  back = replicate n '\b'
-  wipe = replicate n ' '
-
-
---------------------------------------------------------------------------------
-
---just a naive try to prune the corpus-free method by using a corpus.
---rather restrict the number/combination of tags in the SAT formulas?
-
-checkCorpus :: [Token] -> Sentence -> IO ()
-checkCorpus symbsent corpus = do
-  putStrLn "------------"
-  putStrLn "checkCorpus:"
-  let sent = dechunk symbsent
---  putStrLn $ showSentence sent
-  let foo = filter (\s -> length s >= 2) (adjacent sent corpus)
-  mapM_ pr $ map showSentence foo 
-  where pr arg = putStrLn "---" >> putStrLn arg
-
-elem' :: Analysis -> Analysis -> [Analysis]
-elem' symbolic real = nub [ real | s <- symbolic, r<-real
-                               , not $ null $ s `intersect` r ]
-
-adjacent :: Sentence -> Sentence -> [Sentence]
-adjacent (w1:w2:[]) corpus = 
- [ words1++words2 | (c1,c2) <- zip corpus (drop 1 corpus)
-    , let words1 = elem' w1 c1
-    , let words2 = elem' w2 c2
-    , (not.null) words1
-    , (not.null) words2
-    , all (any mt1) [words1,words2] ] 
-
-adjacent (w1:w2:ws) corpus = 
- [ words1 | (c1,c2) <- zip corpus (drop 1 corpus)
-    , let words1 = elem' w1 c1
-    , let words2 = elem' w2 c2
-    , (not.null) words1
-    , (not.null) words2
-    , all (any mt1) [words1,words2] ]
- ++ adjacent (w2:ws) corpus
-
-adjacent ws         corpus = []
-
-mt1 :: [[Tag]] -> Bool
-mt1 []     = False
-mt1 (t:ts) = if length t > 1 then True else mt1 ts
-
-
---------------------------------------------------------------------------------
-{--
-checkIfApplies ::  Solver
-                  -> [[Lit]]
-                  -> Rule 
-                  -> IO [Clause]
-checkIfApplies s lits rule = do
-  if length lits >= length sswidth 
-    then do putStrLn "sufficiently long sentence"
-            let inds = map (concatMap (map (lookup' [[]]) . snd)) sswidth
-            print inds --e.g. [[[0,1]],[[2,3,4,5]],[[3,5],[2,4]]]
-            --for lit in lits:
-            --
-            print sswidth
-            return []
-    else do putStrLn "conditions out of scope"
-            return []
-  where sswidth = width rule []
-
-
-
-for rule in Pres:
-  for w in symbolicSent:
-     rl has no effect on w, because one of the following:
-
-     1) conditions are out of scope (trivial, no clause)
-     2) conditions in scope, but one doesn't hold
-     3) tag has been removed in target
-     4) all readings of  target have the desired tag (cannot remove)
-
-
-
-general stuff:
-
-we know length of symbolic sentence from the width of R
-we know the target from R
-conditions: if no C, then all tag combinations that have the tag in the condition
-            if C, pick one of them (disjoint clauses?)
-if empty space in conds, empty places must have >= 1 readings (but any will do)
-
---}
