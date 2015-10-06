@@ -106,6 +106,9 @@ instance Show Rule where
                                        show tags ++ " IF " ++ show cond 
   show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " IF " ++ show cond 
 
+isSelect :: Rule -> Bool 
+isSelect (Select _ _ _ ) = True
+isSelect _               = False
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
 --   (Bool, TagSet) emulates set negation NOT in CG3.
@@ -122,7 +125,7 @@ instance Show Condition where
                                      ++ snd (showPosTuple pos) ++ ")"
   show (AND c1 c2) = show c1 ++ " " ++ show c2
   show (OR c1 c2) = "( " ++ show c1 ++ " ORc " ++ show c2 ++ " )"
-  show Always = ""
+  show Always = "Always"
 
 -- | Position can be exact or at least.
 -- The meaning of numbers is 

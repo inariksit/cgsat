@@ -36,21 +36,33 @@ main = do
              let abc2 = splits ex_abc2
              let not_ = splits ex_not
              
-             mapM (testRule (True,True) ts tc) (last abc1:[]) --last abc2:last not_:[])
+             mapM_ (testRule (True,True) ts tc) (last abc1:[]) --last abc2:last not_:[])
 
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
-             -- ts <- (concat . filter (not.null) . map parse . words) 
-             --           `fmap` readFile "data/nld/nld_tags.txt"
+             tsInApe <- (concat . filter (not.null) . map parse . words) 
+                         `fmap` readFile "data/nld/nld_tags.txt"
              (tsets, rls) <- readRules' "data/nld/nld.rlx"
              let rules = concat rls
              let tcInGr = nub $ concatMap toTags' tsets
-             print tcInGr
              tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
-             let tc = nub $ tcInGr ++ tcInLex
-             let ts = nub $ concat tc
-             mapM (testRule (verbose,debug) ts tc) (splits rules)
+             let tc = nub $ tcInGr ++ tcInLex 
+             let ts = nub $ tsInApe ++ concat tc             
+             mapM_ (testRule (verbose,debug) ts tc) (splits rules)
+
+    ("spa":r)
+       -> do let verbose = "v" `elem` r || "d" `elem` r
+             let debug = "d" `elem` r
+             tsInApe <- (concat . filter (not.null) . map parse . words) 
+                         `fmap` readFile "data/spa/spa_tags.txt"
+             (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
+             let rules = concat rls
+             let tcInGr = nub $ concatMap toTags' tsets
+             tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
+             let tc = nub $ tcInGr ++ tcInLex 
+             let ts = nub $ tsInApe ++ concat tc             
+             mapM_ (testRule (verbose,debug) ts tc) (splits rules)   
 
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
@@ -117,7 +129,8 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     putStrLn "Initial sentence:"
     printSentence initialSentence
     putStrLn "----"
-  afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
+  let apply' = if verbose then applyAndPrint else apply
+  afterRules <- foldM (apply' s taglookup taginds) initialSentence rules
   --mapM_ (constrainBoundaries s taglookup) (elems afterRules)
 
   shouldTriggerLast <-  do
@@ -149,11 +162,13 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
       putStrLn "Conflict!"
       putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
       putStrLn $ "with the previous rules:"
-      mapM_ print rules
+      when verbose $ mapM_ print rules --if verbose, old rules not visible on screen anymore
       putStrLn $ "The sentence should have these properties:"
       mapM_ (\x -> putStrLn ("* " ++ show x)) shouldTriggerLast
       putStrLn "This is the next best thing we can do:"
-      filter (\x -> length x == 2) (subsequences shouldTriggerLast) `forM_` \req -> solveAndPrintSentence True s req afterRules
+      filter (\x -> length x == 2) (subsequences shouldTriggerLast) 
+        `forM_` \req -> solveAndPrintSentence True s req afterRules
+          
 
 
   deleteSolver s 
@@ -182,15 +197,18 @@ apply :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
 apply s alltags taginds sentence rule = do
 
   let trg_difs = toTags $ target rule
-  let conds    = toConds $ cond rule
+  let trgIndsRaw = concatMap (fst.luTag) trg_difs --[Int]; difs already included
+  let otherIndsRaw = taginds \\ trgIndsRaw
+  let (trgInds,otherInds) = if isSelect rule
+                              then (otherIndsRaw,trgIndsRaw)
+                              else (trgIndsRaw,otherIndsRaw)
+  let conds = toConds $ cond rule
 
+  --at least one reading per word
   sequence_ [ addClause s (elems word) | word <- elems sentence ]
 
-      -- :: Sentence -> (SIndex, Map WIndex Lit) -> Sentence
+  -- applyToWord :: Sentence -> (SIndex, Map WIndex Lit) -> Sentence
   let applyToWord sentence (i,sw) = do
-       let trgInds = concatMap (fst.luTag) trg_difs --[Int]; difs already included
-       let otherInds = taginds \\ trgInds
-
        let conds_positions =
             [ (cs, map (i+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds
                                 , all (inRange i) cs ]
@@ -200,11 +218,13 @@ apply s alltags taginds sentence rule = do
         else do
           disjConds <- mapM mkCondition conds_positions --for disj. cond. templates
           condsHold <- orl' s disjConds
-          onlyTrg <- orl' s  $ map (lu sw) trgInds
+          let trgPos = map (lu sw) trgInds
           let otherNeg = map (neg . lu sw) otherInds
+          onlyTrg <- orl' s trgPos
           noOther <- andl' s otherNeg
+          let onlyTrgName = if length trgPos < 5 then show trgPos else show (take 3 trgPos) ++ "..."
           let noOtherName = if length otherNeg < 3 then show otherNeg else "~<everything else>"
-          onlyTrgLeft <- andl s ("("++show onlyTrg ++ " & " ++ noOtherName ++ ")")
+          onlyTrgLeft <- andl s ("("++onlyTrgName ++ " & " ++ noOtherName ++ ")")
                                 [onlyTrg, noOther]
           cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
           
@@ -214,8 +234,8 @@ apply s alltags taginds sentence rule = do
                                , cannotApply ] --rule cannot apply 
                | trgInd <- trgInds
                , let Just oldTrgLit = lookup trgInd sw 
-               , let newTrgName = show oldTrgLit ++ "'"]
-          putStrLn $ "*** reasons why we couldn't apply: " ++ show cannotApply
+               , let newTrgName = show oldTrgLit ++ "'" ]
+          --putStrLn $ "*** reasons why we couldn't apply: " ++ show cannotApply
 
           b <- solve s []
           let newsw = foldl changeAna sw (zip trgInds newTrgLits)
@@ -301,13 +321,13 @@ constrainBoundaries s alltags word = do
   let bdTags = [EOS, BOS, Tag "sent", Tag "cm"]
   let bdInds = concat $ catMaybes $ map (\x -> lookup x alltags) bdTags
   let nonBdInds = allInds \\ bdInds
-  print ("* constrainBoundaries",bdInds)
+  --print ("* constrainBoundaries",bdInds)
 
   let bds    = catMaybes $ map (\x -> lookup x word) bdInds
   let nonbds = catMaybes $ map (\x -> lookup x word) nonBdInds
   isBd  <- orl' s bds
   nonBd <- andl s "not boundary" (map neg nonbds)
-  print [neg isBd, nonBd]
+  --print [neg isBd, nonBd]
   addClause s [neg isBd, nonBd]
 
 --------------------------------------------------------------------------------
