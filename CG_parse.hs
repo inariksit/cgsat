@@ -182,13 +182,13 @@ transTagSet ts = case ts of
 
 transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
-  SelectIf (SELECT_1 nm) tags _if conds ->
+  SelectIf (SELECT1 nm) tags _if conds ->
     liftM2 (CGB.Select (getName nm)) (transTagSet tags) (transCondSet conds)
-  RemoveIf (REMOVE_1 nm) tags _if conds ->
+  RemoveIf (REMOVE1 nm) tags _if conds ->
     liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (transCondSet conds)
-  SelectAlways (SELECT_1 nm) tags ->
+  SelectAlways (SELECT1 nm) tags ->
     liftM2 (CGB.Select (getName nm)) (transTagSet tags) (return CGB.Always)
-  RemoveAlways (REMOVE_1 nm) tags ->
+  RemoveAlways (REMOVE1 nm) tags ->
     liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (return CGB.Always)
   MatchLemma (Str lem) rl -> 
     do cgrule <- transRule rl
@@ -204,8 +204,8 @@ transRule rl = case rl of
            _           -> CGB.TS [[CGB.Lem str          , t] 
                                     | t <- concat (toTagsLIST ts)]
 
-        getName (MaybeName_1 (Id id)) = CGB.Name id
-        getName MaybeName_2           = CGB.NoName
+        getName (MaybeName1 (Id id)) = CGB.Name id
+        getName MaybeName2           = CGB.NoName
         
 
 transCondSet :: [Cond] -> State Env CGB.Condition

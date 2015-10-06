@@ -4,7 +4,7 @@ testprog=dist/build/test-cgsat/test-cgsat
 default: grammars rest
 
 grammars:
-#	bnfc -d bnfc/Apertium.cf
+	bnfc -d bnfc/Apertium.cf
 	bnfc -d bnfc/CG.cf
 	happy -gca CG/Par.y
 	alex -g CG/Lex.x
@@ -14,7 +14,7 @@ grammars:
 	ghc --make Apertium/Test.hs -o Apertium/Test
 
 rest:
-	cabal configure --enable-tests --enable-library-profiling --enable-executable-profiling --user
+	cabal configure --enable-tests --user 
 	cabal build
 
 test-pride:

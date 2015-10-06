@@ -9,7 +9,7 @@ import Data.List hiding ( lookup )
 import Data.Map ( Map(..), fromList, toAscList, keys, elems, member, adjust, lookup )
 import Data.Maybe
 import Debug.Trace
-import Prelude hiding ( lookup )
+import Prelude hiding ( lookup, Word )
 import System.Environment
 
 ex_abc1 = concat $ snd $ parseRules False
