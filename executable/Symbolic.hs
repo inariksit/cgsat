@@ -71,23 +71,26 @@ type TagMap   = Map Tag [WIndex]
 type WIndex   = Int
 type SIndex   = Int
 
-solveAndPrintSentence :: Solver -> [Lit] -> Sentence -> IO ()
-solveAndPrintSentence s ass sent = do
+solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
+solveAndPrintSentence verbose s ass sent = do
   let lits = concatMap elems (elems sent)
   --print lits
   --litsU <- count s lits
   --solveMaximize s ass litsU
-  solve s ass
-  vals <- sequence 
-           [ sequence  [ modelValue s lit | lit <- elems word ] 
-             | (sind,word) <- toAscList sent ]
-  let trueAnas =
-       [ "\"w" ++ show sind ++ "\"\n"
-               ++ unlines [ "\t"++show ana | (ana, True) <- zip (elems word) vs ]
-         | ((sind,word), vs) <- zip (toAscList sent) vals ]
-  mapM_ putStrLn trueAnas
-  putStrLn "----"
-
+  b <- solve s ass
+  if b then do
+          when verbose $ print ass
+          vals <- sequence 
+                   [ sequence [ modelValue s lit | lit <- elems word ] 
+                      | (sind,word) <- toAscList sent ]
+          let trueAnas =
+               [ "\"w" ++ show sind ++ "\"\n"
+                  ++ unlines [ "\t"++show ana | (ana, True) <- zip (elems word) vs ]
+                 | ((sind,word), vs) <- zip (toAscList sent) vals ]
+          mapM_ putStrLn trueAnas
+          putStrLn "----"
+    else do
+     putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
 printSentence :: Sentence -> IO ()
 printSentence sent = do
   let allAnas =
@@ -113,7 +116,6 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   when verbose $ do
     putStrLn "Initial sentence:"
     printSentence initialSentence
-    solveAndPrintSentence s [] initialSentence
     putStrLn "----"
   afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
   --mapM_ (constrainBoundaries s taglookup) (elems afterRules)
@@ -142,14 +144,16 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   if b 
    then do 
       putStrLn $ "Following triggers last rule: " ++ show lastrule
-      solveAndPrintSentence s shouldTriggerLast afterRules
+      solveAndPrintSentence False s shouldTriggerLast afterRules
    else do
       putStrLn "Conflict!"
       putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
+      putStrLn $ "with the previous rules:"
+      mapM_ print rules
       putStrLn $ "The sentence should have these properties:"
       mapM_ (\x -> putStrLn ("* " ++ show x)) shouldTriggerLast
       putStrLn "This is the next best thing we can do:"
-      shouldTriggerLast `forM_` \req -> solveAndPrintSentence s [req] afterRules
+      filter (\x -> length x == 2) (subsequences shouldTriggerLast) `forM_` \req -> solveAndPrintSentence True s req afterRules
 
 
   deleteSolver s 
@@ -169,7 +173,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
       when verbose $ do
         putStrLn "One possible new sentence:"
         when debug $ printSentence newsent
-        solveAndPrintSentence s [] newsent
+        solveAndPrintSentence False s [] newsent
       return newsent
 
 --------------------------------------------------------------------------------
@@ -229,6 +233,7 @@ apply s alltags taginds sentence rule = do
    mkCondition = mkCond s luTag luLit taginds
 
    inRange :: SIndex -> Condition -> Bool
+   inRange i Always = True
    inRange i (C pos (b,ctags)) = not b -- `NOT -100 a' is always true
                                  || member (i+posToInt pos) sentence
 
@@ -341,14 +346,18 @@ width :: Rule -> (Int,SIndex) --width of rule + index of target
 width = fill . toConds . cond
 
 fill :: [[Condition]] -> (Int,SIndex)
-fill []   = (1,1) -- should not happen, toConds returns [[]] as the default option
+fill []   = (1,1)
 fill [[]] = (1,1)
-fill css = (length [minInd..maxInd], 
-            1+(fromJust $ elemIndex 0 [minInd..maxInd]))
+fill cs   = (length [minInd..maxInd], 
+             1+(fromJust $ elemIndex 0 [minInd..maxInd]))
  where
   minInd = 0 `min` minimum poss
   maxInd = 0 `max` maximum poss
-  poss = map (\(C pos _) -> posToInt pos) (concat css)
+  poss = [ i | c <- concat cs 
+              , let i = case c of
+                         C pos _ -> posToInt pos
+                         Always  -> 0  
+                         _       -> error $ "expected condition, got " ++ show cs]
 
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> Int
