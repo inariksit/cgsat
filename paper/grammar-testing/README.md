@@ -208,46 +208,50 @@ However, the third SELECT rule has `vblex inf` in its context. When we add this 
 
 ---------
 
+## Real life scenarios
 
-An example of scenario 4:
-
-Last rule:
-
-```
-  SELECT:s_pr_v pr  + "te" "om te"  IF (1 vblex vbmod vaux vbhaver vbser  + inf ) 
-```
-
-Earlier rules:
-```
-   REMOVE:r_pr_v pr  IF (1 vblex vbmod vaux vbhaver vbser ) (NOT 0 "te" "om te" )
-   REMOVE:r_adv_n adv  IF (1 n np )
-```
-
-One solution for the initial constraints:
+### Found a real conflict 
 
 ```
-  "<w1>"
-        >>>
-        pr "te"
-  "<w2>"
-        vblex inf
+Conflict!
+Cannot trigger the last rule: REMOVE adv IF (-1 det) (0 adj) (1 n|np)
+with the previous rules:
+ REMOVE:r_pr_v pr IF (1 vblex|vbmod|vaux|vbhaver|vbser) (NOT 0 "te"|"om te")
+ REMOVE:r_adv_n adv IF (1 n|np)
+ SELECT:s_pr_v pr + "te"|"om te" IF (1 vblex|vbmod|vaux|vbhaver|vbser + inf)
+ ...
+
+The sentence should have these properties:
+* must have: [w2<adv>,w2<adv><itg>,w2<rel><adv>]
+* must have: [w2<"<EOS>"><<<<><sent>,w2<>>>>,w2<prn><pers><p2>]...
+* must hold: (-1 det) in 1 & (0 adj) in 2 & (1 n|np) in 3
 ```
 
-First REMOVE rule conflicts. Solve by applying scenario 4: only targets are left.
-Scenario 3 wouldn't work because `(pr "te")` is a requirement.
-Scenario 2 wouldn't work because ???
+Then it tries combinations of 2 requirements:
 
-Solution after all clauses:
 ```
-"<w1>"
-        pr "te"
-        pr "om te"
-"<w2>"
-        vblex inf
+solveAndPrintSentence: Conflict with assumptions 
+* must have: [w2<adv>,w2<adv><itg>,w2<rel><adv>]
+* must hold: (-1 det) in 1 & (0 adj) in 2 & (1 n|np) in 3
 ```
 
 
-## Interaction of previous rules
+
+### Found a silly set definition
+
+```
+The sentence should have these properties:
+* ~must have: 
+  [ w2<det>
+  , w2<n><np><adj><det><preadv><adv><vblex><vbmod><vbhaver><vbser><prn><pr><cnjcoo><cnjsub><cnjadv><rel><ij>
+  , ...]
+```
+
+That w2 is such a multi-purpose word! ^_^
+
+-----
+
+## Nice examples where the new method works
 
 Look at the following three rules.
 
@@ -258,6 +262,25 @@ r3 = REMOVE V   IF (-1  Det) ;
 ```
 
 Is there an input which can go through the rules and trigger at the last?
+
+`r1` creates a new variable `w2<v>' for the hypothesis that `w2` is `v`.
+This variable is true, if `w2<v>` is true and there is a reason why we cannot apply `r1`.
+These reasons are 
+  * `w1` is not unambiguously `det` 
+  * `w2` has only analyses with `v` left.
+
+In other words, the value of the new variable is determined by the formula
+
+```
+  w2'<v> <= w2<v> && ( ~w1<det>_unambiguously || w2'<only_v> )
+```
+
+Solving at this point isn't particularly exciting; we could just get any solution, including multiple ones where `w1` and `w2` don't include determiners or verbs at all.
+
+The value of `wN''<tag>` depends on `wN'<tag>`, which in turn depends on `wN<tag>`. This means that a rule which requires `wN''<tag>` to be true, will affect also `wN'<tag>` and `wN<tag>`. If  a d the value of a variable at any stage can be influenced by new rules.
+
+only now add the example about the difference of r2 and s2!
+motivate: value required by condition vs. value required by target
 
 ```
 "<w1>"
@@ -274,19 +297,15 @@ Is there an input which can go through the rules and trigger at the last?
    * In that case, the input would already trigger `r1`
    * Cannot do neither => conflict
 
-But if we apply it to SELECT det instead, we have a problem:
-
-## Problem:
-
-Rule sequence
+Now contrast with a rule sequence where the second rule actually performs an action to its target. As before, but `r2` is changed for `s2`.
 
 ```
-REMOVE:r1 v IF (-1C det)
-SELECT:s2 det IF (1 v)
-REMOVE:r3 v IF (-1 det)
+REMOVE:r1 V IF (-1C Det)
+SELECT:s2 Det IF (1 V)
+REMOVE:r3 V IF (-1 Det)
 ```
 
-Something that will get past the first rule *and* will trigger the 3rd rule:
+Now it is possible to construe something that will get past the first rule *and* will trigger the 3rd rule:
 
 ```
 "<w1>"
@@ -311,41 +330,4 @@ Something that will get past the second rule and will trigger the 3rd rule:
 
 `w2` must be `v` in order to trigger `r3`.
 
-The rule `s2` should be fine after `r1`. But when we input all clauses to the SAT solver, they conflict.
-
-Solutions?
-
-* Add clause to solver only if it removes something?
-* Add only results of each solving to solver? ie. not the clause, but [~w1<foo>] as a clause.
-
-
-```
-REMOVE:r1 adj|det IF (1 v): 
-(w1<det>,~only_"<w1>"adj|det_left_XOR_rm_w1<det>_if_(w2<v>)),
-(w1<adj><pred>,~only_"<w1>"adj|det_left_XOR_rm_w1<adj><pred>_if_(w2<v>))
-(w1<adj><attr>,~only_"<w1>"adj|det_left_XOR_rm_w1<adj><attr>_if_(w2<v>))
-(w1<det><def>,~only_"<w1>"adj|det_left_XOR_rm_w1<det><def>_if_(w2<v>))
-w1<det>=True
-w1<adj><pred>=True
-w1<adj><attr>=False
-w1<det><def>=False
-~only_"<w1>"adj|det_left_XOR_rm_w1<det>_if_(w2<v>)=True
-~only_"<w1>"adj|det_left_XOR_rm_w1<adj><pred>_if_(w2<v>)=True
-~only_"<w1>"adj|det_left_XOR_rm_w1<adj><attr>_if_(w2<v>)=True
-~only_"<w1>"adj|det_left_XOR_rm_w1<det><def>_if_(w2<v>)=True
-([],[~w1<adj><attr>,~w1<det><def>])
-     ^---- Seems like these are negative just at random D:
-           But it still fits the rules "only w1 adj|det left", it does have both
-	   But it's still bad to have such arbitrary stuff propagated early ...
-           maybe maximise?
-----
-"<w1>"
-	det
-	adj pred
-"<w2>"
-	det
-	v
-```
-
-
-
+The rule `s2` should be fine after `r1`. 
