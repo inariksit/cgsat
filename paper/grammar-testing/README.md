@@ -69,7 +69,7 @@ Here the first and third rules together remove `a` in all possible cases, leavin
 
 ```
 r1 = REMOVE v IF (-1C det)
-rl = REMOVE v IF (-1 det)
+l  = REMOVE v IF (-1 det)
 
 one possible symbolic sentence:
 
@@ -85,10 +85,10 @@ or [w1<det>,w1<det><def>]
         v
 ```
 
-Try to apply `REMOVE v IF (-1C det)` s.t. result will still trigger `rl`
+Try to apply `REMOVE v IF (-1C det)` s.t. result will still trigger `l`
 * remove `v` not possible
 * only `v` left not possible
-* only chance is to make such conditions that trigger `rl` but not `r1`:
+* only chance is to make such conditions that trigger `l` but not `r1`:
 
 ```
 "<w1>"
@@ -103,7 +103,7 @@ Try to apply `REMOVE v IF (-1C det)` s.t. result will still trigger `rl`
 
 ```
 r1 = REMOVE det IF (1 v)
-rl = REMOVE v IF (-1 det)
+l  = REMOVE v IF (-1 det)
 
 one possible symbolic sentence:
 w2<v>
@@ -119,7 +119,7 @@ or [w1<det>,w1<det><def>]
         v
 ```
 
-Try to apply `REMOVE det IF (1 v)` s.t. will trigger `rl`
+Try to apply `REMOVE det IF (1 v)` s.t. will trigger `l`
 * can't change conditions: `w2` must have a `v` in order to remove it
 * remove `det` not possible: `w2` must have a `det`
 * only `det` left` works:
@@ -139,7 +139,7 @@ and [~w1<n>, ~w1<v>, ...]
 
 ```
 r1 = REMOVE adj IF (1 v)
-rl = REMOVE v IF (-1 det)
+l  = REMOVE v IF (-1 det)
 
 one possible symbolic sentence:
 w2<v>
@@ -156,7 +156,7 @@ or [w1<det>,w1<det><def>]
         v
 ```
 
-Try to apply `REMOVE adj IF (1 v)` s.t. will trigger `rl`
+Try to apply `REMOVE adj IF (1 v)` s.t. will trigger `l`
 * can't change conditions: `w2` must have a `v` in order to remove it
 * only `adj` left not possible: `w2` must have a `det`
 * remove `adj`
@@ -235,6 +235,10 @@ solveAndPrintSentence: Conflict with assumptions
 * must hold: (-1 det) in 1 & (0 adj) in 2 & (1 n|np) in 3
 ```
 
+Problem is combining targe with condition.
+In order to find the previous rule that conflicts, start by finding rules that have the same target.
+
+
 
 
 ### Found a silly set definition
@@ -263,7 +267,7 @@ r3 = REMOVE V   IF (-1  Det) ;
 
 Is there an input which can go through the rules and trigger at the last?
 
-`r1` creates a new variable `w2<v>' for the hypothesis that `w2` is `v`.
+`r1` creates a new variable `w2'<v>` for the hypothesis that `w2` is `v`.
 This variable is true, if `w2<v>` is true and there is a reason why we cannot apply `r1`.
 These reasons are 
   * `w1` is not unambiguously `det` 
@@ -272,7 +276,7 @@ These reasons are
 In other words, the value of the new variable is determined by the formula
 
 ```
-  w2'<v> <= w2<v> && ( ~w1<det>_unambiguously || w2'<only_v> )
+  w2'<v> ⇐ w2<v> ∧ ( ¬w1<det_unambiguously> ∨ w2'<only_v> )
 ```
 
 Solving at this point isn't particularly exciting; we could just get any solution, including multiple ones where `w1` and `w2` don't include determiners or verbs at all.

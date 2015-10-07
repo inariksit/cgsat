@@ -22,6 +22,16 @@ ex_abc2 = concat $ snd $ parseRules False
        "REMOVE:r3 (a) IF (-1 (b)) ;" ++
        "REMOVE:l  (a) IF (-1 (c)) ;" )
 
+ex_tricky1 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1C (b)) ;" ++
+       "REMOVE:r2 (b) IF ( 1 (a)) ;" ++    --should not remove
+       "REMOVE:l  (a) IF (-1 (b)) ;" )
+
+ex_tricky2 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1C (b)) ;" ++
+       "SELECT:r2 (b) IF ( 1 (a)) ;" ++    --should select
+       "REMOVE:l  (a) IF (-1 (b)) ;" )
+
 ex_not = concat $ snd $ parseRules False
      ( "REMOVE:r1 (a) IF (NOT -1 (c)) ;" ++
        "REMOVE:r2 (a) IF (-1 (a)) ;" ++
@@ -35,8 +45,9 @@ main = do
     [] -> do let abc1 = splits ex_abc1
              let abc2 = splits ex_abc2
              let not_ = splits ex_not
-             
-             mapM_ (testRule (True,True) ts tc) (last abc1:[]) --last abc2:last not_:[])
+             let tricky1 = last $ splits ex_tricky1
+             let tricky2 = last $ splits ex_tricky2
+             mapM_ (testRule (True,True) ts tc) [tricky1, tricky2]
 
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -101,8 +112,9 @@ solveAndPrintSentence verbose s ass sent = do
                  | ((sind,word), vs) <- zip (toAscList sent) vals ]
           mapM_ putStrLn trueAnas
           putStrLn "----"
-    else do
-     putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
+      else do
+        putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
+
 printSentence :: Sentence -> IO ()
 printSentence sent = do
   let allAnas =
@@ -129,8 +141,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     putStrLn "Initial sentence:"
     printSentence initialSentence
     putStrLn "----"
-  let apply' = if verbose then applyAndPrint else apply
-  afterRules <- foldM (apply' s taglookup taginds) initialSentence rules
+  afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
   --mapM_ (constrainBoundaries s taglookup) (elems afterRules)
 
   shouldTriggerLast <-  do
@@ -145,8 +156,10 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     let otherLitsName = if length otherLits > 3 
                            then show (take 3 otherLits) ++ "..."
                            else show otherLits
-
-    mustHaveTrg  <- orl s ("must have: " ++ show trgLits) trgLits
+    let trgLitsName = if length trgLits > 3 
+                           then show (take 3 trgLits) ++ "..."
+                           else show trgLits
+    mustHaveTrg  <- orl s ("must have: " ++ trgLitsName) trgLits
     mustHaveOther <- orl s ("must have: " ++ otherLitsName) otherLits
     condLits <- mapM (mkCond s luTag (lookupLit afterRules) taginds) conds_positions
     allCondsHold <- andl s ("must hold: " ++ unwords (map show condLits)) condLits
@@ -158,6 +171,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
    then do 
       putStrLn $ "Following triggers last rule: " ++ show lastrule
       solveAndPrintSentence False s shouldTriggerLast afterRules
+      return ()
    else do
       putStrLn "Conflict!"
       putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
@@ -165,10 +179,30 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
       when verbose $ mapM_ print rules --if verbose, old rules not visible on screen anymore
       putStrLn $ "The sentence should have these properties:"
       mapM_ (\x -> putStrLn ("* " ++ show x)) shouldTriggerLast
-      putStrLn "This is the next best thing we can do:"
-      filter (\x -> length x == 2) (subsequences shouldTriggerLast) 
-        `forM_` \req -> solveAndPrintSentence True s req afterRules
-          
+      vals <- filter (\x -> length x == 2) (subsequences shouldTriggerLast) 
+               `forM` \req -> solve s req
+      case vals of
+        (False:False:False:[])
+           -> do putStr   "Problem appears with all combinations,"
+                 putStrLn "trying out each individual requirement:"
+                 shouldTriggerLast `forM_` \req -> solveAndPrintSentence True s [req] afterRules
+                 return ()
+        (False:False:_)
+           -> do putStrLn "Problem is with target"
+                 putStrLn "Look for other rules with same target"
+                 putStrLn "Is the target an existing tag combination?"
+        (_:False:False:_)
+           -> do putStrLn "Problem is with conditions"
+                 putStrLn "Look for other rules that have the conditions as target"
+                 putStrLn "Is the condition an existing tag combination?"
+         
+        (_:False:_)
+           -> do putStrLn "Problem is target+conditions"
+                 putStrLn "looking for other rules that have the same target"
+        (False:_)
+           -> do putStrLn "Problem is target+other"
+                 putStrLn "looking for other rules that have the same target"     
+        _  -> putStrLn "Problem is in combination of all three requirements"
 
 
   deleteSolver s 
@@ -179,16 +213,18 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   applyAndPrint s tl ti sent rule = do
     let (w,_) = width rule
     if w > length (elems sent) then do
-      putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
-      putStrLn "-----"
+      when verbose $ do
+        putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
+        putStrLn "-----"
       return sent
      else do
-      putStrLn $ "Applied rule " ++ show rule 
       newsent <- apply s tl ti sent rule
       when verbose $ do
+        putStrLn $ "Applied rule " ++ show rule 
         putStrLn "One possible new sentence:"
         when debug $ printSentence newsent
         solveAndPrintSentence False s [] newsent
+        return ()
       return newsent
 
 --------------------------------------------------------------------------------
@@ -339,6 +375,8 @@ mkSentence s w tcs = fromList `fmap` sequence
                             | n <- [1..w] ] 
  where shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
 
+--maybe ignore lexical tags?
+--somewhere else then insert the lexical tag to the cohort
 lookupTag :: TagMap -> [WIndex] -> (Trg,Dif) -> ([WIndex],[WIndex])
 lookupTag alltags allinds (trg,dif) = 
   let trgInds = if trg==[[]] then allinds

@@ -52,7 +52,8 @@ SET CM = (cm) OR (lpar) OR (rpar) OR ("<;>") ;
 
 SET V = Vblex + Vbmod + Vbhaver + Copula ;
 SET Verb = Vblex OR Vbmod OR Vbhaver OR Copula ;
-SET Word = N + NP + A + Det + PreAdv + Adv + V + Pron + Prep + CnjCoo + CnjSub + CnjAdv + Rel + Interj ;
+# Original was: SET Word = N + NP + A + Det + PreAdv + Adv + V + Pron + Prep + CnjCoo + CnjSub + CnjAdv + Rel + Interj ;
+SET Word = N | NP | A | Det | PreAdv | Adv | V | Pron | Prep | CnjCoo | CnjSub | CnjAdv | Rel | Interj ;
 SET NP_Member = N + A + Det + PreAdv + Adv + Pron ; # Pron es distinto al resto...
 #SET NOT_NP_Member = Word - NP_Member;
 SET NOT_NP_Member = Vblex OR Vbmod OR Vbhaver OR Copula OR Prep OR CnjCoo OR CnjSub OR CnjAdv OR Rel OR Interj ;

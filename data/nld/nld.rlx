@@ -217,7 +217,8 @@ REMOVE (vbser inf) IF (1 Adv) (2 (vblex pp));
 REMOVE DetPosZijn IF (1 Adv) (2 (vblex pp));
 
 # krachtiger dan
-SELECT Cnjadv IF (-1 (adj comp)) (0 ("dan"i));
+LIST Dan = "dan"i ;
+SELECT Cnjadv IF (-1 (adj comp)) (0 Dan);
 
 
 SECTION
