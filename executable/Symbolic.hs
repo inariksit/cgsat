@@ -6,11 +6,12 @@ import SAT.Named
 
 import Control.Monad
 import Data.List hiding ( lookup )
-import Data.Map ( Map(..), fromList, toAscList, keys, elems, member, adjust, lookup )
+import Data.Map ( Map(..), fromList, toAscList, keys, elems, member, adjust, lookup, filterWithKey )
 import Data.Maybe
 import Debug.Trace
 import Prelude hiding ( lookup, Word )
 import System.Environment
+import Text.Regex
 
 ex_abc1 = concat $ snd $ parseRules False
      ( "REMOVE:r1 (a) IF (-1 (c)) ; " ++
@@ -127,9 +128,10 @@ printSentence sent = do
 
 testRule :: (Bool,Bool) -> [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
 testRule (verbose,debug) ts tcs (lastrule,rules) = do 
-  putStrLn "************* testRule ***************"
-  putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
-  putStrLn "the rest of the rules: " >> mapM_ print rules
+  when verbose $ do
+    putStrLn "************* testRule ***************"
+    putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
+    putStrLn "the rest of the rules: " >> mapM_ print rules
   let (w,trgSInd) = width lastrule
   let taginds = [1..length tcs]
   let trg_difs = toTags $ target lastrule
@@ -173,8 +175,9 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   b <- solve s shouldTriggerLast
   if b 
    then do 
-      putStrLn $ "Following triggers last rule: " ++ show lastrule
-      solveAndPrintSentence False s shouldTriggerLast afterRules
+      when verbose $ do 
+           putStrLn $ "Following triggers last rule: " ++ show lastrule
+           solveAndPrintSentence False s shouldTriggerLast afterRules
       return ()
    else do
       putStrLn "Conflict!"
@@ -185,19 +188,21 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
       mapM_ (\x -> putStrLn ("* " ++ show x)) shouldTriggerLast
       vals <- filter (\x -> length x == 2) (subsequences shouldTriggerLast) 
                `forM` \req -> solve s req
-      case vals of
-        (False:False:False:[])
+      suspiciousRules <- case vals of
+         (False:False:False:[])
            -> do putStr   "Problem appears with all combinations,"
                  putStrLn "trying out each individual requirement:"
                  shouldTriggerLast `forM_` \req -> solveAndPrintSentence True s [req] afterRules
-        (False:False:_)
+                 return []
+         (False:False:_)
            -> do putStrLn "Problem is with target"
                  putStrLn "Look for other rules with same target"
                  let possibleOffenders = findSameTarget rules (target lastrule)
                  mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
                  putStrLn "Is the target an existing tag combination?"
+                 return possibleOffenders
 
-        (_:False:False:_)
+         (_:False:False:_)
            -> do putStrLn "Problem is with conditions."
                  let condsInAll = intersect1 conds --only consider conditions that are in all disjunctions
                  let new_cps = [ (cond, pos) | cond <- condsInAll
@@ -210,35 +215,57 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                                                then return $ head condLitsExcept
                                                else orl' s condLitsExcept
                        b <- solve s [mustHaveTrg, mustHaveOther, allCondsHoldExcept]
-                       if b then return $ Just cp --skipping this condition makes it work
-                        else return Nothing
+                       return $ if b then Just cp --skipping this condition makes it work
+                                     else Nothing
                      | cp@(missingCond, pos) <- new_cps
-                     , let cps_except = deleteInAll cp conds_positions ]
-                 putStrLn "Candidates for offending conditions:"
-                 mapM_ (\(c,p) -> putStrLn ("* " ++ show c ++ " at " ++ show p)) offendingConds
-                 putStrLn ""
+                     , let cps_except = deleteInAll [cp] conds_positions ]
+                 if null offendingConds
+                   then do offCondPairs <- catMaybes `fmap` sequence
+                            [ do cle <- mapM (mkCond s luTag (lookupLit afterRules) taginds) cps_except2
+                                 allCondsHoldExcept2 <- orl' s cle
+                                 b <- solve s [mustHaveTrg, mustHaveOther, allCondsHoldExcept2]
+                                 return $ if b then Just condPair else Nothing
+                               | condPair <- filter (\x->length x ==2) (subsequences new_cps)
+                               , let cps_except2 = deleteInAll condPair conds_positions ]
+                           putStrLn "Candidates for offending conditions:"
+                           mapM_ (\x -> putStrLn ("* " ++ show x)) offCondPairs
+                           putStrLn ""
+                   else do putStrLn "Candidates for offending conditions:"
+                           mapM_ (\(c,p) -> putStrLn ("* " ++ show c ++ " at " ++ show p)) offendingConds
+                           putStrLn ""
+
                  putStrLn "Look for other rules that have the conditions as target"
-                 let suspiciousRules = map (findSameTarget rules . getTagset . fst) offendingConds
+                 let suspiciousRules = concatMap (findSameTarget rules . getTagset . fst) offendingConds
                  mapM_ (\r -> putStrLn ("* " ++ show r)) suspiciousRules
                  putStrLn ""
 
                  putStrLn "Is the condition an existing tag combination?"
+                 return suspiciousRules
          
-        (_:False:_)
+         (_:False:_)
            -> do putStrLn "Problem is target+conditions"
                  putStrLn "looking for other rules that have the same target"
                  let possibleOffenders = findSameTarget rules (target lastrule)
                  mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
-        (False:_)
+                 return possibleOffenders
+         (False:_)
            -> do putStrLn "Problem is target+other"
-                 putStrLn "looking for other rules that have the same target"     
-        _  -> putStrLn "Problem is in combination of all three requirements"
+                 putStrLn "looking for other rules that have the same target"
+                 let possibleOffenders = findSameTarget rules (target lastrule)
+                 mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
+                 return possibleOffenders
 
+         _ -> do putStrLn "Problem is in combination of all three requirements"
+                 return []
+
+      putStrLn "Suspicious rules are here, TODO try out rules without them"
+      mapM_ print suspiciousRules
 
   deleteSolver s 
   return b
 
  where
+
   applyAndPrint :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
   applyAndPrint s tl ti sent rule = do
     let (w,_) = width rule
@@ -259,7 +286,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
 
 findSameTarget :: [Rule] -> TagSet -> [Rule]
 findSameTarget rules trg = [ rule | (rule, tss) <- zip rules otherTrgs
-                                       , any (\ts -> ts `elem` tss) lastTrg ]
+                                  , any (\ts -> ts `elem` tss) lastTrg ]
  where 
   lastTrg = justTS trg
   otherTrgs = map (justTS.target) rules
@@ -433,8 +460,20 @@ lookupTag alltags allinds (trg,dif) =
   in  (trgInds\\difInds, difInds)
  where
   go acc []     = acc         --default is [] because intersect [] _ == []
-  go acc (t:ts) = let inds = [] `fromMaybe` lookup t alltags
+  go acc (t:ts) = let inds = case t of
+                              (Rgx r s) -> [] `fromMaybe` lookupRegex t alltags
+                              _         -> [] `fromMaybe` lookup t alltags
                   in go (intersect acc inds) ts
+
+lookupRegex :: Tag -> TagMap -> Maybe [WIndex]
+lookupRegex (Rgx r s) tagmap = trace ("lookupRegex: " ++ s) $
+  Just $ concat $ elems $ filterWithKey (\t _ -> matchTag r t) tagmap
+ where
+  matchTag regex (WF str)  = isJust $ matchRegex regex str
+  matchTag regex (Lem str) = isJust $ matchRegex regex str
+  matchTag regex _         = False
+--lookupRegex tag = lookup tag tagmap shouldn't happen anyway
+
 
 lookupLit :: Sentence -> SIndex -> WIndex -> Lit
 lookupLit sentence si wi = 
@@ -451,12 +490,12 @@ intersect1 [xs]     = xs
 intersect1 (xs:xss) = foldl1 intersect (xs:xss)
 intersect1 xs       = error $ "intersect1: expected [[Condition]], got " ++ show xs
 
-deleteInAll :: (Condition, WIndex) -> [([Condition], [WIndex])] -> [([Condition], [WIndex])]
+deleteInAll :: [(Condition, WIndex)] -> [([Condition], [WIndex])] -> [([Condition], [WIndex])]
 deleteInAll cp cps = map (deleteInOne cp) cps
- where
-  deleteInOne :: (Condition, WIndex) -> ([Condition], [WIndex]) -> ([Condition], [WIndex])
-  deleteInOne (c,p) (cs,ps) = unzip [ (c', p') | (c', p') <- zip cs ps
-                                               , c'/=c && p'/=p ]
+
+deleteInOne :: [(Condition, WIndex)] -> ([Condition], [WIndex]) -> ([Condition], [WIndex])
+deleteInOne delCPs (cs,ps) = unzip [ (c, p) | (c, p) <- zip cs ps
+                                            , (c, p) `notElem` delCPs ]
 
 --------------------------------------------------------------------------------
 

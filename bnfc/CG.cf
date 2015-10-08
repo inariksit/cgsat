@@ -49,6 +49,7 @@ _.        SetName ::= "$$" SetName ; -- Unification; just read them as regular s
 
 Lemma.   Tag1 ::= Str ; 
 LemmaCI. Tag1 ::= Str "i" ; 
+Regex.   Tag1 ::= Str "r" ;
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
 _.       Tag1 ::= "+" Tag1 ; -- Subreadings; ignore
@@ -112,11 +113,11 @@ NilT.    TagSet1 ::= Tag ;
 
 rules Or ::= "OR" | "|" ;
 
-Exactly. Position ::= Signed ;
-AtLeastPre. Position ::= "*" Signed ;
+Exactly.     Position ::= Signed ;
+AtLeastPre.  Position ::= "*" Signed ;
 AtLeastPost. Position ::= Signed "*" ; 
 AtLPostCaut. Position ::= Signed "C*" ;
-Cautious. Position ::= Position "C" ; --We're not interested in the unambiguous
+Cautious.    Position ::= Position "C" ; 
 
 --Barrier. Barrier ::= "BARRIER" TagSet ;
 --CBarrier. Barrier ::= "CBARRIER" TagSet ;

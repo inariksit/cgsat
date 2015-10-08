@@ -2,30 +2,32 @@ module CG_base where
 
 import Control.Applicative
 import Data.List
-
+import Text.Regex
 
 -- | All kinds of morphological tags are in the same data type: e.g.  Prep, P1, Conditional.
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma and word form are also in tags.
-data Tag = Tag String | Lem String | WF String | EOS | BOS deriving (Eq,Read)
+data Tag = Tag String | Lem String | WF String | Rgx Regex String | EOS | BOS
 
+instance Eq Tag where
+  foo == bar = show foo == show bar
 
 -- | Wordform should be first element in an analysis.
 instance Ord Tag where
-  WF l `compare` WF l' = l `compare` l'
-  WF _ `compare` _      = LT
-  _     `compare` WF _  = GT
-  Lem l `compare` Lem l' = l `compare` l'
-  Tag t `compare` Tag t' = t `compare` t'
-  Lem _ `compare` Tag _  = LT
-  Tag _ `compare` Lem _  = GT
-  foo   `compare` bar    = show foo `compare` show bar
+  WF word `compare` WF word' = word `compare` word'
+  WF _    `compare` _        = LT
+  _       `compare` WF _     = GT
+  Lem lem `compare` Lem lem' = lem `compare` lem'
+  Tag tag `compare` Tag tag' = tag `compare` tag'
+  Rgx _ s `compare` Rgx _ s' = s `compare` s'
+  foo     `compare` bar      = show foo `compare` show bar
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
   show (WF str) = "\"<" ++ str ++ ">\""
   show (Lem str) = "\"" ++ str ++ "\""
+  show (Rgx _r s) =  "\"" ++ s ++ "\"r"
   show (Tag str) = str
   show BOS       = ">>>"
   show EOS       = "<<<"
@@ -38,7 +40,7 @@ data TagSet =
  | Diff TagSet TagSet
  | Cart TagSet TagSet
  | All
-  deriving (Eq,Ord,Read)
+  deriving (Eq,Ord)
 
 instance Show TagSet where
   show (TS tags) = showTagset tags
@@ -144,7 +146,7 @@ type Cautious = Bool
 data Position = Exactly Cautious Int 
               | AtLeast Cautious Int
               | Barrier Cautious Int TagSet 
-              | CBarrier Cautious Int TagSet deriving (Eq,Read)
+              | CBarrier Cautious Int TagSet deriving (Eq)
 
 
 instance Show Position where

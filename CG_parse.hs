@@ -4,8 +4,8 @@ module CG_parse ( parseRules
                 , readData 
                 , readRules' ) where
 
-import System.Environment (getArgs)
-import System.Exit (exitFailure)
+import System.Environment ( getArgs )
+import System.Exit ( exitFailure )
 
 import Apertium.Abs
 import Apertium.Lex
@@ -22,6 +22,7 @@ import Control.Monad.State.Lazy
 import Data.Either
 import Data.List
 import Debug.Trace
+import Text.Regex ( mkRegex )
 
 import qualified CG_base as CGB
 
@@ -142,11 +143,12 @@ transTag tag = case tag of
                    ('"':'<':_) -> return $ CGB.TS [[CGB.WF (strip 2 s)]]
                    ('"':    _) -> return $ CGB.TS [[CGB.Lem (strip 1 s)]]
                    _           -> return $ CGB.TS [[CGB.Lem s]]
-  Tag (Id str) -> return $ CGB.TS [[CGB.Tag str]]
-  AND tags     -> do ts <- mapM transTag tags
-                     let ts' = map toTagsLIST ts --safe: only returs TS, no set constructors
-                         allInOne = [concat (concat ts')]
-                     return $ CGB.TS allInOne 
+  Regex (Str s) -> return $ CGB.TS [[CGB.Rgx (mkRegex s) s]]
+  Tag (Id str)  -> return $ CGB.TS [[CGB.Tag str]]
+  AND tags      -> do ts <- mapM transTag tags
+                      let ts' = map toTagsLIST ts --safe: only returs TS, no set constructors
+                          allInOne = [concat (concat ts')]
+                      return $ CGB.TS allInOne 
 
   Named setname -> case setname of
     (SetName (UIdent name)) -> do

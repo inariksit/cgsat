@@ -27,7 +27,8 @@ library
                        minisat,
                        satplus,
                        mtl,
-                       array
+                       array,
+                       regex-compat
   -- hs-source-dirs:      
   ghc-options:         -O2
                        -threaded
@@ -58,7 +59,8 @@ executable symbolic
                        minisat,
                        satplus,
                        array,
-                       containers
+                       containers,
+                       regex-compat
   default-language:    Haskell2010
 
 executable test-cgsat

@@ -74,17 +74,19 @@ SET PrTe = Pr + Te ;
 
 SECTION
 
+# These rules are introduced only to cause conflicts!
+# REMOVE Adj IF (-1C Pr) ;
+# REMOVE Pr IF (1 Adj) ;
+# -----------
+
 # buiten spelen, om te spelen
- REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
- REMOVE:r_adv_n Adv IF (1 Noun);
+REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
+REMOVE:r_adv_n Adv IF (1 Noun);
 SELECT:s_pr_v PrTe IF (1 VerbInf) ;
 
-
- REMOVE Inf IF (-1 PrnPers);
-
- REMOVE Adj IF (-1 Pr) (1 Pr);
-
- REMOVE Cnjsub IF (1 EOS);
+REMOVE Inf IF (-1 PrnPers);
+REMOVE Adj IF (-1 Pr) (1 Pr);
+REMOVE Cnjsub IF (1 EOS);
 
 SELECT VbGer IF (-1 DetHet) (NOT 0 Noun);
 SELECT DetHet IF (1 VbGer);
