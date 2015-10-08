@@ -137,6 +137,7 @@ instance Show Condition where
 getTagset :: Condition -> TagSet
 getTagset (C _pos (_, tagset)) = tagset
 getTagset Always = TS [[]]
+getTagSet cond = error "getTagset: applied to complex condition " ++ show cond
 
 type Cautious = Bool
 

@@ -193,7 +193,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
         (False:False:_)
            -> do putStrLn "Problem is with target"
                  putStrLn "Look for other rules with same target"
-                 let possibleOffenders = findSameTarget lastrule rules
+                 let possibleOffenders = findSameTarget rules (target lastrule)
                  mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
                  putStrLn "Is the target an existing tag combination?"
 
@@ -218,12 +218,16 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                  mapM_ (\(c,p) -> putStrLn ("* " ++ show c ++ " at " ++ show p)) offendingConds
                  putStrLn ""
                  putStrLn "Look for other rules that have the conditions as target"
+                 let suspiciousRules = map (findSameTarget rules . getTagset . fst) offendingConds
+                 mapM_ (\r -> putStrLn ("* " ++ show r)) suspiciousRules
+                 putStrLn ""
+
                  putStrLn "Is the condition an existing tag combination?"
          
         (_:False:_)
            -> do putStrLn "Problem is target+conditions"
                  putStrLn "looking for other rules that have the same target"
-                 let possibleOffenders = findSameTarget lastrule rules
+                 let possibleOffenders = findSameTarget rules (target lastrule)
                  mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
         (False:_)
            -> do putStrLn "Problem is target+other"
@@ -253,11 +257,11 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
         return ()
       return newsent
 
-findSameTarget :: Rule -> [Rule] -> [Rule]
-findSameTarget lastrule rules = [ rule | (rule, tss) <- zip rules otherTrgs
+findSameTarget :: [Rule] -> TagSet -> [Rule]
+findSameTarget rules trg = [ rule | (rule, tss) <- zip rules otherTrgs
                                        , any (\ts -> ts `elem` tss) lastTrg ]
  where 
-  lastTrg = justTS $ target lastrule
+  lastTrg = justTS trg
   otherTrgs = map (justTS.target) rules
 
   justTS :: TagSet -> [[[Tag]]]
