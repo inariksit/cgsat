@@ -18,7 +18,8 @@ import CG.Print
 import CG.ErrM as CGErr
 
 import Control.Applicative
-import Control.Monad.State.Lazy
+--import Control.Monad.State.Lazy
+import Control.Monad.State.Strict
 import Data.Either
 import Data.List
 import Debug.Trace
@@ -30,6 +31,7 @@ data Env = Env { named :: [(String, CGB.TagSet)]
                , unnamed :: [CGB.TagSet] }
 
 emptyEnv = Env [] []
+
 --toTags from CGB returns (target::[[Tag]], diff::[[Tag]]).
 --This is needed only for the set operation Diff.
 --Other set or list operations only have the wanted tags in the first element.
@@ -41,7 +43,7 @@ parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
             CGErr.Ok  tree -> let (rules,tags) = runState (parseCGRules tree) emptyEnv
                               in trace (if test then unwords $ pr rules else "") $
-                                 ( map snd (named tags) ++ unnamed tags
+                                 ( nub (map snd (named tags) ++ unnamed tags)
                                  , map rights rules )
   where pr = concatMap $ map pr'
         pr' (Right rule)  = show rule
@@ -137,20 +139,29 @@ transSetDecl (List setname tags) =
 
 transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
-  Lemma (Str s) -> case s of
-                   ('"':'<':_) -> return $ CGB.TS [[CGB.WF (strip 2 s)]]
-                   ('"':    _) -> return $ CGB.TS [[CGB.Lem (strip 1 s)]]
-                   _           -> return $ CGB.TS [[CGB.Lem s]]
-  LemmaCI (Str s) -> case s of
-                   ('"':'<':_) -> return $ CGB.TS [[CGB.WF (strip 2 s)]]
-                   ('"':    _) -> return $ CGB.TS [[CGB.Lem (strip 1 s)]]
-                   _           -> return $ CGB.TS [[CGB.Lem s]]
-  Regex (Str s) -> return $ CGB.TS [[CGB.Rgx (mkRegex s) s]]
-  Tag (Id str)  -> return $ CGB.TS [[CGB.Tag str]]
+  Lemma (Str s) -> do let ts = case s of
+                                ('"':'<':_) -> CGB.TS [[CGB.WF (strip 2 s)]]
+                                ('"':    _) -> CGB.TS [[CGB.Lem (strip 1 s)]]
+                                _           -> CGB.TS [[CGB.Lem s]]
+                      modify $ \env -> env { unnamed = ts : unnamed env }
+                      return ts
+  LemmaCI (Str s) -> do let ts = case s of
+                                  ('"':'<':_) -> CGB.TS [[CGB.WF (strip 2 s)]]
+                                  ('"':    _) -> CGB.TS [[CGB.Lem (strip 1 s)]]
+                                  _           -> CGB.TS [[CGB.Lem s]]
+                        modify $ \env -> env { unnamed = ts : unnamed env }
+                        return ts
+  Regex (Str s) -> do let ts = CGB.TS [[CGB.Rgx (mkRegex s) s]]
+                      modify $ \env -> env { unnamed = ts : unnamed env }
+                      return ts
+  Tag (Id str)  -> do let ts = CGB.TS [[CGB.Tag str]]
+                      modify $ \env -> env { unnamed = ts : unnamed env }
+                      return ts
   AND tags      -> do ts <- mapM transTag tags
                       let ts' = map toTagsLIST ts --safe: only returs TS, no set constructors
-                          allInOne = [concat (concat ts')]
-                      return $ CGB.TS allInOne 
+                          allInOne = CGB.TS [concat (concat ts')]
+                      modify $ \env -> env { unnamed = allInOne : unnamed env }
+                      return allInOne
 
   Named setname -> case setname of
     (SetName (UIdent name)) -> do
@@ -169,20 +180,22 @@ transTagSet ts = case ts of
   All            -> return $ CGB.All
   OR tag _or tagset  -> do tags1 <- transTag tag
                            tags2 <- transTagSet tagset
-                           return $ CGB.Or tags1 tags2
-
-  ----TODO all set operations!
+                           let ts' = CGB.Or tags1 tags2
+                           modify $ \env -> env { unnamed = ts' : unnamed env }
+                           return ts'
 
   Diff ts All    -> error "something except everything? are you a philosopher?"
   Diff ts1 ts2   -> do tags1 <- transTagSet ts1
                        tags2 <- transTagSet ts2
-                       return $ CGB.Diff tags1 tags2
-  
+                       let ts' = CGB.Diff tags1 tags2
+                       modify $ \env -> env { unnamed = ts' : unnamed env }
+                       return ts'
 
   Cart ts1 ts2   -> do tags1 <- transTagSet ts1   
                        tags2 <- transTagSet ts2
-                       return $ CGB.Cart tags1 tags2
-
+                       let ts' = CGB.Cart tags1 tags2
+                       modify $ \env -> env { unnamed = ts' : unnamed env }
+                       return ts'
 
 transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
@@ -219,7 +232,8 @@ transCondSet cs = do
 
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
-  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
+--  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
+  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) ((,) True `fmap` transTagSet ts)
   CondNotPos pos ts       -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
   CondBarrier pos ts bts  -> barrier pos ts bts True  CGB.Barrier
   CondNotBar pos ts bts   -> barrier pos ts bts False CGB.Barrier
@@ -257,6 +271,7 @@ transCond c = case c of
         transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
         transTagSet' b ts = 
           do tags <- transTagSet ts
+             modify $ \env -> env { unnamed = tags : unnamed env }
              return (b, tags)
 
         barrier pos ts bts isPositive bcons =
