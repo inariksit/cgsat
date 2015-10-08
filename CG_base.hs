@@ -205,6 +205,8 @@ toConds cond = case cond of
     AND c1@(AND _ _) c2@(AND _ _) -> [concat $ toConds c1 ++ toConds c2]
     OR  c1 c2 -> toConds c1 ++ toConds c2 
 
+toCond :: [[Condition]] -> Condition
+toCond condss = foldl1 OR [ foldl1 AND conds | conds <- condss ]
 
 -- Shorthand for writing conditions without barriers
 mkC :: String -> TagSet -> Condition

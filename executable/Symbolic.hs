@@ -132,11 +132,17 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   putStrLn "the rest of the rules: " >> mapM_ print rules
   let (w,trgSInd) = width lastrule
   let taginds = [1..length tcs]
+  let trg_difs = toTags $ target lastrule
+  let conds = toConds $ cond lastrule
+  let conds_positions = [ (cs, map (trgSInd+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds ]
+
   s <- newSolver
   initialSentence <- mkSentence s w tcs
   let taglookup = fromList $
                     ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
                                    in (t, getInds tcs) 
+  let luTag = lookupTag taglookup taginds
+
   when verbose $ do
     putStrLn "Initial sentence:"
     printSentence initialSentence
@@ -144,12 +150,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
   --mapM_ (constrainBoundaries s taglookup) (elems afterRules)
 
-  shouldTriggerLast <-  do
-    let luTag = lookupTag taglookup taginds
-    let trg_difs = toTags $ target lastrule
-    let conds = toConds $ cond lastrule
-    let conds_positions =
-         [ (cs, map (trgSInd+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds]
+  (mustHaveTrg, mustHaveOther, allCondsHold) <- do
     let trgWInds@((yes,no):_) = map luTag trg_difs --TODO
     let trgLits = map (lookupLit afterRules trgSInd) yes
     let otherLits = map (lookupLit afterRules trgSInd) (taginds \\ yes)
@@ -159,13 +160,16 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     let trgLitsName = if length trgLits > 3 
                            then show (take 3 trgLits) ++ "..."
                            else show trgLits
-    mustHaveTrg  <- orl s ("must have: " ++ trgLitsName) trgLits
-    mustHaveOther <- orl s ("must have: " ++ otherLitsName) otherLits
+    mht <- orl s ("must have: " ++ trgLitsName) trgLits
+    mho <- orl s ("must have: " ++ otherLitsName) otherLits
     condLits <- mapM (mkCond s luTag (lookupLit afterRules) taginds) conds_positions
-    allCondsHold <- andl s ("must hold: " ++ unwords (map show condLits)) condLits
-    return [mustHaveTrg, mustHaveOther, allCondsHold]
-    
+           --disjunction of conjunctions of conditions (for template conditions)
+    ach <- orl s ("must hold: " ++ unwords (map show condLits)) condLits
+    return (mht, mho, ach)
+
+  let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
   when debug $ print shouldTriggerLast
+
   b <- solve s shouldTriggerLast
   if b 
    then do 
@@ -186,19 +190,41 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
            -> do putStr   "Problem appears with all combinations,"
                  putStrLn "trying out each individual requirement:"
                  shouldTriggerLast `forM_` \req -> solveAndPrintSentence True s [req] afterRules
-                 return ()
         (False:False:_)
            -> do putStrLn "Problem is with target"
                  putStrLn "Look for other rules with same target"
+                 let possibleOffenders = findSameTarget lastrule rules
+                 mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
                  putStrLn "Is the target an existing tag combination?"
+
         (_:False:False:_)
-           -> do putStrLn "Problem is with conditions"
+           -> do putStrLn "Problem is with conditions."
+                 let condsInAll = intersect1 conds --only consider conditions that are in all disjunctions
+                 let new_cps = [ (cond, pos) | cond <- condsInAll
+                                             , let pos = trgSInd + getPos cond ] ::  [(Condition, WIndex)]
+                 let luTag = lookupTag taglookup taginds
+
+                 offendingConds <- catMaybes `fmap` sequence
+                  [ do condLitsExcept <- mapM (mkCond s luTag (lookupLit afterRules) taginds) cps_except
+                       allCondsHoldExcept <- if length condLitsExcept == 1 
+                                               then return $ head condLitsExcept
+                                               else orl' s condLitsExcept
+                       b <- solve s [mustHaveTrg, mustHaveOther, allCondsHoldExcept]
+                       if b then return $ Just cp --skipping this condition makes it work
+                        else return Nothing
+                     | cp@(missingCond, pos) <- new_cps
+                     , let cps_except = deleteInAll cp conds_positions ]
+                 putStrLn "Candidates for offending conditions:"
+                 mapM_ (\(c,p) -> putStrLn ("* " ++ show c ++ " at " ++ show p)) offendingConds
+                 putStrLn ""
                  putStrLn "Look for other rules that have the conditions as target"
                  putStrLn "Is the condition an existing tag combination?"
          
         (_:False:_)
            -> do putStrLn "Problem is target+conditions"
                  putStrLn "looking for other rules that have the same target"
+                 let possibleOffenders = findSameTarget lastrule rules
+                 mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
         (False:_)
            -> do putStrLn "Problem is target+other"
                  putStrLn "looking for other rules that have the same target"     
@@ -227,6 +253,22 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
         return ()
       return newsent
 
+findSameTarget :: Rule -> [Rule] -> [Rule]
+findSameTarget lastrule rules = [ rule | (rule, tss) <- zip rules otherTrgs
+                                       , any (\ts -> ts `elem` tss) lastTrg ]
+ where 
+  lastTrg = justTS $ target lastrule
+  otherTrgs = map (justTS.target) rules
+
+  justTS :: TagSet -> [[[Tag]]]
+  justTS (TS ts)      = [ts]
+  justTS (Or ts1 ts2) = justTS ts1 ++ justTS ts2
+  justTS (Diff ts1 ts2) = justTS ts1 ++ justTS ts2
+  justTS (Cart ts1 ts2) = justTS ts1 ++ justTS ts2
+  justTS All            = []
+
+
+  
 --------------------------------------------------------------------------------
 
 apply :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
@@ -397,6 +439,20 @@ lookupLit sentence si wi =
                  Just tag -> tag
                  Nothing  -> error "lookupLit: tag combination not found"
     Nothing -> true --sent here by negated rule: `NOT -1000 foo' is always true
+
+--------------------------------------------------------------------------------
+
+intersect1 :: (Eq a, Show a) => [[a]] -> [a]
+intersect1 [xs]     = xs
+intersect1 (xs:xss) = foldl1 intersect (xs:xss)
+intersect1 xs       = error $ "intersect1: expected [[Condition]], got " ++ show xs
+
+deleteInAll :: (Condition, WIndex) -> [([Condition], [WIndex])] -> [([Condition], [WIndex])]
+deleteInAll cp cps = map (deleteInOne cp) cps
+ where
+  deleteInOne :: (Condition, WIndex) -> ([Condition], [WIndex]) -> ([Condition], [WIndex])
+  deleteInOne (c,p) (cs,ps) = unzip [ (c', p') | (c', p') <- zip cs ps
+                                               , c'/=c && p'/=p ]
 
 --------------------------------------------------------------------------------
 
