@@ -59,7 +59,7 @@ main = do
              let rules = concat rls
              let tcInGr = nub $ concatMap toTags' tsets
              tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
-             let tc = nub $ tcInGr ++ tcInLex 
+             let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
              let ts = nub $ tsInApe ++ concat tc             
              mapM_ (testRule (verbose,debug) ts tc) (splits rules)
 
@@ -70,9 +70,13 @@ main = do
                          `fmap` readFile "data/spa/spa_tags.txt"
              (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
              let rules = concat rls
-             let tcInGr = nub $ concatMap toTags' tsets
+             let allConds = concatMap (toConds . cond) rules
+             let unnamedTags = nub $ concatMap (map getTagset) allConds
+             -- mapM_ print allConds 
+             -- mapM_ print unnamedTags
+             let tcInGr = nub $ (map toTags' tsets ++ map toTags' unnamedTags)
              tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
-             let tc = nub $ tcInGr ++ tcInLex 
+             let tc = nub $ (concat tcInGr) ++ tcInLex 
              let ts = nub $ tsInApe ++ concat tc             
              mapM_ (testRule (verbose,debug) ts tc) (splits rules)   
 
@@ -145,7 +149,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                                    in (t, getInds tcs) 
   let luTag = lookupTag taglookup taginds
 
-  when verbose $ do
+  when debug $ do
     putStrLn "Initial sentence:"
     printSentence initialSentence
     putStrLn "----"
