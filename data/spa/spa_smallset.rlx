@@ -108,10 +108,14 @@ SECTION
 ############## 
 # Pronom / Det
 
-SELECT:i01_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
+#SELECT:i01_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
     # la casa (en que vivo)
 SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
     # (el novio) la casa
+
+# just to test new feature in CG_parse
+SELECT:este_2 (det) IF (1 Este OR Masc) ;
+SELECT:masc_2 (det) IF (0 Det + Cog) ;
 
 #REMOVE:i01_r_det Det IF (1C VerbFin) ;  # TOP 1
     # la casa (en que vivo)

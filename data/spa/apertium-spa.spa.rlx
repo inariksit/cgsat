@@ -25,7 +25,7 @@ LIST Inf = (inf) ;
 LIST Pres = (pri) ;
 LIST Past = (pii) ;
 LIST Cond = (cni) ;
-LIST PastCondSubj = past cond subj ;
+SET PastCondSubj = Past | Cond | Subj ;
 SET PastCondSubjP1 = PastCondSubj + (p1)  ;
 
 LIST VerbFin = pri prs imp pii cni pis ifi fti;

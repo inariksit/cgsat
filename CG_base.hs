@@ -2,6 +2,7 @@ module CG_base where
 
 import Control.Applicative
 import Data.List
+import Debug.Trace
 import Text.Regex
 
 -- | All kinds of morphological tags are in the same data type: e.g.  Prep, P1, Conditional.
