@@ -309,7 +309,7 @@ REMOVE:dob_neg_1 No IF (0 No) (1 Verb) (*2 AdvNeg OR PronNeg BARRIER Cnj_Rel) ;
 SELECT:estado_1 N IF (-1 Det + Masc) (0 ("estado") OR ("Estado")) ;
 SELECT:estado_2 PP IF (-1 Vbhaver) (0 ("estado")) (1 PP) ;
 ## Commented out because Text.Regex doesn't support unicode and I'm too lazy SELECT:estado_3 N IF (-1 ("[a-záéíóúñ].*"r)) (0 ("Estado")) ;	# "Estado" (con mayúscula) va precedido de una palabra con minúscula inicial
-SELECT:estado_3 N IF (-1 ("[a-z].*"r)) (0 ("Estado")) ;	# "Estado" (con mayúscula) va precedido de una palabra con minúscula inicial
+SELECT:estado_3 N IF (-1 ("a"r)) (0 ("Estado")) ;	# "Estado" (con mayúscula) va precedido de una palabra con minúscula inicial
 
 # la tierra como medio de vida
 

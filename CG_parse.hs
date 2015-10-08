@@ -26,9 +26,10 @@ import Text.Regex ( mkRegex )
 
 import qualified CG_base as CGB
 
-type Env = [(String, CGB.TagSet)]
+data Env = Env { named :: [(String, CGB.TagSet)]
+               , unnamed :: [CGB.TagSet] }
 
-
+emptyEnv = Env [] []
 --toTags from CGB returns (target::[[Tag]], diff::[[Tag]]).
 --This is needed only for the set operation Diff.
 --Other set or list operations only have the wanted tags in the first element.
@@ -38,9 +39,10 @@ toTagsLIST = concatMap fst . CGB.toTags
 parseRules :: Bool -> String -> ([CGB.TagSet], [[CGB.Rule]]) -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
-            CGErr.Ok  tree -> let (rules,tags) = runState (parseCGRules tree) []
+            CGErr.Ok  tree -> let (rules,tags) = runState (parseCGRules tree) emptyEnv
                               in trace (if test then unwords $ pr rules else "") $
-                                 (map snd tags, map rights rules)
+                                 ( map snd (named tags) ++ unnamed tags
+                                 , map rights rules )
   where pr = concatMap $ map pr'
         pr' (Right rule)  = show rule
         pr' (Left string) = string
@@ -87,13 +89,13 @@ parseCGRules (Sections secs) = mapM parseSection secs
 parseSection :: Section -> State Env [Either String CGB.Rule]
 parseSection (Defs defs) = do mapM updateEnv defs 
                               --in case the grammar doesn't specify boundaries 
-                              modify ((">>>", CGB.TS bos) :)
-                              modify (("<<<", CGB.TS eos) :)
+                              modify $ \env -> env { named = (">>>", CGB.TS bos) : named env }
+                              modify $ \env -> env { named = ("<<<", CGB.TS eos) : named env }
                               env <- get
                               return $ map (parseRules' env) defs
   where updateEnv :: Def -> State Env ()
         updateEnv (SetDef  s) = do nameTags <- transSetDecl s
-                                   modify (nameTags :)
+                                   modify $ \env -> env { named = nameTags : named env }
         updateEnv (RuleDef r) = do return ()
 
         parseRules' :: Env -> Def -> Either String CGB.Rule
@@ -152,7 +154,7 @@ transTag tag = case tag of
 
   Named setname -> case setname of
     (SetName (UIdent name)) -> do
-      env <- get
+      env <- gets named
       case lookup name env of
         Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
         Just ts -> (return ts :: State Env CGB.TagSet)
