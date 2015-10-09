@@ -66,7 +66,7 @@ main = do
     ("spa":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
-             let only_namedtags = "only-named" `elem` r
+             let strict_tags = "only-named" `elem` r || "strict-tags" `elem` r
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile "data/spa/spa_tags.txt"
              (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
@@ -75,7 +75,7 @@ main = do
              let unnamedTags = nub $ concatMap (map getTagset) allConds
              -- mapM_ print allConds 
              -- mapM_ print unnamedTags
-             let tcInGr = nub $ if only_namedtags 
+             let tcInGr = nub $ if strict_tags 
                                  then map toTags' tsets
                                  else map toTags' tsets ++ map toTags' unnamedTags
              tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
@@ -214,22 +214,22 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                  let condsInAll = intersect1 conds --only conditions that are in all disjunctions
                  let new_cps = [ (cond, pos) | cond <- condsInAll
                                              , let pos = trgSInd + getPos cond ] ::  [(Condition, WIndex)]
-                 let mkCond' = mkCond s (lookupTag taglookup taginds) (lookupLit afterRules) taginds
+                 let luTag = lookupTag taglookup taginds
+                 let mkCond' = mkCond s luTag (lookupLit afterRules) taginds
                  offendingConds <- findSuspiciousConditions s [mustHaveTrg, mustHaveOther] new_cps conds_positions mkCond'
                  putStrLn "Candidates for offending conditions:"
                  mapM_ (mapM_ (\(c,p) -> putStrLn ("* " ++show c++" at "++show p))) offendingConds
                  putStrLn ""
 
                  let tcNotInGr =
-                      nub $ catMaybes [ if null inds then Just cond else Nothing
+                      nub $ catMaybes [ if null (t++d) then Just cond else Nothing
                                        | (cond,_) <- concat offendingConds
                                        , ctags <- toTags $ getTagset cond 
-                                       , let (t,d) = lookupTag taglookup taginds ctags
-                                       , let inds = t++d ]
+                                       , let (t,d) = luTag ctags ]
 
                  when (not $ null tcNotInGr) $ do
-                   putStrLn "Following tag combinations are not defined in grammar:"
-                   mapM_ print tcNotInGr
+                   putStrLn "Tag combinations not defined in grammar (--strict-tags):"
+                   mapM_ (\x -> putStrLn $ "* " ++ show x) tcNotInGr
                  if length (concat offendingConds)==length tcNotInGr
                    then return []
                    else do putStrLn "Look for other rules that have the conditions as target"
@@ -270,7 +270,6 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   return b
 
  where
-  --findSuspiciousConditions :: Solver -> (foo -> Lit) -> [Lit] -> [(Condition, WIndex)] -> [Condition]
   findSuspiciousConditions s otherReqs new_cps old_cps mkCond' = do
     singleConds <- catMaybes `fmap` sequence
       [ do condLitsExcept <- mapM mkCond' cps_except
