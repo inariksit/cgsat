@@ -1,5 +1,51 @@
 # Grammar analysis using SAT solver
 
+## LREC abstract
+
+Constraint grammar (CG, \cite{karsson1995}) is a formalism for disambiguating morphologically analysed input.
+CGs are valuable language resources for rule-based language processing, especially for lesser resourced languages. They are robust and require no extensive corpora or other language resources. The formalism is lightweight, and even small CGs are shown to be worthwile \cite{lene_nextToNothing}.
+
+As CGs scale up, they tend to get harder to analyse
+
+
+
+* Describe problem: CGs are huge & prone to mistakes,
+ * we are looking at conflicts such as ...
+ * if you forgot a case
+ * some evidence that big CGs have conflicts and this is a real problem
+ * Eckhard's paper to explain why conflicting rules are a problem
+ * Goal: help grammar writer while they are writing the grammar, to avoid these kinds of problems
+ * Examples
+
+* Describe the technique
+
+* Preliminary results
+ - dutch & spanish
+ - mention scalability
+ - talk about size of SAT problem -- give number of SAT clauses for the last rule in the biggest grammar I have
+
+* Future work
+ - analysing different grammar formalisms
+ - asking different questions
+ - restrict yourself to readings that are actually words
+
+
+"Methodologies and tools for LRs construction and annotation"
+"Validation and quality assurance of LRs" 
+
+
+
+## Research questions
+
+* Give a sentence that triggers rule(s) X but not rule(s) Y
+* Give a sentence that is ambiguous but doesn't trigger any rules
+* Restrict tag combinations within one word
+* Good points of corpuslessness:
+  ** less overfitting if you're working with a corpus
+
+
+
+
 ## Definition of conflict
 
 ```
