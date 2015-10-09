@@ -347,7 +347,20 @@ After applying all rules to the symbolic sentence, we try to solve with the foll
 
 If we don't find a solution with this, we try to pinpoint where the problem is. For instance, if we succeed with 2+3 but not with 1+2 and 1+3, we can assume that some earlier rule is targeting our target.
 
-If 1+2 is fine but _+3 conflicts, we start looking at the conditions. Two easy to detect reasons:
+If 1+2 is fine but _+3 conflicts, we start looking at the conditions. Three easy to detect reasons:
+
+### Conditions within one rule are incompatible with each other
+
+Real life example:
+
+```
+SELECT:subj4 Prs IF (1 "que") (0 Adj) (*-1 "ser") (0C Verb) ;
+```
+
+Just look a bit closer: `IF (0 Adj)` and `IF (0C Verb)`.
+
+Detect by creating a fresh sentence with new solver and just try to solve with both requirements.
+
 
 ### Tag combination is not predefined
 
@@ -365,3 +378,5 @@ the rule `REMOVE ... IF (1 DetMasc)` is fine, but rules `REMOVE ... IF (1 (det d
 ### Other rule targets the condition of `l`
 
 Suppose `l` is `REMOVE ... IF (1 Adj)`. The symbolic sentence is 2 words long and `w2` must be an adjective. We check all other rules and return those whose length is 2 or less, and target an adjective in the second word.
+
+

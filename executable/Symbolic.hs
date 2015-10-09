@@ -105,9 +105,6 @@ type SIndex   = Int
 solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
 solveAndPrintSentence verbose s ass sent = do
   let lits = concatMap elems (elems sent)
-  --print lits
-  --litsU <- count s lits
-  --solveMaximize s ass litsU
   b <- solve s ass
   if b then do
           when verbose $ print ass
@@ -204,7 +201,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
          (False:False:_)
            -> do putStrLn "Problem is with target"
                  putStrLn "Look for other rules with same target"
-                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
+                 let rulesSameTrg = findSameTarget rules w (target lastrule) Nothing
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  putStrLn "Is the target an existing tag combination?"
                  return rulesSameTrg
@@ -217,14 +214,23 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                  let luTag = lookupTag taglookup taginds
                  let mkCond' = mkCond s luTag (lookupLit afterRules) taginds
                  offendingConds <- findSuspiciousConditions s [mustHaveTrg, mustHaveOther] new_cps conds_positions mkCond' :: IO [[(Condition,WIndex)]] --each list is a combination that conflicts
-                 putStrLn "Candidates for offending conditions:"
-                 sequence_ [ do putStrLn "  Combination of following:"
-                                mapM_ pr condList
-                                putStrLn ""
-                             | condList <- offendingConds
-                             , let pr = \(c,p) -> putStrLn ("  * " ++show c++" at "++show p) ]
-                 putStrLn ""
+                 when verbose $ do
+                   putStrLn "Candidates for offending conditions:"
+                   sequence_ [ do putStrLn "  Combination of following:"
+                                  mapM_ pr condList
+                                  putStrLn ""
+                               | condList <- offendingConds
+                               , let pr = \(c,p) -> putStrLn ("  * " ++show c++" at "++show p) ]
+                   putStrLn ""
 
+                 --1) Are conditions conflicting with each other?
+                 suspCondLits <- mapM (mkCond' . unzip) offendingConds
+                 b <- solve s suspCondLits
+                 if b then return ()
+                  else do putStrLn "The following conditions conflict with each other:"
+                          mapM_ (\x -> putStrLn $ "* " ++ show x) suspCondLits
+
+                 --2) Do conditions contain valid tag sets? (Only relevant with strict-tags)
                  let tcNotInGr =
                       nub $ catMaybes [ if null (t++d) then Just cond else Nothing
                                        | (cond,_) <- concat offendingConds
@@ -234,11 +240,12 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                  when (not $ null tcNotInGr) $ do
                    putStrLn "Tag combinations not defined in grammar (--strict-tags):"
                    mapM_ (\x -> putStrLn $ "* " ++ show x) tcNotInGr
-                 if length (concat offendingConds)==length tcNotInGr
+                 if length (concat offendingConds)==length tcNotInGr || not b
                    then return []
+                   --3) Do other rules target the conditions?
                    else do putStrLn "Look for other rules that have the conditions as target"
                            let c_is = map (\(c,i) -> (getTagset c, Just i)) (concat offendingConds)
-                           let sameCondsAsTrg = concatMap (uncurry $ findSameTarget rules) c_is
+                           let sameCondsAsTrg = concatMap (uncurry $ findSameTarget rules w) c_is
                            mapM_ (\r -> putStrLn ("* " ++ show r)) sameCondsAsTrg
                            putStrLn ""
                            return $ sameCondsAsTrg
@@ -246,19 +253,19 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
          (_:False:_)
            -> do putStrLn "Problem is target+conditions"
                  putStrLn "looking for other rules that have the same target"
-                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
+                 let rulesSameTrg = findSameTarget rules w (target lastrule) Nothing
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  return rulesSameTrg
          (False:_)
            -> do putStrLn "Problem is target+other"
                  putStrLn "looking for other rules that have the same target"
-                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
+                 let rulesSameTrg = findSameTarget rules w (target lastrule) Nothing
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  return rulesSameTrg
 
          _ -> do putStrLn "Problem is in combination of all three requirements"
                  putStrLn "Looking for all things:"
-                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
+                 let rulesSameTrg = findSameTarget rules w (target lastrule) Nothing
                  putStrLn "Rules with same target:"
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  
@@ -316,14 +323,17 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
         return ()
       return newsent
 
-findSameTarget :: [Rule] -> TagSet -> Maybe SIndex -> [Rule]
-findSameTarget rules trg trgSInd =
+findSameTarget :: [Rule] -> Int -> TagSet -> Maybe SIndex -> [Rule]
+findSameTarget rules w trg trgSInd =
  case trgSInd of
    Just ind -> [ rule | (rule, tss) <- zip rules otherTrgs
-                      , let (w,sInd) = width rule
-                      , sInd == ind
+                      , let (w',sInd) = width rule
+                    --  , sInd == ind
+                      , w>=w'
                       , any (\ts -> ts `elem` tss) lastTrg ]
    Nothing  -> [ rule | (rule, tss) <- zip rules otherTrgs
+                      , let (w',_) = width rule
+                      , w>=w'
                       , any (\ts -> ts `elem` tss) lastTrg ]
  where 
   lastTrg = justTS trg
