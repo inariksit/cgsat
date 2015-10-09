@@ -354,10 +354,15 @@ If 1+2 is fine but _+3 conflicts, we start looking at the conditions. Three easy
 Real life example:
 
 ```
+SELECT:subj4 PRS (*-1 ("ser") LINK 1 A LINK 1 ("que")) (0C Verb) ;
+```
+
+Just look a bit closer, how LINK 1 normalises to following:
+```
 SELECT:subj4 Prs IF (1 "que") (0 Adj) (*-1 "ser") (0C Verb) ;
 ```
 
-Just look a bit closer: `IF (0 Adj)` and `IF (0C Verb)`.
+and here we have a conflict: `IF (0 Adj)` and `IF (0C Verb)`.
 
 Detect by creating a fresh sentence with new solver and just try to solve with both requirements.
 
