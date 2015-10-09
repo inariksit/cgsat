@@ -204,7 +204,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
          (False:False:_)
            -> do putStrLn "Problem is with target"
                  putStrLn "Look for other rules with same target"
-                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  putStrLn "Is the target an existing tag combination?"
                  return rulesSameTrg
@@ -213,12 +213,16 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
            -> do putStrLn "Problem is with conditions."
                  let condsInAll = intersect1 conds --only conditions that are in all disjunctions
                  let new_cps = [ (cond, pos) | cond <- condsInAll
-                                             , let pos = trgSInd + getPos cond ] ::  [(Condition, WIndex)]
+                                             , let pos = trgSInd + getPos cond ] ::  [(Condition, SIndex)]
                  let luTag = lookupTag taglookup taginds
                  let mkCond' = mkCond s luTag (lookupLit afterRules) taginds
-                 offendingConds <- findSuspiciousConditions s [mustHaveTrg, mustHaveOther] new_cps conds_positions mkCond'
+                 offendingConds <- findSuspiciousConditions s [mustHaveTrg, mustHaveOther] new_cps conds_positions mkCond' :: IO [[(Condition,WIndex)]] --each list is a combination that conflicts
                  putStrLn "Candidates for offending conditions:"
-                 mapM_ (mapM_ (\(c,p) -> putStrLn ("* " ++show c++" at "++show p))) offendingConds
+                 sequence_ [ do putStrLn "  Combination of following:"
+                                mapM_ pr condList
+                                putStrLn ""
+                             | condList <- offendingConds
+                             , let pr = \(c,p) -> putStrLn ("  * " ++show c++" at "++show p) ]
                  putStrLn ""
 
                  let tcNotInGr =
@@ -233,7 +237,8 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                  if length (concat offendingConds)==length tcNotInGr
                    then return []
                    else do putStrLn "Look for other rules that have the conditions as target"
-                           let sameCondsAsTrg = concatMap (findSameTarget rules . getTagset . fst) (concat offendingConds)
+                           let c_is = map (\(c,i) -> (getTagset c, Just i)) (concat offendingConds)
+                           let sameCondsAsTrg = concatMap (uncurry $ findSameTarget rules) c_is
                            mapM_ (\r -> putStrLn ("* " ++ show r)) sameCondsAsTrg
                            putStrLn ""
                            return $ sameCondsAsTrg
@@ -241,19 +246,19 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
          (_:False:_)
            -> do putStrLn "Problem is target+conditions"
                  putStrLn "looking for other rules that have the same target"
-                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  return rulesSameTrg
          (False:_)
            -> do putStrLn "Problem is target+other"
                  putStrLn "looking for other rules that have the same target"
-                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  return rulesSameTrg
 
          _ -> do putStrLn "Problem is in combination of all three requirements"
                  putStrLn "Looking for all things:"
-                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 let rulesSameTrg = findSameTarget rules (target lastrule) Nothing
                  putStrLn "Rules with same target:"
                  mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  
@@ -311,12 +316,19 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
         return ()
       return newsent
 
-findSameTarget :: [Rule] -> TagSet -> [Rule]
-findSameTarget rules trg = [ rule | (rule, tss) <- zip rules otherTrgs
-                                  , any (\ts -> ts `elem` tss) lastTrg ]
+findSameTarget :: [Rule] -> TagSet -> Maybe SIndex -> [Rule]
+findSameTarget rules trg trgSInd =
+ case trgSInd of
+   Just ind -> [ rule | (rule, tss) <- zip rules otherTrgs
+                      , let (w,sInd) = width rule
+                      , sInd == ind
+                      , any (\ts -> ts `elem` tss) lastTrg ]
+   Nothing  -> [ rule | (rule, tss) <- zip rules otherTrgs
+                      , any (\ts -> ts `elem` tss) lastTrg ]
  where 
   lastTrg = justTS trg
   otherTrgs = map (justTS.target) rules
+  
 
   justTS :: TagSet -> [[[Tag]]]
   justTS (TS ts)      = [ts]
