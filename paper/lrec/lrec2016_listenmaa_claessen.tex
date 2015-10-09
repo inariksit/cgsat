@@ -1,0 +1,59 @@
+%
+% File nodalida2015.tex
+%
+% Contact beata.megyesi@lingfil.uu.se
+%
+% Based on the instruction file for EACL 2014
+% which in turn was based on the instruction files for previous 
+% ACL and EACL conferences.
+
+\documentclass[11pt]{article}
+\usepackage{nodalida2015}
+\usepackage{times}
+\usepackage{mathptmx}
+\usepackage{fixltx2e}
+%\usepackage{txfonts}
+\usepackage{url}
+\usepackage{latexsym}
+\usepackage{cite}
+\usepackage[colorlinks=true,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage{authordate1-4}
+\usepackage{multirow}
+\special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
+%\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
+
+\usepackage{color}
+\newcommand{\todo}[1]{{\color{cyan}\textbf{[TODO: }#1\textbf{]}}}
+\usepackage{tikz}
+\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) --
+  (.25,.15) -- cycle;}
+\newcommand{\Mypm}{\mathbin{\tikz [x=1.4ex,y=1.4ex,line width=.1ex] \draw (0.0,0) -- (1.0,0) (0.5,0.08) -- (0.5,0.92) (0.0,0.5) -- (1.0,0.5);}}%
+
+\title{Analysing Constraint Grammar with a SAT solver}
+
+\author{Inari Listenmaa \and Koen Claessen \\
+ Chalmers University of Technology, Gothenburg, Sweden \\
+ {\tt \{inari,koen\}@chalmers.se} }
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% Introduction & problem description
+\input{problem_desc}
+
+% Implementation details; very brief for the abstract
+\input{implementation}
+
+% Preliminary evaluation and future work
+\input{eval_futurework}
+
+\section*{Acknowledgments}
+We thank Eckhard Bick for the idea to apply SAT to CG analysis. 
+
+
+\bibliographystyle{acl}
+\bibliography{../cg}
+
+\end{document}
