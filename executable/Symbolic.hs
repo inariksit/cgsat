@@ -66,6 +66,7 @@ main = do
     ("spa":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
+             let only_namedtags = "only-named" `elem` r
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile "data/spa/spa_tags.txt"
              (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
@@ -74,7 +75,9 @@ main = do
              let unnamedTags = nub $ concatMap (map getTagset) allConds
              -- mapM_ print allConds 
              -- mapM_ print unnamedTags
-             let tcInGr = nub $ (map toTags' tsets ++ map toTags' unnamedTags)
+             let tcInGr = nub $ if only_namedtags 
+                                 then map toTags' tsets
+                                 else map toTags' tsets ++ map toTags' unnamedTags
              tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
              let tc = nub $ (concat tcInGr) ++ tcInLex 
              let ts = nub $ tsInApe ++ concat tc             
@@ -201,74 +204,95 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
          (False:False:_)
            -> do putStrLn "Problem is with target"
                  putStrLn "Look for other rules with same target"
-                 let possibleOffenders = findSameTarget rules (target lastrule)
-                 mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
+                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
                  putStrLn "Is the target an existing tag combination?"
-                 return possibleOffenders
+                 return rulesSameTrg
 
          (_:False:False:_)
            -> do putStrLn "Problem is with conditions."
-                 let condsInAll = intersect1 conds --only consider conditions that are in all disjunctions
+                 let condsInAll = intersect1 conds --only conditions that are in all disjunctions
                  let new_cps = [ (cond, pos) | cond <- condsInAll
                                              , let pos = trgSInd + getPos cond ] ::  [(Condition, WIndex)]
-                 let luTag = lookupTag taglookup taginds
-
-                 offendingConds <- catMaybes `fmap` sequence
-                  [ do condLitsExcept <- mapM (mkCond s luTag (lookupLit afterRules) taginds) cps_except
-                       allCondsHoldExcept <- if length condLitsExcept == 1 
-                                               then return $ head condLitsExcept
-                                               else orl' s condLitsExcept
-                       b <- solve s [mustHaveTrg, mustHaveOther, allCondsHoldExcept]
-                       return $ if b then Just cp --skipping this condition makes it work
-                                     else Nothing
-                     | cp@(missingCond, pos) <- new_cps
-                     , let cps_except = deleteInAll [cp] conds_positions ]
-                 if null offendingConds
-                   then do offCondPairs <- catMaybes `fmap` sequence
-                            [ do cle <- mapM (mkCond s luTag (lookupLit afterRules) taginds) cps_except2
-                                 allCondsHoldExcept2 <- orl' s cle
-                                 b <- solve s [mustHaveTrg, mustHaveOther, allCondsHoldExcept2]
-                                 return $ if b then Just condPair else Nothing
-                               | condPair <- filter (\x->length x ==2) (subsequences new_cps)
-                               , let cps_except2 = deleteInAll condPair conds_positions ]
-                           putStrLn "Candidates for offending conditions:"
-                           mapM_ (\x -> putStrLn ("* " ++ show x)) offCondPairs
-                           putStrLn ""
-                   else do putStrLn "Candidates for offending conditions:"
-                           mapM_ (\(c,p) -> putStrLn ("* " ++ show c ++ " at " ++ show p)) offendingConds
-                           putStrLn ""
-
-                 putStrLn "Look for other rules that have the conditions as target"
-                 let suspiciousRules = concatMap (findSameTarget rules . getTagset . fst) offendingConds
-                 mapM_ (\r -> putStrLn ("* " ++ show r)) suspiciousRules
+                 let mkCond' = mkCond s (lookupTag taglookup taginds) (lookupLit afterRules) taginds
+                 offendingConds <- findSuspiciousConditions s [mustHaveTrg, mustHaveOther] new_cps conds_positions mkCond'
+                 putStrLn "Candidates for offending conditions:"
+                 mapM_ (mapM_ (\(c,p) -> putStrLn ("* " ++show c++" at "++show p))) offendingConds
                  putStrLn ""
 
-                 putStrLn "Is the condition an existing tag combination?"
-                 return suspiciousRules
+                 let tcNotInGr =
+                      nub $ catMaybes [ if null inds then Just cond else Nothing
+                                       | (cond,_) <- concat offendingConds
+                                       , ctags <- toTags $ getTagset cond 
+                                       , let (t,d) = lookupTag taglookup taginds ctags
+                                       , let inds = t++d ]
+
+                 when (not $ null tcNotInGr) $ do
+                   putStrLn "Following tag combinations are not defined in grammar:"
+                   mapM_ print tcNotInGr
+                 if length (concat offendingConds)==length tcNotInGr
+                   then return []
+                   else do putStrLn "Look for other rules that have the conditions as target"
+                           let sameCondsAsTrg = concatMap (findSameTarget rules . getTagset . fst) (concat offendingConds)
+                           mapM_ (\r -> putStrLn ("* " ++ show r)) sameCondsAsTrg
+                           putStrLn ""
+                           return $ sameCondsAsTrg
          
          (_:False:_)
            -> do putStrLn "Problem is target+conditions"
                  putStrLn "looking for other rules that have the same target"
-                 let possibleOffenders = findSameTarget rules (target lastrule)
-                 mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
-                 return possibleOffenders
+                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
+                 return rulesSameTrg
          (False:_)
            -> do putStrLn "Problem is target+other"
                  putStrLn "looking for other rules that have the same target"
-                 let possibleOffenders = findSameTarget rules (target lastrule)
-                 mapM_ (\x -> putStrLn ("* " ++ show x)) possibleOffenders
-                 return possibleOffenders
+                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
+                 return rulesSameTrg
 
          _ -> do putStrLn "Problem is in combination of all three requirements"
-                 return []
+                 putStrLn "Looking for all things:"
+                 let rulesSameTrg = findSameTarget rules (target lastrule)
+                 putStrLn "Rules with same target:"
+                 mapM_ (\x -> putStrLn ("* " ++ show x)) rulesSameTrg
+                 
+                 --let rules
+                 return rulesSameTrg
 
-      putStrLn "Suspicious rules are here, TODO try out rules without them"
-      mapM_ print suspiciousRules
+      if null suspiciousRules
+        then do return ()
+        else do putStrLn "Suspicious rules are here, TODO try out rules without them"
+                mapM_ print suspiciousRules
+      putStrLn "----------\n"
 
   deleteSolver s 
   return b
 
  where
+  --findSuspiciousConditions :: Solver -> (foo -> Lit) -> [Lit] -> [(Condition, WIndex)] -> [Condition]
+  findSuspiciousConditions s otherReqs new_cps old_cps mkCond' = do
+    singleConds <- catMaybes `fmap` sequence
+      [ do condLitsExcept <- mapM mkCond' cps_except
+           allCondsHoldExcept <- if length condLitsExcept == 1 
+                                   then return $ head condLitsExcept
+                                   else orl' s condLitsExcept
+           b <- solve s (allCondsHoldExcept:otherReqs)
+           return $ if b then Just [cp] --skipping this condition makes it work
+                         else Nothing
+        | cp@(missingCond, pos) <- new_cps
+        , let cps_except = deleteInAll [cp] old_cps ]
+    if null singleConds then do 
+      condPairs <- catMaybes `fmap` sequence
+                   [ do cle <- mapM mkCond' cps_except2
+                        allCondsHoldExcept2 <- orl' s cle
+                        b <- solve s  (allCondsHoldExcept2:otherReqs)
+                        return $ if b then Just condPair else Nothing
+                     | condPair <- filter (\x->length x==2) (subsequences new_cps)
+                     , let cps_except2 = deleteInAll condPair old_cps ]
+      return condPairs
+     else return singleConds
+ 
 
   applyAndPrint :: Solver -> TagMap -> [WIndex] -> Sentence -> Rule -> IO Sentence
   applyAndPrint s tl ti sent rule = do
@@ -452,8 +476,6 @@ mkSentence s w tcs = fromList `fmap` sequence
                             | n <- [1..w] ] 
  where shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
 
---maybe ignore lexical tags?
---somewhere else then insert the lexical tag to the cohort
 lookupTag :: TagMap -> [WIndex] -> (Trg,Dif) -> ([WIndex],[WIndex])
 lookupTag alltags allinds (trg,dif) = 
   let trgInds = if trg==[[]] then allinds
