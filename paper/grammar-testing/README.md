@@ -335,3 +335,33 @@ Something that will get past the second rule and will trigger the 3rd rule:
 `w2` must be `v` in order to trigger `r3`.
 
 The rule `s2` should be fine after `r1`. 
+
+
+## Heuristics to search for conflicting rules
+
+After applying all rules to the symbolic sentence, we try to solve with the following requirements:
+
+1. Target of removal is in `trgSInd`
+2. Something else is in `trgSInd`
+3. All conditions hold
+
+If we don't find a solution with this, we try to pinpoint where the problem is. For instance, if we succeed with 2+3 but not with 1+2 and 1+3, we can assume that some earlier rule is targeting our target.
+
+If 1+2 is fine but _+3 conflicts, we start looking at the conditions. Two easy to detect reasons:
+
+### Tag combination is not predefined
+
+Default option is to exctract all tag lists and sets defined somewhere in the grammar.
+For stricter behaviour, we have option `strict-tags`, which only accepts predefined LIST and SET definitions. Given the following definitions:
+
+```
+LIST Det = (det def) (det def) (rel aa) ;
+LIST Masc = m mf ;
+SET DetMasc = Det + Masc ;
+```
+
+the rule `REMOVE ... IF (1 DetMasc)` is fine, but rules `REMOVE ... IF (1 (det def) OR (rel aa))` or even `REMOVE ... IF (1 Det + Masc)` are not.
+
+### Other rule targets the condition of `l`
+
+Suppose `l` is `REMOVE ... IF (1 Adj)`. The symbolic sentence is 2 words long and `w2` must be an adjective. We check all other rules and return those whose length is 2 or less, and target an adjective in the second word.
