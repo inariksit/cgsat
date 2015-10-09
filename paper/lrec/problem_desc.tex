@@ -1,1 +1,21 @@
 \section{Introduction}
+
+Constraint Grammar (CG, \cite{karlsson1995constraint})
+% \citep[CG][]{karlsson1995constraint} 
+is a formalism for disambiguating morphologically analysed input.
+CGs are valuable language resources for rule-based language processing, especially for lesser resourced languages. They are robust and require no extensive corpora or other language resources. The formalism is lightweight, and even small CGs are shown to be worthwile \cite{lene_trond2011}.
+
+As CGs grow larger, .
+
+\cite{bick2013tuning} presents efforts to optimise hand-written CGs using machine learning techniques.
+While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
+Our toolset is designed to complement the existing efforts.
+The ideal use case would be a grammar writer, who wants to know e.g.
+
+\begin{itemize}
+\item Is there a sentence that triggers rule(s) X but not rule(s) Y
+\item Give a sentence that is ambiguous but doesn't trigger any rules
+\item Restrict tag combinations within one word
+\end{itemize}
+
+The technique requires an existing morphological lexicon, but no corpus.
