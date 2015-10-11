@@ -3,8 +3,9 @@
 
 Constraint Grammar (CG, \cite{karlsson1995constraint})
 % \citep[CG][]{karlsson1995constraint} 
-is a formalism for disambiguating morphologically analysed input.
-CGs are valuable language resources for rule-based language processing, especially for lesser resourced languages. They are robust and require no extensive corpora or other language resources. The formalism is lightweight, and even small CGs are shown to be worthwile \cite{lene_trond2011}.
+is a rule-based method for disambiguating morphologically analysed text. 
+A grammar consists of hundreds to thousands of rules that target specific analyses for selection or removal, based on contextual tests. For example, the rule \texttt{REMOVE verb IF (-1C det)} removes a verb reading from a word which is preceded by an unambiguously (C) tagged determiner.
+CGs are valuable resources for rule-based NLP, especially for lesser resourced languages. They are robust and require no extensive corpora or other language resources. The formalism is lightweight, and even small CGs are shown to be effective \cite{lene_trond2011}.
 
 As CGs grow larger, .
 
@@ -16,13 +17,24 @@ The ideal use case would be a grammar writer, who wants to know e.g.
 \begin{itemize}
 \item Is there a sentence that triggers rule(s) X but not rule(s) Y
 \item Give a sentence that is ambiguous but doesn't trigger any rules
-\item Does my grammar contain ``dead code'' -- rules that would not fire in any case?
+\item Does my grammar contain rules that contradict each other?
+\item Does my grammar contain rules that will never fire?
 \end{itemize}
 
 The technique requires an existing morphological lexicon, but no corpus.
 This makes it suitable also for languages without large corpora.
 Authors writing grammars for well-resourced languages can also benefit from the technique, as an additional tool along with a gold standard corpus. 
-Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin (\cite{voutilainen2004}). For a language with no free hand-tagged corpus available, \cite{tyers_reynolds2015} describe 
+Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin (\cite{voutilainen2004}). For a language with no free hand-tagged corpus available, \cite{tyers_reynolds2015} describe a method where they apply their rules to Wikipedia texts and pick 100 examples at random for manual check.
+
+\section{Previous work}
+
+This work draws inspiration from various sources.
+
+\begin{itemize}
+\item Methods for grammar writing \cite{voutilainen2004},  \cite{tyers_reynolds2015}
+\item Optimising a hand-written CG \cite{bick2013tuning}
+\item Encoding CG as a logic program \cite{lager98}, \cite{lindberg_eineborg98ilp},  \cite{lager01transformation}, \cite{asfrent14}, \cite{listenmaa_claessen2015}
+\end{itemize}
 
 Things you can get from corpus:
 
@@ -30,7 +42,12 @@ Things you can get from corpus:
 \item \# times the rule was applied
 \item \% times it was correct
 \end{itemize}
-Strengths: gives concrete feedback about the effect of rules. Good especially at the beginning stages of grammar writing.
+Strengths: gives concrete feedback about the effect of rules. 
+Good especially at the beginning stages of grammar writing. 
+Sometimes you just want to know that a rule fired 500 times and was correct 490 times, rather than ``it is possible to construct a word sequence that will trigger this rule''.
+The connection to the reality has also weak sides. This method will not notice a missed opportunity. What if instead of firing 500 times, it could have fired 1000 times if it had been placed earlier in the rule sequence.
+ to even a better rule order, nor it will tell if a rule would have
+% \cite{voutilainen2004} state that the first 200 rules are probably enough to resolve 50--75 \% of ambiguities in the corpus used in the development. 
 
 Things you can get from ML tuning:
 \begin{itemize}
@@ -38,6 +55,7 @@ Things you can get from ML tuning:
 \item Variations in the conditions (careful, ...) of the rule
 \end{itemize}
 Good side: try all combinations to find the best result.
+
 
 
 Things you can get from SAT solver:
