@@ -154,7 +154,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     printSentence initialSentence
     putStrLn "----"
   afterRules <- foldM (applyAndPrint s taglookup taginds) initialSentence rules
-  --mapM_ (constrainBoundaries s taglookup) (elems afterRules)
+  mapM_ (constrainBoundaries s taglookup) (elems afterRules)
 
   (mustHaveTrg, mustHaveOther, allCondsHold) <- do
     let trgWInds@((yes,no):_) = map luTag trg_difs --TODO
@@ -397,7 +397,7 @@ apply s alltags taginds sentence rule = do
 
           b <- solve s []
           let newsw = foldl changeAna sw (zip trgInds newTrgLits)
-          constrainBoundaries s alltags newsw
+          --constrainBoundaries s alltags newsw
           return $ changeWord sentence i newsw
           
 
@@ -430,7 +430,7 @@ mkCond :: Solver                                -- ^ solver to use
        -> ([Condition],                         -- ^ list of conditions (conjunction)
            [WIndex])                            -- ^ corresponding indices for each
        -> IO Lit                                -- ^ conjunction of all conditions in one literal 
-mkCond s luTag luLit ti (conds,inds) = andl' s  =<< sequence 
+mkCond s luTag luLit ti (conds,inds) = andl' s =<< sequence 
   [ do case position of
              (Barrier  foo bar btags) 
                -> do let byes_bnos = map luTag (toTags btags)
@@ -479,14 +479,26 @@ constrainBoundaries s alltags word = do
   let bdTags = [EOS, BOS, Tag "sent", Tag "cm"]
   let bdInds = concat $ catMaybes $ map (\x -> lookup x alltags) bdTags
   let nonBdInds = allInds \\ bdInds
-  --print ("* constrainBoundaries",bdInds)
 
   let bds    = catMaybes $ map (\x -> lookup x word) bdInds
   let nonbds = catMaybes $ map (\x -> lookup x word) nonBdInds
   isBd  <- orl' s bds
-  nonBd <- andl s "not boundary" (map neg nonbds)
-  --print [neg isBd, nonBd]
-  addClause s [neg isBd, nonBd]
+  notNormal <- andl s "not normal word" (map neg nonbds)
+  onlyBd <- andl s "boundary and nothing else" [isBd, notNormal]
+
+  isNormal <- orl' s nonbds
+  notBd <- andl s "not boundary" (map neg bds)
+  onlyNonBd <- andl s "normal word and nothing else" [isNormal, notBd]
+
+  notBoth <- xorl s [onlyBd, onlyNonBd]
+  addClause s [notBoth]
+  when False $ do
+    putStr $ "constrainBoundaries: trying to solve with following anas both true: "
+    print (head bds, head nonbds)
+    b <- solve s [head bds, head nonbds]
+    if b
+       then putStrLn "constrainBoundaries: why can you be both boundary and not boundary fuck you"
+       else putStrLn "constrainBoundaries: yay there is some sanity left in this world"
 
 --------------------------------------------------------------------------------
 
