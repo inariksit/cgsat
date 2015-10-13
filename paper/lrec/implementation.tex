@@ -1,6 +1,9 @@
 \section{Implementation}
+\label{sec:implementation}
 
 In this section, we describe the implementation of the toolkit.
+We encode Constraint Grammar as a SAT problem, as in \cite{listenmaa_claessen2015}, and from the morphological lexicon, we get constraints for individual words. This allows us to create word sequences that will or will not trigger 
+use a SAT solver to constrain the possibilities.
 
 \paragraph{SAT encoding of CG}
 
@@ -9,7 +12,7 @@ We make
 
 \begin{table*}[]
 \centering
-\caption{My caption}
+\caption{SAT-encoding of CG}
 \label{my-label}
 \begin{tabular}{|l|p{1.9cm}|l|l|}
 \hline
@@ -26,4 +29,5 @@ We make
 \paragraph{Word-internal constraints}
 
 Given a large morphological lexicon, it is relatively easy to restrict each individual word to contain only realistic ambiguities. We expand the lexicon, map each wordform to its possible analyses, and then ignore the actual wordforms. For instance, a Spanish morphological lexicon contains the entries \texttt{casa:<verb><sg><p3>} and \texttt{casa:<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. The lexicon is not likely to contain a wordform that can be analysed both as an adjective and punctuation, so that kind of ambiguous word is never created.
-However, since our method is corpus-free, it does not contain any restrictions as to what words can follow each other. \footnote{Encode morphological lexicon and CG rules in SAT + ask for a sentence that will trigger rules = natural language generation! :D}
+However, since our method is corpus-free, it does not contain any restrictions as to what words can follow each other.
+% \footnote{Encode morphological lexicon and CG rules in SAT + ask for a sentence that will trigger rules = natural language generation! :D}

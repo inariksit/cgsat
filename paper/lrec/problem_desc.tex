@@ -26,37 +26,48 @@ Rules are not allowed to remove the last remaining analysis: if  \texttt{verb pl
 CGs are valuable resources for rule-based NLP, especially for lesser resourced languages. They are robust and can be written without large corpora--only morphological analysis is needed. The formalism is lightweight and language-independent, and resources can be shared between related languages \cite{bick2006spanish}, \cite{lene_trond_linda2010}.
 Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
-As CGs grow larger, .
-
+As CGs grow larger, it gets harder for the grammar writers and users to keep track of all the rules and their interaction.
 \cite{bick2013tuning} presents efforts to optimise hand-written CGs using machine learning techniques.
 While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
-Our toolset is designed to complement the existing efforts.
+Our toolset is designed to complement the existing approaches in CG analysis and optimisation.
 The ideal use case would be a grammar writer, who wants to know e.g.
 
 \begin{itemize}
-\item Is there a sentence that triggers rule(s) X but not rule(s) Y?
-\item Give a sentence that is ambiguous but doesn't trigger any rules
 \item Does my grammar contain rules that contradict each other?
 \item Does my grammar contain rules that will never fire?
+\item Generate a sequence that triggers rule(s) X but not rule(s) Y
+\item Generate a sequence that is ambiguous but doesn't trigger any rules
 \end{itemize}
 
-The technique requires an existing morphological lexicon, but no corpus.
-This makes it suitable also for languages without large corpora.
-Authors writing grammars for well-resourced languages can also benefit from the technique, as an additional tool along with a gold standard corpus. 
-Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin (\cite{voutilainen2004}). For a language with no free hand-tagged corpus available, \cite{tyers_reynolds2015} describe a method where they apply their rules to Wikipedia texts and pick 100 examples at random for manual check.
+The technique requires an existing morphological lexicon, but no corpus. 
+The lexicon is needed in order to generate sequences that have realistic ambiguities: e.g. a word can be ambiguous between noun and verb, but not between adjective and punctuation. 
+Constraints for the structure of the sequences come from the CG rules themselves.
+We encode both of these constraints as a satisfiability problem, and use a SAT solver.
+
+The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. Section~\ref{sec:implementation} discusses the techniques we use, Section~X presents preliminary results and  Section~Y discusses future work. Section~Z concludes the paper.
+
+
+
+
+
 
 \section{Previous work}
+\label{sec:prev}
 
-This work draws inspiration from various sources.
+Our work draws inspiration from various sources. This section explains what our approach is and is not, and relates it to the previous research. We combine elements from the following aspects of CG research:
 
 \begin{itemize}
-\item Methods for grammar writing \cite{voutilainen2004},  \cite{tyers_reynolds2015}
+\item Methods to aid in hand-crafting rules \cite{voutilainen2004}, \cite{tyers_reynolds2015}
 \item Optimising a hand-written CG \cite{bick2013tuning}
-\item Encoding CG as a logic program \cite{lager98}, \cite{lindberg_eineborg98ilp},  \cite{lager01transformation}, \cite{asfrent14}, \cite{listenmaa_claessen2015}
+\item Encoding CG in logic \cite{lager98}, \cite{lager_nivre01}, \cite{lager01transformation}, \cite{listenmaa_claessen2015}
 \end{itemize}
 
-Things you can get from corpus:
+There is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996}, \cite{lindberg_eineborg98ilp}%, \cite{asfrent14}
+. Our work is aimed to aid the process of hand-crafting rules.
 
+\paragraph{Corpus-based methods in manual grammar development}
+
+Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin \cite{voutilainen2004}. For a language with no free hand-tagged corpus available, \cite{tyers_reynolds2015} describe a method where they apply their rules to Wikipedia texts and pick 100 examples at random for manual check.
 \begin{itemize}
 \item \# times the rule was applied
 \item \% times it was correct
@@ -68,8 +79,10 @@ The connection to the reality has also weak sides. This method will not notice a
 Or the rule that was wrong in 60 \% of the time,
 
 % \cite{voutilainen2004} state that the first 200 rules are probably enough to resolve 50--75 \% of ambiguities in the corpus used in the development. 
+Authors writing grammars for well-resourced languages can also benefit from the technique, as an additional tool along with a gold standard corpus. 
 
-Things you can get from ML tuning:
+
+\paragraph{ML optimisation of hand-written grammars}
 \begin{itemize}
 \item Variations in the place of the rule
 \item Variations in the conditions (careful, ...) of the rule
@@ -80,7 +93,8 @@ This is a valuable tool, especially for grammars that are so big that it's hard 
 As a downside, the grammar writer will likely not know why exactly is the tuned grammar performing better.
 
 
-Things you can get from SAT solver:
+\paragraph{Things you can get from SAT solver}
+
 \begin{itemize}
 \item Interaction of rules
 \item Create word sequences to test what is possible and what can never happen
