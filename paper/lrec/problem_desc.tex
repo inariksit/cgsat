@@ -27,10 +27,12 @@ CGs are valuable resources for rule-based NLP, especially for lesser resourced l
 Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
 As CGs grow larger, it gets harder for the grammar writers and users to keep track of all the rules and their interaction.
-\cite{bick2013tuning} presents efforts to optimise hand-written CGs using machine learning techniques.
-While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
+\cite{voutilainen2004} gives a detailed account about best practices of grammar writing, and efficient use of hand-annotated corpora to aid the grammar development.
+\cite{bick2013tuning} presents a method to optimise hand-written CGs using machine learning techniques.
 Our toolset is designed to complement the existing approaches in CG analysis and optimisation.
-The ideal use case would be a grammar writer, who wants to know e.g.
+While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
+Authors who have a large hand-annotated corpus can also benefit from the technique.
+With our method, it is possible to ask, for example, the following questions:
 
 \begin{itemize}
 \item Does my grammar contain rules that contradict each other?
@@ -60,36 +62,45 @@ other.
 --Atro Voutilainen, 2004
 \end{quote}
 
-
-Our work draws inspiration from various sources. This section explains what our approach is and is not, and relates it to the previous research. We combine elements from the following aspects of CG research:
+This section describes prior research and relates our contribution to the existing approaches.
+We combine elements from the following aspects of CG research:
 
 \begin{itemize}
-\item Methods to aid in hand-crafting rules \cite{voutilainen2004}, \cite{tyers_reynolds2015}
-\item Optimising a hand-written CG \cite{bick2013tuning}
-\item Encoding CG in logic \cite{lager98}, \cite{lager_nivre01}, \cite{lager01transformation}, \cite{listenmaa_claessen2015}
+\item Corpus-based methods in manual grammar development \cite{voutilainen2004}, \cite{tyers_reynolds2015}
+\item Optimising hand-written grammars \cite{bick2013tuning}
+\item Encoding CG in logic \cite{lager98}, \cite{lager_nivre01}, \cite{listenmaa_claessen2015}
 \end{itemize}
 
-There is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996}, \cite{lindberg_eineborg98ilp}%, \cite{asfrent14}
-. Our work is aimed to aid the process of hand-crafting rules.
+In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996}, \cite{lindberg_eineborg98ilp}%, \cite{lager01transformation}, \cite{asfrent14} 
+. However, since our work is aimed to aid the process of hand-crafting rules, we omit those works from our discussion.
+
 
 \paragraph{Corpus-based methods in manual grammar development}
 
-Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin \cite{voutilainen2004}. For a language with no free hand-tagged corpus available, \cite{tyers_reynolds2015} describe a method where they apply their rules to Wikipedia texts and pick 100 examples at random for manual check.
-\begin{itemize}
-\item \# times the rule was applied
-\item \% times it was correct
-\end{itemize}
-Strengths: gives concrete feedback about the effect of rules. 
-Good especially at the beginning stages of grammar writing. 
-Sometimes you just want to know that a rule fired 500 times and was correct 490 times, rather than ``it is possible to construct a word sequence that will trigger this rule''.
-The connection to the reality has also weak sides. This method will not notice a missed opportunity. What if instead of firing 500 times, it could have fired 1000 times if it had been placed earlier in the rule sequence.
+Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin \cite{voutilainen2004}. For a language with no free or tagset-compatible corpus available, \cite{tyers_reynolds2015} describe a method where they apply their rules to unannotated Wikipedia texts and pick 100 examples at random for manual check.
+
+% \begin{itemize}
+% \item \# times the rule was applied
+% \item \% times it was correct
+% \end{itemize}
+CG rules are usually arranged in sections, from safest to least safe. Given a grammar that has three sections, the rules are applied to the text in the following manner. First apply rules from section 1, and repeat until nothing changes in the text. Then apply rules from sections 1--2, and finally all rules, from sections 1--3.
+The best strategy is to start with the most effective rules with low error rate, so that they make way for the following, more heuristic and less safe rules to act on.
+
+A representative corpus is arguably the best way to get concrete numbers: how many times a rule applied and how often it was correct.
+However, this method will not notice a missed opportunity, nor suggest a way to improve, for instance changing the place of a rule.
+
+
+% \cite{voutilainen2004} state that the around 200 rules are probably enough to resolve 50--75 \% of ambiguities in the corpus used in the development. 
+% This is invaluable, especially at the beginning stages of grammar writing. 
+% Sometimes you just want to know that a rule fired 500 times and was correct 490 times, rather than ``it is possible to construct a word sequence that will trigger this rule''.
+
+The connection to the reality has also its limitations. 
+% What if instead of firing 500 times, it could have fired 1000 times if it had been placed earlier in the rule sequence.
 Or the rule that was wrong in 60 \% of the time,
 
-% \cite{voutilainen2004} state that the first 200 rules are probably enough to resolve 50--75 \% of ambiguities in the corpus used in the development. 
-Authors writing grammars for well-resourced languages can also benefit from the technique, as an additional tool along with a gold standard corpus. 
 
 
-\paragraph{ML optimisation of hand-written grammars}
+\paragraph{Optimising hand-written grammars}
 \begin{itemize}
 \item Variations in the place of the rule
 \item Variations in the conditions (careful, ...) of the rule
