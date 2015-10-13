@@ -1,1 +1,29 @@
 \section{Implementation}
+
+In this section, we describe the implementation of the toolkit.
+
+\paragraph{SAT encoding of CG}
+
+See \cite{listenmaa_claessen2015} for further description.
+We make 
+
+\begin{table*}[]
+\centering
+\caption{My caption}
+\label{my-label}
+\begin{tabular}{|l|p{1.9cm}|l|l|}
+\hline
+\textbf{Word} & \textbf{Variables} & \textbf{Default rules} & \textbf{Constraint rules}\\ \hline
+\multirow{2}{*} ``the''  & \texttt{the\_det}  & \texttt{the\_det} & {\texttt{the\_det} $\Rightarrow$ $\neg$\texttt{bear\_v\_pl}} \\
+                ``bear'' & \texttt{bear\_n\_sg}  \texttt{bear\_v\_pl} & \texttt{bear\_n\_sg} $\vee$ \texttt{bear\_v\_pl} & \\  \hline
+\end{tabular}
+
+\end{table*}
+
+
+\paragraph{Symbolic sentences}
+
+\paragraph{Word-internal constraints}
+
+Given a large morphological lexicon, it is relatively easy to restrict each individual word to contain only realistic ambiguities. We expand the lexicon, map each wordform to its possible analyses, and then ignore the actual wordforms. For instance, a Spanish morphological lexicon contains the entries \texttt{casa:<verb><sg><p3>} and \texttt{casa:<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. The lexicon is not likely to contain a wordform that can be analysed both as an adjective and punctuation, so that kind of ambiguous word is never created.
+However, since our method is corpus-free, it does not contain any restrictions as to what words can follow each other. \footnote{Encode morphological lexicon and CG rules in SAT + ask for a sentence that will trigger rules = natural language generation! :D}
