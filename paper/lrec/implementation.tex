@@ -2,32 +2,57 @@
 \label{sec:implementation}
 
 In this section, we describe the implementation of the toolkit.
-We encode Constraint Grammar as a SAT problem, as in \cite{listenmaa_claessen2015}, and from the morphological lexicon, we get constraints for individual words. This allows us to create word sequences that will or will not trigger 
-use a SAT solver to constrain the possibilities.
+We encode CG rules as a SAT problem, as in \cite{listenmaa_claessen2015}, and from the morphological lexicon, we get constraints for individual words. This allows us to create word sequences that will or will not trigger a given rule or rule set.
+
 
 \paragraph{SAT encoding of CG}
 
+Table~\ref{table:vars} shows the translation of the analyses to variables, and rules to clauses. The column ``Default rules'' refers to the rule that each word must have at least one analysis.
 See \cite{listenmaa_claessen2015} for further description.
-We make 
+
 
 \begin{table*}[]
 \centering
 \caption{SAT-encoding of CG}
-\label{my-label}
+\label{table:vars}
 \begin{tabular}{|l|p{1.9cm}|l|l|}
 \hline
 \textbf{Word} & \textbf{Variables} & \textbf{Default rules} & \textbf{Constraint rules}\\ \hline
 \multirow{2}{*} ``the''  & \texttt{the\_det}  & \texttt{the\_det} & {\texttt{the\_det} $\Rightarrow$ $\neg$\texttt{bear\_v\_pl}} \\
                 ``bear'' & \texttt{bear\_n\_sg}  \texttt{bear\_v\_pl} & \texttt{bear\_n\_sg} $\vee$ \texttt{bear\_v\_pl} & \\  \hline
 \end{tabular}
-
 \end{table*}
 
-
-\paragraph{Symbolic sentences}
 
 \paragraph{Word-internal constraints}
 
 Given a large morphological lexicon, it is relatively easy to restrict each individual word to contain only realistic ambiguities. We expand the lexicon, map each wordform to its possible analyses, and then ignore the actual wordforms. For instance, a Spanish morphological lexicon contains the entries \texttt{casa:<verb><sg><p3>} and \texttt{casa:<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. The lexicon is not likely to contain a wordform that can be analysed both as an adjective and punctuation, so that kind of ambiguous word is never created.
-However, since our method is corpus-free, it does not contain any restrictions as to what words can follow each other.
-% \footnote{Encode morphological lexicon and CG rules in SAT + ask for a sentence that will trigger rules = natural language generation! :D}
+
+%However, since our method is corpus-free, we don't add any external restrictions as to what words can follow each other.
+
+\paragraph{Symbolic sentences}
+
+When we start applying rules, we need to have a sentence to which to apply.
+As this is a corpus-free method, we don't have one.
+Instead, we create a \emph{symbolic sentence}: sequence of words that can, in the beginning, have any tag combination.
+At the word level, these tag combinations are restrained as described in the previous paragraph.
+At the sentence level, applying rules will start shaping the sentence.
+An indeterminate blob of possible words undergoes rules that describe illegal sequences of analyses,
+and at the application of each rule, more and more possibilities are discarded.
+All rules are applied to all word, given that their context is in scope: for instance, the sentence-initial word doesn't meet any condition that requires something of previous words.
+
+The applications of these rules shape our symbolic sentence into containing only things that can survive the rules. This means that we can ask a question ``after applying rules $0-i$, is it possible for $i+1$ to apply?'', and the answer is reliable; we can not find a counterexample by just having a bit more data, because we start from literally all possibilities, and each rule
+restricts the set of possible sentences.
+
+Note that this method is not suitable for language generation: rules in any realistic CG are tailored for real life ambiguities, whereas our symbolic sentence starts with literally all possibilities of tag combinations.
+
+\paragraph{What kind of questions we can ask?}
+
+The example so far has been of type ``Can rule Z apply after A-Y?''
+
+We can construct all kinds of symbolic sentences. We can set the length, restrict individual words (e.g. ``3rd word must be a noun''), require that it triggers some rule but not other.
+In case of a conflict, we can dig into the conflict and refine where the problem is: e.g. is the condition not met, or is it the case that the target is already removed or the only remaining analysis.
+
+
+
+
