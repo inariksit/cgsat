@@ -43,13 +43,47 @@ main = do
   let ts = map (Tag . (:[])) "abc"
   let tc = sequence [ts] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
   case args of 
-    [] -> do let abc1 = splits ex_abc1
-             let abc2 = splits ex_abc2
-             let not_ = splits ex_not
-             let tricky1 = last $ splits ex_tricky1
+    [] -> do let tricky1 = last $ splits ex_tricky1
              let tricky2 = last $ splits ex_tricky2
              mapM_ (testRule (True,True) ts tc) [tricky1, tricky2]
+    ("play":gr:tagcombs:r)
+       -> do (tsets, rls) <- readRules' gr 
+             tcInLex <- (map parse . words) `fmap` readFile tagcombs
+             let allConds = concatMap (toConds . cond) (concat rls)
+             let unnamedTags = nub $ concatMap (map getTagset) allConds :: [TagSet]
+             let tcInGr = nub $ concatMap toTags' $ tsets ++ unnamedTags
+             let tc = nub $ tcInGr ++ tcInLex :: [[Tag]]
+             let ts = concat tc
 
+             s <- newSolver
+             putStrLn "Give sentence length"
+             slen <- readLn :: IO Int
+             initialSent <- mkSentence s slen tc
+             let tagmap = mkTagMap ts tc
+             let taginds = [1..length tc]
+             finalSent <- foldM (apply s tagmap taginds) initialSent (concat rls)
+             mapM_ (constrainBoundaries s tagmap) (elems finalSent)
+             putStrLn "Do you want to decide the POS of some word? y/n"
+             putStr "> "
+             yn <- getLine
+             if 'y' `elem` yn 
+               then do
+                putStrLn "Which word?"
+                putStr "> "
+                sInd <- readLn :: IO Int
+                putStrLn "Which POS?"
+                putStr "> "
+                newPos <- Tag `fmap` getLine
+                case lookup newPos tagmap of
+                  Nothing -> putStrLn "Not a valid tag"
+                  Just wInds 
+                    -> do let tls = map (\wi -> lookupLit finalSent sInd wi) wInds
+                          addClause s tls --at least one of them is true
+               else do
+                return ()
+             solveAndPrintSentence True s [] finalSent
+             
+             
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
@@ -144,9 +178,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
 
   s <- newSolver
   initialSentence <- mkSentence s w tcs
-  let taglookup = fromList $
-                    ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
-                                   in (t, getInds tcs) 
+  let taglookup = mkTagMap ts tcs
   let luTag = lookupTag taglookup taginds
 
   when debug $ do
@@ -508,6 +540,11 @@ mkSentence s w tcs = fromList `fmap` sequence
                          [ (,) m `fmap` newLit s (shTC t n) | (m, t) <- zip [1..] tcs ]
                             | n <- [1..w] ] 
  where shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
+
+mkTagMap :: [Tag] -> [[Tag]] -> TagMap
+mkTagMap ts tcs = fromList $
+                    ts `for` \t -> let getInds = map (1+) . findIndices (elem t)
+                                   in (t, getInds tcs) 
 
 lookupTag :: TagMap -> [WIndex] -> (Trg,Dif) -> ([WIndex],[WIndex])
 lookupTag alltags allinds (trg,dif) = 
