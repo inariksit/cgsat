@@ -35,11 +35,16 @@ Given a large morphological lexicon, it is relatively easy to restrict each indi
 When we start applying rules, we need to have a sentence to which to apply.
 As this is a corpus-free method, we don't have one.
 Instead, we create a \emph{symbolic sentence}: sequence of words that can, in the beginning, have any tag combination.
-At the word level, these tag combinations are restrained as described in the previous paragraph.
+At the word level, these tag combinations are restricted to only contain realistic ambiguities, as described in the previous paragraph.
 At the sentence level, applying rules will start shaping the sentence.
 An indeterminate blob of possible words undergoes rules that describe illegal sequences of analyses,
 and at the application of each rule, more and more possibilities are discarded.
+
 All rules are applied to all word, given that their context is in scope: for instance, the sentence-initial word doesn't meet any condition that requires something of previous words.
+However, being a condition for another target will also shape a word.
+At a level of real texts, a rule such as \texttt{REMOVE b IF (-1 a)} is an instruction to remove a \texttt{b} if we find an \texttt{a} before it.
+In case of a symbolic sentence, we start in a situation where every word can be an \texttt{a} or \texttt{b}. In that context, the rule behaves as a statement about that \texttt{b} may not follow \texttt{a}. This relation is encoded between all adjacent words, and each of them can follow the restriction in the way that is compliant with other rules.
+For instance, word 1 may be constrained by another rule to have no \texttt{a}, and this means that word 2 is free to have \texttt{b} or not have it. If word 3 is required to have an  \texttt{a}, then word 4 either has to have no \texttt{b}, or it has to have only \texttt{b}, by the rule that the last analysis of the word will not be removed.
 
 The applications of these rules shape our symbolic sentence into containing only things that can survive the rules. This means that we can ask a question ``after applying rules $0-i$, is it possible for $i+1$ to apply?'', and the answer is reliable; we can not find a counterexample by just having a bit more data, because we start from literally all possibilities, and each rule
 restricts the set of possible sentences.
