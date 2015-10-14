@@ -118,19 +118,21 @@ As a downside, the grammar writer will likely not know why exactly is the tuned 
 
 \paragraph{CG encoded in logic}
 
-\cite{lager98} presents a CG-like shallow parsing system encoded in logic, and \cite{lager_nivre2001} continues with a reconstruction of four different formalisms. \cite{listenmaa_claessen2015} presents a working CG implementation.
-
+\cite{lager98} presents a CG-like shallow parsing system encoded in logic, and \cite{lager_nivre01} continues with a reconstruction of four different formalisms.
 %The earlier works on logical reconstruction don't envision grammar analysis as one of the use cases,
 Grammar analysis is a natural use case, due to some key features of the logical reconstruction.
 
-The straight-forward implementation of a CG compiler goes through the text, applies the rules, and discards analyses at each round, losing all information from the previous round when moving on to the next.
-A logic-based implementation models the rules as implications, where the consequent from rule $i$ becomes the antecedent of the rule $i+1$. 
-Composing all the clauses gives the final analysis of each word.
-What we added to this: at any time, we can stop and ask 
-``after applying these rules, can we build a sentence with properties \_\_\_?''
-
-
-
+The/A(n) 
+\todo{imperative/straight-forward/efficient/...?}
+CG compiler
+%, such as VISL CG-3,
+ cannot capture any dependencies between rules.
+% It discards analyses immediately: the output of the $i^{th}$ rule becomes the input of the $i+1^{th}$ rule, but there is no information which rules have been applied before.
+In contrast, a logic-based CG compiler does that by default. 
+The rules are modelled as implications and composed in the order of the rule sequence, such that 
+the consequent from the $i^{th}$ rule becomes the antecedent of the $i+1^{th}$ rule.
+Given this design, we added on top a way to ask for solutions with certain properties.
+%, such as ``after applying rules $0-i$, is it possible for $i+1$ to apply''.
 
 % Application of rules is presented as a composition of clauses
 
@@ -140,11 +142,10 @@ What we added to this: at any time, we can stop and ask
 % which denotes the part of speech of a given word after applying the $i^{th}$ rule.
 % The rules are modelled as implications, of the form below:
 
-
-\begin{itemize}
-\item Interaction of rules
-\item Create word sequences to test what is possible and what can never happen
-\end{itemize}
+% \begin{itemize}
+% \item Interaction of rules
+% \item Create word sequences to test what is possible and what can never happen
+% \end{itemize}
 
 
 
@@ -159,15 +160,7 @@ What we added to this: at any time, we can stop and ask
 
 % * Describe the technique
 
-% * Preliminary results
-%  - dutch & spanish
-%  - mention scalability
-%  - talk about size of SAT problem -- give number of SAT clauses for the last rule in the biggest grammar I have
 
-% * Future work
-%  - analysing different grammar formalisms
-%  - asking different questions
-%  - restrict yourself to readings that are actually words
 
 
 
