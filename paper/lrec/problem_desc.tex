@@ -10,8 +10,9 @@ A grammar consists of rules that target specific analyses for selection or remov
 \item[] \texttt{REMOVE verb IF (-1C det) ;}
 \end{itemize}
 removes a verb reading from a word which is preceded by an unambiguously (C) tagged determiner.
-Given a text, such as
-
+Given the following text,
+\begin{itemize}
+\item[] 
 \begin{verbatim}
 "<the>"
         "the" det def
@@ -19,15 +20,16 @@ Given a text, such as
         "bear" noun sg
         "bear" verb pl
 \end{verbatim}
-
+\end{itemize}
 the rule will apply to the word \emph{bear}, and remove the analysis \texttt{verb pl}.
-Rules are not allowed to remove the last remaining analysis: if  \texttt{verb pl} were the only analysis for \emph{bear}, then the rule would not apply, even if the condition is met.
+However, if a word has only one remaining analysis, then the rule will not apply, even if the condition is met.
+%Rules are not allowed to remove the last remaining analysis: if  \texttt{verb pl} were the only analysis for \emph{bear}, then the rule would not apply, even if the condition is met.
 
 CGs are valuable resources for rule-based NLP, especially for lesser resourced languages. They are robust and can be written without large corpora--only morphological analysis is needed. The formalism is lightweight and language-independent, and resources can be shared between related languages \cite{bick2006spanish}, \cite{lene_trond_linda2010}.
 Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
 As CGs grow larger, it gets harder for the grammar writers and users to keep track of all the rules and their interaction.
-\cite{voutilainen2004} gives a detailed account about best practices of grammar writing, and efficient use of hand-annotated corpora to aid the grammar development.
+\cite{voutilainen2004} gives a detailed account about best practices of grammar writing and efficient use of hand-annotated corpora to aid the grammar development.
 \cite{bick2013tuning} presents a method to optimise hand-written CGs using machine learning techniques.
 Our toolset is designed to complement the existing approaches in CG analysis and optimisation.
 While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
@@ -48,6 +50,9 @@ We encode both of these constraints as a satisfiability problem, and use a SAT s
 
 The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. Section~\ref{sec:implementation} discusses the techniques we use, Section~X presents preliminary results and  Section~Y discusses future work. Section~Z concludes the paper.
 
+\todo{Relate to conf themes: "Methodologies and tools for LRs construction and annotation" and
+"Validation and quality assurance of LRs"}
+
 
 
 
@@ -66,7 +71,7 @@ This section describes prior research and relates our contribution to the existi
 We combine elements from the following aspects of CG research:
 
 \begin{itemize}
-\item Corpus-based methods in manual grammar development \cite{voutilainen2004}, \cite{tyers_reynolds2015}
+\item Corpus-based methods in manual grammar development \cite{voutilainen2004}
 \item Optimising hand-written grammars \cite{bick2013tuning}
 \item Encoding CG in logic \cite{lager98}, \cite{lager_nivre01}, \cite{listenmaa_claessen2015}
 \end{itemize}
@@ -94,9 +99,9 @@ However, this method will not notice a missed opportunity, nor suggest a way to 
 % This is invaluable, especially at the beginning stages of grammar writing. 
 % Sometimes you just want to know that a rule fired 500 times and was correct 490 times, rather than ``it is possible to construct a word sequence that will trigger this rule''.
 
-The connection to the reality has also its limitations. 
+%The connection to the reality has also its limitations. 
 % What if instead of firing 500 times, it could have fired 1000 times if it had been placed earlier in the rule sequence.
-Or the rule that was wrong in 60 \% of the time,
+%Or the rule that was wrong in 60 \% of the time,
 
 
 
@@ -111,7 +116,30 @@ This is a valuable tool, especially for grammars that are so big that it's hard 
 As a downside, the grammar writer will likely not know why exactly is the tuned grammar performing better.
 
 
-\paragraph{Things you can get from SAT solver}
+\paragraph{CG encoded in logic}
+
+\cite{lager98} presents a CG-like shallow parsing system encoded in logic, and \cite{lager_nivre2001} continues with a reconstruction of four different formalisms. \cite{listenmaa_claessen2015} presents a working CG implementation.
+
+%The earlier works on logical reconstruction don't envision grammar analysis as one of the use cases,
+Grammar analysis is a natural use case, due to some key features of the logical reconstruction.
+
+The straight-forward implementation of a CG compiler goes through the text, applies the rules, and discards analyses at each round, losing all information from the previous round when moving on to the next.
+A logic-based implementation models the rules as implications, where the consequent from rule $i$ becomes the antecedent of the rule $i+1$. 
+Composing all the clauses gives the final analysis of each word.
+What we added to this: at any time, we can stop and ask 
+``after applying these rules, can we build a sentence with properties \_\_\_?''
+
+
+
+
+% Application of rules is presented as a composition of clauses
+
+% They model CG as clauses o
+% The key elements in the ontology of CG are positions, words and sets of tags.
+% Rule order is denoted by predicate $pos^i$(word, [tag]), 
+% which denotes the part of speech of a given word after applying the $i^{th}$ rule.
+% The rules are modelled as implications, of the form below:
+
 
 \begin{itemize}
 \item Interaction of rules
@@ -120,9 +148,6 @@ As a downside, the grammar writer will likely not know why exactly is the tuned 
 
 
 
-
-\todo{Relate to conf themes: "Methodologies and tools for LRs construction and annotation" and
-"Validation and quality assurance of LRs"}
 
 % * Describe problem: CGs are huge & prone to mistakes,
 %  * we are looking at conflicts such as ...
