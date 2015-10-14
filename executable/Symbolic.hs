@@ -62,25 +62,19 @@ main = do
              let tagmap = mkTagMap ts tc
              let taginds = [1..length tc]
              finalSent <- foldM (apply s tagmap taginds) initialSent (concat rls)
-             mapM_ (constrainBoundaries s tagmap) (elems finalSent)
-             putStrLn "Do you want to decide the POS of some word? y/n"
-             putStr "> "
-             yn <- getLine
-             if 'y' `elem` yn 
-               then do
-                putStrLn "Which word?"
-                putStr "> "
-                sInd <- readLn :: IO Int
-                putStrLn "Which POS?"
-                putStr "> "
-                newPos <- Tag `fmap` getLine
-                case lookup newPos tagmap of
-                  Nothing -> putStrLn "Not a valid tag"
-                  Just wInds 
-                    -> do let tls = map (\wi -> lookupLit finalSent sInd wi) wInds
-                          addClause s tls --at least one of them is true
-               else do
-                return ()
+             toAscList finalSent `forM_`  \(sInd,_) -> do
+               putStrLn $ "Do you want to decide the POS of w" ++ show sInd ++ "? y/n"
+               yn <- getLine
+               when ('y' `elem` yn) $ do
+                   putStrLn "Which POS?"
+                   newPos <- Tag `fmap` getLine
+                   case lookup newPos tagmap of
+                    Nothing -> putStrLn "Not a valid tag"
+                    Just wInds 
+                      -> do let tls = map (\wi -> lookupLit finalSent sInd wi) wInds
+                            addClause s tls --at least one of them is true
+
+             constrainBoundaries s tagmap `mapM_` elems finalSent
              solveAndPrintSentence True s [] finalSent
              
              
