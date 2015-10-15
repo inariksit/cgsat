@@ -1077,7 +1077,7 @@ SELECT AD (0 NIIN-NOIN-NAIN) (1 CONJ) (2 NIIN-NOIN-NAIN) (3 PALJON-MONI) ;
 REMOVE AD (0 NIIN-NOIN-NAIN) (NOT 1 A-A/N) (NOT 1 ADV) (NOT 1 Q) (NOT 1 NUM-PUOLET-KOLMANNES) ;
 "noin" SELECT AD  (1 GEN) ;
 "noin" SELECT AD  (1 TIME-WORD) ;
-SELECT AD (0 PALJON) (1 CMP) ; # PALJON JA VäHäN, xxxxx, next one not needed any more 3.12.2000,!!changed
+SELECT AD (0 PALJON) (1 CMP) ; # PALJON JA VäHäN
 "vähän" SELECT AD  (1C CMP-ENNEN) ; # 4.2.2001 !!->! cf.below
 SELECT A (0 PALJON) (0 NOM) (0 SG) (1 N) (1 NOM) (1 SG) ; # PALJO VALITTAMINEN
 SELECT A (0 PALJON) (0 PAR) (1 N) (1 PAR) (1 SG) ;
@@ -2438,7 +2438,6 @@ SET N_P_GEN = (PRON GEN) OR (N GEN) ;
 "itse" SELECT PL + NOM  IF (-1 CONNEG) (-2 V + NEG + PL3) ;
 
 
-
 "puoli" SELECT NUM + SG + GEN  (1 GEN) ;
 SELECT V + PRS/IMPRT + ACT + NEG (*-1C NEGV LINK NOT *1 VFIN/PRSPRC/INF) (NOT 0 N) (NOT 0 PRON) (NOT *1 NEG) (NOT *-1 NEG) (NOT 0 PASS) (NOT *-1 NIIN) (*-1C NEGV LINK NOT *1 CLBqst) (*-1C NEGV LINK NOT 0 IMPRT);
 REMOVE IMP + P2 + SG (-1 N/V/A/PRON/Q);
@@ -2594,7 +2593,7 @@ REMOVE IMP + P2 + SG (NOT -1 BOS) (NOT -2 BOS) (NOT -1 CONJ) (NOT -2 CONJ) (-1 W
 #--negate SELECT IMP + P2 + SG (NEGATE -1 WORD) (0 WORD LINK *1 N + NOM BARRIER N) ;
     # € Heitä mulle tuo kirja!
     # $ Hän on sisällä talossa.
-#SELECT (imp p2 sg) (0 ConNeg) (NEGATE 0 WORD LINK *-1 Neg BARRIER V) (NEGATE 0 WORD LINK 1 Neg BARRIER V) ;
+#--negate SELECT (imp p2 sg) (0 ConNeg) (NEGATE 0 WORD LINK *-1 Neg BARRIER V) (NEGATE 0 WORD LINK 1 Neg BARRIER V) ;
     # Laula minulle! 
 
 "ennen" SELECT PP  (1 KELLO) (2 PAR);
@@ -2602,8 +2601,9 @@ REMOVE IMP + P2 + SG (NOT -1 BOS) (NOT -2 BOS) (NOT -1 CONJ) (NOT -2 CONJ) (-1 W
 "tulos" SELECT N  (*-1 PAATTYA) ;
 "osinko" SELECT N  (NOT 1 DUMMY) ;
 "osanen" REMOVE N  (NOT 1 PAR) ;
-"vähän" SELECT AD  (1 GEN) (2 JALKEEN) ;
-"vähän" REMOVE AD  (NOT 1C CMP-ENNEN) (NOT 2 JALKEEN) ;
+#"vähän" SELECT AD  (1 GEN) (2 JALKEEN) ;
+"vähän" REMOVE N  ;
+#"vähän" REMOVE AD  (NOT 1C CMP-ENNEN) (NOT 2 JALKEEN) ;
 
 SECTION 
 ##Apertium

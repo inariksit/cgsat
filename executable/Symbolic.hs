@@ -77,7 +77,19 @@ main = do
              constrainBoundaries s tagmap `mapM_` elems finalSent
              solveAndPrintSentence True s [] finalSent
              
-             
+    ("fin":r)
+       -> do let verbose = "v" `elem` r || "d" `elem` r
+             let debug = "d" `elem` r
+             (tsets, rls) <- readRules' "data/fin.rlx"
+             let rules = concat rls
+             let allConds = concatMap (toConds . cond) rules
+             let unnamedTags = nub $ concatMap (map getTagset) allConds
+             let tc = nub $ concatMap toTags' $ tsets ++ unnamedTags
+             let ts = concat tc
+             mapM_ print tc
+--             mapM_ print ts
+--              mapM_ (testRule (verbose,debug) ts tc) (splits rules)
+
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r

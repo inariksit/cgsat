@@ -43,7 +43,8 @@ parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
             CGErr.Ok  tree -> let (rules,tags) = runState (parseCGRules tree) emptyEnv
                               in trace (if test then unwords $ pr rules else "") $
-                                 ( nub (map snd (named tags) ++ unnamed tags)
+                                 ((map snd (named tags)
+                                    ++ unnamed tags)
                                  , map rights rules )
   where pr = concatMap $ map pr'
         pr' (Right rule)  = show rule
@@ -94,15 +95,17 @@ parseSection (Defs defs) = do mapM updateEnv defs
                               modify $ \env -> env { named = (">>>", CGB.TS bos) : named env }
                               modify $ \env -> env { named = ("<<<", CGB.TS eos) : named env }
                               env <- get
-                              return $ map (parseRules' env) defs
+                              mapM (parseRules' env) defs
   where updateEnv :: Def -> State Env ()
         updateEnv (SetDef  s) = do nameTags <- transSetDecl s
                                    modify $ \env -> env { named = nameTags : named env }
         updateEnv (RuleDef r) = do return ()
 
-        parseRules' :: Env -> Def -> Either String CGB.Rule
-        parseRules' _ (SetDef  s) = Left $ CG.Print.printTree s
-        parseRules' e (RuleDef r) = Right $ evalState (transRule r) e
+        parseRules' :: Env -> Def -> State Env (Either String CGB.Rule)
+        parseRules' e (SetDef  s) = return $ Left (CG.Print.printTree s)
+        parseRules' e (RuleDef r) = do let (r', e') = runState (transRule r) e
+                                       put e'
+                                       return $ Right r'
 
 
 split :: (a -> Bool) -> [a] -> [[a]]
@@ -140,7 +143,14 @@ transSetDecl (List setname tags) =
       tl <- mapM transTag tags
       let tl' = concatMap toTagsLIST tl
       return (name, CGB.TS tl')
-
+    (SetMeta (UIdent name)) -> do 
+      tl <- mapM transTag tags
+      let tl' = concatMap toTagsLIST tl
+      return (name, CGB.TS tl')
+    (SetSynt (UIdent name)) -> do 
+      tl <- mapM transTag tags
+      let tl' = concatMap toTagsLIST tl
+      return (name, CGB.TS tl')
 
                                       
 
@@ -176,6 +186,12 @@ transTag tag = case tag of
       case lookup name env of
         Nothing -> error $ "Tagset " ++ show name ++ " not defined!"
         Just ts -> (return ts :: State Env CGB.TagSet)
+    (SetMeta (UIdent name)) -> do let ts = CGB.TS [[CGB.Tag name]]
+                                  modify $ \env -> env { named = (name,ts) : named env }
+                                  return ts
+    (SetSynt (UIdent name)) -> do let ts = CGB.TS [[CGB.Tag name]]
+                                  modify $ \env -> env { named = (name,ts) : named env }
+                                  return ts
     BOS -> return $ CGB.TS bos
     EOS -> return $ CGB.TS eos
 
@@ -217,8 +233,15 @@ transRule rl = case rl of
   MatchLemma (Str lem) rl -> 
     do cgrule <- transRule rl
        case cgrule of
-         CGB.Select n ts c -> return $ CGB.Select n (cart ts lem) c
-         CGB.Remove n ts c -> return $ CGB.Remove n (cart ts lem) c
+         CGB.Select n ts c 
+           -> do let ts' = cart ts lem
+                 modify $ \env -> env { named = (lem,ts') : named env }
+                 return $ CGB.Select n ts' c
+         CGB.Remove n ts c
+           -> do let ts' = cart ts lem
+                 modify $ \env -> env { unnamed = ts' : unnamed env }
+                 return $ CGB.Remove n ts' c
+
   where cart :: CGB.TagSet -> String -> CGB.TagSet
         cart ts str = case str of
            ('"':'<':_) -> CGB.TS [[CGB.WF  (strip 2 str), t]
