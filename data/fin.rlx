@@ -40,261 +40,260 @@ SUBREADINGS = LTR ;
 
 SETS
 
-LIST BOS = SENTENCE (>>>) "<START-P>" "<start-p>" ; # look at BOS/EOS
-LIST EOS = SENTENCE (<<<) "<END-P>" "<end-p>" ; 
+LIST BOS = sentence (>>>) "<START-P>" "<start-p>" ; # look at BOS/EOS
+LIST EOS = sentence (<<<) "<END-P>" "<end-p>" ; 
 
 
 # Parts of speech
 # ---------------
 
 
-LIST N = NOUN ; 
-LIST A = ADJECTIVE ; 
-LIST ADV = ADVERB ; 
-LIST V = VERB  ; 
-LIST PRON = PRONOUN ;
+LIST N = noun ; 
+LIST A = adjective ; 
+LIST ADV = adverb ; 
+LIST V = verb  ; 
+LIST PRON = pronoun ;
 
-LIST PO = POSTPOSITION ;
-LIST PR = PREPOSITION ;
-LIST ADP = ADPOSITION ;
-LIST CC = (CONJUNCTION COORDINATING) ; 
-LIST CS = (CONJUNCTION ADVERBIAL) ; 
+LIST PO = postposition ;
+LIST PR = preposition ;
+LIST ADP = adposition ;
+LIST CC = (conjunction coordinating) ; 
+LIST CS = (conjunction adverbial) ; 
 
-LIST CONJ = (CONJUNCTION COORDINATING) (CONJUNCTION ADVERBIAL) ;
-LIST PP = ADPOSITION ADVERB ;
+LIST CC/CS = (conjunction coordinating) (conjunction adverbial) ;
+LIST PP = adposition adverb ;
 
-LIST PCLE = PARTICLE ;
-LIST ACRO = ACRONYM ; 
+LIST PCLE = particle ;
+LIST ACRO = acronym ; 
 
-# LIST Cfoo = Cfoo ; 
-LIST Cfoo = CONJUNCTION ; 
-LIST CMP = CMP ; 
-LIST DUMMY = DUMMY ; 
+LIST CONJ = conjunction ; 
+LIST CMP = cmp ; 
+LIST DUMMY = dummy ; 
  
-LIST COM = COM ;
-LIST DEM = DEMONSTRATIVE ; 
-LIST DET = DET ; 
+LIST COM = com ;
+LIST DEM = demonstrative ; 
+LIST DET = det ; 
 
 # Clitics
-LIST QST = KO ; 
-LIST FOC/KA = KA ; 
-LIST KAAN = KAAN ;
-LIST S = S ;
-LIST CLIT = HAN KO PA S KA KAAN KIN ;
+LIST QST = ko ; 
+LIST FOC/KA = ka ; 
+LIST KAAN = kaan ;
+LIST S = s ;
+LIST CLIT = han ko pa s ka kaan kin ;
 
 # POS sub-categories
 # ------------------
 
-LIST COP = COP ; 
+LIST COP = cop ; 
 
 
 # Morphosyntactic properties
 # --------------------------
 
 
-LIST NUM = NUMERAL ; 
-LIST CARD = CARDINAL ; 
+LIST NUM = numeral ; 
+LIST CARD = cardinal ; 
 
-LIST PE4 = PE4 ; 
-LIST PERS = SG1 SG2 SG3 PL1 PL2 PL3; 
+LIST PE4 = pe4 ; 
+LIST PERS = sg1 sg2 sg3 pl1 pl2 pl3; 
 
-LIST NOM = NOM ; 
-LIST ADE = ADE ; 
-LIST GEN = GEN ; 
-LIST ELA = ELA ; 
-LIST ESS = ESS ; 
-LIST ILL = ILL ; 
-LIST INE = INE ; 
-LIST TRA = TRA ; 
-LIST INS = INS ; 
-LIST PAR = PAR ;
-LIST ACC = ACC ; 
-LIST MINEN = MINEN ;
+LIST NOM = nom ; 
+LIST ADE = ade ; 
+LIST GEN = gen ; 
+LIST ELA = ela ; 
+LIST ESS = ess ; 
+LIST ILL = ill ; 
+LIST INE = ine ; 
+LIST TRA = tra ; 
+LIST INS = ins ; 
+LIST PAR = par ;
+LIST ACC = acc ; 
+LIST MINEN = minen ;
 
-LIST PASS = PSS ; 
-
-
-LIST PL = PL ; 
-LIST PL1 = PL1 ; 
-LIST PL2 = PL2 ; 
-LIST PL3 = PL3 ; 
-LIST PL123 = PL1 PL2 PL3 ; 
-
-LIST SG = SG ; 
-LIST SG1 = SG1 ; 
-LIST SG2 = SG2 ; 
-LIST SG3 = SG3  ; 
-LIST SG123 =  SG1 SG2 SG3 ; 
-LIST SG12PL12PASS = SG1 SG2 PL1 PL2 PSS  ;
-
-LIST P2 = SG2 PL2 ;
-
-LIST PXSG1 = SG1 ;
-LIST PXSG2 = SG2 ;
-LIST P-2SG = SG2 ;
-LIST PXSG3 = SG3 ;
+LIST PASS = pss ; 
 
 
-LIST PXPL1 = PL1 ;
-LIST P-1PL = PL1 ;
-LIST PXPL2 = PL2 ;
-LIST PXPL3 = PL3 ;
+LIST PL = pl ; 
+LIST PL1 = pl1 ; 
+LIST PL2 = pl2 ; 
+LIST PL3 = pl3 ; 
+LIST PL123 = pl1 pl2 pl3 ; 
+
+LIST SG = sg ; 
+LIST SG1 = sg1 ; 
+LIST SG2 = sg2 ; 
+LIST SG3 = sg3  ; 
+LIST SG123 =  sg1 sg2 sg3 ; 
+LIST SG12PL12PASS = sg1 sg2 pl1 pl2 pss  ;
+
+LIST P2 = sg2 PL2 ;
+
+LIST PXSG1 = sg1 ;
+LIST PXSG2 = sg2 ;
+LIST P-2SG = sg2 ;
+LIST PXSG3 = sg3 ;
 
 
-LIST INTERR = INTERROGATIVE ; 
-LIST INTERR-KO = KO INTERROGATIVE ; 
+LIST PXPL1 = pl1 ;
+LIST P-1PL = pl1 ;
+LIST PXPL2 = pl2 ;
+LIST PXPL3 = pl3 ;
+
+
+LIST INTERR = interrogative ; 
+LIST INTERR-KO = ko interrogative ; 
 
 # Noun Case sets
 # --------------
 
-LIST GEN/PAR = GEN PAR ; 
-LIST GEN/PAR/ACC = GEN PAR ACC ; 
-LIST GEN/PUNCT = GEN PUNCTUATION SYMBOL ; 
-LIST ELA/ABL = ELA ABL; 
-LIST ELA/TRA/ILL/ALL = ELA TRA ILL ALL ; 
-LIST LOC-CASE = INE ELA ILL ADE ABL ALL ;
+LIST GEN/PAR = gen par ; 
+LIST GEN/PAR/ACC = gen par acc ; 
+LIST GEN/PUNCT = gen punctuation symbol ; 
+LIST ELA/ABL = ela abl; 
+LIST ELA/TRA/ILL/ALL = ela tra ill all ; 
+LIST LOC-CASE = ine ela ill ade abl all ;
 
 
-LIST ILL/ALL = ILL ALL ; 
-LIST ILL/TRA = ILL TRA ; 
-LIST ILL/TRA/ALL = ILL TRA ALL ; 
+LIST ILL/ALL = ill all ; 
+LIST ILL/TRA = ill tra ; 
+LIST ILL/TRA/ALL = ill tra all ; 
 
-LIST NOM/GEN/PAR = NOM GEN PAR ; 
-LIST NOM/PAR = NOM PAR ; 
+LIST NOM/GEN/PAR = nom gen par ; 
+LIST NOM/PAR = nom par ; 
 
-LIST NONSUBJECT-CASE = ESS TRA INE ELA ILL ADE ABL ALL ABE COM INS ; 
-LIST NOT-GEN-CASE = NOM PAR INE ELA ILL ADE ABL ALL ESS TRA ABE COM INS ; 
+LIST NONSUBJECT-CASE = ess tra ine ela ill ade abl all abe com ins ; 
+LIST NOT-GEN-CASE = nom par ine ela ill ade abl all ess tra abe com ins ; 
 
-SET OBJ-CASES = (PL NOM) OR (PAR) OR (SG GEN) ;
+SET OBJ-CASES = (pl nom) OR (par) OR (sg gen) ;
 
-LIST PAR/GEN = PAR GEN ; 
-LIST PAR/PUNCT = PAR SENTENCE CLAUSE ;  #!!FIXME!!
-LIST INT-LOC = INE ELA ILL ; 
-LIST EXT-LOC = ADE ABL ALL ; 
-LIST GEN/NUM = GEN NUM ;  
+LIST PAR/GEN = par gen ; 
+LIST PAR/PUNCT = par sentence clause ;  #!!FIXME!!
+LIST INT-LOC = ine ela ill ; 
+LIST EXT-LOC = ade abl all ; 
+LIST GEN/NUM = gen num ;  
 
-LIST ALLCASES = NOM GEN ACC PAR ABL ADE ALL ELA ILL INE ESS TRA ABE COM INS LOC ; 
+LIST ALLCASES = nom gen acc par abl ade all ela ill ine ess tra abe com ins loc ; 
 
 # Verbal Properties 
 # -------------------
 
-LIST NEG = NEG ; 
+LIST NEG = neg ; 
 LIST NEGV = "ei" "eikä" ;
-LIST CONNEG = CONNEG ; 
+LIST CONNEG = conneg ; 
 
-LIST PRS = PRESENT  ; 
-LIST PRT = PAST ; 
-LIST AGPCP = AGENT ; # ma 
-LIST PRFPRC = NUT ; # nut / PrfPcp
-LIST PRSPRC = VA ; # va / PrsPrc
-LIST NEGPRC = MATON ;
+LIST PRS = present  ; 
+LIST PRT = past ; 
+LIST AGPCP = agent ; # ma 
+LIST PRFPRC = nut ; # nut / PrfPcp
+LIST PRSPRC = va ; # va / PrsPrc
+LIST NEGPRC = maton ;
 LIST PCP = AGPCP PRFPRC PRSPRC NEGPRC; 
 SET PCPS = AGPCP OR PRFPRC OR PRSPRC OR NEGPRC ; 
 
-LIST PRS/PRT = PRESENT PAST ; 
-LIST PRSPRC/INF2/INF3/REF/TEMP = PRSPRC MA E REF TEMP ; 
-LIST IMPRT = IMPV ;
-LIST IMP = IMPV ; 
-LIST COND = COND ;
-LIST POTN = POTN ;
-LIST PRS/IMPRT = PRESENT IMPV ; 
+LIST PRS/PRT = present past ; 
+LIST PRSPRC/INF2/INF3/REF/TEMP = prsprc ma e ref temp ; 
+LIST IMPRT = impv ;
+LIST IMP = impv ; 
+LIST COND = cond ;
+LIST POTN = potn ;
+LIST PRS/IMPRT = present impv ; 
 
-LIST INF1 = A ; 
-LIST INF2 = E ;
-LIST INF3 = MA ; 
+LIST INF1 = a ; 
+LIST INF2 = e ;
+LIST INF3 = ma ; 
 
-LIST INF123 = A E MA ; 
-LIST INF1/3 = A MA ; 
+LIST INF123 = a e ma ; 
+LIST INF1/3 = a ma ; 
 
-LIST INFV = A E MA MINEN MAISILLA ; # Not sure I should count PrfPrc PrsPrc as  
-LIST INFV-PCPS = A E MA NUT VA ; 
+LIST INFV = a e ma minen maisilla ; # Not sure I should count PrfPrc PrsPrc as  
+LIST INFV-PCPS = a e ma nut va ; 
 
-LIST ABBR = ABBREVIATION ; 
-LIST ABE = ABE ; 
-LIST ABL = ABL ; 
-LIST ACT = ACT ;
-LIST AD = ADVERB ADPOSITION ; 
+LIST ABBR = abbreviation ; 
+LIST ABE = abe ; 
+LIST ABL = abl ; 
+LIST ACT = act ;
+LIST AD = adverb adposition ; 
 
 
 # Derivation
 # ----------
 
-LIST DV-TTA = TTA ; 
-LIST DV-US = US ; 
-LIST DV-JA = JA ;
+LIST DV-TTA = tta ; 
+LIST DV-US = us ; 
+LIST DV-JA = ja ;
 
-LIST DER = UUS US INEN LAINEN LLINEN UUS MINEN U ;
-LIST DV = MINEN US NTA TTA ; 
+LIST DER = uus us inen lainen llinen uus minen u ;
+LIST DV = minen us nta tta ; 
 
 
-LIST N-DER = MINEN U JA TAR ; 
+LIST N-DER = minen u ja tar ; 
 
-LIST DER/INEN = INEN ; 
+LIST DER/INEN = inen ; 
 
-LIST ADV-DER = STI ; 
+LIST ADV-DER = sti ; 
 
-LIST DN-ITTAIN = TTAIN ITTAIN ;
+LIST DN-ITTAIN = ttain ittain ;
 
-# LIST V-DER = V-DER ; # 
+# LIST V-DER = v-der ; # 
 
 # Phrasal groups
 # --------------
 
-LIST AD/PCP = AD NUT VA ; 
-LIST AD-A = AD-A ; 
-LIST A-A/N = A A/N ; 
-LIST A-A/N-PCP = ADJECTIVE A/N NUT VA ; 
-LIST A-A/N-Q = ADJECTIVE A/N QUANTOR ;   # HIEMAN, HIUKAN 
-LIST A/AD-A = ADJECTIVE A/N AD-A AD ; 
-LIST A/AD-A/Q = ADJECTIVE A/N AD-A AD QUANTOR ; 
-LIST A/ADV = ADJECTIVE A/N ADVERB ; 
-LIST A/ADV/PCP/DET/Q = A ADVERB NUT VA QUANTOR ; 
-LIST A/GEN = ADJECTIVE GEN ; 
-LIST A/N = ADJECTIVE NOUN A/N ; 
-LIST A/N/Q/PRON = ADJECTIVE NOUN QUANTOR PRONOUN A/N ; 
-LIST A/N/Q/PRON/PCP/NUM = ADJECTIVE NOUN QUANTOR PRONOUN A/N NUT VA NUMERAL ; 
-LIST A/NUM/PRON/Q = ADJECTIVE NUMERAL PRONOUN QUANTOR ; 
-LIST A/Q/PRON = ADJECTIVE QUANTOR PRONOUN A/N ; 
-LIST A/Q/PRON/PCP = ADJECTIVE QUANTOR PRONOUN A/N NUT VA AGENT MA ;  # dv-ma added 23.1.2001 
-LIST A/Q/PRON/NUM = ADJECTIVE QUANTOR PRONOUN A/N AGENT NUMERAL ;
-LIST A/Q/PRON/PCP/NUM = ADJECTIVE QUANTOR PRONOUN A/N NUT VA AGENT NUMERAL  ; 
-LIST A/PCP = ADJECTIVE NUT VA ;
-LIST ADV/PL = ADVERB PL ; 
+LIST AD/PCP = ad nut va ; 
+LIST AD-A = ad-a ; 
+LIST A-A/N = a a/n ; 
+LIST A-A/N-PCP = adjective a/n nut va ; 
+LIST A-A/N-Q = adjective a/n quantor ;   # HIEMAN, HIUKAN 
+LIST A/AD-A = adjective a/n ad-a ad ; 
+LIST A/AD-A/Q = adjective a/n ad-a ad quantor ; 
+LIST A/ADV = adjective a/n adverb ; 
+LIST A/ADV/PCP/DET/Q = a adverb nut va quantor ; 
+LIST A/GEN = adjective gen ; 
+LIST A/N = adjective noun a/n ; 
+LIST A/N/Q/PRON = adjective noun quantor pronoun a/n ; 
+LIST A/N/Q/PRON/PCP/NUM = adjective noun quantor pronoun a/n nut va numeral ; 
+LIST A/NUM/PRON/Q = adjective numeral pronoun quantor ; 
+LIST A/Q/PRON = adjective quantor pronoun a/n ; 
+LIST A/Q/PRON/PCP = adjective quantor pronoun a/n nut va agent ma ;  # dv-ma added 23.1.2001 
+LIST A/Q/PRON/NUM = adjective quantor pronoun a/n agent numeral ;
+LIST A/Q/PRON/PCP/NUM = adjective quantor pronoun a/n nut va agent numeral  ; 
+LIST A/PCP = adjective nut va ;
+LIST ADV/PL = adverb pl ; 
 
-LIST C/ADV = CONJUNCTION ADVERB ; 
-LIST C-ADV-ETC = CONJUNCTION ADVERB BOS "<,>" "olla" ; 
+LIST C/ADV = conjunction adverb ; 
+LIST C-ADV-ETC = conjunction adverb bos "<,>" "olla" ; 
 LIST CAP/NOCAP = <LOWERCASED> <TITLECASED> <DETITLECASED> ; 
 
-LIST N-A/N = NOUN A/N ; 
-LIST N/ABBR = NOUN ABBREVIATION ; 
-LIST N/NUM = NOUN NUMERAL ; 
-LIST N/PRON = NOUN PRONOUN ; 
-LIST N/PRON/Q = NOUN PRONOUN QUANTOR ; 
-LIST N/PRON/Q/A/NUM = NOUN PRONOUN QUANTOR ADJECTIVE NUMERAL ; 
-LIST N/V/A/PRON/Q = NOUN VERB ADJECTIVE A/N PRONOUN QUANTOR ; 
-LIST N/PRON/A/N = NOUN PRONOUN A/N ; 
-LIST N/PRON/Q/V/SUP = NOUN PRONOUN QUANTOR VERB SUP ; 
+LIST N-A/N = noun a/n ; 
+LIST N/ABBR = noun abbreviation ; 
+LIST N/NUM = noun numeral ; 
+LIST N/PRON = noun pronoun ; 
+LIST N/PRON/Q = noun pronoun quantor ; 
+LIST N/PRON/Q/A/NUM = noun pronoun quantor adjective numeral ; 
+LIST N/V/A/PRON/Q = noun verb adjective a/n pronoun quantor ; 
+LIST N/PRON/A/N = noun pronoun a/n ; 
+LIST N/PRON/Q/V/SUP = noun pronoun quantor verb sup ; 
 
 
 LIST ELA-POSP = "asti" "huolimatta" ; 
 LIST ELA-PREP = "huolimatta" ; 
 
-LIST NOMHEAD = NOUN PRONOUN NUMERAL ; 
-LIST NOMINAL-FORM = A E MA NUT VA ; 
+LIST NOMHEAD = noun pronoun numeral ; 
+LIST NOMINAL-FORM = a e ma nut va ; 
 
-LIST V-PL = PL1 PL2 PL3 ; 
-LIST V-SG = SG1 SG2 SG3 ; 
-#LIST VFIN = Prs Prt Cond POTN NEGV Imprt imp past indv; 
-LIST VFIN-C = PRESENT PAST COND POTN NEG IMPV  ; 
-LIST VFIN-C-MYOS = PRESENT PAST COND POTN NEG IMPV "myös" ; 
-LIST VFIN-PCP = PRESENT PAST COND POTN NEG IMPV NUT VA ; 
-LIST VFIN/PRSPRC = PRESENT PAST COND POTN NUT ; 
-LIST VFIN/PRSPRC/INF = PRESENT PAST COND POTN NUT A E MA REF TEMP ; 
-LIST VFIN-SGPL12 = SG1 SG2 PL1 PL2 ; 
+LIST V-PL = pl1 pl2 pl3 ; 
+LIST V-SG = sg1 sg2 sg3 ; 
+#LIST VFIN = prs prt cond potn negv imprt imp past indv; 
+LIST VFIN-C = present past cond potn neg impv  ; 
+LIST VFIN-C-MYOS = present past cond potn neg impv "myös" ; 
+LIST VFIN-PCP = present past cond potn neg impv nut va ; 
+LIST VFIN/PRSPRC = present past cond potn nut ; 
+LIST VFIN/PRSPRC/INF = present past cond potn nut a e ma ref temp ; 
+LIST VFIN-SGPL12 = sg1 sg2 pl1 pl2 ; 
 
 SET VFIN = PRS | PRT | COND | POTN |  IMPRT ;
 
-LIST VFINB = "," ":" "." CONJUNCTION SENTENCE CLAUSE ;
+LIST VFINB = "," ":" "." conjunction sentence clause ;
 
 # Word lists
 # ----------
@@ -308,7 +307,7 @@ LIST ADSET = "hyvin" "melko" "melkein" "kovin" "niin" "näin" ;
 LIST AIKA = "aika" ; 
 LIST AIVAN-IHAN = "aivan" "ihan" "melkein" ; 
 LIST ALETA = "aleta" ; 
-LIST ALL = ALL ; 
+LIST ALL = all ; 
 LIST ALL-POSP = "asti" ; 
 LIST ASIA = "asia" ; 
 LIST ASTI = "asti" "saakka" ; 
@@ -319,7 +318,7 @@ LIST GEN-PREP = "yli" "läpi" ;
 LIST GEN-WORD = "metri" "milli_metri" "kilo_metri" "vuosi" "päivä" "kuu_kausi"  "minuutti" "sekunti" "tunti" "vuoro_kausi" "maa" "prosentti" "paras" "markka"  "penni" "dollari" "kruunu" "henkilö" "kierros" "maa" "maisema" "uutinen" "tienoo" ;
 LIST HARVA = "harva" "kumpikin" "suora" ; 
 LIST HARVA-SET = "asua" "tahti" "hammas" "verkko" "pensaikko" "asutus" ; 
-LIST HITTO = INTJ "hitto" "herra_jumala" "kuinka" "sinä" "te" "<\!>"  "hellanlettas" "saatana" "perkele" "vittu" "voi" ; 
+LIST HITTO = intj "hitto" "herra_jumala" "kuinka" "sinä" "te" "<\!>"  "hellanlettas" "saatana" "perkele" "vittu" "voi" ; 
 LIST HYVA = "hyvä" ; 
 LIST HYVA/HUONO = "hyvä" "huono" "ikävä" "kiva" "mukava" "hauska" "järkevä"  "vaikea" "helppo" "mahdollinen" "mahdoton" "tärkeä" "hankala"  "aiheellinen" "tarpeellinen" "välttämätön" ; 
 LIST HYVANSA = "hyvänsä" ; 
@@ -397,7 +396,7 @@ LIST SIIRTYA-TULLA-JOUTUA = "siirtyä" "tulla" "joutua" "siirtää" "sijoittaa" 
 LIST TAHANSA/VAIN = "tahansa" "vain" "hyvänsä" "mikä" "mikäkin" "missäkin" "kulloinkin" ; 
 LIST TAHANSA-2 = "tahansa" "hyvänsä" ; 
 LIST TAI = "tai" "tahi" "taikka" ; 
-LIST TALLAINEN = Num PRON Det "tällainen" "sellainen" "semmoinen" ; 
+LIST TALLAINEN = num pron det "tällainen" "sellainen" "semmoinen" ; 
 LIST TALVINEN = "kesäinen" "keväinen" "syksyinen" "talvinen" ; 
 LIST TAMA = "tämä" ; 
 LIST TARVITA = "tarvita" "pitää" ; 
@@ -440,7 +439,7 @@ LIST UNDECL_ADJ = "eka" "ensi" "viime" "koko" "ainut" "ehta" "haka" ;
 LIST INF1-VERB = "alkaa" "haluta" "tahtoa" "yrittää" "päättää" "saada" "voida"  "täytyä" "sallia" "luvata" "aikoa" "meinata" "pitää" "sietää" "tulla"  "tarvita" "viitsiä" "antaa" "muistaa" "unohtaa" "saattaa" "uskaltaa"  "pelätä" "kannattaa" "mahtaa" ; 
 LIST INF3-VERB = "päästä" "alkaa" "ruveta" ; 
 LIST REALCOPULAS = "olla" "voida" "saattaa" ;
-LIST MOD-ASP = MOD-ASP ;
+LIST MOD-ASP = mod-asp ;
 LIST COPULAS = "olla" "taitaa" "saattaa"  ; 
 
     # Funky Case
@@ -478,7 +477,7 @@ LIST VAIKKA/KUIN/JOS = "vaikka" "kuin" "jos" "ties" ;
 LIST JOS/VAIKKA = "jos" "vaikka" ; 
 LIST JOS/KUN/KOSKA/VAIKKA = "jos" "kun" "koska" "vaikka" ; 
 
-LIST COMPL = CONJUNCTION ETTA "," PUNCTUATION "joten" "jotta" ETTA JOS KUN KOSKA VAIKKA KUIN ; 
+LIST COMPL = CONJ ETTA "," punctuation "joten" "jotta" JOS/KUN/KOSKA/VAIKKA "kuin" ; 
 
 # Question Words
 # --------------
@@ -497,9 +496,9 @@ SET QWORDS = MIKA-KUKA OR KUINKA-MITEN-MILLOIN ;
 # -----------
 
 LIST COLON = "<:>" ; 
-LIST COMMA = "<,>" COMMA PUNCT ; 
-LIST COMMA/N/PRON/Q = "<,>" N PRON Q ; 
-LIST COMMA/N/PRON/Q/V/SUP/BOS = "<,>" N PRON Q V SUP BOS "kuin" ; 
+LIST COMMA = "<,>" comma punct ; 
+LIST COMMA/N/PRON/Q = "<,>" n pron q ; 
+LIST COMMA/N/PRON/Q/V/SUP/BOS = "<,>" n pron q v sup bos "kuin" ; 
 
 
 # Sets
@@ -511,25 +510,25 @@ SET VERB = V ;
     # Personal PRONouns
     # -----------------
 
-SET MINÄ = (PRONOUN SG "minä") ;
-SET SINÄ = (PRONOUN SG "sinä") ;
-SET HÄN = (PRONOUN SG "hän") ;
+SET MINÄ = (pronoun sg "minä") ;
+SET SINÄ = (pronoun sg "sinä") ;
+SET HÄN = (pronoun sg "hän") ;
 
-SET ME = (PRONOUN PL "minä") ;
-SET TE = (PRONOUN PL "sinä") ;
-SET HE = (PRONOUN PL "hän") ; 
+SET ME = (pronoun pl "minä") ;
+SET TE = (pronoun pl "sinä") ;
+SET HE = (pronoun pl "hän") ; 
     # PRON Pers instead?
 
-SET FIRST_PERSON_SG = MINÄ OR (SG1)  OR (PxSg1) ;
-SET SECOND_PERSON_SG = SINÄ OR (SG2) OR (PxSg2) ;
-SET THIRD_PERSON_SG = HÄN OR (SG3)   OR (PxSg3) ;
+SET FIRST_PERSON_SG = MINÄ OR (sg1)  OR (pxsg1) ;
+SET SECOND_PERSON_SG = SINÄ OR (sg2) OR (pxsg2) ;
+SET THIRD_PERSON_SG = HÄN OR (sg3)   OR (pxsg3) ;
 
-SET FIRST_PERSON_PL = ME OR (PL1)  OR (PxPl1) ;
-SET SECOND_PERSON_PL = TE OR (PL2) OR (PxPl2) ;
-SET THIRD_PERSON_PL = HÄN OR (PL3) OR (PxPl3) ;
+SET FIRST_PERSON_PL = ME OR (pl1)  OR (pxpl1) ;
+SET SECOND_PERSON_PL = TE OR (pl2) OR (pxpl2) ;
+SET THIRD_PERSON_PL = HÄN OR (pl3) OR (pxpl3) ;
 
-SET THIRD_PERSON_SG/NOUN = HÄN OR (SG3) OR (NOUN SG NOM) OR (PxSg3) ;
-SET THIRD_PERSON_PL/NOUN = HE OR (PL3) OR (NOUN PL NOM) OR (PxPl3) ;
+SET THIRD_PERSON_SG/NOUN = HÄN OR (sg3) OR (noun sg nom) OR (pxsg3) ;
+SET THIRD_PERSON_PL/NOUN = HE OR (pl3) OR (noun pl nom) OR (pxpl3) ;
 
 SET ALL_PERSON = FIRST_PERSON_SG OR
                  FIRST_PERSON_PL OR
@@ -537,8 +536,8 @@ SET ALL_PERSON = FIRST_PERSON_SG OR
                  SECOND_PERSON_PL OR
                  THIRD_PERSON_SG OR
                  THIRD_PERSON_PL OR 
-                 (NOUN SG NOM) OR 
-                 (NOUN SG PL) ;
+                 (noun sg nom) OR 
+                 (noun sg pl) ;
 
 
 # Things to sort
@@ -555,11 +554,11 @@ LIST <ElaLEFT> = <ElaLEFT> ;
 LIST <ElaRIGHT> = <ElaRIGHT> ; 
 LIST <GenLEFT> = <GenLEFT> ; 
 LIST <GenRIGHT> = <GenRIGHT> ; 
-LIST <Inf3-Ela> = (INFMA ELA) ; 
-LIST <Inf3-Ill> = (INFMA ILL) ; 
+LIST <Inf3-Ela> = (infma ela) ; 
+LIST <Inf3-Ill> = (infma ill) ; 
 LIST <LG> = <LG> ; 
 LIST <NEC-V> = <NEC-V> ; 
-LIST <POSS> = SG1 SG2 SG3 PL1 PL2 PL3 ; 
+LIST <POSS> = sg1 sg2 sg3 pl1 pl2 pl3 ; 
 LIST <Par-OBJ> = <Par-OBJ> ; 
 LIST <ParLEFT> = <ParLEFT> ; 
 LIST <Par-OBJ> = <Par-OBJ> ; 
@@ -568,51 +567,51 @@ LIST <REF> = <REF> ;
 LIST <TIME> = <TIME> "sukupolvi" "miespolvi" ; 
 LIST <TIME/MEASURE> = <TIME> <MEASURE> ; 
 LIST <Title> = <Title> ; 
-LIST <Title/PROP> = <Title> PROP ; 
+LIST <Title/PROP> = <Title> prop ; 
 LIST <Tulos> = <Tulos> ; 
 LIST <YEAR> = <YEAR> ; 
 LIST Qst = "<?>" ; 
 LIST QstExcl = "<?>" "<!>" ; 
 
 
-LIST CLBqst = BOS EOS "<:>" "<#>" "<(>" "<>" "<'>" ; # "<">" "<,>" REL "<->" "kuinka" "miten" "milloin" "-" Cfoo KO PUNCTUATION CLAUSE ; 
-LIST CLBqst-Cfoo = BOS EOS "<:>" "<#>" "<(>" "<>" "<'>" ; # "<">" ; # "<,>"  "<->" ; 
-LIST CLBqst/NEG = BOS EOS "<:>" "<#>" "<(>" "<>" "<'>"  Cfoo NEG ; # "<">" "<,>" 
+LIST CLBqst = BOS EOS "<:>" "<#>" "<(>" "<>" "<'>" ; # "<">" "<,>" REL "<->" "kuinka" "miten" "milloin" "-" CONJ ko punctuation clause ; 
+LIST CLBqst-CONJ = BOS EOS "<:>" "<#>" "<(>" "<>" "<'>" ; # "<">" ; # "<,>"  "<->" ; 
+LIST CLBqst/NEG = BOS EOS "<:>" "<#>" "<(>" "<>" "<'>"  CONJ NEG ; # "<">" "<,>" 
 LIST CMP-ENNEN = CMP "ennen" ; 
-LIST CMP/SUP = CMP SUP ; 
-LIST POS = POS ;
+LIST CMP/SUP = CMP sup ; 
+LIST POS = pos ;
 
-LIST INTJ = INTERJECTION ;  
-LIST MAINV = PRESENT PAST IMPV ; 
-LIST MAINV/CLBqst = PRESENT PAST IMPV BOS EOS "<:>" "<#>" "<(>" "<>" "<'>"  Cfoo ;  #"<">" "<,>"
-LIST MAN = (MA INS) ; 
+LIST INTJ = interjection ;  
+LIST MAINV = present past impv ; 
+LIST MAINV/CLBqst = present past impv BOS EOS "<:>" "<#>" "<(>" "<>" "<'>"  CONJ ;  #"<">" "<,>"
+LIST MAN = (ma ins) ; 
 
+LIST PUNCT = punctuation "," ":" colon ; 
 LIST NORJA = "norja" "suomi" ; 
-LIST NUM/C/HETI/CLB = NUMERAL "heti" BOS EOS "<:>" "<#>" "<(>" "<>" "<'>"  Rel "<->" "kuinka" "miten" "milloin" "-" Cfoo KO PUNCT ;  # "<">" "<,>"
-LIST NUM/PRON = NUMERAL PRONOUN ; 
-LIST NUM-PUOLET-KOLMANNES = NUMERAL "puoli" "kolmannes" "neljännes" "viidennes" "kuudennes" "seitsemännes" "kahdeksannes" "yhdeksännes" ; 
-LIST NUM-Q-ILL = NUMERAL QUANTOR ILLATIVE ; 
-LIST ORD = ORDINAL ; 
-LIST P-3 = P-3 ; 
-LIST PROP/HEUR = PROPER <MORPH-HEUR!> ; 
-LIST PSP = POSTPOSITION ; 
-LIST PSP-CASE = GEN PAR ELA ILL ABL ALL ; 
-LIST PUNCT = PUNCTUATION "," ":" COLON ; 
-LIST Q = INTTERROGATIVE ; 
-LIST QUANTIFIER = QUANTOR ; 
-LIST QUOTE = QUOTE ; 
-LIST REF = REF ; 
-LIST REF/TEMP = REF TEMP ; 
-LIST REF-CORR = PRESENT PAST A E MA NUT ; 
-LIST REL = RELATIVE ; 
+LIST NUM/C/HETI/CLB = numeral "heti" BOS EOS "<:>" "<#>" "<(>" "<>" "<'>"  rel "<->" "kuinka" "miten" "milloin" "-" CONJ KO PUNCT ;  # "<">" "<,>"
+LIST NUM/PRON = numeral pronoun ; 
+LIST NUM-PUOLET-KOLMANNES = numeral "puoli" "kolmannes" "neljännes" "viidennes" "kuudennes" "seitsemännes" "kahdeksannes" "yhdeksännes" ; 
+LIST NUM-Q-ILL = numeral quantor illative ; 
+LIST ORD = ordinal ; 
+LIST P-3 = p-3 ; 
+LIST PROP/HEUR = proper <MORPH-HEUR!> ; 
+LIST PSP = postposition ; 
+LIST PSP-CASE = gen par ela ill abl all ; 
+LIST Q = intterrogative ; 
+LIST QUANTIFIER = quantor ; 
+LIST QUOTE = quote ; 
+LIST REF = ref ; 
+LIST REF/TEMP = ref temp ; 
+LIST REF-CORR = present past a e ma nut ; 
+LIST REL = relative ; 
 LIST SITTEN = "sitten" ; 
-LIST SUBB = SUBB ; 
-LIST SUBJECT-CASE = NOM GEN PAR ; 
+LIST SUBB = subb ; 
+LIST SUBJECT-CASE = nom gen par ; 
 LIST SUHTEEN = "suhteen" ; 
-LIST SUP = SUP ; 
-LIST TEMP = TEMP ; 
+LIST SUP = sup ; 
+LIST TEMP = temp ; 
 LIST THREE = \3 ; 
-LIST TEMP-PRT = TEMP PCLE ;
+LIST TEMP-PRT = temp pcle ;
 LIST CAP = <LOWERCASED> <DETITLECASED> ;
 LIST NOCAP = <TITLECASED> <UPPERCASED> ;
 
@@ -620,12 +619,12 @@ LIST NOCAP = <TITLECASED> <UPPERCASED> ;
 # Sets
 # ----
 
-LIST WORD = NOUN ADJECTIVE ADVERB VERB PRONOUN CONJUNCTION ADPOSITION INTERJECTION PARTICLE NUMERAL ABBREVIATION  \? ;
+LIST WORD = noun adjective adverb verb pronoun cc/csunction adposition interjection particle numeral abbreviation  \? ;
 
-SET REALCLB = (CLB) - COMMA ; 
+SET REALCLB = (clb) - comma ; 
 
-LIST PPRON-GEN = (SG1 GEN) (SG2 GEN) (SG3 GEN) (PL1 GEN) (PL2 GEN) (PL3 GEN);
-SET PPRON-NOT-GEN = (PRON PERS) - PPRON-GEN ;
+LIST PPRON-GEN = (sg1 gen) (sg2 gen) (sg3 gen) (pl1 gen) (pl2 gen) (pl3 gen);
+SET PPRON-NOT-GEN = (pron pers) - PPRON-GEN ;
 
 
 # SYNTACTIC FUNCTION DECLARATIONS
@@ -725,8 +724,8 @@ SET OBJ = (@LeftArrowOBJ) OR (@OBJRightArrow) OR (@OBJ) OR (@-FLeftArrowOBJ) OR 
 LIST LeftArrowOBJ = @-FLeftArrowOBJ @LeftArrowOBJ ;
 LIST OBJRightArrow = @OBJRightArrow @-FOBJRightArrow ;
 
-SET LeftArrowOBJ-OTHERS = LeftArrowOBJ OR (Gen) OR (Nom) OR (Ess) OR (Loc) OR (ADV) ;
-SET OBJRightArrow-OTHERS = OBJRightArrow OR (Gen) OR (Nom) OR (Ess) OR (Loc) OR (ADV) ;
+SET LeftArrowOBJ-OTHERS = LeftArrowOBJ OR (gen) OR (nom) OR (ess) OR (loc) OR (adv) ;
+SET OBJRightArrow-OTHERS = OBJRightArrow OR (gen) OR (nom) OR (ess) OR (loc) OR (adv) ;
 
 LIST @X = @X ;
  
@@ -743,8 +742,8 @@ LIST PRINCIPAL-FUNCTION-DECLARATIONS = @SUBJ @OBJ @SPRED ;
 
 ### TODO: 
 ### BARRIERS in var AUP-BORDERS
-### BOS EOS "<:>" "<#>" "<(>" "<)>" "<'>" "<">" "<,>" Rel
-### "<->" "kuinka" "miten" "milloin" "-" Cfoo KO Punct)
+### BOS EOS "<:>" "<#>" "<(>" "<)>" "<'>" "<">" "<,>" rel
+### "<->" "kuinka" "miten" "milloin" "-" CONJ KO Punct)
 ### Do not understand these… Trond.
 
 #Pl1 OR 
@@ -757,33 +756,33 @@ LIST PRINCIPAL-FUNCTION-DECLARATIONS = @SUBJ @OBJ @SPRED ;
 # FIXME: ambig 3
 SET POSS_SUFF = PL1 | PL2 | PL3 | SG1 | SG2 | SG3 | THREE ;
                 
-LIST SGPRON = (PRONOUN SG1) (PRONOUN SG2) (PRONOUN SG3) (PRONOUN SG) ; 
-LIST PLPRON = (PRONOUN PL1) (PRONOUN PL2) (PRONOUN PL3) (PRONOUN PL) ; 
+LIST SGPRON = (pronoun sg1) (pronoun sg2) (pronoun sg3) (pronoun sg) ; 
+LIST PLPRON = (pronoun pl1) (pronoun pl2) (pronoun pl3) (pronoun pl) ; 
 
-LIST SGAGR = (V SG1) (V SG2) (V SG3) ;
-LIST PLAGR = (V PL1) (V PL2) (V PL3) ;
+LIST SGAGR = (v sg1) (v sg2) (v sg3) ;
+LIST PLAGR = (v pl1) (v pl2) (v pl3) ;
 
-SET ALL_SGPRON = SG1 OR SG2 OR SG3 OR SG ;
+SET ALL_SGPRON = sg1 OR sg2 OR sg3 OR sg ;
 
-SET ALL_PLPRON = PLPRON OR (N PL) OR SGAGR ;
+SET ALL_PLPRON = PLPRON OR (n pl) OR SGAGR ;
 
 
-LIST CMPND = COMPOUND ;
+LIST CMPND = compound ;
 
-LIST N-SG-NOM = (N SG NOM);
-LIST N-PL-NOM = (N PL NOM);
+LIST N-SG-NOM = (n sg nom);
+LIST N-PL-NOM = (n pl nom);
 
 SET LEX-N = N - N-DER;
 
-LIST PROP = (NOUN PROPER);
+LIST PROP = (noun proper);
 
 SET CNOUN = N - PROP;
 
 SET HNOUN = N - CMPND ;
 
-SET HNOUN-NOM = (N NOM) - CMPND ;
+SET HNOUN-NOM = (n nom) - CMPND ;
 
-SET N-NOT-GEN = N - (N GEN) ;
+SET N-NOT-GEN = N - (n gen) ;
 
 
 
@@ -799,18 +798,18 @@ SECTION
 ### =**CLB (C) (2 VFIN)
 ### =**CLB (C) (3 VFIN)
 ### #(@w =**CLB (C) (NOT 1 DUMMY)
-### =**CLB (Rel) (NOT 1 DUMMY)
+### =**CLB (rel) (NOT 1 DUMMY)
 ### =**CLB (KO) (NOT 1 DUMMY)
 ### =**CLB (ADV) (0 KUINKA-MITEN-MIllOIN)
 ### Do not understand these. Trond.
 
 # looks like = is just ADD.
-LIST CLB = CLB ;
+LIST CLB = clb ;
 
-ADD:comma-clb (CLB) COMMA IF (0 PUNCT) (NOT 0 CLB) ;
-ADD:conj-clb1 (CLB) Cfoo IF (1 VFIN) (NOT 0 CLB) ;
-ADD:conj-clb2 (CLB) Cfoo IF (2 VFIN) (NOT 0 CLB) ;
-ADD:conj-clb3 (CLB) Cfoo IF (3 VFIN) (NOT 0 CLB) ;
+ADD:comma-clb (clb) COMMA IF (0 PUNCT) (NOT 0 CLB) ;
+ADD:conj-clb1 (clb) CONJ IF (1 VFIN) (NOT 0 CLB) ;
+ADD:conj-clb2 (clb) CONJ IF (2 VFIN) (NOT 0 CLB) ;
+ADD:conj-clb3 (clb) CONJ IF (3 VFIN) (NOT 0 CLB) ;
 
 ### #(@w =**CLB (C) (NOT 1 DUMMY)
 # do not understand this one - Ryan
@@ -819,12 +818,12 @@ ADD:compl-clb (CLB) COMPL IF (NOT 1 DUMMY) (NOT 0 CLB) ;
 ADD:rel-clb (CLB) REL IF (NOT 1 DUMMY) (NOT 0 CLB) ;
 ADD:qst-clb (CLB) KO IF (NOT 1 DUMMY) (NOT 0 CLB) ;
 ADD:adv-clb (CLB) ADV IF (0 KUINKA-MITEN-MILLOIN) (NOT 0 CLB) ;
-ADD:conj-clb4 (CLB) CONJ IF (NOT 0 CC) (NOT 0 CLB) ; 
+ADD:conj-clb4 (CLB) CC/CS IF (NOT 0 CC) (NOT 0 CLB) ; 
 
 # Including (NOT 0 (CLB)) because it adds multiple times otherwise - Ryan
 
 LIST SAMOIN = "samoin" PCLE ;
-#SELECT:samoin-conj CONJ IF (-1 SAMOIN) ;
+#SELECT:samoin-conj CC/CS IF (-1 SAMOIN) ;
     # samoin kuin.
     # hackish for now 
 
@@ -1074,7 +1073,7 @@ SELECT AD (0 NIIN-NOIN-NAIN) (1 HYVIN) ;
 SELECT AD (0 NIIN-NOIN-NAIN) (1C ADV) (1 MAN) ;
 SELECT AD (0 NIIN-NOIN-NAIN) (NOT -1 COMMA) (1 A-A/N) (NOT *2 KUIN) ;
 # NIIN VIISAS
-SELECT AD (0 NIIN-NOIN-NAIN) (1 Cfoo) (2 NIIN-NOIN-NAIN) (3 PALJON-MONI) ;
+SELECT AD (0 NIIN-NOIN-NAIN) (1 CONJ) (2 NIIN-NOIN-NAIN) (3 PALJON-MONI) ;
 REMOVE AD (0 NIIN-NOIN-NAIN) (NOT 1 A-A/N) (NOT 1 ADV) (NOT 1 Q) (NOT 1 NUM-PUOLET-KOLMANNES) ;
 "noin" SELECT AD  (1 GEN) ;
 "noin" SELECT AD  (1 TIME-WORD) ;
@@ -1103,11 +1102,11 @@ REMOVE AD (NOT 0 NIIN-YHA) (1C A/AD-A/Q) (1 PAR) (2 CMP) ;
 # HIEMAN(ADV) ENTISTÄ SUPPEAMPI
 SELECT AD (NOT 0 NIIN-YHA) (1C NUM-PUOLET-KOLMANNES) (NOT 0 VALLAN) (NOT 0 INTERR)  (NOT 0 YLI/ALLE) ; #lastcondadded9.10.2000
 REMOVE AD (NOT 1 A/AD-A/Q) (NOT 1 NUM-PUOLET-KOLMANNES) (NOT 1 ADV) (NOT 1 PCP) (NOT 0 AIVAN-IHAN) (NOT 1 CMP-ENNEN) (NOT 2 JALKEEN) ; # 4.1.2001 last2added
-"vähemmän" SELECT AD  (NOT -1 COMMA) (1 A-A/N-PCP) (NOT 1 PAR) (NOT 2 CMP) (NOT -1 Cfoo) (NOT -2 ENEM-VAHEM) (NOT 1 GEN) ;
-"vähemmän" SELECT AD  (1 A-A/N-PCP) (NOT 1 PAR) (NOT 2 CMP) (NOT -1 Cfoo) (NOT -2 ENEM-VAHEM) (NOT 1 GEN) ;
-"vähemmän" SELECT AD  (1 A-A/N-PCP) (1 PAR) (NOT 2 CMP) (NOT -1 Cfoo) (NOT -2 ENEM-VAHEM) (NOT 1 GEN) ;
+"vähemmän" SELECT AD  (NOT -1 COMMA) (1 A-A/N-PCP) (NOT 1 PAR) (NOT 2 CMP) (NOT -1 CONJ) (NOT -2 ENEM-VAHEM) (NOT 1 GEN) ;
+"vähemmän" SELECT AD  (1 A-A/N-PCP) (NOT 1 PAR) (NOT 2 CMP) (NOT -1 CONJ) (NOT -2 ENEM-VAHEM) (NOT 1 GEN) ;
+"vähemmän" SELECT AD  (1 A-A/N-PCP) (1 PAR) (NOT 2 CMP) (NOT -1 CONJ) (NOT -2 ENEM-VAHEM) (NOT 1 GEN) ;
 
-"vähemmän" SELECT ADV  (-1 Cfoo) (-2 ENEM-VAHEM) ; # XXXX
+"vähemmän" SELECT ADV  (-1 CONJ) (-2 ENEM-VAHEM) ; # XXXX
 
 REMOVE DER/INEN + PAR ; # IF (0 (A POS SG PAR)) (0 (N ELA)) (NOT 1 PAR) ;
     # Blame Trond if this doesn't work. We hope for counter examples.
@@ -1219,7 +1218,7 @@ REMOVE DER/INEN + PAR ; # IF (0 (A POS SG PAR)) (0 (N ELA)) (NOT 1 PAR) ;
 "tietenkään" SELECT ADV  (NOT 1 DUMMY) ;
 "todella" SELECT ADV + KAAN (NOT 1 DUMMY) ;
 "toisin" SELECT ADV  (1 VFIN) ;   # TOISIN ON SIllOIN ...
-"toisin" SELECT ADV  (1 Cfoo) (NOT 1 DUMMY) ;
+"toisin" SELECT ADV  (1 CONJ) (NOT 1 DUMMY) ;
 "toisin" SELECT ADV  (-1 AIVAN-IHAN) ;
 "toisinaan" SELECT ADV  (NOT 1 DUMMY) ;
 "toistamiseen" SELECT ADV  (NOT -1 GEN) ;
@@ -1254,7 +1253,7 @@ REMOVE DER/INEN + PAR ; # IF (0 (A POS SG PAR)) (0 (N ELA)) (NOT 1 PAR) ;
 SELECT ADV (-1C AD) (NOT 0 PP) (NOT 1 A) ;
 SELECT ADV (0 AIVAN-IHAN) (1 PRSPRC) (*-1C VFIN LINK 0 OLLA) ;
 SELECT ADV (0 AIVAN-IHAN) (1C VFIN-C) ;
-SELECT ADV (0 AIVAN-IHAN) (1C CLBqst-C) ;
+SELECT ADV (0 AIVAN-IHAN) (1C CLBqst-CONJ) ;
 SELECT ADV (0 AIVAN-IHAN) (1C INF1/3) (-1C VFIN) ;
 SELECT ADV (0 AIVAN-IHAN) (1C INF1/3) (-2C VFIN) ;
 #(@w SELECT (adv) (0 ENEM-VAHEM) (NOT 1C Gen) (NOT 1 A) ;
@@ -1271,7 +1270,7 @@ SELECT ADV (0 NIIN-NOIN-NAIN) (1C ADV) (NOT 1 HYVIN) (NOT *-1 MINÄ) (NOT *-1 SG
 "yhteen" IFF ADV  (NOT 1 ILL) (NOT 2 ILL) ;
 "kohdalta" IFF ADV + <POSS>  (NOT -1 ABL) ;
 "osalta" IFF ADV + <POSS>  (NOT -1 ABL) ;
-REMOVE ADV (0 AIVAN-IHAN) (NOT 1 V) (NOT 1 Cfoo) (NOT 1 ADV) ;
+REMOVE ADV (0 AIVAN-IHAN) (NOT 1 V) (NOT 1 CONJ) (NOT 1 ADV) ;
 # ** CASE
 SELECT ILL (1 MENNA) (1 INE) ;
 
@@ -1295,7 +1294,7 @@ SELECT ADV IF (0 SIEL) ;
 "tuo" SELECT PRON + DEM  IF (0 $$ALLCASES) (1 $$ALLCASES) ; 
 
 
-"sama" REMOVE PRON + PL + INS  IF (0 $$ALLCASES) (NOT 1 $$ALLCASES) (0 ADV) (NOT 1 CONJ);
+"sama" REMOVE PRON + PL + INS  IF (0 $$ALLCASES) (NOT 1 $$ALLCASES) (0 ADV) (NOT 1 CC/CS);
 
     # Hän oli siellä yksin.
     # Select adv, instead of num
@@ -1308,7 +1307,7 @@ SELECT ADV IF (0 SIEL) ;
 "toinen" SELECT:toiset-jutut-agree NUM + ORD (1 N) ;
 # TOISIllE, TOISIAAN ETC.
 
-"yksi" REMOVE:yksin-ins NUM + CARD + PL + INS  IF (0 $$ALLCASES) (NOT 1 $$ALLCASES) (0 ADV) (NOT 1 CONJ);
+"yksi" REMOVE:yksin-ins NUM + CARD + PL + INS  IF (0 $$ALLCASES) (NOT 1 $$ALLCASES) (0 ADV) (NOT 1 CC/CS);
     # Hän oli siellä yksin.
     # Select adv, instead of num
 
@@ -1519,8 +1518,8 @@ SELECT PRON + REL (0 NOM) (-1C NOM) (-1 N/PRON/Q) (NOT 1 TAHANSA/VAIN) (NOT 0 ES
 SELECT PRON + REL (0 NOM) (NOT 0 ESS) (1C VFIN) (NOT 1 TAHANSA/VAIN) (NOT 2 TAHANSA/VAIN) (NOT 1 KERTA);
 SELECT PRON + REL (0 NOM) (NOT 0 ESS) (NOT 1 NOM) (2C VFIN) (NOT 1 TAHANSA/VAIN) (NOT 2 TAHANSA/VAIN) (NOT 1 KERTA);
 SELECT PRON + REL (0 NOM) (-1C VFIN) (1C VFIN) (NOT 1 TAHANSA/VAIN) (NOT 2 TAHANSA/VAIN) (NOT 0 ESS) (NOT 1 KERTA);
-SELECT PRON + REL (*-1 JOKA LINK 0 NOM) (-1 Cfoo) (NOT 1 TAHANSA/VAIN) (NOT 2 TAHANSA/VAIN) (NOT 0 ESS) (NOT 1 KERTA) (NOT 1 HYVA);
-# JOKA ... JA JOKA(Rel);
+SELECT PRON + REL (*-1 JOKA LINK 0 NOM) (-1 CONJ) (NOT 1 TAHANSA/VAIN) (NOT 2 TAHANSA/VAIN) (NOT 0 ESS) (NOT 1 KERTA) (NOT 1 HYVA);
+# JOKA ... JA JOKA(rel);
 "joka" SELECT PRON + REL + PL  (NOT 1 DUMMY) ;
 "joka" SELECT PRON + REL + SG + ADE  (NOT 1 DUMMY) ;
 "joka" SELECT PRON + REL + SG + NOM  (1 ADV/PL) (NOT 1 DUMMY);
@@ -1574,7 +1573,7 @@ REMOVE <LG> (0 PROP) (0 INT-LOC) (NOT *-1 KIELI) (NOT *1 KIELI) (NOT 0 TRA) (NOT
 REMOVE PROP (0 <LG>) (*1 KIELI) (NOT -1 BOS);
 REMOVE PROP (0 <LG>) (*-1 KIELI) (NOT -1 BOS);
 REMOVE PROP (0 <LG>) (*-1 PUHUA LINK NOT *1 CLBqst) (0 PAR) (NOT -1 BOS);
-REMOVE PROP (0 <LG>) (-2C <LG>) (-1 Cfoo) (NOT -1 BOS) ;
+REMOVE PROP (0 <LG>) (-2C <LG>) (-1 CONJ) (NOT -1 BOS) ;
 # LG-NAMES CANNOT BE CAPITALIZED S-INTERNAllY
 "aino" REMOVE PROP + SG + PAR  (NOT 1 DUMMY);
 "johan" IFF PROP  (1 PROP/HEUR) (NOT 0 CAP/NOCAP) ;
@@ -1673,13 +1672,13 @@ SELECT N + PL + NOM + <POSS> (1C NEGV) (1 PL123) (NOT 2 TARVITA);
 #SELECT V IF (0 N) (NEGATE 0 WORD LINK *-1 V BARRIER (CLB)) (NEGATE 0 WORD LINK *1 V BARRIER (CLB)) ; 
 
 #------------------------------------------------------------
-# KOORDINAATIO: N Cfoo N
+# KOORDINAATIO: N CONJ N
 # THIS IS A TYPICAL EXAMPlE: MAKING THIS GENERALISATION FOR All CASES
 # WOULD NOT MAKE SENSE# ONLY Par IS HOMONYMOUS. THIS IS A DISAMBIGUATION
 # GRAMMAR!
-SELECT PAR (1 Cfoo) (2 PAR) (3 V);
+SELECT PAR (1 CONJ) (2 PAR) (3 V);
   # PAIKKAA JA KOKOA VOIDAAN
-SELECT PAR (-2 PAR) (-1 Cfoo) (1 V);
+SELECT PAR (-2 PAR) (-1 CONJ) (1 V);
   # PAIKKAA JA KOKOA VOIDAAN
 #------------------------------------------------------------
 
@@ -1729,14 +1728,14 @@ SELECT PO IF (0 ADP) (NOT 0 PR) (1 GEN) ;
 # assign @OBJ, despite that no postpositions exist... As such, tying specific
 # adpositions to cases may actually help.
 
-LIST POCASENONLOC = Par Gen ;
+LIST POCASENONLOC = par gen ;
 
-LIST POCASE =   ELA
-                ABL
-                PAR
-                GEN 
-                ALL 
-                ILL ;
+LIST POCASE =   ela
+                abl
+                par
+                gen 
+                all 
+                ill ;
 
 LIST EXTENDED_CASE = "asti" 
                      "mennessä" 
@@ -1904,7 +1903,7 @@ SELECT GEN (-1C PP) (-1C <GenRIGHT>);
 SELECT PAR (-1C PP) (-1C <ParRIGHT>);
 #*** INTERJ ***
 REMOVE INTJ (NOT -1 CLBqst) (NOT 0 VOI);
-  # INTERJECTION MAY ONLY START A SENTENCE: Cfoo + INTJ
+  # INTERJECTION MAY ONLY START A SENTENCE: CONJ + INTJ
 
 ## **** VERBAL ENDINGS ****
 SELECT ACT + SG3 (NOT *-1 NEGV BARRIER CLB) (-1C NOM) (-1 N/PRON/Q) (NOT -1 DV-US) (NOT 0 TUO) (NOT -1 NUM) (NOT 1C VFIN) (NOT 2C VFIN) (NOT *-1 VFIN BARRIER CLB) (NOT 0 PIENIA/ELAA) (NOT -1 NOUN+INF1) (NOT 0 COND) (NOT 0 PRT);
@@ -1912,7 +1911,7 @@ SELECT ACT + SG3 (NOT *-1 NEGV BARRIER CLB) (-1C NOM) (-1 N/PRON/Q) (NOT -1 DV-U
 ## *** IMPERATIVES ***
 SELECT IMP (-1 BOS) (NOT *1C VFIN) (NOT 0 VOI) (NOT 0 KO);
 # NB "kysy voiko..."
-SELECT IMPRT (1 DUMMY)  (-2 CLBqst) (-1 Cfoo) (*1 CLBqst LINK NOT *-1 VFIN);
+SELECT IMPRT (1 DUMMY)  (-2 CLBqst) (-1 CONJ) (*1 CLBqst LINK NOT *-1 VFIN);
 REMOVE IMPRT (*1C VFIN LINK NOT *-1 CLBqst) (NOT 1 CLBqst);
 REMOVE IMPRT (*-1C VFIN LINK NOT *1 CLBqst) (NOT -1 CLBqst);
 LIST MYÖS = "myös" ;
@@ -1920,7 +1919,7 @@ REMOVE IMPRT (0 MYÖS);
 #REMOVE (Imprt) (0 ("myös"));
 #REMOVE (Imprt) (0 ("myös"));
 ## InfINITIVES
-SELECT INF1 (-2C INF1) (-1 Cfoo) (1 CLBqst) (NOT 0 UUSIA);
+SELECT INF1 (-2C INF1) (-1 CONJ) (1 CLBqst) (NOT 0 UUSIA);
   # "...voidaan käsitellä ja ylläpitää,"
   # THIS HANDLES COORDINATION.
 SELECT INF1 (-2 COP) (-1 HYVA/HUONO);
@@ -2021,7 +2020,7 @@ REMOVE PASS + NEG (*-1 NEGV LINK *1C PRSPRC LINK NOT *1 CLBqst);
 #     VAARAllIneN, NEG/N/A-HOMOGRAFIAA ESIINTYY.
 #     VRT: EI SUOMALAISTA VOI AINA KAIKESTA SYYTTää.
 
-# Allow selecting of Neg when Conj CS exists. Does not change above example. -- Ryan
+# Allow selecting of Neg when CONJ CS exists. Does not change above example. -- Ryan
 
 #--negate REMOVE NEG (NOT *-1 NEGV) (NOT *1 NEGV) (NEGATE 0 CS) (NOT 1 CONNEG) (NOT -1 CONNEG) ; 
 
@@ -2068,7 +2067,7 @@ SELECT V + INF1 IF (0 PRS) (-1 V + NEG);
 "tulla" SELECT V + PRT + SG3  (1 INF1);
 "tulla" SELECT V + PRT + SG3  (1 ADV);
 "tulla" SELECT V + PRT + SG3  (1 A) (2 N);
-"tulla" SELECT V + PRT + SG3  (*-1 VFIN LINK *1 Cfoo);
+"tulla" SELECT V + PRT + SG3  (*-1 VFIN LINK *1 CONJ);
 "tulla" SELECT V + PRS + PL1  (NOT 1 DUMMY) ;
 "tulla" SELECT V + PRT + SG3  (-1 ELA/TRA/ILL/ALL);
 "vaikuttaa" SELECT V + PRS + PL3  (*-1 CLBqst LINK NOT *1 VFIN) (NOT 1 NOM) (NOT 1 PL);
@@ -2162,15 +2161,15 @@ REMOVE PRSPRC + PASS + PL + NOM (NOT 1 NOM) (NOT 1 PL) (NOT 1 NUM) (NOT -1 BOS);
 # OLLUT,TULLUT,MääRITELLYT
 REMOVE PRSPRC + NOM + PASS + PL (-1 COP) ;
 SELECT PRSPRC + ACT + A + POS + SG + GEN (0 THREE);
-SELECT V + REF + ACT (-1 <REF>) (-1 REF-CORR) (NOT 1 A) (NOT 1 Cfoo) (NOT 1 GEN) (NOT 0 YLLATTAA);
-SELECT V + REF + ACT (-2 <REF>) (-2 REF-CORR) (NOT -1 PAR) (NOT -1 CLBqst) (NOT 1 A) (NOT 1 Cfoo) (NOT 1 GEN) (NOT 0 YLLATTAA);
+SELECT V + REF + ACT (-1 <REF>) (-1 REF-CORR) (NOT 1 A) (NOT 1 CONJ) (NOT 1 GEN) (NOT 0 YLLATTAA);
+SELECT V + REF + ACT (-2 <REF>) (-2 REF-CORR) (NOT -1 PAR) (NOT -1 CLBqst) (NOT 1 A) (NOT 1 CONJ) (NOT 1 GEN) (NOT 0 YLLATTAA);
 #  ED. "ammattiin valmistavan kaksivuotisen koulun merkitystä"
-SELECT V + REF + ACT (-3 <REF>) (NOT -1 PAR) (-3 REF-CORR) (NOT -2 CLBqst) (NOT 1 A) (NOT 1 Cfoo) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -1 CLBqst);
-SELECT V + REF + ACT (-4 <REF>) (NOT -1 PAR) (-4 REF-CORR) (NOT -1 CLBqst) (NOT 1 A) (NOT 1 Cfoo) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -2 CLBqst) (NOT -3 CLBqst);
-SELECT V + REF + ACT (-5 <REF>) (NOT -1 PAR) (-5 REF-CORR) (NOT -4 CLBqst) (NOT 1 A) (NOT 1 Cfoo) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -3 CLBqst) (NOT -2 CLBqst) (NOT -1 CLBqst);
-SELECT V + REF + ACT (-6 <REF>) (NOT -1 PAR) (-6 REF-CORR) (NOT -5 CLBqst) (NOT 1 A) (NOT 1 Cfoo) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -4 CLBqst) (NOT -3 CLBqst) (NOT -2 CLBqst) (NOT -1 CLBqst);
-REMOVE V + REF + ACT (*-1C CLBqst-C LINK NOT *1 <REF>);
-SELECT V + REF + ACT (*-1C REF LINK *1 Cfoo)  (NOT 1 A) (NOT 1 Cfoo) (NOT 1 GEN);
+SELECT V + REF + ACT (-3 <REF>) (NOT -1 PAR) (-3 REF-CORR) (NOT -2 CLBqst) (NOT 1 A) (NOT 1 CONJ) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -1 CLBqst);
+SELECT V + REF + ACT (-4 <REF>) (NOT -1 PAR) (-4 REF-CORR) (NOT -1 CLBqst) (NOT 1 A) (NOT 1 CONJ) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -2 CLBqst) (NOT -3 CLBqst);
+SELECT V + REF + ACT (-5 <REF>) (NOT -1 PAR) (-5 REF-CORR) (NOT -4 CLBqst) (NOT 1 A) (NOT 1 CONJ) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -3 CLBqst) (NOT -2 CLBqst) (NOT -1 CLBqst);
+SELECT V + REF + ACT (-6 <REF>) (NOT -1 PAR) (-6 REF-CORR) (NOT -5 CLBqst) (NOT 1 A) (NOT 1 CONJ) (NOT 1 GEN) (NOT 0 YLLATTAA) (NOT -4 CLBqst) (NOT -3 CLBqst) (NOT -2 CLBqst) (NOT -1 CLBqst);
+REMOVE V + REF + ACT (*-1C CLBqst-CONJ LINK NOT *1 <REF>);
+SELECT V + REF + ACT (*-1C REF LINK *1 CONJ)  (NOT 1 A) (NOT 1 CONJ) (NOT 1 GEN);
 # Act ADDED AUG. 8, 95# I.E. Pass NOW NOT HANDLED, MUCH WORK NEEDED ON All InsT
 # (NOT 1 A,Gen) ALSO ADDED, CF. RIITTÄVÄN NOPEA, HUIMAAVAN NOPEA
 SELECT V + TEMP-PRT + <POSS>  (NOT 1 DUMMY);
@@ -2179,22 +2178,22 @@ SELECT V + TEMP-PRT (-1 GEN) (NOT 1 PAR) (NOT -1 V) ;
 REMOVE V + TEMP-PRT (1 PAR) (NOT -1 GEN);
 REMOVE V + TEMP-PRT (1 GEN) (2 PAR) (NOT -1 GEN);
 REMOVE V + TEMP-PRT (NOT -1 GEN) (1 CMP);
-REMOVE V + TEMP-PRT (-2C PAR) (-1 Cfoo);
+REMOVE V + TEMP-PRT (-2C PAR) (-1 CONJ);
 REMOVE V + TEMP-PRT (*-1 OLLA LINK 0 VFIN LINK NOT *1 VFIN) (NOT -1 CLBqst);
-# *** Cfoo ***
-"eli" SELECT Cfoo  (-1 COMMA);
-"eli" SELECT Cfoo  (-1 NOM) (1 NOM);
-"eli" SELECT Cfoo  (-1 PAR) (1 PAR);
-"eli" SELECT Cfoo  (-1 GEN) (1 GEN);
-"eli" SELECT Cfoo  (-1 INE) (1 INE);
-"eli" SELECT Cfoo  (-1 ELA) (1 ELA);
-"eli" SELECT Cfoo  (-1 ILL) (1 ILL);
-"eli" SELECT Cfoo  (-1 ADE) (1 ADE);
-"eli" SELECT Cfoo  (-1 ABL) (1 ABL);
-"eli" SELECT Cfoo  (-1 ALL) (1 ALL);
-"joko" SELECT Cfoo  (*1 TAI);
-"vaan" SELECT Cfoo  (-1 COMMA);
-"vaan" SELECT Cfoo  (1C VFIN-C-MYOS);
+# *** CONJ ***
+"eli" SELECT CONJ  (-1 COMMA);
+"eli" SELECT CONJ  (-1 NOM) (1 NOM);
+"eli" SELECT CONJ  (-1 PAR) (1 PAR);
+"eli" SELECT CONJ  (-1 GEN) (1 GEN);
+"eli" SELECT CONJ  (-1 INE) (1 INE);
+"eli" SELECT CONJ  (-1 ELA) (1 ELA);
+"eli" SELECT CONJ  (-1 ILL) (1 ILL);
+"eli" SELECT CONJ  (-1 ADE) (1 ADE);
+"eli" SELECT CONJ  (-1 ABL) (1 ABL);
+"eli" SELECT CONJ  (-1 ALL) (1 ALL);
+"joko" SELECT CONJ  (*1 TAI);
+"vaan" SELECT CONJ  (-1 COMMA);
+"vaan" SELECT CONJ  (1C VFIN-C-MYOS);
 REMOVE NOCAP (NOT 1 DUMMY);
 # DELETES SPURIOUS PropER N READINGS LIKE (ARVO Prop);
 REMOVE CAP (NOT 1 DUMMY);
@@ -2240,7 +2239,7 @@ REMOVE N + PL (0 VUO/VOI) (NOT 1 DUMMY) ;
 SELECT PRSPRC + PASS + GEN (1C GEN);
 # SELECT (PrfPrc Act Gen "riittää") (1C A/PCP) ;
 "riittää" SELECT ACT + PRSPRC + GEN  (1C A/PCP) ;
-#(@w SELECT PCP (0 Gen) (0 REF) (1C Cfoo) (*2 PCP LINK 0 Gen LINK NOT *-1 <REF>);
+#(@w SELECT PCP (0 Gen) (0 REF) (1C CONJ) (*2 PCP LINK 0 Gen LINK NOT *-1 <REF>);
 # NB: ???XXX
 "vanhempi" SELECT N + GEN  (1 N) (1 NOT-GEN-CASE);
 "vanhempi" SELECT N + GEN  (1 N) (1 GEN) (1 SG);
@@ -2263,7 +2262,7 @@ SELECT ADV (0 INF3) (0 ABE) ;
 SELECT PRSPRC + PASS + PL + NOM (1C NUM) (1 NOM) ;
 REMOVE PRSPRC + PASS + PL + NOM (1C NOM) (1 SG) ;
 "jälkeen" SELECT PSP  (-2C GEN) (-1 NUM) ;
-SELECT A + INS (1 Cfoo) (2 INS) (2 A/N);
+SELECT A + INS (1 CONJ) (2 INS) (2 A/N);
 REMOVE A + INS (NOT 1 INS) (NOT 2 INS);
 "valta" SELECT N + SG + GEN  (*-1 CLBqst LINK *1 VALLAN-WDS);
 "valta" SELECT N + SG + GEN  (*1 CLBqst LINK *-1 VALLAN-WDS);
@@ -2304,12 +2303,12 @@ SELECT SG + GEN + <POSS> (-1C A/NUM/PRON/Q) (-1 GEN) (-1 SG) (NOT -1 PERS);
 # TOISEN MAHDOLLISUUTENSA
 REMOVE SG + NOM + <POSS> (-3C VFIN) (NOT -2 VFIN) (NOT -1 VFIN) (NOT -2 INF1) (NOT -1 INF1) (NOT -2 CLBqst) (NOT -1 CLBqst) (*-3 NOM);
 # TEKEE -STI ITSE ARVIONSA
-SELECT SG + GEN + <POSS> (-2C GEN) (-2 SG) (-2 <POSS>) (-1C Cfoo);
-SELECT SG + GEN + <POSS> (1C Cfoo) (2C GEN) (2 SG) (2 <POSS>);
-SELECT PL + NOM + <POSS> (-2C NOM) (-2 PL) (-2 <POSS>) (-1C Cfoo);
-SELECT PL + NOM + <POSS> (1C Cfoo) (2C NOM) (2 PL) (2 <POSS>);
-SELECT SG + NOM + <POSS> (-2C NOM) (-2 SG) (-2 <POSS>) (-1C Cfoo);
-SELECT SG + NOM + <POSS> (1C Cfoo) (2C NOM) (2 SG) (2 <POSS>);
+SELECT SG + GEN + <POSS> (-2C GEN) (-2 SG) (-2 <POSS>) (-1C CONJ);
+SELECT SG + GEN + <POSS> (1C CONJ) (2C GEN) (2 SG) (2 <POSS>);
+SELECT PL + NOM + <POSS> (-2C NOM) (-2 PL) (-2 <POSS>) (-1C CONJ);
+SELECT PL + NOM + <POSS> (1C CONJ) (2C NOM) (2 PL) (2 <POSS>);
+SELECT SG + NOM + <POSS> (-2C NOM) (-2 SG) (-2 <POSS>) (-1C CONJ);
+SELECT SG + NOM + <POSS> (1C CONJ) (2C NOM) (2 SG) (2 <POSS>);
 REMOVE NOM + N + <POSS> (1C NOM/PAR) (1 N) (NOT 1 PROP);
 # ????? POTENTIAllY TANKEROUS
 # LAKINIPPUNSA OSIA# VIRKANSA MAHDOLLISUUKSIA
@@ -2339,10 +2338,10 @@ SELECT PSP + <GenLEFT> (-1 GEN) (-1 N) (NOT -1 KERRAN) (NOT 1 GEN/PAR) (NOT 0 N)
 SELECT INF1 (-4C INF1-VERB) (NOT -3 VFIN) (NOT -2 VFIN) (NOT -1 PAR) (NOT 0 N) (NOT 0 UUSIA) (NOT -1 CLBqst) (NOT -2 CLBqst) (NOT -3 CLBqst) (NOT -1 VFIN);
 SELECT INF1 (-5C INF1-VERB) (NOT -4 VFIN) (NOT -1 PAR) (NOT 0 N) (NOT 0 UUSIA) (NOT -1 CLBqst) (NOT -2 CLBqst) (NOT -3 CLBqst) (NOT -4 CLBqst) (NOT -1 VFIN) (NOT -2 VFIN) (NOT -3 VFIN);
 REMOVE INF1 (-1 BOS) ;
-SELECT V + ACT + SG3  (-1C Cfoo) (-4C VFIN) (-4 SG3) (-4 ACT) (NOT -3 V) (NOT -3 CLBqst) (NOT -2 V) (NOT -2 CLBqst) (*1 CLBqst LINK NOT *-1 VFIN) (NOT -4 NES) (NOT -3 NES) (NOT -2 NES) (NOT -4 OLLA);
+SELECT V + ACT + SG3  (-1C CONJ) (-4C VFIN) (-4 SG3) (-4 ACT) (NOT -3 V) (NOT -3 CLBqst) (NOT -2 V) (NOT -2 CLBqst) (*1 CLBqst LINK NOT *-1 VFIN) (NOT -4 NES) (NOT -3 NES) (NOT -2 NES) (NOT -4 OLLA);
 # X LOPETTAA ASEIllA UHKAILUN JA ALOITTAA
-SELECT INF1 (-1C Cfoo) (-4C INF1) (NOT -3 V) (NOT -3 CLBqst) (NOT -2 V) (NOT -2 CLBqst);
-SELECT INF1 (-1C Cfoo) (-5C INF1) (NOT -3 V) (NOT -3 CLBqst) (NOT -2 V) (NOT -2 CLBqst) (NOT -4 V) (NOT -4 CLBqst);
+SELECT INF1 (-1C CONJ) (-4C INF1) (NOT -3 V) (NOT -3 CLBqst) (NOT -2 V) (NOT -2 CLBqst);
+SELECT INF1 (-1C CONJ) (-5C INF1) (NOT -3 V) (NOT -3 CLBqst) (NOT -2 V) (NOT -2 CLBqst) (NOT -4 V) (NOT -4 CLBqst);
 SELECT REF (-2C <REF>) (-1C GEN) (-1 <POSS>) ;
 SELECT REF (-1C <REF>) (1 GEN) (1 <POSS>) ;
 
@@ -2591,7 +2590,7 @@ REMOVE V + PRT + ACT (0 PRS) ;
 SELECT ADV (0 PALJON) (NOT 1 CMP-ENNEN) (NOT 2 JALKEEN) ;
 SELECT PRS/IMPRT + ACT + NEG (-1C NEGV) ;
 
-REMOVE IMP + P2 + SG (NOT -1 BOS) (NOT -2 BOS) (NOT -1 Cfoo) (NOT -2 Cfoo) (-1 WORD) ;
+REMOVE IMP + P2 + SG (NOT -1 BOS) (NOT -2 BOS) (NOT -1 CONJ) (NOT -2 CONJ) (-1 WORD) ;
 #--negate SELECT IMP + P2 + SG (NEGATE -1 WORD) (0 WORD LINK *1 N + NOM BARRIER N) ;
     # € Heitä mulle tuo kirja!
     # $ Hän on sisällä talossa.
