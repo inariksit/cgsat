@@ -125,6 +125,13 @@ transSetDecl (Set setname tagset) =
     (SetName (UIdent name)) -> do 
       ts <- transTagSet tagset
       return (name, ts)
+    (SetMeta (UIdent name)) -> do 
+      ts <- transTagSet tagset
+      return ("<" ++ name ++ ">", ts)
+    (SetSynt (UIdent name)) -> do 
+      ts <- transTagSet tagset
+      return ("@" ++ name, ts)
+
 transSetDecl (List setname tags) = 
   case setname of
     BOS          -> return (">>>", CGB.TS bos)

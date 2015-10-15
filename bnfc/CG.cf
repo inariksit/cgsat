@@ -39,6 +39,8 @@ List. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
 
 -- Set names start with uppercase letter or number 
 SetName.  SetName ::= UIdent ;
+SetMeta.  SetName ::= "<" UIdent ">" ;
+SetSynt.  SetName ::= "@" UIdent ;
 BOS.      SetName ::= ">>>" ;
 EOS.      SetName ::= "<<<" ;
 _.        SetName ::= "$$" SetName ; -- Unification; just read them as regular set names
@@ -123,8 +125,12 @@ Cautious.    Position ::= Position "C" ;
 --CBarrier. Barrier ::= "CBARRIER" TagSet ;
 
 
-token UIdent ((upper)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
-	      |(digit)(upper - ["C"]|lower|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')+) ;
+--token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
+token UIdent ((upper)(letter|digit|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')*
+	      |(digit)(upper - ["C"]|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+
+              |('\\'|'+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+
+              |('\\'|'+'|'-')(letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
+
 token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*) ;
 
 token Str ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
