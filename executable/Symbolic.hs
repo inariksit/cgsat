@@ -86,9 +86,9 @@ main = do
              let unnamedTags = nub $ concatMap (map getTagset) allConds
              let tc = nub $ concatMap toTags' $ tsets ++ unnamedTags
              let ts = concat tc
-             mapM_ print tc
+--             mapM_ print tc
 --             mapM_ print ts
---              mapM_ (testRule (verbose,debug) ts tc) (splits rules)
+             mapM_ (testRule (verbose,debug) ts tc) (splits rules)
 
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r

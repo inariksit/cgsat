@@ -90,22 +90,30 @@ parseCGRules :: Grammar -> State Env [[Either String CGB.Rule]]
 parseCGRules (Sections secs) = mapM parseSection secs
 
 parseSection :: Section -> State Env [Either String CGB.Rule]
-parseSection (Defs defs) = do mapM updateEnv defs 
-                              --in case the grammar doesn't specify boundaries 
-                              modify $ \env -> env { named = (">>>", CGB.TS bos) : named env }
-                              modify $ \env -> env { named = ("<<<", CGB.TS eos) : named env }
-                              env <- get
-                              mapM (parseRules' env) defs
-  where updateEnv :: Def -> State Env ()
-        updateEnv (SetDef  s) = do nameTags <- transSetDecl s
-                                   modify $ \env -> env { named = nameTags : named env }
-        updateEnv (RuleDef r) = do return ()
+parseSection (Defs defs) =
+ do mapM updateEnv defs 
+    --in case the grammar doesn't specify boundaries 
+    modify $ \env -> env { named = (">>>", CGB.TS bos) : named env }
+    modify $ \env -> env { named = ("<<<", CGB.TS eos) : named env }
+    env <- get
+    parseAndModify env defs []
+                           
+ where
+  parseAndModify :: Env -> [Def] -> [Either String CGB.Rule] -> State Env [Either String CGB.Rule]
+  parseAndModify e [] acc       = do return acc
+  parseAndModify e (d:defs) acc = do let (e', strOrRl) = parseRules' e d
+                                     put e'
+                                     parseAndModify e' defs (strOrRl:acc)
+  
+  updateEnv :: Def -> State Env ()
+  updateEnv (RuleDef r) = return ()
+  updateEnv (SetDef s) = do nameTags <- transSetDecl s
+                            modify $ \env -> env { named = nameTags : named env }
 
-        parseRules' :: Env -> Def -> State Env (Either String CGB.Rule)
-        parseRules' e (SetDef  s) = return $ Left (CG.Print.printTree s)
-        parseRules' e (RuleDef r) = do let (r', e') = runState (transRule r) e
-                                       put e'
-                                       return $ Right r'
+  parseRules' :: Env -> Def -> (Env, Either String CGB.Rule)
+  parseRules' e (SetDef  s) = (e, Left $ CG.Print.printTree s)
+  parseRules' e (RuleDef r) = let (r', e') = runState (transRule r) e
+                              in (e', Right r')
 
 
 split :: (a -> Bool) -> [a] -> [[a]]
