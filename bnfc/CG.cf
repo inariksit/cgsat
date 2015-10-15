@@ -118,7 +118,8 @@ rules Or ::= "OR" | "|" ;
 Exactly.     Position ::= Signed ;
 AtLeastPre.  Position ::= "*" Signed ;
 AtLeastPost. Position ::= Signed "*" ; 
-AtLPostCaut. Position ::= Signed "C*" ;
+AtLPostCaut1. Position ::= Signed "C*" ;
+AtLPostCaut2. Position ::= "*" Signed "C" ;
 Cautious.    Position ::= Position "C" ; 
 
 --Barrier. Barrier ::= "BARRIER" TagSet ;

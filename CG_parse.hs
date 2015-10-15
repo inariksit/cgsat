@@ -297,7 +297,8 @@ transPosition pos = case pos of
   Exactly (Signed str)     -> return $ CGB.Exactly False $ read str
   AtLeastPre (Signed str)  -> return $ CGB.AtLeast False $ read str
   AtLeastPost (Signed str) -> return $ CGB.AtLeast False $ read str
-  AtLPostCaut (Signed str) -> return $ CGB.AtLeast True $ read str
+  AtLPostCaut1 (Signed str) -> return $ CGB.AtLeast True $ read str
+  AtLPostCaut2 (Signed str) -> return $ CGB.AtLeast True $ read str
   Cautious position        -> cautious `fmap` transPosition position
   where cautious (CGB.Exactly _b num) = CGB.Exactly True num
         cautious (CGB.AtLeast _b num) = CGB.AtLeast True num
