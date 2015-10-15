@@ -25,16 +25,16 @@ the rule will apply to the word \emph{bear}, and remove the analysis \texttt{ver
 However, if a word has only one remaining analysis, then the rule will not apply, even if the condition is met.
 %Rules are not allowed to remove the last remaining analysis: if  \texttt{verb pl} were the only analysis for \emph{bear}, then the rule would not apply, even if the condition is met.
 
-CGs are valuable resources for rule-based NLP, especially for lesser resourced languages. They are robust and can be written without large corpora--only morphological analysis is needed. The formalism is lightweight and language-independent, and resources can be shared between related languages \cite{bick2006spanish}, \cite{lene_trond_linda2010}.
+CGs are valuable resources for rule-based NLP, especially for lesser resourced languages. They are robust and can be written without large corpora--only morphological analysis is needed. The formalism is lightweight and language-independent, and resources can be shared between related languages \cite{bick2006spanish,lene_trond_linda2010}.
 Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
 As CGs grow larger, it gets harder for the grammar writers and users to keep track of all the rules and their interaction.
-\cite{voutilainen2004} gives a detailed account about best practices of grammar writing and efficient use of hand-annotated corpora to aid the grammar development.
-\cite{bick2013tuning} presents a method to optimise hand-written CGs using machine learning techniques.
-Our toolset is designed to complement the existing approaches in CG analysis and optimisation.
-While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
-Authors who have a large hand-annotated corpus can also benefit from the technique.
-With our method, it is possible to ask, for example, the following questions:
+%\cite{voutilainen2004} gives a detailed account about best practices of grammar writing and efficient use of hand-annotated corpora to aid the grammar development.
+%\cite{bick2013tuning} presents a method to optimise hand-written CGs using machine learning techniques.
+%Our tools complement the existing methods in CG analysis and optimisation.
+%While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
+%Authors who have a large hand-annotated corpus can also benefit from our tools.
+With our tools, the grammar writer or user can ask specific questions about their grammar, such as:
 
 \begin{itemize}
 \item Does my grammar contain rules that contradict each other?
@@ -46,7 +46,7 @@ With our method, it is possible to ask, for example, the following questions:
 The technique requires an existing morphological lexicon, but no corpus. 
 The lexicon is needed in order to generate sequences that have realistic ambiguities: e.g. a word can be ambiguous between noun and verb, but not between adjective and punctuation. 
 Constraints for the structure of the sequences come from the CG rules themselves.
-We encode both of these constraints as a satisfiability problem, and use a SAT solver.
+We encode both of these constraints as a satisfiability problem, and use a SAT solver to generate answers to the previous questions.
 
 The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. Section~\ref{sec:implementation} discusses the techniques we use, Section~X presents preliminary results and  Section~Y discusses future work. Section~Z concludes the paper.
 
@@ -73,7 +73,7 @@ We combine elements from the following aspects of CG research:
 \begin{itemize}
 \item Corpus-based methods in manual grammar development \cite{voutilainen2004}
 \item Optimising hand-written grammars \cite{bick2013tuning}
-\item Encoding CG in logic \cite{lager98}, \cite{lager_nivre01}, \cite{listenmaa_claessen2015}
+\item Encoding CG in logic \cite{lager98,lager_nivre01,listenmaa_claessen2015}
 \end{itemize}
 
 In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996}, \cite{lindberg_eineborg98ilp}%, \cite{lager01transformation}, \cite{asfrent14} 
@@ -84,12 +84,8 @@ In addition, there is a large body of research on automatically inducing rules, 
 
 Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin \cite{voutilainen2004}. For a language with no free or tagset-compatible corpus available, \cite{tyers_reynolds2015} describe a method where they apply their rules to unannotated Wikipedia texts and pick 100 examples at random for manual check.
 
-% \begin{itemize}
-% \item \# times the rule was applied
-% \item \% times it was correct
-% \end{itemize}
-CG rules are usually arranged in sections, from safest to least safe. Given a grammar that has three sections, the rules are applied to the text in the following manner. First apply rules from section 1, and repeat until nothing changes in the text. Then apply rules from sections 1--2, and finally all rules, from sections 1--3.
-The best strategy is to start with the most effective rules with low error rate, so that they make way for the following, more heuristic and less safe rules to act on.
+% CG rules are usually arranged in sections, from safest to least safe. Given a grammar that has three sections, the rules are applied to the text in the following manner. First apply rules from section 1, and repeat until nothing changes in the text. Then apply rules from sections 1--2, and finally all rules, from sections 1--3.
+% The best strategy is to start with the most effective rules with low error rate, so that they make way for the following, more heuristic and less safe rules to act on.
 
 A representative corpus is arguably the best way to get concrete numbers: how many times a rule applied and how often it was correct.
 However, this method will not notice a missed opportunity, nor suggest a way to improve, for instance changing the place of a rule.
