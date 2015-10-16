@@ -544,7 +544,7 @@ SET ALL_PERSON = FIRST_PERSON_SG OR
 # --------------
 
 LIST <COERCE!> = <COERCE!> ; 
-LIST UP = "<\U.*>"r ;  # uppercased stuff
+LIST UP = "<U>" ; # "<\U.*>"r ;  # uppercased stuff
 LIST <CORRECT!> = <CORRECT!> ; 
 LIST <Del!> = <Del!> ; 
 LIST <Digit> = <Digit> ; 
