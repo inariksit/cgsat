@@ -81,6 +81,7 @@ rules MaybeName ::= ":" Id | ;
 --TODO subreading:  SELECT Inf IF (-1/0 ADV-NOT)(-1/1 VAUX-CAN);
 CondNotPos.  Cond1 ::= "NOT" Position TagSet ;
 CondPos.     Cond1 ::= Position TagSet ;
+--CondPosSub.  Cond1 ::= Position "/" Signed TagSet ;
 CondBarrier. Cond1 ::= Position TagSet "BARRIER" TagSet ;
 CondCBarrier. Cond1 ::= Position TagSet "CBARRIER" TagSet ;
 CondNotBar.  Cond1 ::= "NOT" Position TagSet "BARRIER" TagSet ;
@@ -121,40 +122,20 @@ AtLeastPost. Position ::= Signed "*" ;
 AtLPostCaut1. Position ::= Signed "C*" ;
 AtLPostCaut2. Position ::= "*" Signed "C" ;
 Cautious.    Position ::= Position "C" ; 
-
---Barrier. Barrier ::= "BARRIER" TagSet ;
---CBarrier. Barrier ::= "CBARRIER" TagSet ;
+Subreading.  Position ::= Signed "/" Signed ;
 
 
 --token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
 token UIdent ((upper)(letter|digit|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')*
-	      |(digit)(upper - ["C"]|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+
-              |('+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+
+	      |(digit)(upper|lower|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')* --if it begins with number, can't end in / or C, because that's ambiguous with positions
+		      (upper - ["C"]|lower|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+
+              |('+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+ 
               |('+'|'-')(letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
+                   --cannot end in digit if it begins with -
 
 token Id ((letter)(upper|letter|digit|'/'|'_'|'+'|'-'|'!'|'¿'|'¡')*
           |('\\'|'+')(digit|letter|'/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!')+) ;
 
 token Str ('"' ((char - ["\""]))* '"') ; -- to allow e.g. ("\,") OR ("\:") OR ("\;")
 
-token Signed ('-'? (digit)+ ('/' (digit)+)* ) ;
-
-
-{- Fred Karlsson's CG book 1995:
-
-"The constraint file consists of thirteen sections. The following designated expressions must occur in the following form and order, each followed by sets, function declarations, constraints etc. of the appropriate type:
-SENTENCE-DELIMITERS
-SET-DECLARATIONS 
-SYNTACTIC-FUNCTION-DECLARATIONS 
-PRINCIPAL-FUNCTION-DECLARATIONS 
-TEMPLATES
-MORPHOSYNTACTIC-MAPPINGS 
-CLAUSE-BOUNDARY-CONSTRAINTS 
-DISAMBIGUATION-CONSTRAINTS 
-HEURISTIC-DISAMBIGUATION-CONSTRAINTS 
-SYNTACTIC-CONSTRAINTS 
-HEURISTIC-SYNTACTIC-CONSTRAINTS 
-MORPHOLOGICAL-HEURISTICS 
-TEXT-BASED-HEURISTICS
-END"
--}
+token Signed ('-'? (digit)+) ;
