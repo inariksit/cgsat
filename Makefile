@@ -28,10 +28,10 @@ test-hungarian:
 
 test-grammars:
 	cat data/eng_cg2.rlx | ./CG/Test | grep Successful
-	cat data/apertium-spa.spa.rlx | ./CG/Test | grep Successful
-	cat data/nld.rlx | ./CG/Test | grep Successful
-	cat data/hun_cg2.rlx | ./CG/Test | grep Successful
+	cat data/spa/apertium-spa.spa.rlx | ./CG/Test | grep Successful
+	cat data/nld/nld.rlx | ./CG/Test | grep Successful
 	cat data/fin.rlx | ./CG/Test | grep Successful
+	cat data/hun_cg2.rlx | ./CG/Test | grep Successful
 
 test-small:
 	cat data/small/ex-C-OR-.txt | cg-conv -A > /tmp/ex-C-OR-.ape
