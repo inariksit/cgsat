@@ -86,9 +86,7 @@ main = do
              let unnamedTags = nub $ concatMap (map getTagset) allConds
              let tc = nub $ concatMap toTags' $ tsets ++ unnamedTags
              let ts = concat tc
---             mapM_ print tc
---             mapM_ print ts
-             mapM_ (testRule (verbose,debug) ts tc) (splits rules)
+             testRules (verbose,debug) ts tc rules
 
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -168,6 +166,48 @@ printSentence sent = do
          | (sind,word) <- toAscList sent ]
   mapM_ putStrLn allAnas
 
+--------------------------------------------------------------------------------
+testRules :: (Bool,Bool) -> [Tag] -> [[Tag]] -> [Rule] -> IO ()
+testRules (verbose,debug) ts tcs rules = do 
+  s <- newSolver
+  initialSent <- mkSentence s 5 tcs
+  let taginds = [1..length tcs]
+  let taglookup = mkTagMap ts tcs
+  let luTag = lookupTag taglookup taginds
+
+  let checkAndApply sentence rule = do
+       let (w,tSInd) = width rule
+       let luLit     = lookupLit sentence
+       let trg_difs  = toTags $ target rule
+       let conds     = toConds $ cond rule
+       let conds_pos = [ (cs, map (tSInd+) ps) 
+                          | (cs, ps) <- conds `zip` (map.map) getPos conds ]
+       (mustHaveTrg, mustHaveOther, allCondsHold) <- do
+         let trgWInds@((yes,no):_) = map luTag trg_difs --TODO
+         let trgLits = map (luLit tSInd) yes
+         let otherLits = map (luLit tSInd) (taginds \\ yes)
+         mht <- orl s ("must have: " ++ mkVarName trgLits) trgLits
+         mho <- orl s ("must have: " ++ mkVarName otherLits) otherLits
+         condLits <- mapM (mkCond s luTag luLit taginds) conds_pos
+         ach <- orl s ("must hold: " ++ unwords (map show condLits)) condLits
+         return (mht, mho, ach)
+       let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
+       b <- solve s shouldTriggerLast
+
+-- apply after checking if conditions can hold
+       newsent <- apply s taglookup taginds sentence rule
+       if b then return newsent
+          else do putStrLn $ "conflict with rule " ++ show rule
+                  return newsent
+
+   
+  foldM checkAndApply initialSent rules
+  putStrLn "end!"
+ where
+  mkVarName :: [Lit] -> String
+  mkVarName (x:y:z:_) = show [x,y,z] ++ "..."
+  mkVarName lits      = show lits
+  
 --------------------------------------------------------------------------------
 
 testRule :: (Bool,Bool) -> [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
