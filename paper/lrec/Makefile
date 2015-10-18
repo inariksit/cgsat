@@ -4,6 +4,8 @@ all:
 	pdflatex lrec2016_listenmaa_claessen.tex
 	pdflatex lrec2016_listenmaa_claessen.tex
 
+xe:
+	xelatex lrec2016_listenmaa_claessen.tex
 
 word_count:
 	cat *.tex | grep "^[A-Za-z]" | wc -w
