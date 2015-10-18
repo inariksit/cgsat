@@ -17,11 +17,26 @@
 \usepackage{multirow}
 \usepackage{latexsym}
 \usepackage{cite}
+\usepackage{graphics}
+\usepackage{graphicx}
 \usepackage[colorlinks=true,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{authordate1-4}
 \usepackage{multirow}
 %\special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
 %\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
+
+\usepackage{fontspec}
+
+% \newcommand{\mainfontfamily}{Palatino}
+% \setmainfont[
+%   Ligatures=TeX,
+%   Scale=0.9,
+% ]{\mainfontfamily}
+% \newfontfamily\scshape[Letters=SmallCaps, Numbers=Uppercase] % {Myriad Pro} % {TeX Gyre Pagella}
+
+\newcommand{\monofontfamily}{Monaco} % Courier
+\setmonofont[Scale=0.7]{\monofontfamily}
+
 
 \usepackage{color}
 \newcommand{\todo}[1]{{\color{cyan}\textbf{[TODO: }#1\textbf{]}}}
