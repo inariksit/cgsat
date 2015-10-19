@@ -19,7 +19,7 @@
 \usepackage{cite}
 %\usepackage{graphics}
 \usepackage{graphicx}
-\usepackage{float}
+%\usepackage{float}
 \usepackage[colorlinks=true,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{authordate1-4}
 \usepackage{multirow}
@@ -58,12 +58,12 @@
 \maketitle
 
 \begin{abstract}
-We describe a method for analysing Constraint Grammar.
-We encode a grammar as a SAT problem and find out
-whether there are conflicting or redundant rules.
-With a morphological lexicon, we can construct example sequences that
-have realistic ambiguities.
-We test our tools with grammars from 100-1000 rules.
+We describe a method for analysing Constraint Grammar by encoding it
+as a SAT problem.
+Our tools can detect internal conflicts or redundancies in a grammar,
+as well as generate example sequences to demonstrate the effect of some rule or rule set.
+No corpus is required, only a morphological lexicon.
+%We test our tools with grammars from 100-1000 rules.
 \end{abstract}
 
 \begin{table*}[]
