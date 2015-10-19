@@ -2,12 +2,8 @@
 \label{sec:implementation}
 
 In this section, we describe the implementation of the toolset.
-\cite{listenmaa_claessen2015} presents the SAT encoding of the rules, when applied to an existing text.
-Since we want to test the rules in a way that doesn't depend on data, we create a \emph{symbolic sentence}: a word sequence which we can modify according to the properties we want to test.
-These words are combinations of tags
-In order to create words with real ambiguities, we use a morphological lexicon
-This sentence consists of symbolic words, which we c
-In addition, we use a morphological lexicon to create symbolic words that contain real ambiguities.
+The SAT encoding we use is introduced in \cite{listenmaa_claessen2015}, along with a working CG compiler.
+Since we want to test the rules in a way that doesn't depend on data, we operate on a \emph{symbolic sentence}: a word sequence which we can modify according to the properties we want to test.
 
 \paragraph{SAT encoding of CG rules}
 
@@ -19,59 +15,65 @@ the default rule ensures that each word has at least one analysis.
 %This makes \texttt{the\_det} true by default, therefore the implication must hold, and \texttt{bear\_v\_pl} will be removed.
 For more details about the encoding, see \cite{listenmaa_claessen2015}.
 
-%As shown in table~\ref{table:vars}, \texttt{bear\_n\_sg} represents the possibility that \emph{bear} is a noun, and \texttt{bear\_v\_pl} 
-%The rules are translated into clauses; one for each concrete application.
-%Table~\ref{table:vars} shows the translation of the analyses to variables, and rules to clauses. See \cite{listenmaa_claessen2015} for further description.
-
 % table:vars moved to main file for positioning
 
 
 \paragraph{Word-internal constraints}
 
 The symbolic sentence consists of symbolic words.
-They are combinations of tags, and they may be underspecified---similarly, a given CG rule may target any noun, a plural noun or the noun \emph{bear}.
-Given a large morphological lexicon, we can restrict each individual word to contain only realistic ambiguities. We map each word form in the lexicon to its possible analyses, and then ignore the actual word forms. For instance, a Spanish morphological lexicon contains the entries \texttt{casa:casar<verb><sg><p3>} and \texttt{casa:casa<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. 
+In the beginning, a symbolic word is a list of all possible tag combinations, and we don't know which ones are true.
+%These tag combinations may be underspecified for lemma or other features---similarly, a CG rule may target any noun, a plural noun or the noun \emph{bear}.
+Given a large morphological lexicon, we can restrict the individual words to contain only realistic ambiguities. 
+For instance, a Spanish morphological lexicon contains the entries \texttt{casa:casar<verb><sg><p3>} and \texttt{casa:casa<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. 
 %The lexicon is not likely to contain a wordform that can be analysed both as an adjective and punctuation, so that kind of ambiguous word is never created.
 
 %However, since our method is corpus-free, we don't add any external restrictions as to what words can follow each other.
 
 \paragraph{Symbolic sentences}
 
-When we start applying rules, we need to have a sentence to which to apply.
-As this is a corpus-free method, we don't have one.
-Instead, we create a \emph{symbolic sentence}: sequence of words that can, in the beginning, have any tag combination.
-At the word level, these tag combinations are restricted to only contain realistic ambiguities, as described in the previous paragraph.
-At the sentence level, applying rules will start shaping the sentence.
-An indeterminate blob of possible words undergoes rules that describe illegal sequences of analyses,
-and at the application of each rule, more and more possibilities are discarded.
+Figure~\ref{fig:example} shows a fragment of of a two-word symbolic sentence, before and after applying the rule \texttt{REMOVE verb IF (-1 det)}\footnote{For simplicity, we don't show the word-internal constraints that come from the lexicon, but only the rule application.}.
+As with real analyses, each tag combination is given a variable, and applying a rule means creating a concrete clause for each instance where a determiner is found preceding a verb.
+In a symbolic sentence, every word has potentially every tag combination, and applying the rules will shape the sentence into something that respects the constraints of the language.
 
-All rules are applied to all word, given that their context is in scope: for instance, the sentence-initial word doesn't meet any condition that requires something of previous words.
-However, being a condition for another target will also shape a word.
-At a level of real texts, a rule such as \texttt{REMOVE verb IF (-1 det)} is an instruction to remove a \texttt{verb} if we find a \texttt{det} before it.
-In case of a symbolic sentence, we start in a situation where every word can be a \texttt{det} or a \texttt{verb}. In that context, the rule behaves as a broader constraint about every pair of two words \texttt{verb} may not follow \texttt{det}. This relation is encoded between all adjacent words, and each of them can follow the restriction in the way that is compliant with other rules.
-
-\begin{figure}[]
-
+\begin{figure}[h]
 \includegraphics[width=0.42\textwidth]{symbolic_sentence.png}
-
-\caption{Symbolic sentence beginning to take shape}
+\caption{Symbolic sentence beginning to take shape \todo{make this less confusing?}}
 \label{fig:example}
 \end{figure}
 
 
-% For instance, word 1 may be constrained by another rule to have no \texttt{det}, and this means that word 2 is free to have \texttt{verb} or not have it. If word 3 is required to have a  \texttt{det}, then word 4 either has to have no \texttt{verb}, or it has to have only \texttt{verb}, by the rule that the last analysis of the word will not be removed.
+The example rule states that the sentence may not have a verb after a determiner.
+The variable \texttt{w2<verb>} is the situation of the second word's verb status before applying the rule. We create a new variable \texttt{w2'<verb>}, whose value depends on whether the condition holds (if \texttt{w1<det>} is true); whether it was true on the last round (if \texttt{w2<verb>} is already removed by another rule, \texttt{w2'<verb>} cannot reappear); and whether it is the only analysis left (not depicted in the picture).
+All the analyses not targeted by this rule remain the same.
 
-The applications of these rules shape our symbolic sentence into containing only things that can survive the rules. This means that we can ask a question ``after applying rules $0-i$, is it possible for $i+1$ to apply?'', and the answer is reliable; we can not find a counterexample by just having a bit more data, because we start from literally all possibilities, and each rule
-restricts the set of possible sentences.
 
-Note that this method is not suitable for language generation: rules in any realistic CG are tailored for real life ambiguities, whereas our symbolic sentence starts with literally all possibilities of tag combinations.
+% \begin{figure}[]
+% \includegraphics[width=0.42\textwidth]{symbolic_sentence.png}
+% \caption{Symbolic sentence beginning to take shape \todo{make this less confusing?}}
+% \label{fig:example}
+% \end{figure}
+
+%The applications of these rules shape our symbolic sentence into containing only things that can survive the rules. 
+
+The effect of the old rule applications is retained when a new rule is added.
+This means that we can ask a question ``after applying rules $0-i$, is it possible for $i+1$ to apply?'', and the answer is reliable; we cannot find a counterexample by just having a bit more data, because we start from literally all possibilities, and each rule restricts the set of possible sentences.
+%If rule \texttt{r100} would require the first word to be a noun, and causes a conflict because it is not a noun, we know that it is because there is no way for w1 to be a noun.
+
+%Note that this method is not suitable for language generation: rules in any realistic CG are tailored for real life ambiguities, whereas our symbolic sentence starts with literally all possibilities of tag combinations.
 
 \paragraph{What kind of questions we can ask?}
 
 The example so far has been of type ``Can rule Z apply after A-Y?''
+In case a conflict is detected, we can dig into it and refine where the problem is: e.g. is the condition not met, or is it the case that the target is already removed or the only remaining analysis.
+We can find what other rule or rules prevent others from applying, or if the conflict is rule-internal, such as nonexisting tag set or contradicting requirements of a context word (e.g. a word must be unambiguously two different POS).
 
-We can construct all kinds of symbolic sentences. We can set the length, restrict individual words (e.g. ``3rd word must be a noun''), require that it triggers some rule but not other.
-In case of a conflict, we can dig into the conflict and refine where the problem is: e.g. is the condition not met, or is it the case that the target is already removed or the only remaining analysis.
+
+In addition to analysing a whole grammar, 
+we can construct all kinds of symbolic sentences to test out individual rules. 
+We can set the length, restrict individual words (e.g. ``3rd word must be a noun''), require that it triggers some rule but not other. 
+This functionality can aid the grammar writer in the process, to see if they have missed a case or defined the tagset correctly.
+
+
 
 
 

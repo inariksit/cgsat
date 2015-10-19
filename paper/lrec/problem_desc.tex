@@ -48,7 +48,10 @@ The lexicon is needed in order to generate realistic ambiguities: e.g. a word ca
 Constraints for the structure of the sequences come from the CG rules themselves.
 We encode both of these constraints as a satisfiability problem, and use a SAT solver to generate answers to the previous questions.
 
-The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. Section~\ref{sec:implementation} discusses the implementation, Section~X presents preliminary results and  Section~Y discusses future work. Section~Z concludes the paper.
+%The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. 
+% Section~\ref{sec:implementation} discusses the implementation, 
+% Section~\ref{sec:eval} presents preliminary results and discusses future work. 
+%Section~\ref{sec:conclusion} concludes the paper.
 
 %\todo{Relate to conf themes: "Methodologies and tools for LRs construction and annotation" and
 %"Validation and quality assurance of LRs"}
@@ -83,7 +86,7 @@ In addition, there is a large body of research on automatically inducing rules, 
 
 \paragraph{Corpus-based methods in manual grammar development}
 
-Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin \cite{voutilainen2004}.
+Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy \cite{voutilainen2004}.
 This helps the grammar writer to arrange the rules in appropriate sections, with safest and most effective rules coming first.
 However, this method will not notice a missed opportunity or a grammar-internal conflict, nor suggest ways to improve.
 
@@ -119,7 +122,8 @@ As a downside, the grammar writer will likely not know why exactly is the tuned 
 
 %\cite{lager98} presents a CG-like shallow parsing system encoded in logic, and \cite{lager_nivre01} continues with a reconstruction of four different formalisms.
 %The earlier works on logical reconstruction don't envision grammar analysis as one of the use cases,
-\cite{lager98} and \cite{lager_nivre01} reconstruct the CG formalism in first-order predicate logic, and \cite{listenmaa_claessen2015} implement a CG compiler using a SAT solver.
+\cite{lager98} and \cite{lager_nivre01} reconstruct the CG formalism in first-order predicate logic.
+%, and \cite{listenmaa_claessen2015} implement a CG compiler using a SAT solver.
 Grammar analysis is a natural use case, due to some key features of the logical reconstruction.
 The traditional CG compiler 
 %, such as VISL CG-3,
@@ -131,18 +135,12 @@ the consequent from the $i^{th}$ rule becomes the antecedent of the $i+1^{th}$ r
 Given this design, we added on top a way to ask for solutions with certain properties.
 %, such as ``after applying rules $0-i$, is it possible for $i+1$ to apply''.
 
-% Application of rules is presented as a composition of clauses
-
-% They model CG as clauses o
 % The key elements in the ontology of CG are positions, words and sets of tags.
 % Rule order is denoted by predicate $pos^i$(word, [tag]), 
 % which denotes the part of speech of a given word after applying the $i^{th}$ rule.
 % The rules are modelled as implications, of the form below:
 
-% \begin{itemize}
-% \item Interaction of rules
-% \item Create word sequences to test what is possible and what can never happen
-% \end{itemize}
+
 
 
 
