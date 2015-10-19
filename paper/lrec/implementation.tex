@@ -2,19 +2,35 @@
 \label{sec:implementation}
 
 In this section, we describe the implementation of the toolset.
-We encode CG rules as a SAT problem, as in \cite{listenmaa_claessen2015}, and from the morphological lexicon, we get constraints for individual words. This allows us to create word sequences that will or will not trigger a given rule or rule set.
+\cite{listenmaa_claessen2015} presents the SAT encoding of the rules, when applied to an existing text.
+Since we want to test the rules in a way that doesn't depend on data, we create a \emph{symbolic sentence}: a word sequence which we can modify according to the properties we want to test.
+These words are combinations of tags
+In order to create words with real ambiguities, we use a morphological lexicon
+This sentence consists of symbolic words, which we c
+In addition, we use a morphological lexicon to create symbolic words that contain real ambiguities.
 
-\paragraph{SAT encoding of CG}
+\paragraph{SAT encoding of CG rules}
 
-Table~\ref{table:vars} shows the translation of the analyses to variables, and rules to clauses. The column ``Default rules'' refers to the rule that each word must have at least one analysis.
-See \cite{listenmaa_claessen2015} for further description.
+A single CG rule is a template which creates a concrete clause for each instance where it is applied.
+%Each potential analysis is represented as a variable, and the rules are translated into clauses that operate on those variables.
+Table~\ref{table:vars} shows the rule \texttt{REMOVE v IF (-1 det)} applied to the text \emph{the bear}.
+The analyses of the word forms are represented as variables, and
+the default rule ensures that each word has at least one analysis.
+%This makes \texttt{the\_det} true by default, therefore the implication must hold, and \texttt{bear\_v\_pl} will be removed.
+For more details about the encoding, see \cite{listenmaa_claessen2015}.
+
+%As shown in table~\ref{table:vars}, \texttt{bear\_n\_sg} represents the possibility that \emph{bear} is a noun, and \texttt{bear\_v\_pl} 
+%The rules are translated into clauses; one for each concrete application.
+%Table~\ref{table:vars} shows the translation of the analyses to variables, and rules to clauses. See \cite{listenmaa_claessen2015} for further description.
 
 % table:vars moved to main file for positioning
 
 
 \paragraph{Word-internal constraints}
 
-Given a large morphological lexicon, we can restrict each individual word to contain only realistic ambiguities. We expand the lexicon, map each wordform to its possible analyses, and then ignore the actual wordforms. For instance, a Spanish morphological lexicon contains the entries \texttt{casa:<verb><sg><p3>} and \texttt{casa:<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. 
+The symbolic sentence consists of symbolic words.
+They are combinations of tags, and they may be underspecified---similarly, a given CG rule may target any noun, a plural noun or the noun \emph{bear}.
+Given a large morphological lexicon, we can restrict each individual word to contain only realistic ambiguities. We map each word form in the lexicon to its possible analyses, and then ignore the actual word forms. For instance, a Spanish morphological lexicon contains the entries \texttt{casa:casar<verb><sg><p3>} and \texttt{casa:casa<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. 
 %The lexicon is not likely to contain a wordform that can be analysed both as an adjective and punctuation, so that kind of ambiguous word is never created.
 
 %However, since our method is corpus-free, we don't add any external restrictions as to what words can follow each other.

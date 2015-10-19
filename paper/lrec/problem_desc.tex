@@ -84,7 +84,7 @@ In addition, there is a large body of research on automatically inducing rules, 
 \paragraph{Corpus-based methods in manual grammar development}
 
 Hand-annotated corpora are commonly used in the development of CGs, because they give immediate feedback whether a new rule increases or decreases accuracy, and by how large margin \cite{voutilainen2004}.
-This helps the grammar writer to arrange the rules in appropriate sections, from safest and most effective to less certain and unusual. 
+This helps the grammar writer to arrange the rules in appropriate sections, with safest and most effective rules coming first.
 However, this method will not notice a missed opportunity or a grammar-internal conflict, nor suggest ways to improve.
 
 % -- uncomment for full version ?
@@ -108,8 +108,8 @@ However, this method will not notice a missed opportunity or a grammar-internal 
 % The corpus-based method can tell the effect of each single rule at their place in the rule sequence, and leaves the grammar writer to make changes in the grammar.
 
 \cite{bick2013tuning} modifies the grammar automatically, by trying out different orderings of the rules, and changing their contexts to stricter or less strict.
-Bick reports error reductions of 7--15\% compared to the original grammars.
-However, the grammar writer will likely not know why exactly is the tuned grammar performing better.
+Bick reports error reduction of 7--15\% compared to the original grammars.
+As a downside, the grammar writer will likely not know why exactly is the tuned grammar performing better.
 % At a certain point, the grammar gets so big that it is hard to keep track of all the rules and their interactions. \cite{bick2013tuning} tries out combinations of moving rules in different sections or removing them in total, and in parallel, making their contexts stricter or less strict. 
 % This is a valuable tool, especially for grammars that are so big that it's hard to keep track of. Program can try all combinations whereas trying to make sense out of a huge set of rules would be hard for humans.
 
