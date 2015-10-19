@@ -8,7 +8,7 @@ xe:
 	xelatex lrec2016_listenmaa_claessen.tex
 
 word_count:
-	cat *.tex | grep "^[A-Za-z]" | wc -w
+	cat *.tex | egrep "^([A-Za-z]|.(item|paragraph|cite))" | wc -w
 
 # Show word-level diff.
 # To switch on/off line wrapping use -S in the pager.
