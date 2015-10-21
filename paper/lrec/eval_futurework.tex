@@ -17,12 +17,22 @@ Running time          & 7s              & 3min 22s          & 3h 26min    \\ \hl
 \label{table:res}
 \end{table}
 
-\todo{Other things we found from the grammar:}
-With the Spanish grammar, the method pointed us to a nonsensical set definition.
-\texttt{w2<n><np><adj><det><preadv><adv><vblex><vbmod><vbhaver><vbser><prn><pr><cnjcoo><cnjsub><cnjadv><rel><ij>}
+% Instead of whole grammar, look at specific rules, test with different number of rules before
+
+\todo{Analyse the results. I didn't even touch the Finnish results yet. Maybe mention other things we found from the grammar, like the nonsensical set definition from Spanish grammar (confused and and or, requiring a word to be noun AND verb AND conj AND preposition ...). }
+
+Currently, the speed is not great. The Finnish grammar approaches a realistic size of grammars.
+The size of the SAT problem was \todo{some real numbers and analysis here \& promises that it can be fixed}.
+
+% w2<n><np><adj><det><preadv><adv><vblex><vbmod><vbhaver><vbser><prn><pr><cnjcoo><cnjsub><cnjadv><rel><ij>
+
 
 For future work, we want to improve the performance and scale up to larger grammars, and handle the full expressivity of CG-3, with \textsc{map}, \textsc{add} and \textsc{substitute} rules.
 We want to also ask different questions, such as \todo{...}.
+We can be smarter about SAT things.
+
+Compare with a corpus-based test: do we find the same problems?
+
 Finally, we want to test the approach to other grammar formalisms.
 
 

@@ -31,6 +31,15 @@ For instance, a Spanish morphological lexicon contains the entries \texttt{casa:
 
 \paragraph{Symbolic sentences}
 
+We apply a concrete rule to a symbolic sentence
+we get back a symbolic sentence: it's the same table except that 
+
+we create a new variable for w2<verb> (target)a
+ with the target changed into a new variable
+
+definition of w2'<verb> = *nice formula*
+
+
 Figure~\ref{fig:example} shows a fragment of of a two-word symbolic sentence, before and after applying the rule \texttt{REMOVE verb IF (-1 det)}\footnote{For simplicity, we don't show the word-internal constraints that come from the lexicon, but only the rule application.}.
 As with real analyses, each tag combination is given a variable, and applying a rule means creating a concrete clause for each instance where a determiner is found preceding a verb.
 In a symbolic sentence, every word has potentially every tag combination, and applying the rules will shape the sentence into something that respects the constraints of the language.
