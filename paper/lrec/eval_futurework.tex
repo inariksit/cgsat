@@ -22,29 +22,34 @@ Time: longest rule    & ?s              & ?s                & ?min     \\ \hline
 
 The first row shows the whole number of rules. For the Finnish grammar, we took only \textsc{remove} and \textsc{select} rules. The other two only contained those rules to start with.
 
-We ran for all three grammars the following thing.
-For each rule, run all the rules before it to the symbolic sentence, and then ask if that rule can fire.
+We tested all three grammars if they contain non-applicable rules:
+for each rule, apply all the preceding rules to the symbolic sentence, and then ask if that last rule can fire.
 This test revealed problems in all grammars.
-The Dutch grammar had the following rule sequence, making the latter impossible to apply:
+The Dutch grammar had the following rules in the given order, making the latter impossible to apply:
 
 \begin{itemize}
-\item[] \texttt{REMOVE adv IF (1 n|np) ;}
-\item[] \texttt{REMOVE adv IF (-1 det) (0 adj) (1 n|np) ;}
+\item[] 
+\begin{verbatim}REMOVE adv IF (1 n|np) ;
+REMOVE adv IF (-1 det) (0 adj) (1 n|np) ;
+\end{verbatim}
 \end{itemize}
 
 The Spanish grammar had an erroneous set definition, where a word was required to have almost all POS tags at the same time. After fixing the set definition, our test didn't reveal other problems.
-The program marked __ problem rules for the Finnish grammar, but we didn't have time to verify if they were problematic or if our program is buggy.
+The program marked \todo{n} problem rules for the Finnish grammar, but we didn't have time to verify if they were genuinely problematic or if our program is at fault.
+We suspect that at least part of is related to the length of the sentences---for a condition that states $n$ or more words to the left or right, we only create a word exactly $n$ words away.
 
 As seen in table~\ref{table:res}, checking every rule in the Finnish grammar takes currently 3.5 hours.
 A rule takes longer to run if it appears later in the rule sequence: 1000 previous rules is a larger SAT problem than 10 previous rules.
-This can be seen from the time it took to compute the result for the last rule. For Finnish, the last rule took almost 4 minutes---had this been the average, the whole grammar would have taken 18 hours instead of 3.5.
+This can be seen from the time it took to compute the result for the last rule. For Finnish, the last rule took almost 4 minutes---if this was the average speed, the whole grammar would have taken 18 hours instead of 3.5.
 We also measured the running times for the longest rules in the grammar.
 \todo{find longest rule, change place of that rule, see what matters more. Promise: we can be smarter about SAT things.}
 
 
+For future work, we will continue improving the performance, and make sure that the implementation for the basic rules is correct; for instance, fixing the earlier mentioned issue with non-exact position.
+After this, we want to handle the full expressivity of CG-3, with \textsc{map}, \textsc{add} and \textsc{substitute} rules.
 
-For future work, we want to improve the performance and scale up to larger grammars, and handle the full expressivity of CG-3, with \textsc{map}, \textsc{add} and \textsc{substitute} rules.
-We want to detect more kinds of conflicts.
+Independently of 
+As another line of investigation, we want to detect more kinds of conflicts.
 For instance, say we have the following rules:
 
 \begin{itemize}
@@ -52,17 +57,17 @@ For instance, say we have the following rules:
 \item[] \texttt{REMOVE noun IF (-1C det) ;}
 \end{itemize}
 
-With our symbolic sentence, this rule set will be no problem; after all, there can be something else in the target beside noun and a verb.
-However, if the grammar writer actually means the following
+With our symbolic sentence, these rules will be no problem; after all, there can be something else in the target beside noun and a verb.
+However, it is likely that the grammar writer actually means the following:
 
 \begin{itemize}
 \item[] \texttt{REMOVE verb IF (-1C det) (0 noun) ;}
 \item[] \texttt{REMOVE noun IF (-1C det) (0 verb) ;}
 \end{itemize}
 
-then those rules are contradictory, and we would like to find it out.
+In that case, those rules are contradictory, and we would like to find it out.
 
-\todo{Compare with a corpus-based test: do we find the same problems?}
+Compare with a corpus-based test: do we find the same problems?
 
 Finally, we want to test the approach to other grammar formalisms.
 
