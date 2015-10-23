@@ -19,7 +19,7 @@ Time: last rule       & 4s              & 7s                & 3min 40s    \\ \hl
 \label{table:res}
 \end{table}
 
-We tested all three grammars if they contain non-applicable rules:
+\paragraph{Accuracy} We tested all three grammars if they contain non-applicable rules:
 for each rule, apply all the preceding rules to the symbolic sentence, and then ask if that last rule can fire.
 This test revealed problems in all grammars, and for the smaller grammars, we were able to verify manually that the results are true.
 
@@ -39,16 +39,17 @@ Our program detected tagset errors also in the Finnish grammar.
 The grammar was originally written in 1995, and converted to the Omorfi tagset by \cite{pirinen2015}. 
 For example, the Omorfi tagset marks a possessive suffix with \texttt{Px}, e.g. \texttt{PxPl2} for second person plural, but the grammar used the old convention \texttt{PL2} in the rules.
 As a result, all rules with possessive suffixes were detected as impossible.
-We suspect that at least part of the result is related to the length of the sentences---for a condition that states $n$ or more words to the left or right, we only create a word exactly $n$ words away. This is something to be fixed in the future.
+In addition, we suspect that some of the problems come just from our naive implementation.
+For a condition that states $n$ or more words to the left or right, we only create a word in the sentence exactly $n$ words away. This is something to be fixed in the future.
 
-The speed of the check is an obvious issue currently.
+ at least part of the result is related to the length of the sentences---for a condition that states $n$ or more words to the left or right, we only create a word exactly $n$ words away. This is something to be fixed in the future.
+
+\paragraph{Running time} The speed of the check is an obvious issue currently.
 The Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
-Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are present in the grammar
-For Spanish and Dutch, the numbers are around 2000 and 200 respectively.
+Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are present in the grammar---many of them include an actual word, both in target (\texttt{REMOVE (``bear'' verb) IF ...}) and in conditions (\texttt{REMOVE ... IF (-1 (``bear'' noun))}.
 
-These variables represent tag combinations that come from the Apertium morphological lexicon. 
-The Spanish lexicon includes up to two clitics (e.g. \emph{dámelo}, give.me.it) in the same word form, but none for Dutch but we excluded clitics for the Finnish tag combinations.
-All morphological lexicons are from Apertium.
+For Spanish and Dutch, the numbers are around 2000 and 300 respectively.
+The Spanish lexicon includes up to two clitics (e.g. \emph{dámelo} `give.me.it') in the same word form, but Dutch has none in the lexicon.
 
 %All rules is the total time to check every rule against the previous rules, and last rule shows how long it took to check the last rule.
 As indicated by the total time and the time to check the last rule, the size of the SAT problem grows according to how far in the sequence the rule is.
@@ -60,7 +61,7 @@ We also measured the running times for the longest rules in the grammar.
 \todo{find longest rule, change place of that rule, see what matters more. Promise: we can be smarter about SAT things.}
 
 
-For future work, we will continue improving the performance, and make sure that the implementation for the basic rules is correct; for instance, fixing the earlier mentioned issue with a non-exact position.
+\paragraph{Future work} We will continue improving the performance, and make sure that the implementation for the basic rules is correct; for instance, fixing the earlier mentioned issue with a non-exact position.
 After this, we want to handle the full expressivity of CG-3, with \textsc{map}, \textsc{add} and \textsc{substitute} rules.
 At that stage, it would be interesting to test our program with actual grammar writers,
 in comparison with a corpus-based method or machine learning.
