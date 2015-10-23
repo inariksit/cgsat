@@ -39,12 +39,13 @@ Our program detected tagset errors also in the Finnish grammar.
 The grammar was originally written in 1995, and converted to the Omorfi tagset by \cite{pirinen2015}. 
 For example, the Omorfi tagset marks a possessive suffix with \texttt{Px}, e.g. \texttt{PxPl2} for second person plural, but the grammar used the old convention \texttt{PL2} in the rules.
 As a result, all rules with possessive suffixes were detected as impossible.
-
-Since we got our tagset from Omorfi, there was no ,
 We suspect that at least part of the result is related to the length of the sentences---for a condition that states $n$ or more words to the left or right, we only create a word exactly $n$ words away. This is something to be fixed in the future.
 
 The speed of the check is an obvious issue currently.
-For Finnish and Spanish, each symbolic word has around 2500 variables in the beginning.
+The Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
+Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are present in the grammar
+For Spanish and Dutch, the numbers are around 2000 and 200 respectively.
+
 These variables represent tag combinations that come from the Apertium morphological lexicon. 
 The Spanish lexicon includes up to two clitics (e.g. \emph{dámelo}, give.me.it) in the same word form, but none for Dutch but we excluded clitics for the Finnish tag combinations.
 All morphological lexicons are from Apertium.
