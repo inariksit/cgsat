@@ -3,7 +3,7 @@
 
 Constraint Grammar (CG, \cite{karlsson1995constraint})
 % \citep[CG][]{karlsson1995constraint} 
-is a method for disambiguating morphologically analysed text
+is a formalism used to disambiguate morphologically analysed text
 % and adding syntactic or dependency labels
 . 
 A grammar consists of rules that target specific analyses for selection or removal, based on contextual tests. For example, the following rule
@@ -34,7 +34,8 @@ As CGs grow larger, it gets harder for the grammar writers and users to keep tra
 %Our tools complement the existing methods in CG analysis and optimisation.
 %While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
 %Authors who have a large hand-annotated corpus can also benefit from our tools.
-With our tools, the grammar writer or user can ask specific questions about their grammar, such as:
+With our tools, the users can diagnose and improve their grammars.
+We can ask specific questions about a given grammar, such as:
 
 \begin{itemize}
 \item Are there rules that contradict each other?
@@ -43,7 +44,8 @@ With our tools, the grammar writer or user can ask specific questions about thei
 %\item Generate a sequence that is ambiguous but doesn't trigger any rules
 \end{itemize}
 
-This technique requires an existing morphological lexicon, but no corpus. 
+
+Our technique requires an existing morphological lexicon, but no corpus. 
 The lexicon is needed in order to generate realistic ambiguities: e.g. a word can be ambiguous between noun and verb, but not between adjective and punctuation. 
 Constraints for the structure of the sequences come from the CG rules themselves.
 We encode both of these constraints as a satisfiability problem, and use a SAT solver to generate answers to the previous questions.
