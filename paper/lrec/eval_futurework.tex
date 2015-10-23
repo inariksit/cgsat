@@ -10,7 +10,7 @@ For the smaller grammars, we were able to verify manually that the results are t
 \hline
                       & \textsc{nld}  & \textsc{spa}  & \textsc{fin}  \\ \hline
 Rules in grammar      & 59              & 279               & 1185     \\ \hline
-Conflicts found       & 1               & ???               & ???    \\ \hline
+Conflicts found       & 1               & 1                 & ???    \\ \hline
 Time: all rules       & 7s              & 3min 22s          & 3h 26min    \\ \hline
 Time: last rule       & 4s              & 7s                & 3min 40s    \\ \hline
 Time: longest rule    & ?s              & ?s                & ?min     \\ \hline
@@ -20,7 +20,7 @@ Time: longest rule    & ?s              & ?s                & ?min     \\ \hline
 \label{table:res}
 \end{table}
 
-The first row shows the whole number of rules. For the Finnish grammar, we took only \textsc{remove} and \textsc{select} rules. The other two only contained those rules to start with.
+The first row shows the whole number of rules. We included only \textsc{remove} and \textsc{select} rules.
 
 We tested all three grammars if they contain non-applicable rules:
 for each rule, apply all the preceding rules to the symbolic sentence, and then ask if that last rule can fire.
@@ -40,34 +40,37 @@ We suspect that at least part of is related to the length of the sentences---for
 
 As seen in table~\ref{table:res}, checking every rule in the Finnish grammar takes currently 3.5 hours.
 A rule takes longer to run if it appears later in the rule sequence: 1000 previous rules is a larger SAT problem than 10 previous rules.
-This can be seen from the time it took to compute the result for the last rule. For Finnish, the last rule took almost 4 minutes---if this was the average speed, the whole grammar would have taken 18 hours instead of 3.5.
+This can be seen from the time it took to compute the result for the last rule. For Finnish, the last rule took almost 4 minutes, but if we divide the time with the number of rules, the average time for one rule is just 10 seconds.
 We also measured the running times for the longest rules in the grammar.
 \todo{find longest rule, change place of that rule, see what matters more. Promise: we can be smarter about SAT things.}
 
 
-For future work, we will continue improving the performance, and make sure that the implementation for the basic rules is correct; for instance, fixing the earlier mentioned issue with non-exact position.
+For future work, we will continue improving the performance, and make sure that the implementation for the basic rules is correct; for instance, fixing the earlier mentioned issue with a non-exact position.
 After this, we want to handle the full expressivity of CG-3, with \textsc{map}, \textsc{add} and \textsc{substitute} rules.
+At that stage, it would be interesting to test our program with actual grammar writers,
+in comparison with a corpus-based method or machine learning.
 
-Independently of 
 As another line of investigation, we want to detect more kinds of conflicts.
 For instance, say we have the following rules:
 
 \begin{itemize}
-\item[] \texttt{REMOVE verb IF (-1C det) ;}
-\item[] \texttt{REMOVE noun IF (-1C det) ;}
+\item[] \begin{verbatim}
+REMOVE verb IF (-1C det) ;
+REMOVE noun IF (-1C det) ;
+\end{verbatim}
 \end{itemize}
 
-With our symbolic sentence, these rules will be no problem; after all, there can be something else in the target beside noun and a verb.
-However, it is likely that the grammar writer actually means the following:
+With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a noun; the verb is gone already.
+However, in the context of real life texts, the grammar writer might actually mean the following:
 
 \begin{itemize}
-\item[] \texttt{REMOVE verb IF (-1C det) (0 noun) ;}
-\item[] \texttt{REMOVE noun IF (-1C det) (0 verb) ;}
+\item[] \begin{verbatim}
+REMOVE verb IF (-1C det) (0 noun) ;
+REMOVE noun IF (-1C det) (0 verb) ;
+\end{verbatim}
 \end{itemize}
 
 In that case, those rules are contradictory, and we would like to find it out.
-
-Compare with a corpus-based test: do we find the same problems?
 
 Finally, we want to test the approach to other grammar formalisms.
 
