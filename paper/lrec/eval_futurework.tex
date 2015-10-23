@@ -1,8 +1,7 @@
 \section{Evaluation and Future Work}
 \label{sec:eval}
 
-We tested three grammars to find rules that cannot apply. The smallest grammar was Dutch\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-nld/apertium-nld.nld.rlx}}, with 59 rules; second was Spanish\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}}with 279 rules, and the largest was Finnish\footnote{\url{https://github.com/flammie/omorfi/blob/master/src/vislcg3/omorfi.cg3}}, with 1185 rules.
-For the smaller grammars, we were able to verify manually that the results are true.
+We tested three grammars to find rules that cannot apply. The smallest grammar was Dutch\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-nld/apertium-nld.nld.rlx}}, with 59 rules; second was Spanish\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}}with 279 rules, and the largest was Finnish\footnote{\url{https://github.com/flammie/omorfi/blob/master/src/vislcg3/omorfi.cg3}}, with 1185 rules. We left out rule types introduced in CG-3, and only tested the traditional \textsc{remove} and \textsc{select} rules.
 
 \begin{table}[]
 \centering
@@ -20,11 +19,10 @@ Time: longest rule    & ?s              & ?s                & ?min     \\ \hline
 \label{table:res}
 \end{table}
 
-The first row shows the whole number of rules. We included only \textsc{remove} and \textsc{select} rules.
-
 We tested all three grammars if they contain non-applicable rules:
 for each rule, apply all the preceding rules to the symbolic sentence, and then ask if that last rule can fire.
-This test revealed problems in all grammars.
+This test revealed problems in all grammars, and for the smaller grammars, we were able to verify manually that the results are true.
+
 The Dutch grammar had the following rules in the given order, making the latter impossible to apply:
 
 \begin{itemize}
@@ -37,6 +35,10 @@ REMOVE adv IF (-1 det) (0 adj) (1 n|np) ;
 The Spanish grammar had an erroneous set definition, where a word was required to have almost all POS tags at the same time. After fixing the set definition, our test didn't reveal other problems.
 The program marked \todo{n} problem rules for the Finnish grammar, but we didn't have time to verify if they were genuinely problematic or if our program is at fault.
 We suspect that at least part of is related to the length of the sentences---for a condition that states $n$ or more words to the left or right, we only create a word exactly $n$ words away.
+
+The speed of the check is an obvious issue.
+%All rules is the total time to check every rule against the previous rules, and last rule shows how long it took to check the last rule.
+As indicated by the total time and the time to check the last rule, the size of the SAT problem grows according to how far in the sequence the rule is.
 
 As seen in table~\ref{table:res}, checking every rule in the Finnish grammar takes currently 3.5 hours.
 A rule takes longer to run if it appears later in the rule sequence: 1000 previous rules is a larger SAT problem than 10 previous rules.

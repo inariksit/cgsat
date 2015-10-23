@@ -46,7 +46,7 @@
 %   (.25,.15) -- cycle;}
 % \newcommand{\Mypm}{\mathbin{\tikz [x=1.4ex,y=1.4ex,line width=.1ex] \draw (0.0,0) -- (1.0,0) (0.5,0.08) -- (0.5,0.92) (0.0,0.5) -- (1.0,0.5);}}%
 
-\title{Analysing Constraint Grammar with a SAT solver}
+\title{Analysing Constraint Grammars with a SAT solver}
 
 \author{Inari Listenmaa \and Koen Claessen \\
  Chalmers University of Technology, Gothenburg, Sweden \\
@@ -58,10 +58,13 @@
 \maketitle
 
 \begin{abstract}
-We describe a method for analysing Constraint Grammar by encoding it
-as a SAT problem.
+We describe a method for
+ analysing Constraint Grammars by encoding the
+rules in SAT.
 Our tools can detect internal conflicts or redundancies in a grammar,
-as well as generate examples to demonstrate the effect of some rule or rule set.
+as well as generate examples to demonstrate the effect of some rule or
+rule set.
+This can help users to diagnose and improve their grammars.
 No corpus is required, only a morphological lexicon.
 %We test our tools with grammars from 100-1000 rules.
 \end{abstract}
