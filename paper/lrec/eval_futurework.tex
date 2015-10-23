@@ -46,26 +46,26 @@ As a result, all rules with possessive suffixes were detected as impossible.
 In addition, we suspect that some of the problems come just from our naive implementation.
 For a condition situated $n$ or more words to the left or right, we only create a word exactly $n$ words away. This is something to be fixed in the future.
 
-\paragraph{Running time} The speed of the check is an obvious issue, especially for the Finnish grammar. The SAT problem grows the more rules 
-
-
-The Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
-Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are present in the grammar---many of them include an actual word, both in target (\texttt{REMOVE ("bear" verb) IF ...}) and in conditions (\texttt{REMOVE ... IF (-1 ("bear" noun))}.
-For Spanish and Dutch, the numbers are around 2000 and 300 respectively.
+\paragraph{Running time} The speed of the check is an obvious issue, especially for the Finnish grammar. 
+A Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
+Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are defined in the grammar, as a target (\texttt{REMOVE ("bear" verb) IF ...}) or as a condition (\texttt{REMOVE ... IF (-1 ("bear" noun))}. The majority of them are lexical, whereas we don't include anything but morphological tags from the lexicon.
+For Spanish and Dutch, there are around 2000 and 300 tag combinations respectively.
 The Spanish lexicon includes up to two clitics (e.g. \emph{dámelo} `give.me.it') in the same word form, but Dutch has none in the lexicon.
+
+The SAT problem for checking one rule grows depending on how many rules come before it, how long the context is, and how many tag combinations are there. The running time of the last rule gives some indication ...
 
 Not all questions are so expensive.
 For instance, checking the tag sets in the Finnish grammar doesn't require the context of the other rules at all,
  The majority of the correctly detected errors in the Finnish grammar were rule-internal---these errors don't need the context of the other rules at all.
 
 
-%All rules is the total time to check every rule against the previous rules, and last rule shows how long it took to check the last rule.
-As indicated by the total time and the time to check the last rule, the size of the SAT problem grows according to how far in the sequence the rule is.
+%All rules is the total time to check every rule against the previous rules, and last rule % shows how long it took to check the last rule.
+% As indicated by the total time and the time to check the last rule, the size of the SAT problem grows according to how far in the sequence the rule is.
 
-As seen in table~\ref{table:res}, checking every rule in the Finnish grammar takes currently 3.5 hours.
-A rule takes longer to run if it appears later in the rule sequence: 1000 previous rules is a larger SAT problem than 10 previous rules.
-This can be seen from the time it took to compute the result for the last rule. For Finnish, the last rule took almost 4 minutes, but if we divide the time with the number of rules, the average time for one rule is just 10 seconds.
-We also measured the running times for the longest rules in the grammar.
+% As seen in table~\ref{table:res}, checking every rule in the Finnish grammar takes currently 3.5 hours.
+% A rule takes longer to run if it appears later in the rule sequence: 1000 previous rules is a larger SAT problem than 10 previous rules.
+% This can be seen from the time it took to compute the result for the last rule. For Finnish, the last rule took almost 4 minutes, but if we divide the time with the number of rules, the average time for one rule is just 10 seconds.
+% We also measured the running times for the longest rules in the grammar.
 \todo{find longest rule, change place of that rule, see what matters more. Promise: we can be smarter about SAT things.}
 
 
