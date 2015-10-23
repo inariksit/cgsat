@@ -1,74 +1,92 @@
 \section{Implementation}
 \label{sec:implementation}
 
-In this section, we describe the implementation of the toolset.
-The SAT encoding we use is introduced in \cite{listenmaa_claessen2015}, along with a working CG compiler.
-Since we want to test the rules in a way that doesn't depend on data, we operate on a \emph{symbolic sentence}: a word sequence which we can modify according to the properties we want to test.
+In this section, we describe the implementation of the tool.
+The SAT-encoding we use is similar to the one introduced in \cite{listenmaa_claessen2015}, with one key difference: in this paper, we operate on {\em symbolic sentences} instead of concrete sentences from a corpus. The idea is that the SAT-solver is going to find the concrete sentence for us.
 
-\paragraph{SAT encoding of CG rules}
+\paragraph{Preliminaries}
 
-A single CG rule is a template which creates a concrete clause for each instance where it is applied.
-%Each potential analysis is represented as a variable, and the rules are translated into clauses that operate on those variables.
-Table~\ref{table:vars} shows the rule \texttt{REMOVE v IF (-1 det)} applied to the text \emph{the bear}.
-The analyses of the word forms are represented as variables, and
-the default rule ensures that each word has at least one analysis.
-%This makes \texttt{the\_det} true by default, therefore the implication must hold, and \texttt{bear\_v\_pl} will be removed.
-For more details about the encoding, see \cite{listenmaa_claessen2015}.
+Our analysis operates on one rule $R$ at a time, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $R$, even after passing all rules $R'$ that came before $R$?''
 
-% table:vars moved to main file for positioning
+Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, this number has ranged from about 300 to about 6000. 
 
+Furthermore, when we analyze a rule $R$, we need to decide the {\em width} of the rule $R$: How many different words should there be in a sentence that can trigger $R$? We denote this value by $w(R)$. Most often, $w(R)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
 
-\paragraph{Word-internal constraints}
-
-The symbolic sentence consists of symbolic words.
-In the beginning, a symbolic word is a list of all possible tag combinations, and we don't know which ones are true.
-%These tag combinations may be underspecified for lemma or other features---similarly, a CG rule may target any noun, a plural noun or the noun \emph{bear}.
-Given a large morphological lexicon, we can restrict the individual words to contain only realistic ambiguities. 
-For instance, a Spanish morphological lexicon contains the entries \texttt{casa:casar<verb><sg><p3>} and \texttt{casa:casa<noun><sg>}, hence we know that a confusion between a 3rd person singular verb and a singular noun is possible. 
-%The lexicon is not likely to contain a wordform that can be analysed both as an adjective and punctuation, so that kind of ambiguous word is never created.
-
-%However, since our method is corpus-free, we don't add any external restrictions as to what words can follow each other.
+If the context contains a \verb!*!, we may need to make an approximation of $w(R)$ which may result in false negatives later on in the analysis.
 
 \paragraph{Symbolic sentences}
 
-We apply a concrete rule to a symbolic sentence
-we get back a symbolic sentence: it's the same table except that 
+The SAT-solver comes in when we start looking at the rules and what they do to sentences. We start each analysis by creating a so-called {\em symbolic sentence}, which is our representation of the sentence $S$ we are looking for. A symbolic sentence is a sequence of {\em symbolic words}, and a symbolic word is a table of all possible readings that a word can have, each reading paired up with a SAT-variable.
 
-we create a new variable for w2<verb> (target)a
- with the target changed into a new variable
+The length of the symbolic sentence we create when we analyze a rule $R$ is $w(R)$. For the rule in the introduction, we have $w(R)=2$ and a symbolic sentence may look as follows:
+\begin{center}
+\begin{tabular}{c|c|c}
+word1 & word2 & reading \\
+\hline
+$v_1$ & $w_1$ & det def \\
+$v_2$ & $w_2$ & noun sg \\
+$v_3$ & $w_3$ & noun pl \\
+$v_4$ & $w_4$ & verb sg \\
+$v_5$ & $w_5$ & verb pl \\
+\end{tabular}
+\end{center}
+Here, $v_i$ and $w_j$ are SAT-variables belonging to word1 and word2, respectively. We can see that the possible number of readings here was 5.
 
-definition of w2'<verb> = *nice formula*
+The SAT-solver may contain extra constraints about the variables. For example, we would like the input sentence to have at least one reading per word, so we add the following two constraints:
+\begin{center}
+\begin{tabular}{c}
+$v_1 \vee v_2 \vee v_3 \vee v_4 \vee v_5$, \\
+$w_1 \vee w_2 \vee w_3 \vee w_4 \vee w_5$ \\
+\end{tabular}
+\end{center}
+The point of the symbolic sentence is that any solution that is produced by the SAT-solver represents an input sentence that we are looking for.
+
+\paragraph{Applying a rule}
+
+In order to say something about the rules in the grammar, we need to be able to apply a given rule $R'$ to the symbolic sentence, resulting in a new sentence. The way this works is that we investigate the rule, and generate a new sentence based on what changes can be made to the sentence.
+
+For example, if we apply the rule from the introduction to the symbolic sentence above, we generate the following resulting symbolic sentence:
+\begin{center}
+\begin{tabular}{c|c|c}
+word1 & word2 & reading \\
+\hline
+$v_1$ & $w_1$ & det def \\
+$v_2$ & $w_2$ & noun sg \\
+$v_3$ & $w_3$ & noun pl \\
+$v_4$ & $w_4'$ & verb sg \\
+$v_5$ & $w_5'$ & verb pl \\
+\end{tabular}
+\end{center}
+The rule can only affect readings of word2 that have a verb tag, so we create two new variables $w_4'$ and $w_5'$. We also have to say what their values are, which we do by adding constraints to the SAT-solver. The constraint we add for $w_4'$ is:
+\begin{center}
+\begin{tabular}{c}
+$w_4' \Leftrightarrow [ w_4 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$ \\
+\end{tabular}
+\end{center}
+In other words $w_4'$ can only be true if $w_4$ was true already, and the rule has not triggered. The rule triggers if $v_1$ is true and one of word2's readings is not verb.
+
+EXPLAIN THIS BETTER
 
 
-Figure~\ref{fig:example} shows a fragment of of a two-word symbolic sentence, before and after applying the rule \texttt{REMOVE verb IF (-1 det)}\footnote{For simplicity, we don't show the word-internal constraints that come from the lexicon, but only the rule application.}.
-As with real analyses, each tag combination is given a variable, and applying a rule means creating a concrete clause for each instance where a determiner is found preceding a verb.
-In a symbolic sentence, every word has potentially every tag combination, and applying the rules will shape the sentence into something that respects the constraints of the language.
-
-\begin{figure}[h]
-\includegraphics[width=0.42\textwidth]{symbolic_sentence.png}
-\caption{Symbolic sentence beginning to take shape \todo{make this less confusing?}}
-\label{fig:example}
-\end{figure}
+\paragraph{Putting it all together}
 
 
-The example rule states that the sentence may not have a verb after a determiner.
-The variable \texttt{w2<verb>} is the situation of the second word's verb status before applying the rule. We create a new variable \texttt{w2'<verb>}, whose value depends on whether the condition holds (if \texttt{w1<det>} is true); whether it was true on the last round (if \texttt{w2<verb>} is already removed by another rule, \texttt{w2'<verb>} cannot reappear); and whether it is the only analysis left (not depicted in the picture).
-All the analyses not targeted by this rule remain the same.
+-- JUNK BELOW --
+
+We use a SAT-solver to construct such a sentence $S$, or to prove the non-existence of such a sentence. The way we do this is by first constructing a {\em symbolic sentence} $S_0$, a sentence of a particular length where all words in principle can have any possible reading, and where each reading for each word is represented by a SAT variable. $S_0$ represents all possible input sentences.
+
+An example 
 
 
-% \begin{figure}[]
-% \includegraphics[width=0.42\textwidth]{symbolic_sentence.png}
-% \caption{Symbolic sentence beginning to take shape \todo{make this less confusing?}}
-% \label{fig:example}
-% \end{figure}
+We then proceed by calculating a symbolic representation of all sentences that could exist that have passed applying each rule $R'$ that preceeds the rule $R$ that is under analysis to the symbolic sentence, in the same sequence as they appear in the grammar. After each such application, we get a new symbolic sentence that represents all possible sentences that could be the result after applying those rules. 
 
-%The applications of these rules shape our symbolic sentence into containing only things that can survive the rules. 
 
-The effect of the old rule applications is retained when a new rule is added.
-This means that we can ask a question ``after applying rules $0-i$, is it possible for $i+1$ to apply?'', and the answer is reliable; we cannot find a counterexample by just having a bit more data, because we start from literally all possibilities, and each rule restricts the set of possible sentences.
-%If rule \texttt{r100} would require the first word to be a noun, and causes a conflict because it is not a noun, we know that it is because there is no way for w1 to be a noun.
 
-%Note that this method is not suitable for language generation: rules in any realistic CG are tailored for real life ambiguities, whereas our symbolic sentence starts with literally all possibilities of tag combinations.
+
+
+
+
+%%% FROM INARI %%%
 
 \paragraph{What kind of questions we can ask?}
 
