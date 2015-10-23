@@ -12,8 +12,8 @@ Rules in grammar      & 59              & 279               & 1185     \\ \hline
 Conflicts found       & 1               & 1                 & ???    \\ \hline
 Time: all rules       & 7s              & 3min 22s          & 3h 26min    \\ \hline
 Time: last rule       & 4s              & 7s                & 3min 40s    \\ \hline
-Time: longest rule    & ?s              & ?s                & ?min     \\ \hline
-
+\# variables: last rule & 33915         & 247153            &    \\ \hline
+%Time: longest rule    & ?s              & ?s                & ?min     \\ \hline
 \end{tabular}
 \caption{Results}
 \label{table:res}
@@ -27,16 +27,28 @@ The Dutch grammar had the following rules in the given order, making the latter 
 
 \begin{itemize}
 \item[] 
-\begin{verbatim}REMOVE adv IF (1 n|np) ;
-REMOVE adv IF (-1 det) (0 adj) (1 n|np) ;
+\begin{verbatim}REMOVE Adv IF (1 Noun) ;
+REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun) ;
 \end{verbatim}
 \end{itemize}
 
 The Spanish grammar had an erroneous set definition, where a word was required to have almost all POS tags at the same time. After fixing the set definition, our test didn't reveal other problems.
-The program marked \todo{n} problem rules for the Finnish grammar, but we didn't have time to verify if they were genuinely problematic or if our program is at fault.
-We suspect that at least part of is related to the length of the sentences---for a condition that states $n$ or more words to the left or right, we only create a word exactly $n$ words away.
+The program marked \todo{n} problem rules for the Finnish grammar, but we didn't have time to verify if all of them were genuinely problematic or if our program is at fault.
+Correct errors include \todo{find a real problem and describe shortly}.
+Our program detected tagset errors also in the Finnish grammar.
+The grammar was originally written in 1995, and converted to the Omorfi tagset by \cite{pirinen2015}. 
+For example, the Omorfi tagset marks a possessive suffix with \texttt{Px}, e.g. \texttt{PxPl2} for second person plural, but the grammar used the old convention \texttt{PL2} in the rules.
+As a result, all rules with possessive suffixes were detected as impossible.
 
-The speed of the check is an obvious issue.
+Since we got our tagset from Omorfi, there was no ,
+We suspect that at least part of the result is related to the length of the sentences---for a condition that states $n$ or more words to the left or right, we only create a word exactly $n$ words away. This is something to be fixed in the future.
+
+The speed of the check is an obvious issue currently.
+For Finnish and Spanish, each symbolic word has around 2500 variables in the beginning.
+These variables represent tag combinations that come from the Apertium morphological lexicon. 
+The Spanish lexicon includes up to two clitics (e.g. \emph{dámelo}, give.me.it) in the same word form, but none for Dutch but we excluded clitics for the Finnish tag combinations.
+All morphological lexicons are from Apertium.
+
 %All rules is the total time to check every rule against the previous rules, and last rule shows how long it took to check the last rule.
 As indicated by the total time and the time to check the last rule, the size of the SAT problem grows according to how far in the sequence the rule is.
 
