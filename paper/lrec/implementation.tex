@@ -8,17 +8,17 @@ The SAT-encoding we use is similar to the one introduced in \cite{listenmaa_clae
 
 Our analysis operates on one rule $R$, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $R$, even after passing all rules $R'$ that came before $R$?''
 
-Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, this number has ranged from about 300 to about 6000. 
+Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, the number of readings has ranged from about 300 to about 6000. 
 
-Furthermore, when we analyze a rule $R$, we need to decide the {\em width} of the rule $R$: How many different words should there be in a sentence that can trigger $R$? We denote this value by $w(R)$. Most often, $w(R)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
+Furthermore, when we analyze a rule $R$, we need to decide the {\em width} $w(R)$ of the rule $R$: How many different words should there be in a sentence that can trigger $R$? Most often, $w(R)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
 
 If the context contains a \verb!*!, we may need to make an approximation of $w(R)$ which may result in false negatives later on in the analysis.
 
 \paragraph{Symbolic sentences}
 
-The SAT-solver comes in when we start looking at the rules and what they do to sentences. We start each analysis by creating a so-called {\em symbolic sentence}, which is our representation of the sentence $S$ we are looking for. A symbolic sentence is a sequence of {\em symbolic words}, and a symbolic word is a table of all possible readings that a word can have, each reading paired up with a SAT-variable.
+We start each analysis by creating a so-called {\em symbolic sentence}, which is our representation of the sentence $S$ we are looking for. A symbolic sentence is a sequence of {\em symbolic words}; a symbolic word is a table of all possible readings that a word can have, where each reading is paired up with a SAT-variable.
 
-The length of the symbolic sentence we create when we analyze a rule $R$ is $w(R)$. For the rule in the introduction, we have $w(R)=2$ and a symbolic sentence may look as follows:
+The number of words in the symbolic sentence we create when we analyze a rule $R$ is $w(R)$. For the rule in the introduction, we have $w(R)=2$ and a symbolic sentence may look as follows:
 \begin{center}
 \begin{tabular}{c|c|c}
 word1 & word2 & reading \\
@@ -30,22 +30,22 @@ $v_4$ & $w_4$ & verb sg \\
 $v_5$ & $w_5$ & verb pl \\
 \end{tabular}
 \end{center}
-Here, $v_i$ and $w_j$ are SAT-variables belonging to word1 and word2, respectively. We can see that the possible number of readings here was 5.
+Here, $v_i$ and $w_j$ are SAT-variables belonging to word1 and word2, respectively. We can also see that the possible number of readings here was 5.
 
-The SAT-solver may contain extra constraints about the variables. For example, we would like the input sentence to have at least one reading per word, so we add the following two constraints:
+The SAT-solver contains extra constraints about the variables. Input sentences should have at least one reading per word, so we add the following two constraints:
 \begin{center}
 \begin{tabular}{c}
 $v_1 \vee v_2 \vee v_3 \vee v_4 \vee v_5$, \\
 $w_1 \vee w_2 \vee w_3 \vee w_4 \vee w_5$ \\
 \end{tabular}
 \end{center}
-The point of the symbolic sentence is that any solution that is produced by the SAT-solver represents an input sentence that we are looking for.
+Any solution to the constraints found by the SAT-solver can be interpreted as a concrete sentence with $w(R)$ words that each have a set of readings.
 
 \paragraph{Applying a rule}
 
-In order to say something about the rules in the grammar, we need to be able to apply a given rule $R'$ to a symbolic sentence, resulting in a new symbolic sentence. The way this works is that we investigate the rule, and generate a new sentence based on what changes can be made to the sentence.
+Next, we need to be able to apply a given rule $R'$ to a symbolic sentence, resulting in a new symbolic sentence.
 
-For example, if we apply the rule from the introduction to the symbolic sentence above, we generate the following resulting symbolic sentence:
+For example, if we apply the rule from the introduction to the symbolic sentence above, the result is the following symbolic sentence:
 \begin{center}
 \begin{tabular}{c|c|c}
 word1 & word2 & reading \\
@@ -57,7 +57,7 @@ $v_4$ & $w_4'$ & verb sg \\
 $v_5$ & $w_5'$ & verb pl \\
 \end{tabular}
 \end{center}
-The rule can only affect readings of word2 that have a verb tag, so we create two new variables $w_4'$ and $w_5'$. We also have to say what their values are, which we do by adding constraints to the SAT-solver. The constraint we add for $w_4'$ is:
+The example rule can only affect readings of word2 that have a ``verb'' tag, so we create only two new variables $w_4'$ and $w_5'$ for the result, and reuse the other variables. We add the following constraint for $w_4'$ is:
 \begin{center}
 \begin{tabular}{c}
 $w_4' \Leftrightarrow [ w_4 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$ \\
@@ -72,22 +72,27 @@ $w_5' \Leftrightarrow [ w_5 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$
 
 \paragraph{Putting it all together}
 
-Once we know how to apply one rule $R'$ to a symbolic sentence, we can also apply the sequence of all rules $R$ to a symbolic sentence. In this way we end up with a symbolic sentence that represents all sentences that could have been the result after applying all rules $R'$ in the sequence. We simply apply each rule to the result of applying the previous rule.
+Once we know how to apply one rule $R'$ to a symbolic sentence, we can apply all rules preceding the rule $R$ that is under analysis. We simply apply each rule to the result of applying the previous rule. In this way, we end up with a symbolic sentence that represents all sentences that could be the result of applying all those rules.
 
 Finally, we can take a look at the rule $R$ we want to analyze. Here is an example:
 \begin{itemize}
 \item[] \texttt{REMOVE det IF (1 verb) ;}
 \end{itemize}
-If we take the symbolic sentence above as input, we want to ask wether or not it can trigger the rule. We do this by adding the following constraints to the SAT-solver:
+If we take the symbolic sentence above as input, we want to ask wether or not it can trigger the rule $R$. We do this by adding some more constraints to the SAT-solver.
+
+First, the context of the rule should be applicable, meaning that the second word should have a reading with a ``verb'' tag:
 \begin{center}
 \begin{tabular}{c}
-$w_4' \vee w_5'$, \\
+$w_4' \vee w_5'$
+\end{tabular}
+\end{center}
+Second, the rule should be able to remove the ``det'' tag, meaning that the first word should have a reading with a ``det'' tag, and there should be at least one other reading:
+\begin{center}
+\begin{tabular}{c}
 $v_1 \wedge (v_2 \vee v_3 \vee v_4 \vee v_5)$
 \end{tabular}
 \end{center}
-The first constraint says that the context of the rule should apply (the second word should have a reading with a ``verb'' tag). The second constraint says that we can remove the tag (the first word should have a reading with a ``det'' tag and there should be at least one other reading).
-
-If the SAT-solver can find a solution to all constraints, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $R$. This means that there is something wrong with the grammar.
+If the SAT-solver can find a solution to all constraints generated so far, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $R$. This means that there is something wrong with the grammar.
 
 \paragraph{Other questions we can ask}
 
@@ -97,9 +102,4 @@ In addition to analysing a whole grammar,
 we can construct all kinds of symbolic sentences to test out individual rules. 
 We can set the length, restrict individual words (e.g. ``3rd word must be a noun''), require that it triggers some rule but not other. 
 This functionality can aid the grammar writer in the process, to see if they have missed a case or defined the tagset correctly.
-
-
-
-
-
 
