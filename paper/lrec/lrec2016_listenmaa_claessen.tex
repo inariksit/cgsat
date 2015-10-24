@@ -12,14 +12,12 @@
 \usepackage{times}
 \usepackage{mathptmx}
 \usepackage{fixltx2e}
-%\usepackage{txfonts}
 \usepackage{url}
 \usepackage{multirow}
 \usepackage{latexsym}
 \usepackage{cite}
-%\usepackage{graphics}
 \usepackage{graphicx}
-\usepackage{slantsc}
+%\usepackage{slantsc}
 \usepackage[colorlinks=true,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{authordate1-4}
 \usepackage{multirow}
@@ -27,15 +25,18 @@
 %\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
 
 \usepackage{fontspec}
+\usepackage{wasysym}
 
 \newcommand{\mainfontfamily}{Palatino}
 \setmainfont[
   Ligatures=TeX,
   Scale=0.95,
 ]{\mainfontfamily}
-%\newfontfamily\scshape[Letters=SmallCaps, Numbers=Uppercase] % {Myriad Pro} % 
 
-\newcommand{\monofontfamily}{Monaco} % Courier
+\newfontfamily\scshape[Letters=SmallCaps, Numbers=Uppercase]{Palatino
+  Small Caps}
+
+\newcommand{\monofontfamily}{Monaco} % Monaco
 \setmonofont[Scale=0.8]{\monofontfamily}
 
 
@@ -46,7 +47,7 @@
 %   (.25,.15) -- cycle;}
 % \newcommand{\Mypm}{\mathbin{\tikz [x=1.4ex,y=1.4ex,line width=.1ex] \draw (0.0,0) -- (1.0,0) (0.5,0.08) -- (0.5,0.92) (0.0,0.5) -- (1.0,0.5);}}%
 
-\title{Analysing Constraint Grammars with a SAT solver}
+\title{Analysing Constraint Grammars with a SAT-solver}
 
 \author{Inari Listenmaa \and Koen Claessen \\
  Chalmers University of Technology, Gothenburg, Sweden \\
