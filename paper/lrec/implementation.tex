@@ -6,7 +6,7 @@ The SAT-encoding we use is similar to the one introduced in \cite{listenmaa_clae
 
 \paragraph{Preliminaries}
 
-Our analysis operates on one rule $R$ at a time, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $R$, even after passing all rules $R'$ that came before $R$?''
+Our analysis operates on one rule $R$, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $R$, even after passing all rules $R'$ that came before $R$?''
 
 Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, this number has ranged from about 300 to about 6000. 
 
@@ -43,7 +43,7 @@ The point of the symbolic sentence is that any solution that is produced by the 
 
 \paragraph{Applying a rule}
 
-In order to say something about the rules in the grammar, we need to be able to apply a given rule $R'$ to the symbolic sentence, resulting in a new sentence. The way this works is that we investigate the rule, and generate a new sentence based on what changes can be made to the sentence.
+In order to say something about the rules in the grammar, we need to be able to apply a given rule $R'$ to a symbolic sentence, resulting in a new symbolic sentence. The way this works is that we investigate the rule, and generate a new sentence based on what changes can be made to the sentence.
 
 For example, if we apply the rule from the introduction to the symbolic sentence above, we generate the following resulting symbolic sentence:
 \begin{center}
@@ -63,37 +63,35 @@ The rule can only affect readings of word2 that have a verb tag, so we create tw
 $w_4' \Leftrightarrow [ w_4 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$ \\
 \end{tabular}
 \end{center}
-In other words $w_4'$ can only be true if $w_4$ was true already, and the rule has not triggered. The rule triggers if $v_1$ is true and one of word2's readings is not verb.
-
-EXPLAIN THIS BETTER
-
+In other words, after applying the rule, the reading ``verb sg'' (represented by the variable $w_4'$) can only be in the resulting sentence exactly when (1) ``verb sg'' was a reading of the input sentence (so $w_4$ is true) and (2) the rule has not been triggered (the rule triggers when $v_1$ is true and at least one of the non-verb readings $w_1 \dots w_3$ is true). We add a similar constraint for the new variable $w_5'$:
+\begin{center}
+\begin{tabular}{c}
+$w_5' \Leftrightarrow [ w_5 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$ \\
+\end{tabular}
+\end{center}
 
 \paragraph{Putting it all together}
 
+Once we know how to apply one rule $R'$ to a symbolic sentence, we can also apply the sequence of all rules $R$ to a symbolic sentence. In this way we end up with a symbolic sentence that represents all sentences that could have been the result after applying all rules $R'$ in the sequence. We simply apply each rule to the result of applying the previous rule.
 
--- JUNK BELOW --
+Finally, we can take a look at the rule $R$ we want to analyze. Here is an example:
+\begin{itemize}
+\item[] \texttt{REMOVE det IF (1 verb) ;}
+\end{itemize}
+If we take the symbolic sentence above as input, we want to ask wether or not it can trigger the rule. We do this by adding the following constraints to the SAT-solver:
+\begin{center}
+\begin{tabular}{c}
+$w_4' \vee w_5'$, \\
+$v_1 \wedge (v_2 \vee v_3 \vee v_4 \vee v_5)$
+\end{tabular}
+\end{center}
+The first constraint says that the context of the rule should apply (the second word should have a reading with a ``verb'' tag). The second constraint says that we can remove the tag (the first word should have a reading with a ``det'' tag and there should be at least one other reading).
 
-We use a SAT-solver to construct such a sentence $S$, or to prove the non-existence of such a sentence. The way we do this is by first constructing a {\em symbolic sentence} $S_0$, a sentence of a particular length where all words in principle can have any possible reading, and where each reading for each word is represented by a SAT variable. $S_0$ represents all possible input sentences.
+If the SAT-solver can find a solution to all constraints, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $R$. This means that there is something wrong with the grammar.
 
-An example 
+\paragraph{Other questions we can ask}
 
-
-We then proceed by calculating a symbolic representation of all sentences that could exist that have passed applying each rule $R'$ that preceeds the rule $R$ that is under analysis to the symbolic sentence, in the same sequence as they appear in the grammar. After each such application, we get a new symbolic sentence that represents all possible sentences that could be the result after applying those rules. 
-
-
-
-
-
-
-
-%%% FROM INARI %%%
-
-\paragraph{What kind of questions we can ask?}
-
-The example so far has been of type ``Can rule Z apply after A-Y?''
-In case a conflict is detected, we can dig into it and refine where the problem is: e.g. is the condition not met, or is it the case that the target is already removed or the only remaining analysis.
-We can find what other rule or rules prevent others from applying, or if the conflict is rule-internal, such as nonexisting tag set or contradicting requirements of a context word (e.g. a word must be unambiguously two different POS).
-
+Apart from finding out what rules prevent others from applying, we can also find out if there is a conflict that is rule-internal, such as nonexisting tag set or contradicting requirements of a context word (e.g. a word must be unambiguously two different POS).
 
 In addition to analysing a whole grammar, 
 we can construct all kinds of symbolic sentences to test out individual rules. 
