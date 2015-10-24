@@ -3,9 +3,7 @@
 
 Constraint Grammar (CG, \cite{karlsson1995constraint})
 % \citep[CG][]{karlsson1995constraint} 
-is a formalism used to disambiguate morphologically analysed text
-% and adding syntactic or dependency labels
-. 
+is a formalism used to disambiguate morphologically analysed text. 
 A grammar consists of rules that target specific analyses for selection or removal, based on contextual tests. For example, the following rule
 \begin{itemize}
 \item[] \texttt{REMOVE verb IF (-1 det) ;}
@@ -41,24 +39,25 @@ They can ask specific questions about a given grammar, such as:
 \begin{itemize}
 \item Are there rules that contradict each other?
 \item Are there rules that will never fire?
-\item Generate a sequence that triggers rule(s) R1 but not rule(s) R2
+\item Generate a sequence that triggers rule(s) $R$ but not rule(s) $R'$
 %\item Generate a sequence that is ambiguous but doesn't trigger any rules
 \end{itemize}
 
 Some examples where a rule contradicts another are listed below. R1
-can also be a set of rules: for instance, one rule removes a verb if
-preceded by a determiner, and another if not preceded by a determiner,
-and together these rules remove a verb in all possible cases.
-\begin{enumerate}
+can also be a set of rules: for instance, if one rule removes a verb in
+context $C$, and another in context $\neg C$, together these rules
+remove a verb in all possible cases, disabling any future rule that
+targets verbs.
+\begin{itemize}
 \item If a rule appears twice, the second occurrence will be disabled by the first
-\item R1 selects something in a context, R2 removes it
-\item R1 removes something from R2's context, so R2 can never apply
-\end{enumerate}
+\item $R1$ selects something in a context, $R2$ removes it
+\item $R1$ removes something from $R2$'s context, so $R2$ can never apply
+\end{itemize}
 
 Our technique requires an existing morphological lexicon, but no corpus. 
 The lexicon is needed in order to generate realistic ambiguities: e.g. a word can be ambiguous between noun and verb, but not between adjective and punctuation. 
 Constraints for the structure of the sequences come from the CG rules themselves.
-We encode both of these constraints as a satisfiability problem, and use a SAT solver to generate answers to the previous questions.
+We encode both of these constraints as a satisfiability problem, and use a SAT-solver to generate answers to the previous questions.
 
 %The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. 
 % Section~\ref{sec:implementation} discusses the implementation, 
@@ -135,7 +134,7 @@ As a downside, the grammar writer will likely not know why exactly is the tuned 
 %\cite{lager98} presents a CG-like shallow parsing system encoded in logic, and \cite{lager_nivre01} continues with a reconstruction of four different formalisms.
 %The earlier works on logical reconstruction don't envision grammar analysis as one of the use cases,
 \cite{lager98} and \cite{lager_nivre01} reconstruct the CG formalism in first-order predicate logic.
-%, and \cite{listenmaa_claessen2015} implement a CG compiler using a SAT solver.
+%, and \cite{listenmaa_claessen2015} implement a CG compiler using a SAT-solver.
 Grammar analysis is a natural use case, due to some key features of the logical reconstruction.
 The traditional CG compiler 
 %, such as VISL CG-3,

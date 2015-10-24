@@ -10,7 +10,7 @@ Our analysis operates on one rule $R$, and is concerned with answering the follo
 
 Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, the number of readings has ranged from about 300 to about 6000. 
 
-Furthermore, when we analyze a rule $R$, we need to decide the {\em width} $w(R)$ of the rule $R$: How many different words should there be in a sentence that can trigger $R$? Most often, $w(R)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
+Furthermore, when we analyse a rule $R$, we need to decide the {\em width} $w(R)$ of the rule $R$: How many different words should there be in a sentence that can trigger $R$? Most often, $w(R)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
 
 If the context contains a \verb!*!, we may need to make an approximation of $w(R)$ which may result in false negatives later on in the analysis.
 
@@ -18,7 +18,7 @@ If the context contains a \verb!*!, we may need to make an approximation of $w(R
 
 We start each analysis by creating a so-called {\em symbolic sentence}, which is our representation of the sentence $S$ we are looking for. A symbolic sentence is a sequence of {\em symbolic words}; a symbolic word is a table of all possible readings that a word can have, where each reading is paired up with a SAT-variable.
 
-The number of words in the symbolic sentence we create when we analyze a rule $R$ is $w(R)$. For the rule in the introduction, we have $w(R)=2$ and a symbolic sentence may look as follows:
+The number of words in the symbolic sentence we create when we analyse a rule $R$ is $w(R)$. For the rule in the introduction, we have $w(R)=2$ and a symbolic sentence may look as follows:
 \begin{center}
 \begin{tabular}{c|c|c}
 word1 & word2 & reading \\
@@ -74,7 +74,7 @@ $w_5' \Leftrightarrow [ w_5 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$
 
 Once we know how to apply one rule $R'$ to a symbolic sentence, we can apply all rules preceding the rule $R$ that is under analysis. We simply apply each rule to the result of applying the previous rule. In this way, we end up with a symbolic sentence that represents all sentences that could be the result of applying all those rules.
 
-Finally, we can take a look at the rule $R$ we want to analyze. Here is an example:
+Finally, we can take a look at the rule $R$ we want to analyse. Here is an example:
 \begin{itemize}
 \item[] \texttt{REMOVE det IF (1 verb) ;}
 \end{itemize}
@@ -94,12 +94,12 @@ $v_1 \wedge (v_2 \vee v_3 \vee v_4 \vee v_5)$
 \end{center}
 If the SAT-solver can find a solution to all constraints generated so far, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $R$. This means that there is something wrong with the grammar.
 
-\paragraph{Other questions we can ask}
+% \paragraph{Other questions we can ask}
 
-Apart from finding out what rules prevent others from applying, we can also find out if there is a conflict that is rule-internal, such as nonexisting tag set or contradicting requirements of a context word (e.g. a word must be unambiguously two different POS).
+% Apart from finding out what rules prevent others from applying, we can also find out if there is a conflict that is rule-internal, such as nonexisting tag set or contradicting requirements of a context word (e.g. a word must be unambiguously two different POS).
 
-In addition to analysing a whole grammar, 
-we can construct all kinds of symbolic sentences to test out individual rules. 
-We can set the length, restrict individual words (e.g. ``3rd word must be a noun''), require that it triggers some rule but not other. 
-This functionality can aid the grammar writer in the process, to see if they have missed a case or defined the tagset correctly.
+% In addition to analysing a whole grammar, 
+% we can construct all kinds of symbolic sentences to test out individual rules. 
+% We can set the length, restrict individual words (e.g. ``3rd word must be a noun''), require that it triggers some rule but not other. 
+% This functionality can aid the grammar writer in the process, to see if they have missed a case or defined the tagset correctly.
 
