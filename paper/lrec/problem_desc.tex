@@ -8,8 +8,7 @@ A grammar consists of rules that target specific analyses for selection or remov
 \begin{itemize}
 \item[] \texttt{REMOVE verb IF (-1 det) ;}
 \end{itemize}
-removes a verb reading from a word which is preceded by adeterminer.
-
+removes a verb reading from a word which is preceded by a determiner.
 Given the following text,
 \begin{itemize}
 \item[] 
@@ -27,37 +26,42 @@ However, if the target word has only one remaining analysis, then the rule will 
 CGs are valuable resources for rule-based NLP, especially for lesser resourced languages. They are robust and can be written without large corpora--only morphological analysis is needed. The formalism is lightweight and language-independent, and resources can be shared between related languages \cite{bick2006spanish,lene_trond_linda2010}.
 %Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
-As CGs grow larger, it gets harder for the grammar writers and users to keep track of all the rules and their interaction.
-%\cite{voutilainen2004} gives a detailed account about best practices of grammar writing and efficient use of hand-annotated corpora to aid the grammar development.
-%\cite{bick2013tuning} presents a method to optimise hand-written CGs using machine learning techniques.
-%Our tools complement the existing methods in CG analysis and optimisation.
-%While Bick's experiments show improvements in results, the grammar writer is none the wiser why is the grammar better.
-%Authors who have a large hand-annotated corpus can also benefit from our tools.
+As CGs grow larger, it gets harder for the grammar writers and users
+to keep track of all the rules and their interaction.
 With our tools, the users can diagnose and improve their grammars.
-They can ask specific questions about a given grammar, such as:
-
+Some examples of conflicts are listed below:
 \begin{itemize}
-\item Are there rules that contradict each other?
-\item Are there rules that will never fire?
-\item Generate a sequence that triggers rule(s) $R$ but not rule(s) $R'$
-%\item Generate a sequence that is ambiguous but doesn't trigger any rules
+\item If a rule appears twice, the second occurrence will be disabled by the first
+\item $R$ selects something in a context, $R'$ removes it
+\item $R$ removes something from the context of $R'$, so $R'$ can never
+  apply
+\item $R$ has an internal conflict, such as non-existent
+tag combination, or contradicting requirements for a context word
 \end{itemize}
-
-Some examples where a rule contradicts another are listed below. R1
-can also be a set of rules: for instance, if one rule removes a verb in
+$R$ can also be a set of rules: for instance, if one rule removes a verb in
 context $C$, and another in context $\neg C$, together these rules
 remove a verb in all possible cases, disabling any future rule that
 targets verbs.
-\begin{itemize}
-\item If a rule appears twice, the second occurrence will be disabled by the first
-\item $R1$ selects something in a context, $R2$ removes it
-\item $R1$ removes something from $R2$'s context, so $R2$ can never apply
-\end{itemize}
 
-Our technique requires an existing morphological lexicon, but no corpus. 
-The lexicon is needed in order to generate realistic ambiguities: e.g. a word can be ambiguous between noun and verb, but not between adjective and punctuation. 
-Constraints for the structure of the sequences come from the CG rules themselves.
-We encode both of these constraints as a satisfiability problem, and use a SAT-solver to generate answers to the previous questions.
+%In addition to analysing the whole grammar,
+Our method can be used to
+test out individual rules. For instance, we can ask the tool to
+generate example sequences that trigger rule(s) $R$ but not rule(s) $R'$. 
+This functionality can help the grammar writer to see
+if they have implemented the rules in the intended way.
+
+% They can ask specific questions about a given grammar, such as:
+% \begin{itemize}
+% \item Are there rules that contradict each other?
+% \item Are there rules that will never fire?
+% \item Generate a sequence that triggers rule(s) $R$ but not rule(s) $R'$
+% %\item Generate a sequence that is ambiguous but doesn't trigger any rules
+% \end{itemize}
+% Our technique requires an existing morphological lexicon, compatible
+% with the tag set used in the grammar, but no corpus. 
+% The lexicon is needed in order to limit the possible tag combinations.
+% Constraints for the structure of the sequences come from the CG rules themselves.
+% We encode both of these constraints as a satisfiability problem, and use a SAT-solver to generate answers to the previous questions.
 
 %The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. 
 % Section~\ref{sec:implementation} discusses the implementation, 
