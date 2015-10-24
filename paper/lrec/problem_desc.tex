@@ -40,10 +40,19 @@ They can ask specific questions about a given grammar, such as:
 \begin{itemize}
 \item Are there rules that contradict each other?
 \item Are there rules that will never fire?
-\item Generate a sequence that triggers rule(s) X but not rule(s) Y
+\item Generate a sequence that triggers rule(s) R1 but not rule(s) R2
 %\item Generate a sequence that is ambiguous but doesn't trigger any rules
 \end{itemize}
 
+Some examples where a rule contradicts another are listed below. R1
+can also be a set of rules: for instance, one rule removes a verb if
+preceded by a determiner, and another if not preceded by a determiner,
+and together these rules remove a verb in all possible cases.
+\begin{enumerate}
+\item If a rule appears twice, the second occurrence will be disabled by the first
+\item R1 selects something in a context, R2 removes it
+\item R1 removes something from R2's context, so R2 can never apply
+\end{enumerate}
 
 Our technique requires an existing morphological lexicon, but no corpus. 
 The lexicon is needed in order to generate realistic ambiguities: e.g. a word can be ambiguous between noun and verb, but not between adjective and punctuation. 
