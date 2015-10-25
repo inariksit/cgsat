@@ -48,6 +48,8 @@ context $C$, and another in context $\neg C$, together these rules
 remove a verb in all possible cases, disabling any future rule that
 targets verbs.
 
+While rule-internal conflicts can be detected by simpler means, taking
+care of rule interaction requires a {\em semantic} rather than a {\em syntactic} analysis.
 %In addition to analysing the whole grammar,
 %Our method can be used to
 %check individual rules. For instance,
@@ -56,7 +58,6 @@ generate example sentences that trigger rule(s) $R$ but not rule(s) $R'$.
 This can help the grammar writer to see
 if they have implemented the rules in the intended way.
 
-All of this requires a {\em semantic} rather than a {\em syntactic} analysis.
 
 % They can ask specific questions about a given grammar, such as:
 % \begin{itemize}
@@ -102,9 +103,9 @@ We combine elements from the following aspects of CG research:
 \item Encoding CG in logic \cite{lager98,lager_nivre01,listenmaa_claessen2015}
 \end{itemize}
 
-In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996,lindberg_eineborg98ilp}.
-%, \cite{lager01transformation}, \cite{asfrent14} 
-However, since our work is aimed to aid the process of hand-crafting rules, we omit those works from our discussion.
+% In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996,lindberg_eineborg98ilp}.
+% %, \cite{lager01transformation}, \cite{asfrent14} 
+% However, since our work is aimed to aid the process of hand-crafting rules, we omit those works from our discussion.
 
 
 \paragraph{Corpus-based methods in manual grammar development}
