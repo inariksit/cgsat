@@ -33,8 +33,8 @@ between related languages \cite{bick2006spanish}.
 
 As CGs grow larger, it gets harder for the grammar writers and users
 to keep track of all the rules and their interaction.
-With our tools, the users can diagnose and improve their grammars.
-Some examples of conflicts are listed below:
+With our tools, the users can find conflicting rules, diagnose problems and improve their grammars.
+Some examples of such conflicts are listed below:
 \begin{itemize}
 \item If a rule appears twice, the second occurrence will be disabled by the first
 \item $R$ selects something in a context, $R'$ removes~it
@@ -49,11 +49,14 @@ remove a verb in all possible cases, disabling any future rule that
 targets verbs.
 
 %In addition to analysing the whole grammar,
-Our method can be used to
-test individual rules. For instance, we can ask the tool to
-generate example sequences that trigger rule(s) $R$ but not rule(s) $R'$. 
+%Our method can be used to
+%check individual rules. For instance,
+We can also ask the tool to
+generate example sentences that trigger rule(s) $R$ but not rule(s) $R'$. 
 This can help the grammar writer to see
 if they have implemented the rules in the intended way.
+
+All of this requires a {\em semantic} rather than a {\em syntactic} analysis.
 
 % They can ask specific questions about a given grammar, such as:
 % \begin{itemize}

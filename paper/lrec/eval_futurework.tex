@@ -1,7 +1,7 @@
 \section{Evaluation and Future Work}
 \label{sec:eval}
 
-We tested three grammars to find rules that cannot apply: 
+We tested three grammars to find conflicting rules: 
 Dutch\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-nld/apertium-nld.nld.rlx}},
 with 59 rules; 
 Spanish\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}},
@@ -34,7 +34,7 @@ The results are shown in table~\ref{table:res}.
 \end{table}
 
 \paragraph{Accuracy} 
-The test revealed problems in all grammars, and for the smaller
+The experiments revealed problems in all grammars. For the smaller
 grammars, we were able to verify manually that the detected rules were
 true positives.
 %The results for the Finnish grammar are inconclusive, 
@@ -54,15 +54,15 @@ REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun) ;
 \end{itemize}
 
 For the Finnish grammar, we did not have time to investigate all the
-results. We could verify approximately \nicefrac{1}{3} as true positive and
-\nicefrac{1}{3} as false positive.
+results. We could verify approximately \nicefrac{1}{3} as true positives and
+\nicefrac{1}{3} as false positives.
 The verified true positives were all rule-internal conflicts. 
-The following rule requires the target to be genitive and unambiguously nominative: 
+For example, the following rule requires the target to be genitive and unambiguously nominative: 
 \begin{itemize}
 \item[]\texttt{"oma" SELECT GEN IF [...] (0C NOM) ;}
 \end{itemize}
-We also detected a number of tagset errors, . 
-The grammar was originally written in 1995, and converted to the
+We also detected a number of tagset errors;
+the grammar was originally written in 1995, and converted to the
 Omorfi tagset by \cite{pirinen2015}, but there were 15 rules that used the old convention for possessive suffixes.
 
 %  For example, the Omorfi tagset
@@ -94,9 +94,7 @@ was even worse: checking the last rule took 30 minutes, as opposed to
 3 minutes with 2000 readings. 
 %We never finished running the whole rule set with 6000 readings, but
 %it would have taken potentially days.
-We plan to optimise the code; currently it is just
-a naive proof-of-concept implementation.
-
+We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimize for speed at all.
 
 % A Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
 % Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are defined in the grammar, as a target (\texttt{REMOVE ("bear" verb) IF ...}) or as a condition (\texttt{REMOVE ... IF (-1 ("bear" noun))}. The majority of them are lexical, whereas we don't include anything but morphological tags from the lexicon.
@@ -124,7 +122,7 @@ automatically from a lexicon.
 % \texttt{casa:casa<n><sg>}  and  \texttt{casa:casar<v><sg><p3>}, thus
 % we know that a word can be ambiguous between a noun and a verb.
 By adding these restrictions to the symbolic words, we hope to
-restrict the search space, and make the SAT problem easier to solve.
+restrict the search space, and make the SAT problem easier to solve, while at the same time generate more realistic example sentences.
 
 As for longer-term goals, we want to handle the full expressivity of CG-3,
 with \textsc{map}, \textsc{add} and \textsc{substitute} rules, and
