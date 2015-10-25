@@ -23,7 +23,12 @@ Given the following text,
 the rule will match to the word \emph{bear}, and remove the analysis \texttt{verb pl}.
 However, if the target word has only one remaining analysis, then the rule will not apply, even if the condition is met.
 
-CGs are valuable resources for rule-based NLP, especially for lesser resourced languages. They are robust and can be written without large corpora--only morphological analysis is needed. The formalism is lightweight and language-independent, and resources can be shared between related languages \cite{bick2006spanish,lene_trond_linda2010}.
+CGs are valuable resources for rule-based NLP, especially for lesser
+resourced languages. They are robust and can be written without large
+corpora---only morphological analysis is needed. The formalism is
+lightweight and language-independent, and resources can be shared
+between related languages \cite{bick2006spanish}.
+%,lene_trond_linda2010}.
 %Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
 As CGs grow larger, it gets harder for the grammar writers and users
@@ -90,13 +95,13 @@ We combine elements from the following aspects of CG research:
 
 \begin{itemize}
 \item Corpus-based methods in manual grammar development \cite{voutilainen2004}
-\item Optimising hand-written grammars \cite{bick2013tuning}
+\item Optimising hand-written CGs~\cite{bick2013tuning}
 \item Encoding CG in logic \cite{lager98,lager_nivre01,listenmaa_claessen2015}
 \end{itemize}
 
-In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996}, \cite{lindberg_eineborg98ilp}
+In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996,lindberg_eineborg98ilp}.
 %, \cite{lager01transformation}, \cite{asfrent14} 
-. However, since our work is aimed to aid the process of hand-crafting rules, we omit those works from our discussion.
+However, since our work is aimed to aid the process of hand-crafting rules, we omit those works from our discussion.
 
 
 \paragraph{Corpus-based methods in manual grammar development}
@@ -125,9 +130,10 @@ However, this method will not notice a missed opportunity or a grammar-internal 
 \paragraph{Automatic optimisation of hand-written grammars }
 % The corpus-based method can tell the effect of each single rule at their place in the rule sequence, and leaves the grammar writer to make changes in the grammar.
 
-\cite{bick2013tuning} modifies the grammar automatically, by trying out different orderings of the rules, and changing their contexts to stricter or less strict.
+\cite{bick2013tuning} modifies the grammar automatically, by trying
+out different rule orders and altering the contexts of the rules.
 Bick reports error reduction of 7--15\% compared to the original grammars.
-As a downside, the grammar writer will likely not know why exactly is the tuned grammar performing better.
+As a downside, the grammar writer will likely not know why exactly does the tuned grammar perform better.
 % At a certain point, the grammar gets so big that it is hard to keep track of all the rules and their interactions. \cite{bick2013tuning} tries out combinations of moving rules in different sections or removing them in total, and in parallel, making their contexts stricter or less strict. 
 % This is a valuable tool, especially for grammars that are so big that it's hard to keep track of. Program can try all combinations whereas trying to make sense out of a huge set of rules would be hard for humans.
 
