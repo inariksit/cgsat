@@ -57,7 +57,7 @@ $v_4$ & $w_4'$ & verb sg \\
 $v_5$ & $w_5'$ & verb pl \\
 \end{tabular}
 \end{center}
-The example rule can only affect readings of word2 that have a ``verb'' tag, so we create only two new variables $w_4'$ and $w_5'$ for the result, and reuse the other variables. We add the following constraint for $w_4'$ is:
+The example rule can only affect readings of word2 that have a ``verb'' tag, so we create only two new variables $w_4'$ and $w_5'$ for the result, and reuse the other variables. We add the following constraint for $w_4'$:
 \begin{center}
 \begin{tabular}{c}
 $w_4' \Leftrightarrow [ w_4 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$ \\
@@ -78,7 +78,7 @@ Finally, we can take a look at the rule $R$ we want to analyse. Here is an examp
 \begin{itemize}
 \item[] \texttt{REMOVE det IF (1 verb) ;}
 \end{itemize}
-If we take the symbolic sentence above as input, we want to ask wether or not it can trigger the rule $R$. We do this by adding some more constraints to the SAT-solver.
+If we take the symbolic sentence above as input, we want to ask whether or not it can trigger the rule $R$. We do this by adding some more constraints to the SAT-solver.
 
 First, the context of the rule should be applicable, meaning that the second word should have a reading with a ``verb'' tag:
 \begin{center}

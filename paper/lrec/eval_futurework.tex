@@ -76,7 +76,7 @@ for example, the rule \texttt{REMOVE (verb sg) IF (-1 det)}
 gives us ``verb sg'' and ``det''.
 The shortcut works most of the time, but it is possible to
 miss some cases: e.g. \texttt{SELECT PRON + REL IF (0 NOM)} 
-assumes ``pron rel nom'', but our  only gives
+assumes ``pron rel nom'', but our method only gives
 ``pron rel'' and ``nom'' separately. 
 17 false positives were caused by this shortcut. 
 In addition, 2 false positives were caused by the naive implementation of
@@ -94,7 +94,7 @@ was even worse: checking the last rule took 30 minutes, as opposed to
 3 minutes with 2000 readings. 
 %We never finished running the whole rule set with 6000 readings, but
 %it would have taken potentially days.
-We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimize for speed at all.
+We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimise for speed at all.
 
 % A Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
 % Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are defined in the grammar, as a target (\texttt{REMOVE ("bear" verb) IF ...}) or as a condition (\texttt{REMOVE ... IF (-1 ("bear" noun))}. The majority of them are lexical, whereas we don't include anything but morphological tags from the lexicon.
