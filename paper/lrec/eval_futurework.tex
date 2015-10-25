@@ -1,14 +1,18 @@
 \section{Evaluation and Future Work}
 \label{sec:eval}
 
-We tested three grammars to find rules that cannot apply. The smallest
-grammar was
+We tested three grammars to find rules that cannot apply. 
+The smallest grammar was
 Dutch\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-nld/apertium-nld.nld.rlx}},
 with 59 rules; second was
-Spanish\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}}with
-279 rules, and the largest was
+Spanish\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}},
+with 279 rules, and the largest was
 Finnish\footnote{\url{https://github.com/flammie/omorfi/blob/master/src/vislcg3/omorfi.cg3}},
-with 1185 rules. We left out \textsc{add}, \textsc{map} and other rule types introduced in CG-3, and only tested the traditional \textsc{remove} and \textsc{select} rules.
+with 1185 rules. We left out \textsc{add}, \textsc{map} and other rule
+types introduced in CG-3, and only tested the traditional
+\textsc{remove} and \textsc{select} rules.
+The results are shown in table~\ref{table:res}. 
+
 
 \begin{table}[]
 \centering
@@ -16,8 +20,8 @@ with 1185 rules. We left out \textsc{add}, \textsc{map} and other rule types int
 \hline
                       & \textsc{nld}  & \textsc{spa}  & \textsc{fin}  \\ \hline
 \# rules      & 59              & 279      & 1185     \\ \hline
-\# readings      & 276             & 2191     & 5719    \\ \hline
-\# conflicts       & 1               & 1        & 22    \\ \hline
+\# readings      & 276             & 2191     & 2012    \\ \hline
+\# conflicts       & 1               & 1        & \todo{n}    \\ \hline
 \clock{} all rules       & 7s              & 3min 22s    & 3h 26min    \\ \hline
 \clock{} last rule       & 4s              & 7s                & 3min 40s    \\ \hline
 % This is with just 2000ish variables for Finnish, below is with 5700
@@ -31,9 +35,13 @@ with 1185 rules. We left out \textsc{add}, \textsc{map} and other rule types int
 \label{table:res}
 \end{table}
 
-\paragraph{Correctness} We tested all three grammars if they contain
-rules that cannot be applied, as described in the previous section.
-This test revealed problems in all grammars, and for the smaller grammars, we were able to verify manually that the results are true.
+\paragraph{Correctness} 
+The test revealed problems in all grammars, and for the smaller
+grammars, we were able to verify manually that the detected rules were
+true negatives. However, for the Finnish grammar, we did not have time
+to investigate all of them; in addition, we suspect that some of
+them are false negatives.
+We did not check for false positives in any of the grammars.
 
 The Spanish grammar had an erroneous set definition, where a word was
 required to have almost all POS tags at the same time. After fixing
@@ -46,25 +54,40 @@ REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun) ;
 \end{verbatim}
 \end{itemize}
 
-The program found 22 inapplicable rules in the Finnish grammar, but we
-didn't have time to investigate all of them.
-We could verify a number of tagset errors---the grammar was originally written in 1995, and converted to the Omorfi tagset by \cite{pirinen2015}. 
-For example, the Omorfi tagset marks a possessive suffix with \texttt{Px}, e.g. \texttt{PxPl2} for second person plural, but the grammar used the old convention \texttt{PL2} in the rules.
-As a result, all rules with possessive suffixes were detected as impossible.
-In addition, we suspect that some of the problems come from our naive
-implementation of rules with * in its context; creating the same
-symbolic sentence for condition \texttt{1*} and \texttt{1}.
+For the Finnish grammar, we could verify a number of tagset errors. 
+The grammar was originally written in 1995, and converted to the
+Omorfi tagset by \cite{pirinen2015}. For example, the Omorfi tagset
+marks a possessive suffix with \texttt{Px}, e.g. \texttt{PxPl2} for second person plural, but the
+grammar used the old convention \texttt{PL2} in the rules.
+As a result, all rules with possessive suffixes were detected as
+impossible.
+
+Because of performance issues, we ignored the readings from the
+lexicon and used only tag combinations that were named in the grammar.
+For example, the rule \texttt{REMOVE (verb sg) IF (-1 det)}
+gives us ``verb sg'' and ``det'', as opposed to fully specified
+readings in the lexicon.
+The shortcut will work most of the time, but it is possible to
+miss some cases: e.g. \texttt{SELECT (verb sg) IF (0 p3)} 
+requires a full ``verb sg p3'' reading, but our method only gives
+``verb sg'' and ``p3'' separately. 
+Some of the false negatives seem to come from this shortcut, or our naive
+implementation of rules with \verb!*! in their context.
+Due to these reasons, we cannot give conclusions about the Finnish
+grammar; we include the results here only to have some preliminary
+data on scaling up to larger grammars.
 %For a condition situated $n$ or more words to the left or right, we only create a word exactly $n$ words away. This is something to be fixed in the future.
 
-\paragraph{Running time} Currently the speed of the check is an obvious issue,
+\paragraph{Running time} The speed of the check is an obvious issue,
 especially for the Finnish grammar. 
-The 3 hours running time is achieved with using 2100 readings for the
-symbolic words; instead of the lexicon, we only used the readings
-specified in the grammar: for example, the rule \texttt{REMOVE ("bear"
-  noun sg) IF (-1 ())
-Using all 6000 readings from the lexicon, the program
-ran the analysis for the last rule in 30 minutes, making the running
-time for 1000+ rules potentially days.
+As mentioned before, we took a shortcut and used 2000 readings from
+the grammar.
+With the full set of 6000 readings from the lexicon, the speed
+was even worse: checking the last rule took 30 minutes, as opposed to
+3 minutes with 2000 readings. 
+%We never finished running the whole rule set with 6000 readings, but it would have taken potentially days.
+However, the code is currently just a proof of concept, and we plan to
+make an effort in optimisation.
 
 
 % A Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
@@ -72,55 +95,59 @@ time for 1000+ rules potentially days.
 % For Spanish and Dutch, there are around 2000 and 300 tag combinations respectively.
 % The Spanish lexicon includes up to two clitics (e.g. \emph{dámelo} `give.me.it') in the same word form, but Dutch has none in the lexicon.
 
-The SAT problem for checking one rule grows depending on how many rules come before it, how long the context is, and how many tag combinations are there. The running time of the last rule gives some indication ...
-
-Not all questions are so expensive.
-For instance, checking the tag sets in the Finnish grammar doesn't require the context of the other rules at all,
- The majority of the correctly detected errors in the Finnish grammar were rule-internal---these errors don't need the context of the other rules at all.
+% The SAT problem for checking one rule grows depending on how many rules come before it, how long the context is, and how many tag combinations are there. The running time of the last rule gives some indication ...
 
 
-%All rules is the total time to check every rule against the previous rules, and last rule % shows how long it took to check the last rule.
-% As indicated by the total time and the time to check the last rule, the size of the SAT problem grows according to how far in the sequence the rule is.
-
-% As seen in table~\ref{table:res}, checking every rule in the Finnish grammar takes currently 3.5 hours.
-% A rule takes longer to run if it appears later in the rule sequence: 1000 previous rules is a larger SAT problem than 10 previous rules.
-% This can be seen from the time it took to compute the result for the last rule. For Finnish, the last rule took almost 4 minutes, but if we divide the time with the number of rules, the average time for one rule is just 10 seconds.
-% We also measured the running times for the longest rules in the grammar.
-%\todo{find longest rule, change place of that rule, see what matters more. Promise: we can be smarter about SAT things.}
+% Not all questions are so expensive.
+% For instance, checking the tag sets in the Finnish grammar doesn't require the context of the other rules at all,
+%  The majority of the correctly detected errors in the Finnish grammar were rule-internal---these errors don't need the context of the other rules at all.
 
 
-\paragraph{Future work} We will continue improving the performance,
-and make sure that the implementation for the basic rules is correct;
-for instance, fixing the earlier mentioned issue with a non-exact
-position.
-We will also improve usability
+\paragraph{Future work} 
+
+We will work on the performance, and fix any errors we found in the
+evaluation, such as the issue with non-exact position.
+Another obvious improvement is to restrict possible ambiguities
+in the symbolic words.
+Currently we have only hard-coded some
+very basic assumptions, such as ``word cannot be ambiguous between a
+boundary and a real word'', but we want to extract these restrictions
+automatically.
+For instance, the Spanish lexicon contains the entries
+\texttt{casa:casa<n><sg>}  and  \texttt{casa:casar<v><sg><p3>}, thus
+we know that a word can be ambiguous between a noun and a verb.
+By adding these restrictions to the symbolic words, we hope to
+restrict the search space, and make the SAT problem easier to solve.
+
+%We will also improve usability, by finding out which rules contrad
 After this, we want to handle the full expressivity of CG-3, with \textsc{map}, \textsc{add} and \textsc{substitute} rules.
 At that stage, it would be interesting to test our program with actual grammar writers,
 in comparison with a corpus-based method or machine learning.
+Finally, if the method proves feasible for Constraint Grammars, we want
+to try applying it to other, more complex grammar formalisms.
 
-As another line of investigation, we want to detect more kinds of conflicts.
-For instance, say we have the following rules:
 
-\begin{itemize}
-\item[] \begin{verbatim}
-REMOVE verb IF (-1C det) ;
-REMOVE noun IF (-1C det) ;
-\end{verbatim}
-\end{itemize}
+% As another line of investigation, we want to detect more kinds of conflicts.
+% For instance, say we have the following rules:
 
-With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a noun; the verb is gone already.
-However, in the context of real life texts, the grammar writer might actually mean the following:
+% \begin{itemize}
+% \item[] \begin{verbatim}
+% REMOVE verb IF (-1 det) ;
+% REMOVE noun IF (-1 det) ;
+% \end{verbatim}
+% \end{itemize}
 
-\begin{itemize}
-\item[] \begin{verbatim}
-REMOVE verb IF (-1C det) (0 noun) ;
-REMOVE noun IF (-1C det) (0 verb) ;
-\end{verbatim}
-\end{itemize}
+% With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a noun; the verb is gone already.
+% However, in the context of real life texts, the grammar writer might actually mean the following:
 
-In that case, those rules are contradictory, and we would like to find it out.
+% \begin{itemize}
+% \item[] \begin{verbatim}
+% REMOVE verb IF (-1 det) (0 noun) ;
+% REMOVE noun IF (-1 det) (0 verb) ;
+% \end{verbatim}
+% \end{itemize}
 
-Finally, we want to test the approach to other grammar formalisms.
+% In that case, those rules are contradictory, and we would like to find it out.
 
 
 

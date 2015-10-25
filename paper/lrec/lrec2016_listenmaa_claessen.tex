@@ -30,7 +30,7 @@
 \newcommand{\mainfontfamily}{Palatino}
 \setmainfont[
   Ligatures=TeX,
-  Scale=0.95,
+  Scale=0.9,
 ]{\mainfontfamily}
 
 \newfontfamily\scshape[Letters=SmallCaps, Numbers=Uppercase]{Palatino
@@ -42,10 +42,6 @@
 
 \usepackage{color}
 \newcommand{\todo}[1]{{\color{cyan}\textbf{[TODO: }#1\textbf{]}}}
-% \usepackage{tikz}
-% \def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) --
-%   (.25,.15) -- cycle;}
-% \newcommand{\Mypm}{\mathbin{\tikz [x=1.4ex,y=1.4ex,line width=.1ex] \draw (0.0,0) -- (1.0,0) (0.5,0.08) -- (0.5,0.92) (0.0,0.5) -- (1.0,0.5);}}%
 
 \title{Analysing Constraint Grammars with a SAT-solver}
 
@@ -59,6 +55,7 @@
 \maketitle
 
 \begin{abstract}
+%\small
 We describe a method for
  analysing Constraint Grammars by encoding the
 rules in SAT.
