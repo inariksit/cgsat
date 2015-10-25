@@ -19,7 +19,7 @@ The results are shown in table~\ref{table:res}.
                       & \textsc{nld}  & \textsc{spa}  & \textsc{fin}  \\ \hline
 \# rules      & 59              & 279      & 1185     \\ \hline
 \# readings      & 276             & 2191     & 2012    \\ \hline
-\# conflicts       & 1               & 1        & \todo{n}    \\ \hline
+\# conflicts       & 1               & 1        & 51    \\ \hline
 \clock{} all rules       & 7s              & 3min 22s    & 3h 26min    \\ \hline
 \clock{} last rule       & 4s              & 7s                & 3min 40s    \\ \hline
 % This is with just 2000ish variables for Finnish, below is with 5700
@@ -33,14 +33,14 @@ The results are shown in table~\ref{table:res}.
 \label{table:res}
 \end{table}
 
-\paragraph{Correctness} 
+\paragraph{Accuracy} 
 The test revealed problems in all grammars, and for the smaller
 grammars, we were able to verify manually that the detected rules were
-true negatives.
+true positives.
 %The results for the Finnish grammar are inconclusive, 
 % For the Finnish grammar, we did not have time to
 % investigate all of them, but among those we could, we found both true and false negatives.
-We did not check for false positives in any of the grammars.
+We did not check for false negatives in any of the grammars.
 
 The Spanish grammar had an erroneous set definition, where a word was
 required to have almost all POS tags at the same time. After fixing
@@ -53,25 +53,34 @@ REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun) ;
 \end{verbatim}
 \end{itemize}
 
-For the Finnish grammar, we could verify a number of tagset errors. 
+For the Finnish grammar, we did not have time to investigate all the
+results. We could verify approximately \nicefrac{1}{3} as true positive and
+\nicefrac{1}{3} as false positive.
+The verified true positives were all rule-internal conflicts. 
+The following rule requires the target to be genitive and unambiguously nominative: 
+\begin{itemize}
+\item[]\texttt{"oma" SELECT GEN IF [...] (0C NOM) ;}
+\end{itemize}
+We also detected a number of tagset errors, . 
 The grammar was originally written in 1995, and converted to the
-Omorfi tagset by \cite{pirinen2015}. For example, the Omorfi tagset
-marks a possessive suffix with \texttt{Px}, e.g. \texttt{PxPl2} for second person plural, but the
-grammar uses the old convention \texttt{PL2} in the rules.
-As a result, all rules with possessive suffixes were detected as
-impossible.
+Omorfi tagset by \cite{pirinen2015}, but there were 15 rules that used the old convention for possessive suffixes.
 
-Because of performance issues, we ignored the fully specified readings from the
+%  For example, the Omorfi tagset
+% marks a possessive suffix with \texttt{Px}, e.g. \texttt{PxPl2} for second person plural, but the
+% grammar uses the old convention \texttt{PL2} in the rules.
+% As a result, 15 rules with possessive suffixes were detected as
+% impossible.
+To improve performance, we ignored the fully specified readings from the
 lexicon and used only tag combinations from the grammar:
 for example, the rule \texttt{REMOVE (verb sg) IF (-1 det)}
 gives us ``verb sg'' and ``det''.
 The shortcut works most of the time, but it is possible to
-miss some cases: e.g. \texttt{SELECT (verb sg) IF (0 p3)} 
-assumes ``verb sg p3'', but our method only gives
-``verb sg'' and ``p3'' separately. 
-Some of the detected rules seem to be false negatives caused by this shortcut. 
-Another suspect is our naive implementation of rules with \verb!*! in
-their context.
+miss some cases: e.g. \texttt{SELECT PRON + REL IF (0 NOM)} 
+assumes ``pron rel nom'', but our  only gives
+``pron rel'' and ``nom'' separately. 
+17 false positives were caused by this shortcut. 
+In addition, 2 false positives were caused by the naive implementation of
+rules with \verb!*! in their context.
 
 Due to these reasons, the results about the Finnish grammar are
 inconclusive. We only include them to show some preliminary data on larger grammars.
@@ -85,7 +94,7 @@ was even worse: checking the last rule took 30 minutes, as opposed to
 3 minutes with 2000 readings. 
 %We never finished running the whole rule set with 6000 readings, but
 %it would have taken potentially days.
-We plan to make an effort in optimising the code; currently it is just
+We plan to optimise the code; currently it is just
 a naive proof-of-concept implementation.
 
 
@@ -117,10 +126,9 @@ automatically from a lexicon.
 By adding these restrictions to the symbolic words, we hope to
 restrict the search space, and make the SAT problem easier to solve.
 
-%We will also improve usability, by finding out which rules contrad
-For longer-term goals, we want to handle the full expressivity of CG-3,
+As for longer-term goals, we want to handle the full expressivity of CG-3,
 with \textsc{map}, \textsc{add} and \textsc{substitute} rules, and
-dependency structure.
+dependency structure. This also means finding different kinds of conflicts.
 As soon as the tools are mature enough, we want to
 evaluate them with actual grammar writers,
 in comparison with a corpus-based method or machine learning.
