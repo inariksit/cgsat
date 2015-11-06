@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse
+  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, CG_Symbolic
   other-modules:       CG.ErrM, Apertium.ErrM,
                        Apertium.Abs, Apertium.Lex, Apertium.Par,
                        CG.Abs, CG.Lex, CG.Par, CG.Print
@@ -38,9 +38,9 @@ library
   build-tools:         alex, happy
   default-language:    Haskell2010
 
-executable cgsat
+executable disam
   hs-source-dirs:      executable
-  main-is:             Main.hs
+  main-is:             Disambiguate.hs
   build-depends:       base,
                        cgsat,
                        mtl,
@@ -50,9 +50,9 @@ executable cgsat
                        containers
   default-language:    Haskell2010
 
-executable symbolic
+executable analyse
   hs-source-dirs:      executable
-  main-is:             Symbolic.hs
+  main-is:             Analyse.hs
   build-depends:       base,
                        cgsat,
                        mtl,
