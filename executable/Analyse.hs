@@ -51,6 +51,8 @@ main = do
              mapM_ (testRule (True,True) ts tc) [tricky1, tricky2]
     ("kimmo":_)
        -> do mapM_ (testRule (True,True) ts tc) (splits (reverse kimmo))
+
+{- TODO update for IntSets
     ("play":gr:tagcombs:r)
        -> do (tsets, rls) <- readRules' gr 
              tcInLex <- (map parse . words) `fmap` readFile tagcombs
@@ -81,6 +83,7 @@ main = do
 
              constrainBoundaries s tagmap `mapM_` M.elems finalSent
              solveAndPrintSentence True s [] finalSent
+-}
              
     ("fin":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -96,10 +99,10 @@ main = do
              print (length tc)
              -- print ("tag combinations from the grammar:", length (nub tsets))
              -- print ("tag combinations from the lexicon:", length tsets)
-             testRules (verbose,debug) ts tc rules
+             --testRules (verbose,debug) ts tc rules
              --mapM_ print ( (splits rules))
              --mapM_ (testRule (verbose,debug) ts tc) (splits rules)
-             --testRule (verbose,debug) ts tc (last $ splits rules)
+             testRule (verbose,debug) ts tc (last $ splits rules)
              putStrLn "end"
 
     ("nld":r)
@@ -114,9 +117,9 @@ main = do
              let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
              let ts = nub $ tsInApe ++ concat tc
              --testRules (verbose,debug) ts tc (reverse rules)
-             testRule (verbose,debug) ts tc (last $ splits rules)
-             --mapM_ (testRule (verbose,debug) ts tc) (splits rules)
-             print "foo"
+             --testRule (verbose,debug) ts tc (last $ splits rules)
+             mapM_ (testRule (verbose,debug) ts tc) (splits rules)
+
 
     ("spa":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -137,8 +140,8 @@ main = do
              let tc = nub $ (concat tcInGr) ++ tcInLex 
              let ts = nub $ tsInApe ++ concat tc 
 --             testRules (verbose,debug) ts tc rules            
-             testRule (verbose,debug) ts tc (last (splits rules))
-             --mapM_ (testRule (verbose,debug) ts tc) (splits rules)   
+             --testRule (verbose,debug) ts tc (last (splits rules))
+             mapM_ (testRule (verbose,debug) ts tc) (splits rules)   
              print "foo"
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
