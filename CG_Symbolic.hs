@@ -57,32 +57,38 @@ printSentence sent = do
 testRules :: (Bool,Bool) -> [Tag] -> [[Tag]] -> [Rule] -> IO ()
 testRules (verbose,debug) ts tcs rules = do 
   s <- newSolver
-  initialSent <- mkSentence s 5 tcs
+  initialSent <- mkSentence s 6 tcs
   let taginds = IS.fromList [1..length tcs]
   let taglookup = mkTagMap ts tcs
   let luTag = lookupTag taglookup taginds
 
   let checkAndApply sentence rule = do
        let (w,tSInd) = width rule
-       let luLit     = lookupLit sentence
-       let trg_difs  = toTags $ target rule
-       let conds     = toConds $ cond rule
-       let conds_pos = [ (cs, map (tSInd+) ps) 
+       if w > length (IM.elems sentence)
+        then do putStrLn $ "Rule " ++ show rule ++ " too wide, cannot apply to symbolic sentence"
+                return sentence
+        
+        else do
+         let luLit     = lookupLit sentence
+         let trg_difs  = toTags $ target rule
+         let conds     = toConds $ cond rule
+         let conds_pos = [ (cs, map (tSInd+) ps) 
                           | (cs, ps) <- conds `zip` (map.map) getPos conds ]
-       (mustHaveTrg, mustHaveOther, allCondsHold) <- do
-         let trgWInds@((yes,no):_) = map luTag trg_difs --TODO
-         let trgLits = map (luLit tSInd) (IS.toList yes)
-         let otherLits = map (luLit tSInd) (IS.toList $ taginds IS.\\ yes)
-         mht <- orl s ("must have: " ++ mkVarName trgLits) trgLits
-         mho <- orl s ("must have: " ++ mkVarName otherLits) otherLits
-         condLits <- mapM (mkCond s luTag luLit taginds) conds_pos
-         ach <- orl s ("must hold: " ++ unwords (map show condLits)) condLits
-         return (mht, mho, ach)
-       let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
-       b <- solve s shouldTriggerLast
+         (mustHaveTrg, mustHaveOther, allCondsHold) <- do
+           let trgWInds@((yes,no):_) = map luTag trg_difs --TODO
+           let trgLits = map (luLit tSInd) (IS.toList yes)
+           let otherLits = map (luLit tSInd) (IS.toList $ taginds IS.\\ yes)
+           mht <- orl s ("must have: " ++ mkVarName trgLits) trgLits
+           mho <- orl s ("must have: " ++ mkVarName otherLits) otherLits
+           condLits <- mapM (mkCond s sentence luTag taginds) conds_pos
+--         condLits <- mapM (mkCond s luTag luLit taginds) conds_pos
+           ach <- orl s ("must hold: " ++ unwords (map show condLits)) condLits
+           return (mht, mho, ach)
+         let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
+         b <- solve s shouldTriggerLast
 -- apply after checking if conditions can hold
-       newsent <- apply s taglookup taginds sentence rule
-       if b then return newsent
+         newsent <- apply s taglookup taginds sentence rule
+         if b then return newsent
           else do putStrLn $ "conflict with rule " ++ show rule
                   return newsent
    
@@ -140,7 +146,8 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
                            else show trgLits
     mht <- orl s ("must have: " ++ trgLitsName) trgLits
     mho <- orl s ("must have: " ++ otherLitsName) otherLits
-    condLits <- mapM (mkCond s luTag (lookupLit afterRules) taginds) conds_positions
+    condLits <- mapM (mkCond s afterRules luTag taginds) conds_positions
+--    condLits <- mapM (mkCond s luTag (lookupLit afterRules) taginds) conds_positions
            --disjunction of conjunctions of conditions (for template conditions)
     ach <- orl s ("must hold: " ++ unwords (map show condLits)) condLits
     return (mht, mho, ach)
@@ -288,9 +295,9 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   applyAndPrint s tl ti sent rule = do
     let (w,_) = width rule
     if w > length (IM.elems sent) then do
-      when debug $ do
-        putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
-        putStrLn "-----"
+     -- when debug $ do
+      putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
+      putStrLn "-----"
       return sent
      else do
       newsent <- apply s tl ti sent rule
@@ -350,6 +357,7 @@ apply s alltags taginds sentence rule = do
                                 , all (inRange i) cs ]
        if null conds_positions
         then do 
+          --putStrLn $ "apply.applyToWord: out of scope: " ++ show rule
           return sentence --out of scope, nothing changed in the sentence
         else do
           --print "mapM mkCondition conds_positions..."
@@ -389,7 +397,8 @@ apply s alltags taginds sentence rule = do
    luTag   = lookupTag alltags taginds 
    luLit   = lookupLit sentence 
    lu xs x = fromMaybe false $ IM.lookup x xs
-   mkCondition = mkCond s luTag luLit taginds
+--   mkCondition = mkCond s luTag luLit taginds
+   mkCondition = mkCond s sentence luTag taginds
 
    inRange :: SIndex -> Condition -> Bool
    inRange i Always = True
@@ -405,14 +414,14 @@ apply s alltags taginds sentence rule = do
 --------------------------------------------------------------------------------
    
 mkCond :: Solver                                -- ^ solver to use
-     --  -> Sentence                              -- ^ sentence to lookup from
+       -> Sentence                              -- ^ sentence to lookup from
        -> ((Trg,Dif) -> (WIndSet,WIndSet))      -- ^ lookupTag function
-       -> (SIndex -> WIndex -> Lit)             -- ^ lookupLit function
+  --     -> (SIndex -> WIndex -> Lit)             -- ^ lookupLit function
        -> WIndSet                               -- ^ IntSet of all tag indices
        -> ([Condition],                         -- ^ list of conditions (conjunction)
            [WIndex])                            -- ^ corresponding indices for each
        -> IO Lit                                -- ^ conjunction of all conditions in one literal 
-mkCond s {-sent-} luTag luLit ti (conds,inds) = andl' s =<< sequence 
+mkCond s sent luTag ti (conds,inds) = andl' s =<< sequence 
   [ do case position of
              (Barrier  foo bar btags) 
                -> do let byes_bnos = map luTag (toTags btags)
@@ -432,32 +441,36 @@ mkCond s {-sent-} luTag luLit ti (conds,inds) = andl' s =<< sequence
                                   n <- andl s "" (map neg difLits)
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_difInds
-                                , let yesLits = map (luLit ind) (IS.toList yi)
-                                , let difLits  = map (luLit ind) (IS.toList di) ]
+                                , let yesLits = lookup' (IS.toList yi)
+                                , let difLits = lookup' (IS.toList di) ]
+                                -- , let yesLits = map (luLit ind) (IS.toList yi)
+                                -- , let difLits  = map (luLit ind) (IS.toList di) ]
            (True, True)   -> [ do y <- orl  s "" yesLits
                                   n <- andl s "" (map neg other)
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_difInds
                                 , let only_di = IS.toList (ti IS.\\ yi)
-                                , let yesLits = map (luLit ind) (IS.toList yi)
-                                , let other = map (luLit ind) only_di ]
+                                , let yesLits = lookup' (IS.toList yi)
+                                , let other = lookup' only_di ]
+                                -- , let yesLits = map (luLit ind) (IS.toList yi)
+                                -- , let other = map (luLit ind) only_di ]
            (False, False) -> [ do n <- andl s "" (map neg noLits)
                                   y <- orl s "" other --some lit must be positive
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_difInds
                                 , let only_di = IS.toList (ti IS.\\ yi) 
-                                , let noLits = map (luLit ind) (IS.toList yi)
-                                , let other = map (luLit ind) only_di ]
+                                , let noLits = lookup' (IS.toList yi)
+                                , let other = lookup' only_di ]
            (False, True)  -> [ orl s "" other
                                 | (yi, di) <- yesInds_difInds
                                 , let only_di = IS.toList (ti IS.\\ yi)
-                                , let other = map (luLit ind) only_di ] )
+                                , let other = lookup' only_di ] )
         | (c@(C position (positive,ctags)), ind) <- zip conds inds
          --If index is out of bounds, we are sent here by negated rule:
          --if there is no -100, then `NOT -100 foo' is true.
-        -- , let lookup' x = case IM.lookup sent ind of
-        --                    Just ts -> IM.lookup x ts
-        --                    Nothing -> const true
+        , let lookup' xs = case IM.lookup ind sent of
+                            Just ts -> catMaybes $ map (flip IM.lookup $ ts) xs
+                            Nothing -> [true]
         , let yesInds_difInds = map luTag (toTags ctags)
         , let cautious = isCareful position ]
 
