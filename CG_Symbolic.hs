@@ -28,7 +28,7 @@ type SIndSet  = IS.IntSet
 
 solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
 solveAndPrintSentence verbose s ass sent = do
-  let lits = concatMap IM.elems (IM.elems sent)
+  --let lits = concatMap IM.elems (IM.elems sent)
   b <- solve s ass
   if b then do
           when verbose $ print ass
@@ -57,19 +57,20 @@ printSentence sent = do
 testRules :: (Bool,Bool) -> [Tag] -> [[Tag]] -> [Rule] -> IO ()
 testRules (verbose,debug) ts tcs rules = do 
   s <- newSolver
-  initialSent <- mkSentence s 6 tcs
+  initialSent <- mkSentence s 10 tcs
   let taginds = IS.fromList [1..length tcs]
   let taglookup = mkTagMap ts tcs
   let luTag = lookupTag taglookup taginds
 
   let checkAndApply sentence rule = do
        let (w,tSInd) = width rule
-       if w > length (IM.elems sentence)
+       if w > IM.size sentence
         then do putStrLn $ "Rule " ++ show rule ++ " too wide, cannot apply to symbolic sentence"
                 return sentence
         
         else do
-         let luLit     = lookupLit sentence
+         let (sent,rest) = IM.partitionWithKey (\k _ -> k <= w) sentence :: (Sentence, Sentence)
+         let luLit     = lookupLit sent
          let trg_difs  = toTags $ target rule
          let conds     = toConds $ cond rule
          let conds_pos = [ (cs, map (tSInd+) ps) 
@@ -80,14 +81,13 @@ testRules (verbose,debug) ts tcs rules = do
            let otherLits = map (luLit tSInd) (IS.toList $ taginds IS.\\ yes)
            mht <- orl s ("must have: " ++ mkVarName trgLits) trgLits
            mho <- orl s ("must have: " ++ mkVarName otherLits) otherLits
-           condLits <- mapM (mkCond s sentence luTag taginds) conds_pos
---         condLits <- mapM (mkCond s luTag luLit taginds) conds_pos
+           condLits <- mapM (mkCond s sent luTag taginds) conds_pos
            ach <- orl s ("must hold: " ++ unwords (map show condLits)) condLits
            return (mht, mho, ach)
          let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
          b <- solve s shouldTriggerLast
 -- apply after checking if conditions can hold
-         newsent <- apply s taglookup taginds sentence rule
+         newsent <- IM.union rest `fmap` apply s taglookup taginds sent rule
          if b then return newsent
           else do putStrLn $ "conflict with rule " ++ show rule
                   return newsent
@@ -104,7 +104,7 @@ testRules (verbose,debug) ts tcs rules = do
 
 testRule :: (Bool,Bool) -> [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
 testRule (verbose,debug) ts tcs (lastrule,rules) = do 
-  putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
+  --putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
   when verbose $ do
     putStrLn "************* testRule ***************"
     --putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
@@ -295,9 +295,9 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
   applyAndPrint s tl ti sent rule = do
     let (w,_) = width rule
     if w > length (IM.elems sent) then do
-     -- when debug $ do
-      putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
-      putStrLn "-----"
+      when debug $ do
+        putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
+        putStrLn "-----"
       return sent
      else do
       newsent <- apply s tl ti sent rule
@@ -441,16 +441,16 @@ mkCond s sent luTag ti (conds,inds) = andl' s =<< sequence
                                   n <- andl s "" (map neg difLits)
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_difInds
-                                , let yesLits = lookup' (IS.toList yi)
-                                , let difLits = lookup' (IS.toList di) ]
+                                , let yesLits = lookup' yi
+                                , let difLits = lookup' di ]
                                 -- , let yesLits = map (luLit ind) (IS.toList yi)
                                 -- , let difLits  = map (luLit ind) (IS.toList di) ]
            (True, True)   -> [ do y <- orl  s "" yesLits
                                   n <- andl s "" (map neg other)
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_difInds
-                                , let only_di = IS.toList (ti IS.\\ yi)
-                                , let yesLits = lookup' (IS.toList yi)
+                                , let only_di = ti IS.\\ yi
+                                , let yesLits = lookup' yi
                                 , let other = lookup' only_di ]
                                 -- , let yesLits = map (luLit ind) (IS.toList yi)
                                 -- , let other = map (luLit ind) only_di ]
@@ -458,18 +458,18 @@ mkCond s sent luTag ti (conds,inds) = andl' s =<< sequence
                                   y <- orl s "" other --some lit must be positive
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_difInds
-                                , let only_di = IS.toList (ti IS.\\ yi) 
-                                , let noLits = lookup' (IS.toList yi)
+                                , let only_di = ti IS.\\ yi
+                                , let noLits = lookup' yi
                                 , let other = lookup' only_di ]
            (False, True)  -> [ orl s "" other
                                 | (yi, di) <- yesInds_difInds
-                                , let only_di = IS.toList (ti IS.\\ yi)
+                                , let only_di = ti IS.\\ yi
                                 , let other = lookup' only_di ] )
         | (c@(C position (positive,ctags)), ind) <- zip conds inds
          --If index is out of bounds, we are sent here by negated rule:
          --if there is no -100, then `NOT -100 foo' is true.
         , let lookup' xs = case IM.lookup ind sent of
-                            Just ts -> catMaybes $ map (flip IM.lookup $ ts) xs
+                            Just ts -> catMaybes $ map (flip IM.lookup $ ts) (IS.toList xs)
                             Nothing -> [true]
         , let yesInds_difInds = map luTag (toTags ctags)
         , let cautious = isCareful position ]
