@@ -28,7 +28,6 @@ type SIndSet  = IS.IntSet
 
 solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
 solveAndPrintSentence verbose s ass sent = do
-  --let lits = concatMap IM.elems (IM.elems sent)
   b <- solve s ass
   if b then do
           when verbose $ print ass
@@ -63,7 +62,7 @@ testRules (verbose,debug) ts tcs rules = do
   let luTag = lookupTag taglookup taginds
 
   let checkAndApply sentence rule = do
-       let (w,tSInd) = width rule
+       let (w,tSInd) = width (toConds $ cond rule)
        if w > IM.size sentence
         then do putStrLn $ "Rule " ++ show rule ++ " too wide, cannot apply to symbolic sentence"
                 return sentence
@@ -109,11 +108,13 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
     putStrLn "************* testRule ***************"
     --putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
     putStrLn "the rest of the rules: " >> mapM_ print rules
-  let (w,trgSInd) = width lastrule
+  
   let taginds = IS.fromList [1..length tcs]
   let trg_difs = toTags $ target lastrule
-  let conds = toConds $ cond lastrule
-  let conds_positions = [ (cs, map (trgSInd+) ps) | (cs, ps) <- conds `zip` (map.map) getPos conds ]
+  let lastruleConds = toConds $ cond lastrule
+  let (w,trgSInd) = width lastruleConds
+  let conds_positions = [ (cs, map (trgSInd+) ps) | (cs, ps) <- lastruleConds `zip`
+                                                                (map.map) getPos lastruleConds ]
 
   s <- newSolver
   initialSentence <- mkSentence s w tcs
@@ -293,7 +294,7 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
 
   applyAndPrint :: Solver -> TagMap -> WIndSet -> Sentence -> Rule -> IO Sentence
   applyAndPrint s tl ti sent rule = do
-    let (w,_) = width rule
+    let (w,_) = width (toConds $ cond rule)
     if w > length (IM.elems sent) then do
       when debug $ do
         putStrLn $ "Rule " ++ show rule ++ " out of scope, no effect"
@@ -313,12 +314,12 @@ findSameTarget :: [Rule] -> Int -> TagSet -> Maybe SIndex -> [Rule]
 findSameTarget rules w trg trgSInd =
  case trgSInd of
    Just ind -> [ rule | (rule, tss) <- zip rules otherTrgs
-                      , let (w',sInd) = width rule
+                      , let (w',sInd) = width (toConds $ cond rule)
                     --  , sInd == ind
                       , w>=w'
                       , any (\ts -> ts `elem` tss) lastTrg ]
    Nothing  -> [ rule | (rule, tss) <- zip rules otherTrgs
-                      , let (w',_) = width rule
+                      , let (w',_) = width (toConds $ cond rule)
                       , w>=w'
                       , any (\ts -> ts `elem` tss) lastTrg ]
  where 
@@ -416,7 +417,6 @@ apply s alltags taginds sentence rule = do
 mkCond :: Solver                                -- ^ solver to use
        -> Sentence                              -- ^ sentence to lookup from
        -> ((Trg,Dif) -> (WIndSet,WIndSet))      -- ^ lookupTag function
-  --     -> (SIndex -> WIndex -> Lit)             -- ^ lookupLit function
        -> WIndSet                               -- ^ IntSet of all tag indices
        -> ([Condition],                         -- ^ list of conditions (conjunction)
            [WIndex])                            -- ^ corresponding indices for each
@@ -564,13 +564,10 @@ deleteInOne delCPs (cs,ps) = unzip [ (c, p) | (c, p) <- zip cs ps
 
 --------------------------------------------------------------------------------
 
-width :: Rule -> (Int,SIndex) --width of rule + index of target
-width = fill . toConds . cond
-
-fill :: [[Condition]] -> (Int,SIndex)
-fill []   = (1,1)
-fill [[]] = (1,1)
-fill cs   = (length [minInd..maxInd], 
+width :: [[Condition]] -> (Int,SIndex)
+width []   = (1,1)
+width [[]] = (1,1)
+width cs   = (length [minInd..maxInd], 
              1+(fromJust $ elemIndex 0 [minInd..maxInd]))
  where
   minInd = 0 `min` minimum poss
