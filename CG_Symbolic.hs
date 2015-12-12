@@ -101,8 +101,10 @@ testRules (verbose,debug) ts tcs rules = do
 
 --------------------------------------------------------------------------------
 
-testRule :: (Bool,Bool) -> [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
-testRule (verbose,debug) ts tcs (lastrule,rules) = do 
+--testRule :: (Bool,Bool) -> [Tag] -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
+--testRule (verbose,debug) ts tcs (lastrule,rules) = do 
+testRule :: (Bool,Bool) -> TagMap -> [[Tag]] -> (Rule, [Rule]) -> IO Bool
+testRule (verbose,debug) taglookup tcs (lastrule,rules) = do 
   --putStrLn $ "Testing with " ++ show lastrule ++ " as the last rule"
   when verbose $ do
     putStrLn "************* testRule ***************"
@@ -118,7 +120,6 @@ testRule (verbose,debug) ts tcs (lastrule,rules) = do
 
   s <- newSolver
   initialSentence <- mkSentence s w tcs
-  let taglookup = mkTagMap ts tcs
   let luTag = lookupTag taglookup taginds
 
   when debug $ do
@@ -397,7 +398,7 @@ apply s alltags taginds sentence rule = do
   where
    luTag   = lookupTag alltags taginds 
    luLit   = lookupLit sentence 
-   lu xs x = fromMaybe false $ IM.lookup x xs
+   lu xs x = IM.findWithDefault false x xs
 --   mkCondition = mkCond s luTag luLit taginds
    mkCondition = mkCond s sentence luTag taginds
 
