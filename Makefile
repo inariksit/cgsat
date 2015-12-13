@@ -14,8 +14,13 @@ grammars:
 	ghc --make Apertium/Test.hs -o Apertium/Test
 
 rest:
-	cabal configure --enable-tests --user 
+	cabal configure --user 
 	cabal build
+
+prof:
+	cabal configure --enable-library-profiling --enable-executable-profiling --user
+	cabal build
+	cabal run profiling fin
 
 test-pride:
 	$(testprog) data/eng_cg2.rlx data/pride.txt 2>/dev/null 
