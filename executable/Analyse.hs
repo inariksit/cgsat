@@ -45,12 +45,13 @@ main = do
   args <- getArgs
   let ts = map (Tag . (:[])) "abcd"
   let tc = sequence [ts] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
+  let tagmap = mkTagMap ts tc
   case args of 
     [] -> do let tricky1 = last $ splits ex_tricky1
              let tricky2 = last $ splits ex_tricky2
-             mapM_ (testRule (True,True) ts tc) [tricky1, tricky2]
+             mapM_ (testRule (True,True) tagmap tc) [tricky1, tricky2]
     ("kimmo":_)
-       -> do mapM_ (testRule (True,True) ts tc) (splits (reverse kimmo))
+       -> do mapM_ (testRule (True,True) tagmap tc) (splits (reverse kimmo))
 
 {- TODO update for IntSets
     ("play":gr:tagcombs:r)
@@ -97,12 +98,10 @@ main = do
              let tc = tcInGr -- ++ tcInLex
              let ts = concat tc
              print (length tc)
+             let tagmap = mkTagMap ts tc
              -- print ("tag combinations from the grammar:", length (nub tsets))
              -- print ("tag combinations from the lexicon:", length tsets)
-             --testRules (verbose,debug) ts tc rules
-             --mapM_ print ( (splits rules))
-             --mapM_ (testRule (verbose,debug) ts tc) (splits rules)
-             testRule (verbose,debug) ts tc (last $ splits rules)
+             mapM_ (testRule (verbose,debug) tagmap tc) (splits rules)
              putStrLn "end"
 
     ("nld":r)
@@ -116,9 +115,10 @@ main = do
              tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
              let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
              let ts = nub $ tsInApe ++ concat tc
+             let tagmap = mkTagMap ts tc
              --testRules (verbose,debug) ts tc (reverse rules)
              --testRule (verbose,debug) ts tc (last $ splits rules)
-             mapM_ (testRule (verbose,debug) ts tc) (splits rules)
+             mapM_ (testRule (verbose,debug) tagmap tc) (splits rules)
 
 
     ("spa":r)
@@ -139,9 +139,10 @@ main = do
              tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
              let tc = nub $ (concat tcInGr) ++ tcInLex 
              let ts = nub $ tsInApe ++ concat tc 
---             testRules (verbose,debug) ts tc rules            
+             let tagmap = mkTagMap ts tc
+             --testRules (verbose,debug) ts tc rules            
              --testRule (verbose,debug) ts tc (last (splits rules))
-             mapM_ (testRule (verbose,debug) ts tc) (splits rules)   
+             mapM_ (testRule (verbose,debug) tagmap tc) (splits rules)   
              print "foo"
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
