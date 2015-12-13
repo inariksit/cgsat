@@ -366,8 +366,8 @@ apply s alltags taginds sentence rule = do
           disjConds <- mapM mkCondition conds_positions --for disj. cond. templates
           --print "mapM mkCondition conds_positions done"
           condsHold <- orl' s disjConds
-          let trgPos = map (lu sw) trgIndsList
-          let otherNeg = map (neg . lu sw) (IS.toList otherInds)
+          let trgPos = mapMaybe (lu sw) trgIndsList
+          let otherNeg = map (neg . lu' sw) (IS.toList otherInds)
           someTrgIsTrue <- orl' s trgPos
           noOtherIsTrue <- andl' s otherNeg
           let someTrgName = if length trgPos < 5 then show trgPos else show (take 3 trgPos) ++ "..."
@@ -381,14 +381,12 @@ apply s alltags taginds sentence rule = do
            [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
                                , cannotApply ] --rule cannot apply 
                | trgInd <- trgIndsList
-               , let Just oldTrgLit = IM.lookup trgInd sw 
+               , let Just oldTrgLit = IM.lookup trgInd sw
                , let newTrgName = show oldTrgLit ++ "'" ]
           --putStrLn $ "*** reasons why we couldn't apply: " ++ show cannotApply
           --sequence_ [ putStr "#" | _ <- disjConds ++ trgPos ++ otherNeg ++ [condsHold, onlyTrg, noOther, onlyTrgLeft, cannotApply] ++ newTrgLits ] --size
 
-          --b <- solve s []
           let newsw = foldl changeAna sw (zip trgIndsList newTrgLits)
-          --constrainBoundaries s alltags newsw
           return $ changeWord sentence i newsw
           
 
@@ -398,8 +396,8 @@ apply s alltags taginds sentence rule = do
   where
    luTag   = lookupTag alltags taginds 
    luLit   = lookupLit sentence 
-   lu xs x = IM.findWithDefault false x xs
---   mkCondition = mkCond s luTag luLit taginds
+   lu' xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
+   lu xs x = IM.lookup x xs
    mkCondition = mkCond s sentence luTag taginds
 
    inRange :: SIndex -> Condition -> Bool
@@ -422,7 +420,7 @@ mkCond :: Solver                                -- ^ solver to use
        -> ([Condition],                         -- ^ list of conditions (conjunction)
            [WIndex])                            -- ^ corresponding indices for each
        -> IO Lit                                -- ^ conjunction of all conditions in one literal 
-mkCond s sent luTag ti (conds,inds) = andl' s =<< sequence 
+mkCond s sent luTag ti (conds,inds) = andl' s =<< sequence
   [ do case position of
              (Barrier  foo bar btags) 
                -> do let byes_bnos = map luTag (toTags btags)
@@ -470,7 +468,7 @@ mkCond s sent luTag ti (conds,inds) = andl' s =<< sequence
          --If index is out of bounds, we are sent here by negated rule:
          --if there is no -100, then `NOT -100 foo' is true.
         , let lookup' xs = case IM.lookup ind sent of
-                            Just ts -> catMaybes $ map (flip IM.lookup $ ts) (IS.toList xs)
+                            Just ts -> mapMaybe (flip IM.lookup $ ts) (IS.toList xs)
                             Nothing -> [true]
         , let yesInds_difInds = map luTag (toTags ctags)
         , let cautious = isCareful position ]
@@ -479,8 +477,8 @@ mkCond s sent luTag ti (conds,inds) = andl' s =<< sequence
 
 constrainBoundaries :: Solver -> WIndSet -> WIndSet -> Word -> IO ()
 constrainBoundaries s bdinds nonbdinds word = do
-  let bds    = catMaybes $ map (\x -> IM.lookup x word) (IS.toList bdinds)
-  let nonbds = catMaybes $ map (\x -> IM.lookup x word) (IS.toList nonbdinds)
+  let bds    = mapMaybe (\x -> IM.lookup x word) (IS.toList bdinds)
+  let nonbds = mapMaybe (\x -> IM.lookup x word) (IS.toList nonbdinds)
   isBd  <- orl' s bds
   notNormal <- andl s "not normal word" (map neg nonbds)
   onlyBd <- andl s "boundary and nothing else" [isBd, notNormal]
