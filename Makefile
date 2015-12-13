@@ -15,10 +15,12 @@ grammars:
 
 rest:
 	cabal configure --user 
+	cp executable/Analyse.hs AnalyseProf.hs
 	cabal build
 
 prof:
 	cabal configure --enable-library-profiling --enable-executable-profiling --user
+	cp executable/Analyse.hs AnalyseProf.hs
 	cabal build
 	cabal run profiling fin
 
