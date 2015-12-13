@@ -61,8 +61,8 @@ ruleToRules' tagmap allinds rule =
            | conditions <- toConds (cond rule) ]
           
 --------------------------------------------------------------------------------
-testRule :: [[Tag]] -> (Rule', [Rule']) -> IO Bool
-testRule readings (lastrule,rules) = do
+testRule :: Bool -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
+testRule verbose readings (lastrule,rules) = do
   let tagInds = IS.fromList [1..length readings]
   let (w,trgSInd) = width $ cnd lastrule
   s <- newSolver
@@ -80,10 +80,20 @@ testRule readings (lastrule,rules) = do
     Just condLits <- mkConds s afterRules trgSInd (cnd lastrule) --we know that all conds are in range: sentence is generated wide enough to ensure that
     ach <- orl' s condLits --conditions must hold
     return (mht, mho, ach)
+  let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
 
-  b <- solve s [mustHaveTrg, mustHaveOther, allCondsHold]
-  print [mustHaveTrg, mustHaveOther, allCondsHold]
-  putStrLn (IM.showTree afterRules)
+  b <- solve s shouldTriggerLast
+  if b 
+   then do 
+      when verbose $ do
+           putStrLn $ "Following triggers last rule: " ++ show lastrule
+           solveAndPrintSentence False s shouldTriggerLast afterRules
+   else do
+      putStrLn "Conflict!"
+      putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
+      when verbose $ do
+           putStrLn $ "with the previous rules:"
+           mapM_ print rules
   return b
   
 --------------------------------------------------------------------------------
@@ -91,27 +101,52 @@ testRule readings (lastrule,rules) = do
 
 apply :: Solver -> Sentence -> Rule' -> IO Sentence
 apply s sentence rule = do
- 
-  let (trgIndsRaw,_) = trg rule --IntSet,IntSet
-  let alltags = IS.fromList [1..500] --TODO
-  let otherIndsRaw   = alltags IS.\\ trgIndsRaw
+
+  let allInds = getInds sentence
+  let (trgIndsRaw,_) = trg rule --IntSet
+  let otherIndsRaw   = allInds IS.\\ trgIndsRaw
   let (trgInds,otherInds) = if isSelect' rule
                               then (otherIndsRaw,trgIndsRaw)
                               else (trgIndsRaw,otherIndsRaw)
 
+  --         :: Sentence -> (SIndex,Word) -> Sentence
+  let applyToWord sentence (i,word) = do   
+       disjConds <- mkConds s sentence i (cnd rule)
+       case disjConds of
+         Nothing -> return sentence --conditions out of scope, no changes in sentence
+         Just cs -> do
+           let trgIndsList = (IS.toList trgInds)
+           condsHold <- orl' s cs
+           let trgPos   = mapMaybe (lu' word) trgIndsList
+           let otherNeg = map (neg . lu word) (IS.toList otherInds)
+           someTrgIsTrue <- orl' s trgPos
+           noOtherIsTrue <- andl' s otherNeg
+           onlyTrgLeft <- andl' s [someTrgIsTrue, noOtherIsTrue]
+           cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
+
+           newTrgLits <- sequence
+             --wN<a>' is true if both of the following:
+             [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
+                                 , cannotApply ] --rule cannot apply 
+               | oldTrgLit <- trgPos
+               , let newTrgName = show oldTrgLit ++ "'" ]
+        
+           let newsw = foldl changeAna word (zip trgIndsList newTrgLits)
+           return $ changeWord sentence i newsw
 
   foldM applyToWord sentence (IM.assocs sentence)
 
  where
-  applyToWord sentence (i,sw) = do   
-    disjConds <- mkConds s sentence i (cnd rule)
-    case disjConds of
-      Nothing -> do --putStrLn (show rule ++ show i ++ " out of scope")
-                    return sentence --conditions out of scope, no changes in sentence
-      Just cs -> do
-       condsHold <- orl' s cs
-       return sentence
 
+  changeAna :: Word -> (WIndex,Lit) -> Word
+  changeAna word (i,newana) = IM.adjust (const newana) i word
+
+  changeWord :: Sentence -> SIndex -> Word -> Sentence
+  changeWord sent i newsw = IM.adjust (const newsw) i sent
+
+  getInds = IM.keysSet . head . IM.elems
+  lu' xs x = IM.lookup x xs
+  lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
 --------------------------------------------------------------------------------
 
 mkConds :: Solver -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
@@ -283,3 +318,22 @@ parse str = map toTag $ filter (not.null) $ split isValid str
 split :: (a -> Bool) -> [a] -> [[a]]
 split p [] = []
 split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
+
+--------------------------------------------------------------------------------
+
+solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
+solveAndPrintSentence verbose s ass sent = do
+  b <- solve s ass
+  if b then do
+          when verbose $ print ass
+          vals <- sequence 
+                   [ sequence [ modelValue s lit | lit <- IM.elems word ] 
+                      | (sind,word) <- IM.assocs sent ]
+          let trueAnas =
+               [ "\"w" ++ show sind ++ "\"\n"
+                  ++ unlines [ "\t"++show ana | (ana, True) <- zip (IM.elems word) vs ]
+                 | ((sind,word), vs) <- zip (IM.assocs sent) vals ]
+          mapM_ putStrLn trueAnas
+          putStrLn "----"
+      else do
+        putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
