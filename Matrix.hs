@@ -29,8 +29,9 @@ main = do
                 tcs <- (map parseTC . words) `fmap` readFile t
                 let ts = concat tcs
                 let readings = map (toReadingMap tcs) ws 
-                mapM_ print (take 50 readings)
-                mapM_ print $ M.toList $ toGraph ( readings)
+                --mapM_ print (take 50 readings)
+                --mapM_ print $ M.toList $ toGraph ( readings)
+                mapM_ print $ toGraph readings
 
 --------------------------------------------------------------------------------
 
@@ -52,8 +53,14 @@ toGraph readings = readingMap
   group' acc (a,b) = case M.lookup a acc of
                        Just c  -> M.adjust (b:) a acc 
                        Nothing -> M.insert a [b] acc
-  readingMap = invertMap $ foldl group' M.empty readings 
+  --readingMap = invertMap $ foldl group' M.empty readings 
+  readingMap = onlyValues 99999 $ foldl group' M.empty readings 
 
+
+onlyValues :: (Ord k, Ord v) => v -> M.Map k [v] -> [[v]]
+onlyValues bad m = nub $ [vs' | (k, vs) <- M.toList m
+                              , let vs' = filter (/=bad) vs
+                              , not (null vs') ]
 
 invertMap :: (Ord k, Ord v) => M.Map k [v] -> M.Map [v] [k]
 invertMap m = M.fromListWith (++) pairs
@@ -76,4 +83,4 @@ toReadingMap tcs str = (weet, key)
   tags = map Tag $ tail $ map (delete '>') $ split (=='<') vblex_imp_sg
   key = case elemIndex tags tcs of
           Just k' -> k'
-          Nothing -> 0
+          Nothing -> 99999
