@@ -83,6 +83,8 @@ main = do
              let tagmap = mkTagMap ts tc
              let allinds = IS.fromList [1..length tc]
              let rules = concatMap (ruleToRules' tagmap allinds) $ concat (map reverse rls)
+             print (length rules)
+             --mapM_ print rules
              mapM_ (testRule verbose tc) (splits rules)
              
     _ -> print "usage: cabal analyse [kimmo,nld,spa] [v,d]"

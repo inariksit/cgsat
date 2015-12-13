@@ -53,11 +53,20 @@ instance Show Rule' where
 --For disjoint conditions, mkCond does already the right thing (or that was the intention).
 ruleToRules' :: TagMap -> IS.IntSet -> Rule -> [Rule']
 ruleToRules' tagmap allinds rule = 
- [ R ti_di conds isSel nm  | trg_dif <- toTags $ target rule
-                           , let ti_di = luTag trg_dif 
-                           , let nm = show rule] 
+ --If there are disjoint difs, then easier to split the rule in n rules.
+ --Otherwise just merge the trgs.
+ if all (==[[]]) difs then [ R (luTag (concat trgs, [[]]))
+                               conds 
+                               isSel 
+                               nm    ]
+  else
+   [ R ti_di conds isSel nm | trg_dif <- trgs_difs
+                            , let ti_di = luTag trg_dif ] 
 
  where
+  nm = show rule
+  trgs_difs = toTags $ target rule
+  (trgs,difs) = unzip trgs_difs
   luTag = lookupTag tagmap allinds
   isSel = isSelect rule
   conds = [  [ C' index (positive, yesInds_noInds)
