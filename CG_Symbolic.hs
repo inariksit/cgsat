@@ -41,7 +41,11 @@ data Rule' = R { trg :: TrgInds --Rule allows disjunction in targets, but Rule' 
                                 --We translate one such Rule into [Rule'].
                , cnd :: [[Condition']]
                , isSelect' :: Bool
-               } deriving (Show,Eq)
+               , show' :: String
+               } deriving (Eq)
+
+instance Show Rule' where
+  show = show'
 
 --We call this once for every rule, lookupTag does some expensive intersections and stuff
 --Also many rules share targets and conditions--can we save the results?
@@ -49,8 +53,9 @@ data Rule' = R { trg :: TrgInds --Rule allows disjunction in targets, but Rule' 
 --For disjoint conditions, mkCond does already the right thing (or that was the intention).
 ruleToRules' :: TagMap -> IS.IntSet -> Rule -> [Rule']
 ruleToRules' tagmap allinds rule = 
- [ R ti_di conds isSel | trg_dif <- toTags $ target rule
-                       , let ti_di = luTag trg_dif ] 
+ [ R ti_di conds isSel nm  | trg_dif <- toTags $ target rule
+                           , let ti_di = luTag trg_dif 
+                           , let nm = show rule] 
 
  where
   luTag = lookupTag tagmap allinds
@@ -91,9 +96,9 @@ testRule verbose readings (lastrule,rules) = do
    else do
       putStrLn "Conflict!"
       putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
-      when verbose $ do
-           putStrLn $ "with the previous rules:"
-           mapM_ print rules
+      -- when verbose $ do
+      --      putStrLn $ "with the previous rules:"
+      --      mapM_ print rules
   return b
   
 --------------------------------------------------------------------------------
@@ -171,11 +176,11 @@ mkCond :: Solver -> Sentence -> [(Condition',SIndex)] -> IO Lit
 mkCond s sentence conjconds_absinds = andl' s =<< sequence
  [ do case position of
              (Barrier  foo bar btags) 
-               -> do putStrLn "found a barrier!"
+               -> do --putStrLn "found a barrier!"
                      addClause s [true] --TODO
                                          
              (CBarrier foo bar btags)
-               -> do putStrLn "found a cbarrier!"
+               -> do --putStrLn "found a cbarrier!"
                      addClause s [true] --TODO
              _ -> return ()
 

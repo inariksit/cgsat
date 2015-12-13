@@ -9,6 +9,7 @@ import SAT.Named
 import Control.Monad
 import Data.List
 import qualified Data.Map as M
+import qualified Data.IntSet as IS
 import System.Environment ( getArgs ) 
 
 ex_abc1 = concat $ snd $ parseRules False
@@ -43,107 +44,51 @@ kimmo = concat $ snd $ parseRules False
 
 main = do
   args <- getArgs
+
+  --Dummy examples all work with tags "abcd"
   let ts = map (Tag . (:[])) "abcd"
   let tc = sequence [ts] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
   let tagmap = mkTagMap ts tc
+  let allinds = IS.fromList [1..length tc]
+
   case args of 
-    [] -> do let tricky1 = last $ splits ex_tricky1
-             let tricky2 = last $ splits ex_tricky2
-             mapM_ (testRule (True,True) tagmap tc) [tricky1, tricky2]
+    [] -> putStrLn "I am a program that prints foo"
     ("kimmo":_)
-       -> do mapM_ (testRule (True,True) tagmap tc) (splits (reverse kimmo))
-
-{- TODO update for IntSets
-    ("play":gr:tagcombs:r)
-       -> do (tsets, rls) <- readRules' gr 
-             tcInLex <- (map parse . words) `fmap` readFile tagcombs
-             let allConds = concatMap (toConds . cond) (concat rls)
-             let unnamedTags = nub $ concatMap (map getTagset) allConds :: [TagSet]
-             let tcInGr = nub $ concatMap toTags' $ tsets ++ unnamedTags
-             let tc = nub $ tcInGr ++ tcInLex :: [[Tag]]
-             let ts = concat tc
-
-             s <- newSolver
-             putStrLn "Give sentence length"
-             slen <- readLn :: IO Int
-             initialSent <- mkSentence s slen tc
-             let tagmap = mkTagMap ts tc
-             let taginds = [1..length tc]
-             finalSent <- foldM (apply s tagmap taginds) initialSent (concat rls)
-             M.toAscList finalSent `forM_`  \(sInd,_) -> do
-               putStrLn $ "Do you want to decide the POS of w" ++ show sInd ++ "? y/n"
-               yn <- getLine
-               when ('y' `elem` yn) $ do
-                   putStrLn "Which POS?"
-                   newPos <- Tag `fmap` getLine
-                   case M.lookup newPos tagmap of
-                    Nothing -> putStrLn "Not a valid tag"
-                    Just wInds 
-                      -> do let tls = map (\wi -> lookupLit finalSent sInd wi) wInds
-                            addClause s tls --at least one of them is true
-
-             constrainBoundaries s tagmap `mapM_` M.elems finalSent
-             solveAndPrintSentence True s [] finalSent
--}
-             
-    ("fin":r)
-       -> do let verbose = "v" `elem` r || "d" `elem` r
-             let debug = "d" `elem` r
-             (tsets, rls) <- readRules' "data/fin.rlx"
-             --tcInLex <- (map parse . words) `fmap` readFile "data/fin-tagcombs.txt"
-             let rules = concat (map reverse rls)
-             let allConds = concatMap (toConds . cond) rules
-             let unnamedTags = nub $ concatMap (map getTagset) allConds
-             let tcInGr = nub $ concatMap toTags' $ tsets ++ unnamedTags
-             let tc = tcInGr -- ++ tcInLex
-             let ts = concat tc
-             print (length tc)
-             let tagmap = mkTagMap ts tc
-             -- print ("tag combinations from the grammar:", length (nub tsets))
-             -- print ("tag combinations from the lexicon:", length tsets)
-             mapM_ (testRule (verbose,debug) tagmap tc) (splits rules)
-             putStrLn "end"
-
+       -> do let kimmo' = concatMap (ruleToRules' tagmap allinds) kimmo
+             mapM_ (testRule True tc) (splits (reverse kimmo'))
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
-             let debug = "d" `elem` r
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile "data/nld/nld_tags.txt"
-             (tsets, rls) <- readRules' "data/nld/nld.rlx"
-             let rules = concat (map reverse rls)
+             (tsets, rls') <- readRules' "data/nld/nld.rlx"
+             let rls = map reverse rls'
              let tcInGr = nub $ concatMap toTags' tsets
              tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
              let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
              let ts = nub $ tsInApe ++ concat tc
              let tagmap = mkTagMap ts tc
-             --testRules (verbose,debug) ts tc (reverse rules)
-             --testRule (verbose,debug) ts tc (last $ splits rules)
-             mapM_ (testRule (verbose,debug) tagmap tc) (splits rules)
-
-
+             let allinds = IS.fromList [1..length tc]
+             let rules = concatMap (ruleToRules' tagmap allinds) (concat rls)
+             mapM_ (testRule verbose tc) (splits rules)
     ("spa":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
-             let strict_tags = "only-named" `elem` r || "strict-tags" `elem` r
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile "data/spa/spa_tags.txt"
              (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
-             let rules = concat (map reverse rls)
-             let allConds = concatMap (toConds . cond) rules
-             let unnamedTags = nub $ concatMap (map getTagset) allConds
-             -- mapM_ print allConds 
-             -- mapM_ print unnamedTags
-             let tcInGr = nub $ if strict_tags 
-                                 then map toTags' tsets
-                                 else map toTags' tsets ++ map toTags' unnamedTags
+             let tcInGr = nub $ map toTags' tsets
              tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
              let tc = nub $ (concat tcInGr) ++ tcInLex 
              let ts = nub $ tsInApe ++ concat tc 
              let tagmap = mkTagMap ts tc
-             --testRules (verbose,debug) ts tc rules            
-             --testRule (verbose,debug) ts tc (last (splits rules))
-             mapM_ (testRule (verbose,debug) tagmap tc) (splits rules)   
-             print "foo"
+             let allinds = IS.fromList [1..length tc]
+             let rules = concatMap (ruleToRules' tagmap allinds) $ concat (map reverse rls)
+             mapM_ (testRule verbose tc) (splits rules)
+             
+    _ -> print "usage: cabal analyse [kimmo,nld,spa] [v,d]"
+
+
+
   where 
    splits :: (Eq a) => [a] -> [(a,[a])]
    splits xs = xs `for` \x -> let Just ind = elemIndex x xs
