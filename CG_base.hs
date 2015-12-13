@@ -66,12 +66,16 @@ toTags :: TagSet -> [ (Trg,Dif) ]
 --    LIST DefArt = (det def) ;
 --    LIST Dem    = "az" "ez" "amaz" "emez" ;
 --    SET  FooBar = foo bar - baz ;
+--    SET  Complex = FooBar OR (hargle - bargle) ;
 --  translate into
---    defArt = ([[Tag "det", Tag "def"]], [[]])
---    dem    = ([[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]], [[]])
---    fooBar = ([[Tag "foo"],[Tag "bar"]], [[Tag "baz"]])
+--    defArt = ([[Tag "det", Tag "def"]], [[]]) : []
+--    dem    = ([[Lem "az"],[Lem "ez"],[Lem "amaz"],[Lem "emez"]], [[]]) : []
+--    fooBar = ([[Tag "foo"],[Tag "bar"]], [[Tag "baz"]]) : []
+--    complex = [ ([[Tag "foo"],[Tag "bar"]], [[Tag "baz"]])
+--              , ([[Tag "hargle"]], [[Tag "bargle"]] )
+--              ]  
 -- it's a list of pairs is because of disjoint Diffs. 
--- also a list can be a set in CG, so we just coerce list to set automatically
+-- A list can be a set in CG, so we just coerce list to set automatically
 toTags ts = case ts of
   Or   ts1 ts2 -> toTags ts1 ++ toTags ts2
   Diff ts1 ts2 -> [(toTags' ts, toTags' ts2)]
