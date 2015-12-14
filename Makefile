@@ -1,4 +1,3 @@
-
 testprog=dist/build/test-cgsat/test-cgsat
 
 default: grammars rest
@@ -22,7 +21,7 @@ prof:
 	cabal configure --enable-library-profiling --enable-executable-profiling --user
 	cp executable/Analyse.hs AnalyseProf.hs
 	cabal build
-	cabal run profiling fin
+	cabal run profiling spa
 
 test-pride:
 	$(testprog) data/eng_cg2.rlx data/pride.txt 2>/dev/null 

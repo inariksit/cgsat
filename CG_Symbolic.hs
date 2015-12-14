@@ -49,29 +49,20 @@ instance Show Rule' where
 
 --We call this once for every rule, lookupTag does some expensive intersections and stuff
 --Also many rules share targets and conditions--can we save the results?
---This translates one Rule into [Rule']: if there are disjoint targets, this is just way easier to do. REMOVE foo OR bar means actually remove anything if it is foo or bar. So disjunction=union.
---For disjoint conditions, mkCond does already the right thing (or that was the intention).
-ruleToRules' :: TagMap -> IS.IntSet -> Rule -> [Rule']
-ruleToRules' tagmap allinds rule = 
- --If there are disjoint difs, then easier to split the rule in n rules.
- --Otherwise just merge the trgs.
- if all (==[[]]) difs then [ R (luTag (concat trgs, [[]]))
-                               conds 
-                               isSel 
-                               nm    ]
-  else
-   [ R ti_di conds isSel nm | trg_dif <- trgs_difs
-                            , let ti_di = luTag trg_dif ] 
-
+ruleToRule' :: TagMap -> IS.IntSet -> Rule -> Rule'
+ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
  where
   nm = show rule
-  trgs_difs = toTags $ target rule
-  (trgs,difs) = unzip trgs_difs
-  luTag = lookupTag tagmap allinds
+  lu = lookupTag tagmap allinds
+  (trgs,_difs) = unzip $ toTags $ target rule
+  --Difs are not important as a target.
+  --TagSets include difs, because difs are important with *conditions*.
+  --So we can just ignore whatever difs toTags gives us and go with
+  trgInds = lu (concat trgs, [[]])
   isSel = isSelect rule
   conds = [  [ C' index (positive, yesInds_noInds)
               | C index (positive, ctags) <- conditions
-              , let yesInds_noInds = map luTag (toTags ctags) ]
+              , let yesInds_noInds = map lu (toTags ctags) ]
            | conditions <- toConds (cond rule) ]
           
 --------------------------------------------------------------------------------
@@ -81,7 +72,7 @@ testRule verbose readings (lastrule,rules) = do
   let (w,trgSInd) = width $ cnd lastrule
   s <- newSolver
   initialSentence <- mkSentence s w readings
-  afterRules <- foldM (apply s) initialSentence rules
+  afterRules <- foldM (apply s tagInds) initialSentence rules
 
   (mustHaveTrg, mustHaveOther, allCondsHold) <- do
     let Just trgSWord = IM.lookup trgSInd afterRules
@@ -91,7 +82,7 @@ testRule verbose readings (lastrule,rules) = do
     let otherLits = map (trgSWord IM.!) (IS.toList otherTags)
     mht <- orl' s trgLits --must have >0 targetLits
     mho <- orl' s otherLits --must have >0 otherLits
-    Just condLits <- mkConds s afterRules trgSInd (cnd lastrule) --we know that all conds are in range: sentence is generated wide enough to ensure that
+    Just condLits <- mkConds s tagInds afterRules trgSInd (cnd lastrule) --we know that all conds are in range: sentence is generated wide enough to ensure that
     ach <- orl' s condLits --conditions must hold
     return (mht, mho, ach)
   let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
@@ -105,27 +96,26 @@ testRule verbose readings (lastrule,rules) = do
    else do
       putStrLn "Conflict!"
       putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
-      -- when verbose $ do
-      --      putStrLn $ "with the previous rules:"
-      --      mapM_ print rules
+      when verbose $ do
+           putStrLn $ "with the previous rules:"
+           mapM_ print rules
   return b
   
 --------------------------------------------------------------------------------
 
 
-apply :: Solver -> Sentence -> Rule' -> IO Sentence
-apply s sentence rule = do
+apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
+apply s allinds sentence rule = do
 
-  let allInds = getInds sentence
   let (trgIndsRaw,_) = trg rule --IntSet
-  let otherIndsRaw   = allInds IS.\\ trgIndsRaw
+  let otherIndsRaw   = allinds IS.\\ trgIndsRaw
   let (trgInds,otherInds) = if isSelect' rule
                               then (otherIndsRaw,trgIndsRaw)
                               else (trgIndsRaw,otherIndsRaw)
 
   --         :: Sentence -> (SIndex,Word) -> Sentence
   let applyToWord sentence (i,word) = do   
-       disjConds <- mkConds s sentence i (cnd rule)
+       disjConds <- mkConds s allinds sentence i (cnd rule)
        case disjConds of
          Nothing -> return sentence --conditions out of scope, no changes in sentence
          Just cs -> do
@@ -158,19 +148,18 @@ apply s sentence rule = do
   changeWord :: Sentence -> SIndex -> Word -> Sentence
   changeWord sent i newsw = IM.adjust (const newsw) i sent
 
-  getInds = IM.keysSet . head . IM.elems
   lu' xs x = IM.lookup x xs
   lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
 --------------------------------------------------------------------------------
 
-mkConds :: Solver -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
-mkConds s sentence trgind disjconjconds = do
+mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
+mkConds s allinds sentence trgind disjconjconds = do
   let conds_absinds = [ [ (cond, absInd) | cond <- conjconds 
                                          , let absInd = absIndex trgind cond ]
                         | conjconds <- disjconjconds 
                         , all (inRange trgind) conjconds ]
   if null conds_absinds then return Nothing
-   else Just `fmap` mapM (mkCond s sentence) conds_absinds
+   else Just `fmap` mapM (mkCond s allinds sentence) conds_absinds
   
  where
   absIndex :: SIndex -> Condition' -> SIndex
@@ -181,8 +170,8 @@ mkConds s sentence trgind disjconjconds = do
                                   || IM.member (i+posToInt pos) sentence
 
 
-mkCond :: Solver -> Sentence -> [(Condition',SIndex)] -> IO Lit
-mkCond s sentence conjconds_absinds = andl' s =<< sequence
+mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',SIndex)] -> IO Lit
+mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
  [ do case position of
              (Barrier  foo bar btags) 
                -> do --putStrLn "found a barrier!"
@@ -206,27 +195,26 @@ mkCond s sentence conjconds_absinds = andl' s =<< sequence
                                   n <- andl s "" (map neg otherLits)
                                   andl s "" [y,n]
                                 | (yi, _) <- yesInds_noInds
-                                , let oi = ti IS.\\ yi
+                                , let oi = allinds IS.\\ yi
                                 , let yesLits = lookup' yi
                                 , let otherLits = lookup' oi ]
            (False, False) -> [ do n <- andl s "" (map neg noLits)
                                   y <- orl s "" otherLits --some lit must be positive
                                   andl s "" [y,n]
                                 | (yi, _) <- yesInds_noInds
-                                , let oi = ti IS.\\ yi
+                                , let oi = allinds IS.\\ yi
                                 , let noLits = lookup' yi
                                 , let otherLits = lookup' oi ]
            (False, True)  -> [ orl s "" otherLits
                                 | (yi, _) <- yesInds_noInds
-                                , let oi = ti IS.\\ yi
+                                , let oi = allinds IS.\\ yi
                                 , let otherLits = lookup' oi ] )
         | (c@(C' position (positive,yesInds_noInds)), absind) <- conjconds_absinds
         , let lookup' is = case IM.lookup absind sentence of
                             Just ts -> mapMaybe (flip IM.lookup $ ts) (IS.toList is)
                             Nothing -> if positive then error "mkCond: index out of bounds"
                                         else [true] --if no -100, then `NOT -100 foo' is true.
-        , let cautious = isCareful position
-        , let ti = IM.keysSet $ head $ IM.elems sentence]
+        , let cautious = isCareful position ]
 
 
 --------------------------------------------------------------------------------
@@ -287,10 +275,8 @@ width cs   = (length [minInd..maxInd],
  where
   minInd = 0 `min` minimum poss
   maxInd = 0 `max` maximum poss
-  poss = [ i | c <- concat cs 
-              , let i = case c of
-                         C' pos _ -> posToInt pos
-                         _       -> error $ "expected condition, got " ++ show cs]
+  poss = [ i | C' pos _ <- concat cs 
+             , let i = posToInt pos ]
 
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> Int
@@ -309,7 +295,6 @@ getPos :: Condition' -> SIndex
 getPos (C' (Barrier  _ i _) _) = i
 getPos (C' (CBarrier _ i _) _) = i
 getPos (C'  position        _) = posToInt position
-getPos _ = error "trying to apply to complex condition"
 
 for :: (Functor f) => f a -> (a -> b) -> f b
 for = flip fmap

@@ -54,21 +54,20 @@ main = do
   case args of 
     [] -> putStrLn "I am a program that prints foo"
     ("kimmo":_)
-       -> do let kimmo' = concatMap (ruleToRules' tagmap allinds) kimmo
+       -> do let kimmo' = map (ruleToRule' tagmap allinds) kimmo
              mapM_ (testRule True tc) (splits (reverse kimmo'))
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile "data/nld/nld_tags.txt"
-             (tsets, rls') <- readRules' "data/nld/nld.rlx"
-             let rls = map reverse rls'
+             (tsets, rls) <- readRules' "data/nld/nld.rlx"
              let tcInGr = nub $ concatMap toTags' tsets
              tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
              let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
              let ts = nub $ tsInApe ++ concat tc
              let tagmap = mkTagMap ts tc
              let allinds = IS.fromList [1..length tc]
-             let rules = concatMap (ruleToRules' tagmap allinds) (concat rls)
+             let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
              mapM_ (testRule verbose tc) (splits rules)
     ("spa":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -82,12 +81,30 @@ main = do
              let ts = nub $ tsInApe ++ concat tc 
              let tagmap = mkTagMap ts tc
              let allinds = IS.fromList [1..length tc]
-             let rules = concatMap (ruleToRules' tagmap allinds) $ concat (map reverse rls)
+             let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
              print (length rules)
              --mapM_ print rules
              mapM_ (testRule verbose tc) (splits rules)
+    ("fin":r)
+       -> do let verbose = "v" `elem` r || "d" `elem` r
+             let debug = "d" `elem` r
+             (tsets, rls) <- readRules' "data/fin.rlx"
+             --tcInLex <- (map parse . words) `fmap` readFile "data/fin-tagcombs.txt"
+             let rules = concat (map reverse rls)
+             let allConds = concatMap (toConds . cond) rules
+             let unnamedTags = nub $ concatMap (map getTagset) allConds
+             let tcInGr = nub $ concatMap toTags' $ tsets ++ unnamedTags
+             let tc = tcInGr -- ++ tcInLex
+             let ts = concat tc
+             print (length tc)
+             let tagmap = mkTagMap ts tc
+             let allinds = IS.fromList [1..length tc]
+             let rules' = map (ruleToRule' tagmap allinds) rules
+             print (length rules)
+             mapM_ (testRule verbose tc) (splits rules')
+             putStrLn "end"
              
-    _ -> print "usage: cabal analyse [kimmo,nld,spa] [v,d]"
+    _ -> print "usage: cabal analyse [kimmo,nld,spa,fin] [v,d]"
 
 
 
