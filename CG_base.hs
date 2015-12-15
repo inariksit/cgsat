@@ -9,7 +9,8 @@ import Text.Regex
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma and word form are also in tags.
-data Tag = Tag String | Lem String | WF String | Rgx Regex String | EOS | BOS
+data Tag = Tag String | Lem String | WF String | Subreading String |
+           Rgx Regex String | EOS | BOS
 
 instance Eq Tag where
   foo == bar = show foo == show bar

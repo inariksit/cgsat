@@ -106,7 +106,7 @@ testRule verbose readings (lastrule,rules) = do
 
 apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
 apply s allinds sentence rule = do
-
+  putStrLn ("apply " ++ show rule)
   let (trgIndsRaw,_) = trg rule --IntSet
   let otherIndsRaw   = allinds IS.\\ trgIndsRaw
   let (trgInds,otherInds) = if isSelect' rule
@@ -114,29 +114,33 @@ apply s allinds sentence rule = do
                               else (trgIndsRaw,otherIndsRaw)
 
   --         :: Sentence -> (SIndex,Word) -> Sentence
-  let applyToWord sentence (i,word) = do   
+  let applyToWord sentence (i,word) = do
        disjConds <- mkConds s allinds sentence i (cnd rule)
        case disjConds of
          Nothing -> return sentence --conditions out of scope, no changes in sentence
          Just cs -> do
+           putStrLn "\tbegin"        
+
            let trgIndsList = (IS.toList trgInds)
            condsHold <- orl' s cs
+           putStrLn "\tbefore maps"
            let trgPos   = mapMaybe (lu' word) trgIndsList
            let otherNeg = map (neg . lu word) (IS.toList otherInds)
            someTrgIsTrue <- orl' s trgPos
            noOtherIsTrue <- andl' s otherNeg
            onlyTrgLeft <- andl' s [someTrgIsTrue, noOtherIsTrue]
            cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
-
+           putStrLn "\tsequence"
            newTrgLits <- sequence
              --wN<a>' is true if both of the following:
              [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
                                  , cannotApply ] --rule cannot apply 
                | oldTrgLit <- trgPos
                , let newTrgName = show oldTrgLit ++ "'" ]
-        
            let newsw = foldl changeAna word (zip trgIndsList newTrgLits)
+           newsw `seq` putStrLn "\tend"
            return $ changeWord sentence i newsw
+           
 
   foldM applyToWord sentence (IM.assocs sentence)
 

@@ -84,24 +84,27 @@ main = do
              let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
              print (length rules)
              --mapM_ print rules
-             mapM_ (testRule verbose tc) (splits rules)
+             --mapM_ (testRule verbose tc) (splits rules)
+             testRule verbose tc (last $ splits rules)
+             print "foo"
     ("fin":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
              (tsets, rls) <- readRules' "data/fin.rlx"
-             --tcInLex <- (map parse . words) `fmap` readFile "data/fin-tagcombs.txt"
+             tcInLex <- (map parse . words) `fmap` readFile "data/fin-tagcombs.txt"
              let rules = concat (map reverse rls)
              let allConds = concatMap (toConds . cond) rules
              let unnamedTags = nub $ concatMap (map getTagset) allConds
              let tcInGr = nub $ concatMap toTags' $ tsets ++ unnamedTags
-             let tc = tcInGr -- ++ tcInLex
+             let tc = tcInGr ++ tcInLex
              let ts = concat tc
              print (length tc)
              let tagmap = mkTagMap ts tc
              let allinds = IS.fromList [1..length tc]
              let rules' = map (ruleToRule' tagmap allinds) rules
              print (length rules)
-             mapM_ (testRule verbose tc) (splits rules')
+             --mapM_ (testRule verbose tc) (splits rules')
+             testRule verbose tc (last $ splits rules')
              putStrLn "end"
              
     _ -> print "usage: cabal analyse [kimmo,nld,spa,fin] [v,d]"
