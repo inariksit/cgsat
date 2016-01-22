@@ -9,7 +9,7 @@ import Text.Regex
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma and word form are also in tags.
-data Tag = Tag String | Lem String | WF String | Subreading String |
+data Tag = Tag String | Lem String | WF String | Subreading Int Tag |
            Rgx Regex String | EOS | BOS
 
 instance Eq Tag where
@@ -31,6 +31,7 @@ instance Show Tag where
   show (Lem str) = "\"" ++ str ++ "\""
   show (Rgx _r s) =  "\"" ++ s ++ "\"r"
   show (Tag str) = str
+  show (Subreading n tag) = (take n $ repeat '\t') ++ show tag
   show BOS       = ">>>"
   show EOS       = "<<<"
 
@@ -117,6 +118,7 @@ instance Show Rule where
 isSelect :: Rule -> Bool 
 isSelect (Select _ _ _ ) = True
 isSelect _               = False
+
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
 --   (Bool, TagSet) emulates set negation NOT in CG3.

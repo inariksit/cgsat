@@ -18,8 +18,7 @@ import CG.Print
 import CG.ErrM as CGErr
 
 import Control.Applicative
---import Control.Monad.State.Lazy
-import Control.Monad.State.Strict
+import Control.Monad.State.Lazy
 import Data.Either
 import Data.List
 import Debug.Trace
@@ -268,6 +267,9 @@ transCondSet cs = do
   conds <- mapM transCond cs
   return $ foldr1 CGB.AND conds
 
+--TODO here if transPosition returns Nothing as the second item in tuple,
+--make just use normal Tags.
+--If transPosition's second item is Just int, replace transTagSet's result with another constructor for Subreading int.
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
 --  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
@@ -323,14 +325,16 @@ transCond c = case c of
 
 
 
+--TODO transPosition :: Position -> State Env (CGB.Position, Maybe Int) --Maybe Int: Nothing if it isn't subreading, 1-n to show the place
 transPosition :: Position -> State Env CGB.Position
 transPosition pos = case pos of
-  Exactly (Signed str)     -> return $ CGB.Exactly False $ read str
-  AtLeastPre (Signed str)  -> return $ CGB.AtLeast False $ read str
-  AtLeastPost (Signed str) -> return $ CGB.AtLeast False $ read str
-  AtLPostCaut1 (Signed str) -> return $ CGB.AtLeast True $ read str
-  AtLPostCaut2 (Signed str) -> return $ CGB.AtLeast True $ read str
-  Subreading (Signed str) _ -> return $ CGB.Exactly False $ read str
+  Exactly (Signed num)     -> return $ CGB.Exactly False $ read num --TODO
+  AtLeastPre (Signed num)  -> return $ CGB.AtLeast False $ read num
+  AtLeastPost (Signed num) -> return $ CGB.AtLeast False $ read num
+  AtLPostCaut1 (Signed num) -> return $ CGB.AtLeast True $ read num
+  AtLPostCaut2 (Signed num) -> return $ CGB.AtLeast True $ read num
+  Subreading (Signed num1) (Signed num2) -> return $ CGB.Exactly False $ read num1
+--TODO  Subreading (Signed num1) (Signed num2) -> return $ (CGB.Exactly False $ read num1, Just num2)
   Cautious position        -> cautious `fmap` transPosition position
   where cautious (CGB.Exactly _b num) = CGB.Exactly True num
         cautious (CGB.AtLeast _b num) = CGB.AtLeast True num
