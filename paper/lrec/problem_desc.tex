@@ -1,7 +1,11 @@
 \section{Introduction}
 \label{sec:intro}
 
-Constraint Grammar (CG, \citep{karlsson1995constraint})
+% Inari: Added this for my academic writing course, as for general motivation.
+
+Most of NLP research has been since the 90s aimed towards data-driven methods. While these approaches have produced good results for languages with large annotated corpora, they are practically unusable for low-resourced languages. Even for languages with many resources, \todo{cite Manning (2011)} argues that rule-based methods are needed to push the accuracy of POS taggers from the 97\%s to the near 100\%. POS tagging is a fundamental phase which is required in further syntactic or semantic analysis---hence a good POS-tagger is an important resource for any language. We believe that Constraint Grammar is a good candidate especially for languages with low resources, and in this paper we describe methods for CG writers and users to analyse and improve their grammars.
+
+Constraint Grammar (CG, \cite{karlsson1995constraint})
 % \citep[CG,][]{karlsson1995constraint} 
 is a formalism used to disambiguate morphologically analysed text. 
 A grammar consists of rules that target specific analyses for selection or removal, based on contextual tests. For example, the following rule
@@ -15,12 +19,12 @@ Given the following text,
 \begin{verbatim}
 "<the>"
         "the" det def
-"<bear>"
-        "bear" noun sg
-        "bear" verb pl
+"<wish>"
+        "wish" noun sg
+        "wish" verb pl
 \end{verbatim}
 \end{itemize}
-the rule will match to the word \emph{bear}, and remove the analysis \texttt{verb pl}.
+the rule will match to the word \emph{wish}, and remove the analysis \texttt{verb pl}.
 However, if the target word has only one remaining analysis, then the rule will not apply, even if the condition is met.
 
 CGs are valuable resources for rule-based NLP, especially for lesser
