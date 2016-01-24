@@ -77,7 +77,8 @@ main :: IO ()
 main = do args <- getArgs
           case args of
              [file1,file2] -> do readFile file1 >>= return . parseRules True --verbose
-                                 readData file2
+                                 foo <- parseData `fmap` readFile file2 
+                                 print foo
                                  putStrLn "read rules and data"
              _             -> do putStrLn "Usage: CG_parse <rules> <data>"
                                  exitFailure
@@ -273,8 +274,17 @@ transCondSet cs = do
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
 --  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
-  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) ((,) True `fmap` transTagSet ts)
-  CondNotPos pos ts       -> liftM2 CGB.C (transPosition pos) (transTagSet' False ts)
+  CondPos pos ts          -> do (pos', subr) <- transPosition pos 
+                                ts' <- transTagSet ts
+                                return $ case subr of
+                                  Nothing -> CGB.C pos' (True, ts')
+                                  Just i  -> CGB.C pos' (True, ts') ---TODO map Subreading to TS
+
+  CondNotPos pos ts       -> do (pos', subr) <- transPosition pos 
+                                ts' <- transTagSet ts
+                                return $ case subr of
+                                  Nothing -> CGB.C pos' (True, ts')
+                                  Just i  -> CGB.C pos' (True, ts') --TODO map Subreading to TS
   CondBarrier pos ts bts  -> barrier pos ts bts True  CGB.Barrier
   CondNotBar pos ts bts   -> barrier pos ts bts False CGB.Barrier
   CondCBarrier pos ts bts -> barrier pos ts bts True  CGB.CBarrier
@@ -308,36 +318,31 @@ transCond c = case c of
             CGB.Barrier b i ts -> CGB.Barrier b newI ts 
             CGB.CBarrier b i ts -> CGB.CBarrier b newI ts 
 
-        transTagSet' :: Bool -> TagSet -> State Env (Bool, CGB.TagSet)
-        transTagSet' b ts = 
-          do tags <- transTagSet ts
-             modify $ \env -> env { unnamed = tags : unnamed env }
-             return (b, tags)
 
         barrier pos ts bts isPositive bcons =
           do pos' <- transPosition pos
-             let (caut,int) = case pos' of 
+             let (caut,int) = case fst pos' of 
                           CGB.Exactly b i -> (b,i)
                           CGB.AtLeast b i -> (b,i)
-             (_,btags) <- transTagSet' True bts  --there is no `BARRIER NOT ts' option,
-                                            --you just write `BARRIER (*)-ts'
-             liftM (CGB.C $ bcons caut int btags) (transTagSet' isPositive ts)
+             btags <- transTagSet bts  --there is no `BARRIER NOT ts' option,
+                                       --you just write `BARRIER (*)-ts'
+
+             liftM (CGB.C $ bcons caut int btags) ((,) isPositive `fmap` transTagSet ts)
 
 
 
---TODO transPosition :: Position -> State Env (CGB.Position, Maybe Int) --Maybe Int: Nothing if it isn't subreading, 1-n to show the place
-transPosition :: Position -> State Env CGB.Position
+transPosition :: Position -> State Env (CGB.Position, Maybe Int) --Maybe Int: Nothing if it isn't subreading, 1-n to show the place
 transPosition pos = case pos of
-  Exactly (Signed num)     -> return $ CGB.Exactly False $ read num --TODO
-  AtLeastPre (Signed num)  -> return $ CGB.AtLeast False $ read num
-  AtLeastPost (Signed num) -> return $ CGB.AtLeast False $ read num
-  AtLPostCaut1 (Signed num) -> return $ CGB.AtLeast True $ read num
-  AtLPostCaut2 (Signed num) -> return $ CGB.AtLeast True $ read num
-  Subreading (Signed num1) (Signed num2) -> return $ CGB.Exactly False $ read num1
---TODO  Subreading (Signed num1) (Signed num2) -> return $ (CGB.Exactly False $ read num1, Just num2)
+  Exactly (Signed num)     -> mainreading $ CGB.Exactly False $ read num
+  AtLeastPre (Signed num)  -> mainreading $ CGB.AtLeast False $ read num
+  AtLeastPost (Signed num) -> mainreading $ CGB.AtLeast False $ read num
+  AtLPostCaut1 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
+  AtLPostCaut2 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
+  Subreading (Signed num1) (Signed num2) -> return $ (CGB.Exactly False $ read num1, Just $ read num2)
   Cautious position        -> cautious `fmap` transPosition position
-  where cautious (CGB.Exactly _b num) = CGB.Exactly True num
-        cautious (CGB.AtLeast _b num) = CGB.AtLeast True num
+  where cautious (CGB.Exactly _b num, subreading) = (CGB.Exactly True num, subreading)
+        cautious (CGB.AtLeast _b num, subreading) = (CGB.AtLeast True num, subreading)
+        mainreading position = return (position, Nothing)
 
 
 --  morpho output parsing
@@ -363,7 +368,7 @@ transAnalysis wf ana = CGB.WF wf:transAna ana
           IdenA (Iden id) tags   -> CGB.Lem id:(map transTagA tags)
           PunctA (Punct ".") tags -> CGB.Lem ".":CGB.EOS:(map transTagA tags)
           PunctA (Punct id) tags -> CGB.Lem id:(map transTagA tags)
-          CompA ana1 ana2        -> transAna ana1 ++ transAna ana2
+          CompA ana1 ana2        -> transAna ana1 ++ CGB.Subreading 1 `fmap` transAna ana2
           CollA ana1 ana2        -> transAna ana1 ++ transAna ana2
 
 transTagA :: TagA -> CGB.Tag

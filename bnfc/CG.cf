@@ -54,9 +54,9 @@ LemmaCI. Tag1 ::= Str "i" ;
 Regex.   Tag1 ::= Str "r" ;
 Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
-_.       Tag1 ::= "+" Tag1 ; -- Subreadings; ignore
+_.       Tag1 ::= "+" Tag1 ; -- TODO what is this???
 
-coercions Tag 1 ;
+coercions Tag 1 ; --do I need this? is there ever parentheses, or will just a manual coercion do?
 
 separator nonempty Tag "" ;
 
