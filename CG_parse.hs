@@ -341,7 +341,7 @@ transPosition pos = case pos of
   AtLeastPost (Signed num) -> mainreading $ CGB.AtLeast False $ read num
   AtLPostCaut1 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
   AtLPostCaut2 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
-  Subreading (Signed num1) (Signed num2) -> trace ("transPosition: found subreading " ++ show num1 ++ "/" ++ show num2) $ return $ (CGB.Exactly False $ read num1, Just $ read num2)
+  Subreading (Signed num1) (Signed num2) -> return $ (CGB.Exactly False $ read num1, Just $ read num2)
   Cautious position        -> cautious `fmap` transPosition position
   where cautious (CGB.Exactly _b num, subreading) = (CGB.Exactly True num, subreading)
         cautious (CGB.AtLeast _b num, subreading) = (CGB.AtLeast True num, subreading)
@@ -357,22 +357,25 @@ transText x = case x of
 
 transLine :: Line -> CGB.Analysis
 transLine x = case x of
-  Line (Iden wform) anas    -> map (transAnalysis wform) anas
-  LinePunct (Punct p) anas  -> map (transAnalysis p) anas
+  Line (Iden wform) anas    -> map (transAnalysis 0 wform) anas
+  LinePunct (Punct p) anas  -> map (transAnalysis 0 p) anas
   OnlyPunct (Punct ",")     -> [[CGB.WF ",", CGB.Lem ",", CGB.Tag "cm"]]
   OnlyPunct (Punct ".")     -> [[CGB.WF ".", CGB.Lem ".", CGB.Tag "sent",CGB.EOS]]
   OnlyPunct (Punct str)     -> [[CGB.WF str, CGB.Lem str, CGB.Tag "punct"]]
   NoAnalysis (Iden wform) _ -> [[CGB.WF wform]]
 
 
-transAnalysis :: String -> Analysis -> [CGB.Tag]
-transAnalysis wf ana = CGB.WF wf:transAna ana
-  where transAna ana = case ana of
-          IdenA (Iden id) tags   -> CGB.Lem id:(map transTagA tags)
+transAnalysis :: Int -> String -> Analysis -> [CGB.Tag]
+transAnalysis i wf ana = CGB.WF wf:transAna i ana
+  where transAna 0 ana = case ana of
+          IdenA (Iden id) tags    -> CGB.Lem id:(map transTagA tags)
           PunctA (Punct ".") tags -> CGB.Lem ".":CGB.EOS:(map transTagA tags)
           PunctA (Punct id) tags -> CGB.Lem id:(map transTagA tags)
-          CompA ana1 ana2        -> trace ("transAnalysis: found subreading: " ++ show ana2) $ transAna ana1 ++ CGB.Subreading 1 `fmap` transAna ana2
-          CollA ana1 ana2        -> transAna ana1 ++ transAna ana2
+          SubrA ana1 ana2        -> transAna i ana1 ++ transAna (i+1) ana2
+          MweA ana1 ana2        -> transAna i ana1 ++ transAna i ana2 --no subreadings for MWEs
+        transAna n (SubrA ana1 ana2) --ana1 is IdenA, ana2 can be another SubrA 
+                       = CGB.Subreading n `fmap` transAna 0 ana1 ++ transAna (n+1) ana2
+        transAna n ana = CGB.Subreading n `fmap` transAna 0 ana --last one of subreadings
 
 transTagA :: TagA -> CGB.Tag
 transTagA (TagA (Iden id)) = CGB.Tag id
