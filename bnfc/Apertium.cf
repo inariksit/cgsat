@@ -10,10 +10,12 @@ OnlyPunct.  Line ::= Punct ;
 LinePunct.  Line ::= "^" Punct "/" [Analysis] "$" ; 
 NoAnalysis. Line ::= "^" Iden "/" "*" Iden "$" ;
 
-IdenA.   Analysis ::= Iden [TagA] ;
-PunctA.  Analysis ::= Punct [TagA] ;
-CompA.   Analysis ::= Analysis "+" Analysis ;
-CollA.   Analysis ::= Analysis "#" Analysis ;
+IdenA.   Analysis1 ::= Iden [TagA] ;
+PunctA.  Analysis1 ::= Punct [TagA] ;
+SubrA.   Analysis ::= Analysis1 "+" Analysis ;
+MweA.   Analysis ::= Analysis1 "#" Analysis ;
+
+_.       Analysis ::= Analysis1 ;
 
 separator nonempty Analysis "/" ;
 
