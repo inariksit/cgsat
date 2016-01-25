@@ -55,7 +55,7 @@ main = do
     [] -> putStrLn "I am a program that prints foo"
     ("kimmo":_)
        -> do let kimmo' = map (ruleToRule' tagmap allinds) kimmo
-             mapM_ (testRule True tc) (splits (reverse kimmo'))
+             mapM_ (testRule True "" tc) (splits (reverse kimmo'))
     ("nld":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              tsInApe <- (concat . filter (not.null) . map parse . words) 
@@ -68,7 +68,7 @@ main = do
              let tagmap = mkTagMap ts tc
              let allinds = IS.fromList [1..length tc]
              let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
-             mapM_ (testRule verbose tc) (splits rules)
+             mapM_ (testRule verbose "nld-ambiguity-classes" tc) (splits rules)
     ("spa":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
@@ -86,7 +86,7 @@ main = do
              print (length rules)
              --mapM_ print rules
              --mapM_ (testRule verbose tc) (splits rules)
-             testRule verbose tc (last $ splits rules)
+             testRule verbose "spa-ambiguity-classes" tc (last $ splits rules)
              print "foo"
     ("fin":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
@@ -105,7 +105,7 @@ main = do
              let rules' = map (ruleToRule' tagmap allinds) rules
              print (length rules)
              --mapM_ (testRule verbose tc) (splits rules')
-             testRule verbose tc (last $ splits rules')
+             testRule verbose "" tc (last $ splits rules')
              putStrLn "end"
              
     _ -> print "usage: cabal analyse [kimmo,nld,spa,fin] [v,d]"

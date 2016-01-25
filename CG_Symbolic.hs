@@ -2,7 +2,9 @@ module CG_Symbolic where
 
 import CG_base hiding ( Sentence, showSentence )
 import SAT ( Solver(..), newSolver, deleteSolver )
+import qualified SAT
 import SAT.Named
+import AmbiguityClass
 
 import Control.Monad
 import qualified Data.IntSet as IS
@@ -66,13 +68,20 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
            | conditions <- toConds (cond rule) ]
           
 --------------------------------------------------------------------------------
-testRule :: Bool -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
-testRule verbose readings (lastrule,rules) = do
+testRule :: Bool -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
+testRule verbose ambcls readings (lastrule,rules) = do
   let tagInds = IS.fromList [1..length readings]
   let (w,trgSInd) = width $ cnd lastrule
   s <- newSolver
   initialSentence <- mkSentence s w readings
   afterRules <- foldM (apply s tagInds) initialSentence rules
+
+  ambclasses <- readFile ambcls
+  let als  = lines ambclasses
+  let xss  = map read als :: [[Int]]
+  let form = formula xss 
+
+  mapM_ (constrainStuff s form) (IM.elems afterRules)
 
   (mustHaveTrg, mustHaveOther, allCondsHold) <- do
     let Just trgSWord = IM.lookup trgSInd afterRules
@@ -86,7 +95,7 @@ testRule verbose readings (lastrule,rules) = do
     ach <- orl' s condLits --conditions must hold
     return (mht, mho, ach)
   let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
-
+  
   b <- solve s shouldTriggerLast
   if b 
    then do 
@@ -100,6 +109,11 @@ testRule verbose readings (lastrule,rules) = do
            putStrLn $ "with the previous rules:"
            mapM_ print rules
   return b
+
+ where 
+   constrainStuff s form symbword = do
+     let mp ind = literal $ fromJust $ IM.lookup ind symbword 
+     constraints s mp [] form
   
 --------------------------------------------------------------------------------
 
@@ -309,7 +323,7 @@ parse str = maintags ++ concat subtags
  where
   (mainr:subrs) = split (=='+') str
   maintags = map toTag $ filter (not.null) $ split isValid mainr
-  subrs_ns = zip [1..] (map (split isValid) subrs) :: [(Int,[String])]
+  subrs_ns = [1..] `zip` map (split isValid) subrs :: [(Int,[String])]
   subtags = map (\(n, strs) -> map (Subreading n . toTag) strs) subrs_ns
   isValid = (=='<') 
   toTag ">>>" = BOS
