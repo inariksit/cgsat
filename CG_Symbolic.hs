@@ -119,18 +119,14 @@ apply s allinds sentence rule = do
        case disjConds of
          Nothing -> return sentence --conditions out of scope, no changes in sentence
          Just cs -> do
-           putStrLn "\tbegin"        
-
            let trgIndsList = (IS.toList trgInds)
            condsHold <- orl' s cs
-           putStrLn "\tbefore maps"
            let trgPos   = mapMaybe (lu' word) trgIndsList
            let otherNeg = map (neg . lu word) (IS.toList otherInds)
            someTrgIsTrue <- orl' s trgPos
            noOtherIsTrue <- andl' s otherNeg
            onlyTrgLeft <- andl' s [someTrgIsTrue, noOtherIsTrue]
            cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
-           putStrLn "\tsequence"
            newTrgLits <- sequence
              --wN<a>' is true if both of the following:
              [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
@@ -138,7 +134,6 @@ apply s allinds sentence rule = do
                | oldTrgLit <- trgPos
                , let newTrgName = show oldTrgLit ++ "'" ]
            let newsw = foldl changeAna word (zip trgIndsList newTrgLits)
-           newsw `seq` putStrLn "\tend"
            return $ changeWord sentence i newsw
            
 
@@ -310,9 +305,13 @@ singleton _   = False
 --------------------------------------------------------------------------------
 
 parse :: String -> [Tag]
-parse str = map toTag $ filter (not.null) $ split isValid str
- where 
-  isValid c = c=='<' || c=='+'
+parse str = maintags ++ concat subtags
+ where
+  (mainr:subrs) = split (=='+') str
+  maintags = map toTag $ filter (not.null) $ split isValid mainr
+  subrs_ns = zip [1..] (map (split isValid) subrs) :: [(Int,[String])]
+  subtags = map (\(n, strs) -> map (Subreading n . toTag) strs) subrs_ns
+  isValid = (=='<') 
   toTag ">>>" = BOS
   toTag "<<<" = EOS
   toTag []    = error "empty tag"

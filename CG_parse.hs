@@ -76,9 +76,10 @@ readData fname = readFile fname >>= return . parseData
 main :: IO ()
 main = do args <- getArgs
           case args of
-             [file1,file2] -> do readFile file1 >>= return . parseRules True --verbose
-                                 foo <- parseData `fmap` readFile file2 
-                                 print foo
+             [file1,file2] -> do foo1 <- readFile file1 >>= return . parseRules True --verbose
+                                 foo2 <- parseData `fmap` readFile file2 
+                                 print foo1
+                                 print foo2
                                  putStrLn "read rules and data"
              _             -> do putStrLn "Usage: CG_parse <rules> <data>"
                                  exitFailure
@@ -278,13 +279,14 @@ transCond c = case c of
                                 ts' <- transTagSet ts
                                 return $ case subr of
                                   Nothing -> CGB.C pos' (True, ts')
-                                  Just i  -> CGB.C pos' (True, ts') ---TODO map Subreading to TS
+                                  Just 0  -> CGB.C pos' (True, ts')
+                                  Just i  -> CGB.C pos' (True, mapSubr i ts')
 
   CondNotPos pos ts       -> do (pos', subr) <- transPosition pos 
                                 ts' <- transTagSet ts
                                 return $ case subr of
                                   Nothing -> CGB.C pos' (True, ts')
-                                  Just i  -> CGB.C pos' (True, ts') --TODO map Subreading to TS
+                                  Just i  -> CGB.C pos' (True, mapSubr i ts')
   CondBarrier pos ts bts  -> barrier pos ts bts True  CGB.Barrier
   CondNotBar pos ts bts   -> barrier pos ts bts False CGB.Barrier
   CondCBarrier pos ts bts -> barrier pos ts bts True  CGB.CBarrier
@@ -318,7 +320,6 @@ transCond c = case c of
             CGB.Barrier b i ts -> CGB.Barrier b newI ts 
             CGB.CBarrier b i ts -> CGB.CBarrier b newI ts 
 
-
         barrier pos ts bts isPositive bcons =
           do pos' <- transPosition pos
              let (caut,int) = case fst pos' of 
@@ -328,6 +329,8 @@ transCond c = case c of
                                        --you just write `BARRIER (*)-ts'
 
              liftM (CGB.C $ bcons caut int btags) ((,) isPositive `fmap` transTagSet ts)
+        mapSubr i (CGB.TS ts) = CGB.TS $ (map.map) (CGB.Subreading i) ts
+        mapSubr i other   = error $ "transCond.mapSubr: expecting TS foo, got " ++ show other
 
 
 
@@ -338,7 +341,7 @@ transPosition pos = case pos of
   AtLeastPost (Signed num) -> mainreading $ CGB.AtLeast False $ read num
   AtLPostCaut1 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
   AtLPostCaut2 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
-  Subreading (Signed num1) (Signed num2) -> return $ (CGB.Exactly False $ read num1, Just $ read num2)
+  Subreading (Signed num1) (Signed num2) -> trace ("transPosition: found subreading " ++ show num1 ++ "/" ++ show num2) $ return $ (CGB.Exactly False $ read num1, Just $ read num2)
   Cautious position        -> cautious `fmap` transPosition position
   where cautious (CGB.Exactly _b num, subreading) = (CGB.Exactly True num, subreading)
         cautious (CGB.AtLeast _b num, subreading) = (CGB.AtLeast True num, subreading)
@@ -368,7 +371,7 @@ transAnalysis wf ana = CGB.WF wf:transAna ana
           IdenA (Iden id) tags   -> CGB.Lem id:(map transTagA tags)
           PunctA (Punct ".") tags -> CGB.Lem ".":CGB.EOS:(map transTagA tags)
           PunctA (Punct id) tags -> CGB.Lem id:(map transTagA tags)
-          CompA ana1 ana2        -> transAna ana1 ++ CGB.Subreading 1 `fmap` transAna ana2
+          CompA ana1 ana2        -> trace ("transAnalysis: found subreading: " ++ show ana2) $ transAna ana1 ++ CGB.Subreading 1 `fmap` transAna ana2
           CollA ana1 ana2        -> transAna ana1 ++ transAna ana2
 
 transTagA :: TagA -> CGB.Tag

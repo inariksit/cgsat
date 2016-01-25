@@ -74,7 +74,8 @@ main = do
              let debug = "d" `elem` r
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile "data/spa/spa_tags.txt"
-             (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
+--             (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
+             (tsets, rls) <- readRules' "data/spa/spa_subreadings.rlx"
              let tcInGr = nub $ map toTags' tsets
              tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
              let tc = nub $ (concat tcInGr) ++ tcInLex 

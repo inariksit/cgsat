@@ -527,6 +527,7 @@
 <pp><m><pl>
 <pp><m><sg>
 <pr>
+<pr>+el<det><def><m><sg>
 <predet><f><pl>
 <predet><f><sg>
 <predet><m><pl>

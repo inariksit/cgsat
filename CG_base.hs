@@ -31,7 +31,7 @@ instance Show Tag where
   show (Lem str) = "\"" ++ str ++ "\""
   show (Rgx _r s) =  "\"" ++ s ++ "\"r"
   show (Tag str) = str
-  show (Subreading n tag) = (take n $ repeat '\t') ++ show tag
+  show (Subreading n tag) = "+" ++ show n ++ "_" ++ show tag
   show BOS       = ">>>"
   show EOS       = "<<<"
 
