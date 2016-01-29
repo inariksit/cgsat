@@ -20,7 +20,7 @@ library
   exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, CG_Symbolic
   other-modules:       CG.ErrM, Apertium.ErrM,
                        Apertium.Abs, Apertium.Lex, Apertium.Par,
-                       CG.Abs, CG.Lex, CG.Par, CG.Print
+                       CG.Abs, CG.Lex, CG.Par, CG.Print, AmbiguityClass
 --  other-extensions:    
   build-depends:       base,
                        containers,

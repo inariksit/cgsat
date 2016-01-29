@@ -125,7 +125,7 @@ constraints s mp pre (Or [p]) =
 
 constraints s mp pre p =
   do qs <- asOr s mp p
-     print (pre++qs)
+     --print (take 5 $ pre++qs)
      addClause s (pre ++ qs)
  where
   asOr s mp (And [])   = do return [true]

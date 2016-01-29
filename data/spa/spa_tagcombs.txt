@@ -75,7 +75,6 @@
 <fts><p2><sg>
 <fts><p3><pl>
 <fts><p3><sg>
-<ger>
 <ger>+le<prn><enc><p3><mf><pl>
 <ger>+le<prn><enc><p3><mf><sg>
 <ger>+le<prn><enc><p3><mf><sp>+lo<prn><enc><p3><f><pl>

@@ -88,6 +88,26 @@ main = do
              --mapM_ (testRule verbose tc) (splits rules)
              testRule verbose "spa-ambiguity-classes" tc (last $ splits rules)
              print "foo"
+
+    ("por":r)
+       -> do let verbose = "v" `elem` r || "d" `elem` r
+             let debug = "d" `elem` r
+             tsInApe <- (concat . filter (not.null) . map parse . words) 
+                         `fmap` readFile "data/spa/spa_tags.txt"
+             (tsets, rls) <- readRules' "data/apertium-por.por.rlx"
+             let tcInGr = nub $ map toTags' tsets
+             tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
+             let tc = nub $ (concat tcInGr) ++ tcInLex 
+             let ts = nub $ tsInApe ++ concat tc 
+             let tagmap = mkTagMap ts tc
+             let allinds = IS.fromList [1..length tc]
+             let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
+             print (length rules)
+             --mapM_ print rules
+             --mapM_ (testRule verbose tc) (splits rules)
+             testRule verbose "spa-ambiguity-classes" tc (last $ splits rules)
+             --testRule verbose "/tmp/foo" tc (last $ splits rules)
+             putStrLn ""
     ("fin":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
