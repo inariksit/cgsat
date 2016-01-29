@@ -1,0 +1,387 @@
+###############################################################################
+
+DELIMITERS = "<.>" "<!>" "<?>" "<..>" "<...>" "<¶>" ;
+SOFT-DELIMITERS = "<,>" ;
+#OPTIONS += no-inline-sets no-inline-templates ;
+
+SUBREADINGS = LTR ; # Alternate, left-to-right (main reading on the left)
+
+###############################################################################
+
+LIST BOS = (>>>) sent ;
+LIST EOS = (<<<) sent ;
+
+LIST NP = np ;
+LIST V = vblex ;
+LIST Vbmod = vbmod ;
+LIST A = adj ;
+LIST CS = cnjsub ;
+LIST Num = num ;
+LIST Interj = ij ;
+LIST Pr = pr ;
+LIST Adv = adv ; 
+LIST CA = cnjadv ;
+LIST Det = det ;
+LIST Prn = prn ;
+LIST N = n ;
+LIST Detnt = detnt ;
+LIST Art = (det def) ;
+
+LIST Inf = inf ;
+LIST PrfPrc = pp ;
+LIST Ger = ger ;
+
+LIST Tonic = tn ;
+LIST Pro = pro ;
+LIST Rel = rel ;
+LIST Enc = enc ;
+
+LIST Dem = dem ; 
+
+LIST Masc = m ;
+LIST Fem = f ;
+LIST MascFem = mf ;
+
+LIST Ant = ant ;
+LIST Cog = cog ;
+
+LIST Sg = sg ;
+LIST Pl = pl ;
+LIST SgPl = sp ;
+
+LIST Pri = pri ;
+LIST Pii = pii ;
+LIST Pis = pis ;
+LIST Prs = prs ;
+LIST Fti = fti ;
+LIST Ifi = ifi ;
+LIST Pmp = pmp ;
+LIST Fts = fts ;
+
+LIST Imper = imp ;
+
+LIST Interr = itg ;
+
+LIST Sg1 = (p1 sg) ;
+LIST Sg2 = (p2 sg) ;
+LIST Sg3 = (p3 sg) ;
+LIST Pl1 = (p1 pl) ;
+LIST Pl2 = (p2 pl) ;
+LIST Pl3 = (p3 pl) ;
+
+LIST Ser = vbser ;
+LIST Haver = vbhaver ;
+
+LIST Poder = "poder" ;
+LIST Para = "para" ;
+LIST De = "de" ;
+LIST Em = "em" ; 
+LIST Entre = "entre" ;
+LIST Até = "até" ;
+LIST Sobre = "sobre" ;
+LIST Outro = "outro" ;
+LIST Se = "se" ; 
+LIST Que = "que" ; 
+LIST Estar = "estar" ;
+LIST Forma = "forma" ; 
+LIST Ir = "ir" ; 
+LIST Humano = "humano" ;
+LIST Como = "como" ;
+LIST Todo = "todo" ;
+LIST O = "o" ;
+LIST Não = "não" ;
+LIST Seu = "seu" ; 
+LIST Um = "um" ;
+LIST Algum = "algum" ;
+LIST Ponto = "ponto" ;
+LIST Esse = "esse" ;
+LIST Bastante = "bastante" ;
+LIST Cujo = "cujo" ;
+LIST Ter = "ter" ; 
+LIST Restantes = "restantes" ;
+LIST Qualquer = "qualquer" ;
+LIST Nenhum = "nenhum" ;
+LIST Falar = "falar" ;
+
+LIST Ter/de = "ter# de" ;
+LIST Querer = "querer" ;
+LIST Permitir = "permitir" ;
+LIST Utilizar = "utilizar" ;
+
+LIST Verb/CS = "indicar" "demostrar" "mostrar" ;
+
+LIST Language = "português" "inglês" "francês" "albanês" "dinamarquês" "escocês" "holandês" "japonês" "libanês" "birmanes" "alemão" "espanhol" "italiano" "catalão" "sueco";
+
+LIST Foi = "<foi>"i ;
+LIST Vai = "<vai>"i ;
+LIST É = "<é>"i ;
+LIST Uma = "<uma>"i ;
+LIST Sido = "<sido>"i ;
+LIST Sua = "<sua>"i ;
+LIST Vista = "<vista>"i ;
+LIST Pela = "<pela>"i ;
+LIST Pelo = "<pelo>"i ;
+LIST Ao = "<ao>"i ;
+
+LIST Guess/Inf = "\*[a-z]+[aei]r"i ;
+
+LIST Quest = "?" ;
+LIST Excl = "!" ;
+LIST Cm = cm ;
+
+
+
+
+SET MascSg = (m sg) OR (m sp) OR (mf sg) OR (mf sp) ;
+SET MascPl = (m pl) OR (m sp) OR (mf pl) OR (mf sp) ;
+SET FemSg = (f sg) OR (f sp) OR (mf sg) OR (mf sp) ;
+SET FemPl = (f pl) OR (f sp) OR (mf pl) OR (mf sp) ;
+
+
+SET Fin = Pri | Prs | Pii | Pis | Fti | Fts | Ifi ; 
+SET NotMasc = Fem | MascFem ;
+SET NotFem = Masc | MascFem ;
+SET Gender = NotMasc | NotFem ;
+
+SET NotSg = Pl | SgPl ;
+SET NotPl = Sg | SgPl ;
+SET Number = NotSg | NotPl ;
+SET Barrera_Inicial_Estrict_SN = BOS OR Pr OR CS OR CA OR Rel ;
+
+
+SECTION
+
+SELECT Inf IF (-1 Pr) (0C V) ;
+
+#SELECT Inf IF (-1 Para OR De) (0C V) ;
+
+SELECT Ser IF (0 Foi) (1 PrfPrc) ;
+
+SELECT Pr IF (0 Entre) (1C N) ;
+
+SELECT Inf IF (-1C Vai) ;
+
+SELECT Det + $$Gender IF (-1C É) (0 Det OR Prn) (1C N + $$Gender) ;
+
+SELECT Det IF (0 Uma) (1 Outro LINK 1 N) ;
+
+SELECT Pro IF (-1 Pr) (0 Se) (1 Inf) ;
+
+REMOVE Detnt IF (NOT 1 Que) ;
+
+REMOVE SUB:1 Detnt IF (NOT 1 Que) ;
+
+REMOVE Pr IF (1C Fin) ;
+
+REMOVE Pr IF (-1C Pr) ;
+
+REMOVE Pr IF (-1 Entre) ;
+
+SELECT Ser IF (1C PrfPrc) ; 
+
+SELECT N IF (-1 Det) (0C N OR A) (1C A) ;
+
+REMOVE Det IF (1C Fin) ;
+
+SELECT PrfPrc IF (-1C Estar) ;
+
+SELECT Det IF (-1C Pr) (0C Det OR Prn) (1C N OR A);
+
+REMOVE Imper IF (-1C Se) ;
+
+SELECT N IF (-1C Det) (1 N OR Inf) ;
+
+SELECT PrfPrc IF (-1 Ser) (0C A OR PrfPrc) ;
+
+SELECT N + $$Gender IF (-1C Det + $$Gender) (0C N OR V) ;
+
+SELECT Haver IF (1C Sido) ;
+
+SELECT Vbmod IF (0 Poder) (1 Inf) ;
+
+SELECT Det IF (-1 Pr) (0 Sua) (1 N) ;
+
+SELECT Ser IF (0C Ser OR Ir) (1* A OR N BARRIER (*) - Adv) ;
+
+SELECT Det IF (0 Det OR Prn) (1 A LINK 1 N) ;
+
+SELECT N IF (-1 Det) (0 Ser) (1 Humano) ;
+
+SELECT Det IF (-1 Pr) (0 Outro) (1 N OR A) ;
+
+REMOVE Det IF (0 Outro) (-1 Det) ;
+
+SELECT Rel IF (-1 Cm) (0 Como) ;
+
+SELECT Det IF (-1 Todo) (0 O) ;
+
+REMOVE Fin IF (-1 Adv LINK -1C Fin) ;
+
+REMOVE Fin IF (0 Como) (0 Sg1) (NOT -1* Sg1) (NOT -1 Não) ;
+
+SELECT Det IF (-1 Pr OR Fin) (0 Seu) (1 N OR A) ;
+
+SELECT Det IF (-1 Rel) (0 O) (1 N OR A) ;
+
+SELECT Det IF (-1 BOS) (0 O) (1 N OR A) ;
+
+SELECT Det IF (0 O) (1 Poder) ;
+
+SELECT N IF (-1 O) (0 Poder) ;
+
+SELECT Det IF (0 Algum OR Esse) (1C N) ;
+
+REMOVE Fin IF (-1 De) (NOT -1/* Prn) (0 Fin OR N) ;
+
+REMOVE Fin IF (-1 Fin) (0 Seu) ;
+
+SELECT N IF (-1 De) (0 Vista) ;
+
+REMOVE Pro IF (1C N) ;
+
+REMOVE Tonic IF (0 Dem) (1 N) ;
+
+REMOVE N IF (-1C N) (0 A OR PrfPrc) (0 N) ;
+
+REMOVE SUB:1 Prn IF (0 De OR Em) (1 N) ;
+
+SELECT Rel IF (-1 N) (0 Que) (1 Se LINK 1 Fin) ;
+
+SELECT CS IF (-1C Fin) (0 Que) ;
+
+SELECT CS IF (-1C Ger) (0 Que) ;
+
+SELECT Det + $$Gender IF (0 Qualquer) (1 N + $$Gender) ;
+
+SELECT Det + $$Gender IF (0 Nenhum) (1 N + $$Gender) ;
+
+REMOVE Haver IF (NOT 1* PrfPrc) ;
+
+SELECT Haver IF (0C Ter) (1C PrfPrc) ;
+
+SELECT Rel IF (-1 De) (-1/* Detnt) ;
+
+REMOVE Det + $$Number IF (1C N) (NOT 1C $$Number) (NOT 0 Restantes) ;
+
+SELECT Pr IF (1C Det LINK 1 N) ;
+
+SELECT Det IF (-1 Sobre) (0C Det OR Pr) ;
+
+SELECT Det IF (-1 Permitir OR Utilizar) (1 A OR N) ;
+
+SELECT CS IF (-1 Até OR De) (0 Que) ;
+
+SELECT Inf IF (-1C Vbmod) (0C V) ;
+
+SELECT Inf IF (-1C Ter/de) ;
+
+SELECT Inf IF (-1C Vbmod) (0 Ser) ;
+
+SELECT Rel IF (-1C O) ;
+
+SELECT Detnt IF (1C Que) ;
+
+SELECT SUB:1 Detnt IF (1C Que) ;
+
+REMOVE Fin IF (-1C Det) ;
+
+SELECT Pro IF (-1 Rel OR Não) (0 Se) (1 Fin) ;
+
+SELECT Pro IF (-1 N LINK -1 Cujo) (0 Se) (1 Fin) ;
+
+SELECT Pro IF (NOT -1* Fin) (NOT -1 BOS) (0 Se) ;
+
+SELECT Pr IF (0 Pr) (1 Como) (2 Se) (3 Fin) ;
+
+SELECT Adv IF (0C Adv OR Interj) (NOT -1 Cm) (NOT 1 Cm) (NOT 1* Excl) ;
+
+SELECT Vbmod IF (0 Querer) (1C Inf) ;
+
+SELECT N + $$Gender IF (-1 Det + $$Gender) (0C N OR A) (1 De) ;
+
+SELECT Pr IF (-1 Num) (0 Pr OR Det) (1 Num) ;
+
+SELECT Interr IF (-1 BOS) (0 Como) (1* Fin LINK 1* Quest) ;
+
+SELECT Pr IF (-1 Fin) (0 Pela OR Pelo) (1 N OR A) ;
+
+REMOVE Det IF (1C Prn) ;
+
+REMOVE NotMasc IF (0 Det) (1C Masc) ;
+
+REMOVE NotFem IF (0 Det) (1C Fem) ;
+
+REMOVE Det IF (0 Art + Fem) (1C V) ;
+
+SELECT Rel IF (-1 Ao) ;
+
+#SELECT Adv IF (0 Bastante) (1C A LINK NEGATE 1* N BARRIER (*) - A - Adv) ;
+
+SELECT A IF (0 Bastante) (1C N) ;
+
+SELECT N IF (-1 Falar) (0 Language) ;
+
+SECTION
+
+REMOVE Interr IF (0 Que) (1* Prs BARRIER Fin) ;
+
+SELECT Ifi IF (0C Ifi OR Pmp) ;
+
+SELECT Sg3 IF (0C Sg3 OR Sg1) (NOT -1* Sg1) ;
+
+SELECT Imper IF (0 Sg2 LINK 1* Excl) ;
+
+SELECT Prs IF (-1* Não BARRIER (*) - Pro) (0 Sg2 LINK 1* Excl) ;
+
+REMOVE Sg2 IF (NOT -1* Sg2) (0 Sg2 OR A) ;
+
+REMOVE Pl2 IF (NOT -1* Pl2) (0 Pl2 OR A) ;
+
+SELECT A IF (0C A OR PrfPrc) (NOT 1 Pr) ;
+
+SELECT Det + $$Gender IF (0 Det OR Pr) (1C N + Sg + $$Gender) (NOT 0 Restantes);
+
+SELECT CA IF (0 Se) (1C Interj) ;
+
+REMOVE Imper IF (NOT -1* Interj) (NOT 1* Interj) (NOT 1* Excl) (NOT -1 Cm) ;
+  ## Por favor, adicione isso.
+
+SELECT Rel IF (-1 A OR N LINK -1 N OR A OR Pr) (NOT -1 Forma) (0 Que) (1 Fin OR Se OR Não) ;
+
+#SELECT CS IF (-1C Inf) (0 Que) ;
+
+#REMOVE Interr IF (NOT 1* Quest) ;
+
+#REMOVE Pro IF (NOT 1 V OR Prn) (NOT -1 Inf) (NOT -1 Guess/Inf) ;
+
+#SELECT Prn IF (0 Um) (1 De) ;
+
+#SELECT Pro IF (-2 Pr) (-1 Inf) (0 Se) ;
+  ## em saber se 
+
+#REMOVE Cog IF (-1 Art) (0C Ant OR Cog)  ;
+
+
+
+
+#nuboros rules
+#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$MascSg LINK 0 N OR NP) (1 A OR PrfPrc + $$MascSg) ;
+
+##jovem inteligente
+
+#REMOVE PrfPrc IF (-1 Barrera_Inicial_Estrict_SN) (O N OR PrfPrc + $$MascSg LINK 0 N OR NP) (1 A OR PrfPrc + $$MascSg) ;
+
+##escrito grande
+
+#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$MascPl LINK 0 N OR NP) (1 A OR PrfPrc + $$MascPl) ;
+
+##velhos inteligentes
+
+#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$FemSg LINK 0 N OR NP) (1 A OR PrfPrc + $$FemSg) ;
+
+##capital antiga
+
+#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$FemPl LINK 0 N OR NP) (1 A OR PrfPrc + $$FemPl) ;
+
+##velhas bonitas
+
