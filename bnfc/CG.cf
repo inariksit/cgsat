@@ -56,7 +56,7 @@ Tag.     Tag1 ::= Id ;
 Named.   Tag1 ::= SetName ;
 --_.       Tag1 ::= "+" Tag1 ; -- TODO what is this???
 
-coercions Tag 1 ; --do I need this? is there ever parentheses, or will just a manual coercion do?
+coercions Tag 1 ; --This takes care of parenthesising one tag (which has no effect, can be done randomly). Parenthesising a list of tags will match the constructor AND, and that list has to be >1 tags.
 
 separator nonempty Tag "" ;
 
@@ -66,29 +66,31 @@ separator nonempty Tag "" ;
 
 RuleDef. Def ::= Rule ;
 
-SelectIf. Rule ::= SELECT TagSet MaybeIF [Cond] ";" ;
-RemoveIf. Rule ::= REMOVE TagSet MaybeIF [Cond] ";" ;
+SelectIf.     Rule ::= SELECT TagSet MaybeIF [Cond] ";" ;
+RemoveIf.     Rule ::= REMOVE TagSet MaybeIF [Cond] ";" ;
 SelectAlways. Rule ::= SELECT TagSet ";" ;
 RemoveAlways. Rule ::= REMOVE TagSet ";" ;
-MatchLemma. Rule ::= Str Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
+MatchLemma.   Rule ::= Str Rule ; --for some reason "<az>" SELECT foo ... doesn't work with String
 
-rules SELECT ::= "SELECT" MaybeName ;
-rules REMOVE ::= "REMOVE" MaybeName ;
+rules SELECT ::= "SELECT" MaybeName Subr ;
+rules REMOVE ::= "REMOVE" MaybeName Subr ;
 
 rules MaybeIF   ::= "IF" | "if" | ;
 rules MaybeName ::= ":" Id | ;
 
---TODO subreading:  SELECT Inf IF (-1/0 ADV-NOT)(-1/1 VAUX-CAN);
-CondNotPos.  Cond1 ::= "NOT" Position TagSet ;
-CondPos.     Cond1 ::= Position TagSet ;
---CondPosSub.  Cond1 ::= Position "/" Signed TagSet ;
-CondBarrier. Cond1 ::= Position TagSet "BARRIER" TagSet ;
+SubrTarget.      Subr ::= "SUB" ":" Signed ;
+SubrTargetStar.  Subr ::= "SUB:*" ;
+SubrEmpty.       Subr ::= ;
+
+CondNotPos.   Cond1 ::= "NOT" Position TagSet ;
+CondPos.      Cond1 ::= Position TagSet ;
+CondBarrier.  Cond1 ::= Position TagSet "BARRIER" TagSet ;
 CondCBarrier. Cond1 ::= Position TagSet "CBARRIER" TagSet ;
-CondNotBar.  Cond1 ::= "NOT" Position TagSet "BARRIER" TagSet ;
-CondNotCBar. Cond1 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
-CondLinked.  Cond  ::= [Cond1] ;
-CondTempl.   Cond  ::= [Template] ;
-_.           Cond ::= "(" Cond ")" ; 
+CondNotBar.   Cond1 ::= "NOT" Position TagSet "BARRIER" TagSet ;
+CondNotCBar.  Cond1 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
+CondLinked.   Cond  ::= [Cond1] ;
+CondTempl.    Cond  ::= [Template] ;
+_.            Cond ::= "(" Cond ")" ; 
 
 
 separator nonempty Cond1 "LINK" ;
@@ -100,11 +102,13 @@ Templ.    Template ::= "(" Cond1 ")" ;
 separator nonempty Template "OR" ;
 
 TagSet.  TagSet  ::= TagSet1 ;
+
 _.       TagSet1 ::= "(" TagSet ")" ; -- you can add parentheses around any tag set
 
 -- Essentially, tags bound by AND are like one tag.
 -- These tags are separated by spaces and enclosed in parentheses.
 -- Also you can just parenthesise a single tag randomly.
+--- TODO find some hack to force the list nonempty (abuse numbers?)
 AND.     Tag1 ::= "(" [Tag] ")" ; 
 
 -- OR 
@@ -116,13 +120,14 @@ NilT.    TagSet1 ::= Tag ;
 
 rules Or ::= "OR" | "|" ;
 
-Exactly.     Position ::= Signed ;
-AtLeastPre.  Position ::= "*" Signed ;
-AtLeastPost. Position ::= Signed "*" ; 
-AtLPostCaut1. Position ::= Signed "C*" ;
-AtLPostCaut2. Position ::= "*" Signed "C" ;
-Cautious.    Position ::= Position "C" ; 
-Subreading.  Position ::= Signed "/" Signed ;
+Exactly.     	 Position ::= Signed ;
+AtLeastPre.  	 Position ::= "*" Signed ;
+AtLeastPost. 	 Position ::= Signed "*" ; 
+AtLPostCaut1. 	 Position ::= Signed "C*" ;
+AtLPostCaut2. 	 Position ::= "*" Signed "C" ;
+Cautious.    	 Position ::= Position "C" ; 
+Subreading.  	 Position ::= Signed "/" Signed ;
+SubreadingStar.  Position ::= Signed "/" "*" ;
 
 
 --token Punct ('/'|'\\'|'_'|'+'|'-'|'!'|'¿'|'¡'|'?'|'!'|'←'|'→') ;
