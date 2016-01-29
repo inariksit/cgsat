@@ -9,9 +9,17 @@ import Text.Regex
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma and word form are also in tags.
-data Tag = Tag String | Lem String | WF String | Subreading Int Tag |
+data Tag = Tag String | Lem String | WF String | Subreading Subpos Tag |
            Rgx Regex String | EOS | BOS
 
+data Subpos = FromStart Integer | FromEnd Integer | Wherever deriving (Eq)
+
+instance Show Subpos where
+  show (FromStart n) = show n
+  show (FromEnd   n) = show (-n)
+  show Wherever = "*"
+
+--because Regex has no Eq instance
 instance Eq Tag where
   foo == bar = show foo == show bar
 
@@ -54,7 +62,7 @@ instance Show TagSet where
 
 showTagset :: [[Tag]] -> String
 showTagset [[x]] = show x 
-showTagset xs    = intercalate "|" $ map show' xs --concatMap show' xs
+showTagset xs    = intercalate "|" $ map show' xs
   where show' [y] = show y 
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 

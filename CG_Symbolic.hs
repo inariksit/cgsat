@@ -112,7 +112,8 @@ testRule verbose ambcls readings (lastrule,rules) = do
 
  where 
    constrainStuff s form symbword = do
-     let mp ind = literal $ fromJust $ IM.lookup ind symbword 
+     let mp ind = literal $ fromMaybe true (IM.lookup ind symbword)
+     --putStrLn $ "constrainStuff: " ++ show symbword
      constraints s mp [] form
   
 --------------------------------------------------------------------------------
@@ -323,7 +324,7 @@ parse str = maintags ++ concat subtags
  where
   (mainr:subrs) = split (=='+') str
   maintags = map toTag $ filter (not.null) $ split isValid mainr
-  subrs_ns = [1..] `zip` map (split isValid) subrs :: [(Int,[String])]
+  subrs_ns = (map FromStart [1..]) `zip` map (split isValid) subrs :: [(Subpos,[String])]
   subtags = map (\(n, strs) -> map (Subreading n . toTag) strs) subrs_ns
   isValid = (=='<') 
   toTag ">>>" = BOS

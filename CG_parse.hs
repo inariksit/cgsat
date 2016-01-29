@@ -231,13 +231,13 @@ transTagSet ts = case ts of
 
 transRule :: Rule -> State Env CGB.Rule
 transRule rl = case rl of
-  SelectIf (SELECT1 nm) tags _if conds ->
+  SelectIf (SELECT1 nm sr) tags _if conds ->
     liftM2 (CGB.Select (getName nm)) (transTagSet tags) (transCondSet conds)
-  RemoveIf (REMOVE1 nm) tags _if conds ->
+  RemoveIf (REMOVE1 nm sr) tags _if conds ->
     liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (transCondSet conds)
-  SelectAlways (SELECT1 nm) tags ->
+  SelectAlways (SELECT1 nm sr) tags ->
     liftM2 (CGB.Select (getName nm)) (transTagSet tags) (return CGB.Always)
-  RemoveAlways (REMOVE1 nm) tags ->
+  RemoveAlways (REMOVE1 nm sr) tags ->
     liftM2 (CGB.Remove (getName nm)) (transTagSet tags) (return CGB.Always)
   MatchLemma (Str lem) rl -> 
     do cgrule <- transRule rl
@@ -262,6 +262,12 @@ transRule rl = case rl of
 
         getName (MaybeName1 (Id id)) = CGB.Name id
         getName MaybeName2           = CGB.NoName
+
+        getSubr (SubrTarget (Signed str)) 
+            = let i = read str in
+              Just $ if i<0 then CGB.FromStart i else CGB.FromEnd i
+        getSubr SubrTargetStar  = Just CGB.Wherever
+        getSubr SubrEmpty       = Nothing
         
 
 transCondSet :: [Cond] -> State Env CGB.Condition
@@ -269,9 +275,7 @@ transCondSet cs = do
   conds <- mapM transCond cs
   return $ foldr1 CGB.AND conds
 
---TODO here if transPosition returns Nothing as the second item in tuple,
---make just use normal Tags.
---If transPosition's second item is Just int, replace transTagSet's result with another constructor for Subreading int.
+
 transCond :: Cond -> State Env CGB.Condition
 transCond c = case c of
 --  CondPos pos ts          -> liftM2 CGB.C (transPosition pos) (transTagSet' True  ts)
@@ -279,14 +283,13 @@ transCond c = case c of
                                 ts' <- transTagSet ts
                                 return $ case subr of
                                   Nothing -> CGB.C pos' (True, ts')
-                                  Just 0  -> CGB.C pos' (True, ts')
                                   Just i  -> CGB.C pos' (True, mapSubr i ts')
 
   CondNotPos pos ts       -> do (pos', subr) <- transPosition pos 
                                 ts' <- transTagSet ts
                                 return $ case subr of
-                                  Nothing -> CGB.C pos' (True, ts')
-                                  Just i  -> CGB.C pos' (True, mapSubr i ts')
+                                  Nothing -> CGB.C pos' (False, ts')
+                                  Just i  -> CGB.C pos' (False, mapSubr i ts')
   CondBarrier pos ts bts  -> barrier pos ts bts True  CGB.Barrier
   CondNotBar pos ts bts   -> barrier pos ts bts False CGB.Barrier
   CondCBarrier pos ts bts -> barrier pos ts bts True  CGB.CBarrier
@@ -330,23 +333,35 @@ transCond c = case c of
 
              liftM (CGB.C $ bcons caut int btags) ((,) isPositive `fmap` transTagSet ts)
         mapSubr i (CGB.TS ts) = CGB.TS $ (map.map) (CGB.Subreading i) ts
-        mapSubr i other   = error $ "transCond.mapSubr: expecting TS foo, got " ++ show other
+        mapSubr i (CGB.Diff ts1 ts2) = CGB.Diff (mapSubr i ts1) (mapSubr i ts2)
+        mapSubr i (CGB.Cart ts1 ts2) = CGB.Cart (mapSubr i ts1) (mapSubr i ts2)
 
 
-
-transPosition :: Position -> State Env (CGB.Position, Maybe Int) --Maybe Int: Nothing if it isn't subreading, 1-n to show the place
+transPosition :: Position -> State Env (CGB.Position, Maybe CGB.Subpos)
 transPosition pos = case pos of
-  Exactly (Signed num)     -> mainreading $ CGB.Exactly False $ read num
-  AtLeastPre (Signed num)  -> mainreading $ CGB.AtLeast False $ read num
-  AtLeastPost (Signed num) -> mainreading $ CGB.AtLeast False $ read num
-  AtLPostCaut1 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
-  AtLPostCaut2 (Signed num) -> mainreading $ CGB.AtLeast True $ read num
-  Subreading (Signed num1) (Signed num2) -> return $ (CGB.Exactly False $ read num1, Just $ read num2)
-  Cautious position        -> cautious `fmap` transPosition position
-  where cautious (CGB.Exactly _b num, subreading) = (CGB.Exactly True num, subreading)
-        cautious (CGB.AtLeast _b num, subreading) = (CGB.AtLeast True num, subreading)
-        mainreading position = return (position, Nothing)
+  Exactly (Signed num)  
+               -> mainreading $ CGB.Exactly False $ read num
+  AtLeastPre (Signed num)  
+               -> mainreading $ CGB.AtLeast False $ read num
+  AtLeastPost (Signed num) 
+               -> mainreading $ CGB.AtLeast False $ read num
+  AtLPostCaut1 (Signed num)
+               -> mainreading $ CGB.AtLeast True $ read num
+  AtLPostCaut2 (Signed num) 
+              -> mainreading $ CGB.AtLeast True $ read num
+  Subreading (Signed num1) (Signed num2)
+              -> return $ (CGB.Exactly False $ read num1
+                          , Just $ if (read num2 < 0) 
+                                    then CGB.FromEnd (read num2)
+                                    else CGB.FromStart (read num2))
 
+  SubreadingStar (Signed num) 
+              -> return $ (CGB.Exactly False $ read num, Just CGB.Wherever)
+  Cautious position  
+              -> cautious `fmap` transPosition position
+ where cautious (CGB.Exactly _b num, subr) = (CGB.Exactly True num, subr)
+       cautious (CGB.AtLeast _b num, subr) = (CGB.AtLeast True num, subr)
+       mainreading position = return (position, Nothing)
 
 --  morpho output parsing
 -- type Analysis = [[Tag]]
@@ -365,7 +380,7 @@ transLine x = case x of
   NoAnalysis (Iden wform) _ -> [[CGB.WF wform]]
 
 
-transAnalysis :: Int -> String -> Analysis -> [CGB.Tag]
+transAnalysis :: Integer -> String -> Analysis -> [CGB.Tag]
 transAnalysis i wf ana = CGB.WF wf:transAna i ana
   where transAna 0 ana = case ana of
           IdenA (Iden id) tags    -> CGB.Lem id:(map transTagA tags)
@@ -374,8 +389,8 @@ transAnalysis i wf ana = CGB.WF wf:transAna i ana
           SubrA ana1 ana2        -> transAna i ana1 ++ transAna (i+1) ana2
           MweA ana1 ana2        -> transAna i ana1 ++ transAna i ana2 --no subreadings for MWEs
         transAna n (SubrA ana1 ana2) --ana1 is IdenA, ana2 can be another SubrA 
-                       = CGB.Subreading n `fmap` transAna 0 ana1 ++ transAna (n+1) ana2
-        transAna n ana = CGB.Subreading n `fmap` transAna 0 ana --last one of subreadings
+                       = CGB.Subreading (CGB.FromStart n) `fmap` transAna 0 ana1 ++ transAna (n+1) ana2
+        transAna n ana = CGB.Subreading (CGB.FromStart n) `fmap` transAna 0 ana --last one of subreadings
 
 transTagA :: TagA -> CGB.Tag
 transTagA (TagA (Iden id)) = CGB.Tag id
