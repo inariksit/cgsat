@@ -57,10 +57,11 @@ main = do
              mapM_ (testRule True "" tc) (splits (reverse kimmo'))
     (lang:r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
+             let nosub = "nosub" `elem` r
              let dirname = "data/" ++ lang ++ "/" 
              let grfile  = dirname ++ lang ++ ".rlx"
              let tagfile = dirname ++ lang ++ ".tags"
-             let rdsfile = dirname ++ lang ++ ".readings.withsub"
+             let rdsfile = dirname ++ lang ++ ".readings." ++ if nosub then "nosub" else "withsub"
              let ambcls  = dirname ++ lang ++ "-ambiguity-classes"
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile tagfile

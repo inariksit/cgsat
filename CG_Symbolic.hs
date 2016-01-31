@@ -121,7 +121,7 @@ testRule verbose ambcls readings (lastrule,rules) = do
 
 apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
 apply s allinds sentence rule = do
-  putStrLn ("apply " ++ show rule)
+  --putStrLn ("apply " ++ show rule)
   let (trgIndsRaw,_) = trg rule --IntSet
   let otherIndsRaw   = allinds IS.\\ trgIndsRaw
   let (trgInds,otherInds) = if isSelect' rule
@@ -327,6 +327,8 @@ parse str = maintags ++ concat subtags
   subrs_ns = (map FromStart [1..]) `zip` map (split isValid) subrs :: [(Subpos,[String])]
   subtags = map (\(n, strs) -> map (Subreading n . toTag) strs) subrs_ns
   isValid = (=='<') 
+
+
   toTag ">>>" = BOS
   toTag "<<<" = EOS
   toTag []    = error "empty tag"

@@ -6,6 +6,7 @@ import Data.List
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
+import Debug.Trace
 import System.Environment ( getArgs ) 
 
 type Key = Int
