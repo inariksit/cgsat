@@ -52,23 +52,28 @@ main = do
   let allinds = IS.fromList [1..length tc]
 
   case args of 
-    [] -> putStrLn "I am a program that prints foo"
     ("kimmo":_)
        -> do let kimmo' = map (ruleToRule' tagmap allinds) kimmo
              mapM_ (testRule True "" tc) (splits (reverse kimmo'))
-    ("nld":r)
+    (lang:r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
+             let dirname = "data/" ++ lang ++ "/" 
+             let grfile  = dirname ++ lang ++ ".rlx"
+             let tagfile = dirname ++ lang ++ ".tags"
+             let rdsfile = dirname ++ lang ++ ".readings.withsub"
+             let ambcls  = dirname ++ lang ++ "-ambiguity-classes"
              tsInApe <- (concat . filter (not.null) . map parse . words) 
-                         `fmap` readFile "data/nld/nld_tags.txt"
-             (tsets, rls) <- readRules' "data/nld/nld.rlx"
+                         `fmap` readFile tagfile
+             (tsets, rls) <- readRules' grfile
              let tcInGr = nub $ concatMap toTags' tsets
-             tcInLex <- (map parse . words) `fmap` readFile "data/nld/nld_tagcombs.txt"
+             tcInLex <- (map parse . words) `fmap` readFile rdsfile
              let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
              let ts = nub $ tsInApe ++ concat tc
              let tagmap = mkTagMap ts tc
              let allinds = IS.fromList [1..length tc]
              let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
-             mapM_ (testRule verbose "nld-ambiguity-classes" tc) (splits rules)
+             mapM_ (testRule verbose ambcls tc) (splits rules)
+{-             
     ("spa":r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let debug = "d" `elem` r
@@ -127,7 +132,7 @@ main = do
              --mapM_ (testRule verbose tc) (splits rules')
              testRule verbose "" tc (last $ splits rules')
              putStrLn "end"
-             
+            -} 
     _ -> print "usage: cabal analyse [kimmo,nld,spa,fin] [v,d]"
 
 
