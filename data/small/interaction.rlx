@@ -1,0 +1,9 @@
+DELIMITERS = "<.>";
+SECTION
+REMOVE:r1 (v)   IF (-1C (det)) ;
+SELECT:s2 (det) IF ( 1  (v)  ) ;
+#REMOVE:r3 (v)   IF (-1  (det)) ;
+
+#REMOVE:r1 (n)   IF (-1C (det)) ;
+#SELECT:s2 (det) IF ( 1  (v)  ) ;
+#REMOVE:r3 (v)   IF (-1  (det)) (0 (n)) ;

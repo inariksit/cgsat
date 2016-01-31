@@ -1,0 +1,32 @@
+DELIMITERS = "<.>";
+
+LIST Tag = tag ;
+
+
+
+#SECTION
+
+REMOVE (target1)  (-1C* Tag);
+REMOVE (target2)  (1-C* Tag);
+REMOVE (target3)  (C1-* Tag);
+REMOVE (target4)  (1C-* Tag);
+REMOVE (target5)  (C-1* Tag);
+REMOVE (target6)  (-C1* Tag);
+REMOVE (target7)  (*C1- Tag);
+REMOVE (target8)  (C*1- Tag);
+REMOVE (target9)  (C1*- Tag);
+REMOVE (target10)  (*1C- Tag);
+REMOVE (target11)  (1*C- Tag);
+REMOVE (target12)  (1C*- Tag);
+REMOVE (target13)  (*-1C Tag);
+REMOVE (target14)  (-*1C Tag);
+REMOVE (target15)  (-1*C Tag);
+REMOVE (target16)  (*1-C Tag);
+REMOVE (target17)  (1*-C Tag);
+REMOVE (target18)  (1-*C Tag);
+REMOVE (target19)  (*-C1 Tag);
+REMOVE (target20)  (-*C1 Tag);
+REMOVE (target21)  (-C*1 Tag);
+REMOVE (target22)  (*C-1 Tag);
+REMOVE (target23)  (C*-1 Tag);
+REMOVE (target24)  (C-*1 Tag);

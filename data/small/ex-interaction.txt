@@ -1,0 +1,18 @@
+"<w1a>"
+	"w1a" det
+	"w1a" prn
+
+"<w2a>"
+	"w2a" v
+	"w2a" n
+"<.>"
+	"." sent
+
+
+
+"<w1b>"
+        "w1b" det
+
+"<w2b>"
+        "w2b" v
+        "w2b" n
