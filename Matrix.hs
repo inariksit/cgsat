@@ -1,12 +1,9 @@
 module Main where
 
-import CG_base
-import CG_Symbolic
 import Data.List
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
-import Debug.Trace
 import System.Environment ( getArgs ) 
 
 type Key = Int
@@ -32,19 +29,29 @@ main = do
                 let readings = map (toReadingMap tcs) ws 
                 --mapM_ print (take 50 readings)
                 --mapM_ print $ M.toList $ toGraph ( readings)
-                mapM_ print $ toGraph readings
+                let foo = (map) nub $ toGraph readings
+                let bar = nub foo
+                mapM_ print bar
+--                mapM_ print $ toGraph readings
 
 --------------------------------------------------------------------------------
 
+--weet:weten<vblex><imp><sg> 
+--weet:weten<vblex><imp><pl>  to 
+--"weet":[ ["vblex", "imp", "sg"]
+--       , ["vblex", "imp", "pl"] ]
+--each of those tag combinations is a value in Word,
+--and has a key, which is a number.
+toReadingMap :: [[String]] -> String -> (ExampleWordForm, Key)
+toReadingMap tcs str = (weet, key)
+ where
+  (weet, vblex_imp_sg) = break (==':') str
+  tags = tail $ map (delete '>') $ split (=='<') vblex_imp_sg
+  key = case elemIndex tags tcs of
+          Just k' -> k'
+          Nothing -> 99999
 
-parseTC :: String -> [Tag]
-parseTC str = map toTag $ filter (not.null) $ split isValid str
- where 
-  isValid c = c=='<' || c=='+'
-  toTag ">>>" = BOS
-  toTag "<<<" = EOS
-  toTag []    = error "empty tag"
-  toTag str = if last str=='>' then Tag (init str) else Lem str
+
 
 
 
@@ -67,21 +74,16 @@ invertMap :: (Ord k, Ord v) => M.Map k [v] -> M.Map [v] [k]
 invertMap m = M.fromListWith (++) pairs
   where pairs = [(vs, [k]) | (k, vs) <- M.toList m]
 
-group' acc (a,b) =
-  case M.lookup a acc of
-    Just c -> M.adjust (b:) a acc 
-    Nothing -> M.insert a [b] acc
---weet:weten<vblex><imp><sg> 
---weet:weten<vblex><imp><pl>  to 
---weet :[ [Tag "vblex", Tag "imp", Tag "sg"]
---      , [Tag "vblex", Tag "imp", Tag "pl"] ]
---each of those tag combinations is a value in Word,
---and has a key, which is a number.
-toReadingMap :: [[Tag]] -> String -> (ExampleWordForm, Key)
-toReadingMap tcs str = (weet, key)
- where
-  (weet, vblex_imp_sg) = break (==':') str
-  tags = map Tag $ tail $ map (delete '>') $ split (=='<') vblex_imp_sg
-  key = case elemIndex tags tcs of
-          Just k' -> k'
-          Nothing -> 99999
+
+parseTC :: String -> [String]
+parseTC str = filter (not.null) $ split isValid str
+ where 
+  isValid c = c=='<' || c=='+'
+{-  toTag ">>>" = BOS
+  toTag "<<<" = EOS
+  toTag []    = error "empty tag"
+  toTag str = if last str=='>' then Tag (init str) else Lem str -}
+
+split :: (a -> Bool) -> [a] -> [[a]]
+split p [] = []
+split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
