@@ -37,10 +37,16 @@ ex_not = concat $ snd $ parseRules False
        "REMOVE:r2 (a) IF (-1 (a)) ;" ++
        "REMOVE:l  (b) IF (-1 (c)) ;" )
 
-kimmo = concat $ snd $ parseRules False
+kimmo_explicit = concat $ snd $ parseRules False
      ( "REMOVE:r1 (a) IF (0 (b)) (-1 (c)) ;" ++
        "REMOVE:r2 (b) IF (0 (a)) (-1 (c)) ;" ++
        "REMOVE:l  (c) IF (-1 (c)) ;" )
+
+kimmo_implicit = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF  (-1 (c)) ;" ++
+       "REMOVE:r2 (b) IF  (-1 (c)) ;" ++
+       "REMOVE:l  (c) IF (-1 (c)) ;" )
+
 
 main = do
   args <- getArgs
@@ -53,8 +59,13 @@ main = do
 
   case args of 
     ("kimmo":_)
-       -> do let kimmo' = map (ruleToRule' tagmap allinds) kimmo
-             mapM_ (testRule True "" tc) (splits (reverse kimmo'))
+       -> do let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
+             putStrLn "testing with implicit kimmo"
+             mapM_ (testRule True "data/abcd-ambiguity-classes" tc) (splits (reverse kimmo_i'))
+
+             let kimmo_e' = map (ruleToRule' tagmap allinds) kimmo_explicit
+             putStrLn "testing with explicit kimmo"
+             mapM_ (testRule True "data/abcd-ambiguity-classes" tc) (splits (reverse kimmo_e'))
     (lang:r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
              let nosub = "nosub" `elem` r

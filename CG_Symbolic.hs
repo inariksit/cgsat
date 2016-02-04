@@ -113,7 +113,7 @@ testRule verbose ambcls readings (lastrule,rules) = do
  where 
    constrainStuff s form symbword = do
      let mp ind = literal $ fromMaybe true (IM.lookup ind symbword)
-     --putStrLn $ "constrainStuff: " ++ show symbword
+     putStrLn $ "constrainStuff: " ++ show symbword
      constraints s mp [] form
   
 --------------------------------------------------------------------------------
