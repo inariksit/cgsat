@@ -134,30 +134,6 @@ Finally, if the method proves feasible for CG, we want
 to try applying it to other grammar formalisms.
 
 
-% As another line of investigation, we want to detect more kinds of conflicts.
-% For instance, say we have the following rules:
-
-% \begin{itemize}
-% \item[] \begin{verbatim}
-% REMOVE verb IF (-1 det) ;
-% REMOVE noun IF (-1 det) ;
-% \end{verbatim}
-% \end{itemize}
-
-% With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a noun; the verb is gone already.
-% However, in the context of real life texts, the grammar writer might actually mean the following:
-
-% \begin{itemize}
-% \item[] \begin{verbatim}
-% REMOVE verb IF (-1 det) (0 noun) ;
-% REMOVE noun IF (-1 det) (0 verb) ;
-% \end{verbatim}
-% \end{itemize}
-
-% In that case, those rules are contradictory, and we would like to find it out.
-
-
-
 % * Preliminary results
 %  - dutch & spanish
 %  - mention scalability
