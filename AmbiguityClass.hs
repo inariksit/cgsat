@@ -4,7 +4,8 @@ import Data.List
 import qualified Data.Set as S
 import qualified Data.Map as M
 import Data.Maybe( fromJust )
-import SAT
+import SAT ( Solver(..), newSolver, deleteSolver )
+import SAT.Named
 
 --------------------------------------------------------------------------------
 -- example use
@@ -44,7 +45,7 @@ test =
      -- reuse it many times
      putStrLn "Generating constraints..."
      s  <- newSolver
-     qs <- sequence [ newLit s | y <- univ ]
+     qs <- sequence [ newLit s "" | y <- univ ] --remove "" for non-named SAT+
      let tab  = M.fromList (univ `zip` qs)
          mp y = fromJust (M.lookup y tab)
      constraints s mp [] p
@@ -125,12 +126,12 @@ constraints s mp pre (Or [p]) =
 
 constraints s mp pre p =
   do qs <- asOr s mp p
-     --print (take 5 $ pre++qs)
+     print (take 5 $ pre++qs)
      addClause s (pre ++ qs)
  where
   asOr s mp (And [])   = do return [true]
   asOr s mp (And [p])  = do asOr s mp p
-  asOr s mp (And ps)   = do x <- newLit s
+  asOr s mp (And ps)   = do x <- newLit s "" --remove "" for non-named SAT+
                             constraints s mp [neg x] (And ps)
                             return [x]
   asOr s mp (Or ps)    = do qss <- sequence [ asOr s mp p | p <- ps ]
