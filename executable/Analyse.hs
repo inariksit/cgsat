@@ -68,18 +68,22 @@ main = do
              mapM_ (testRule True "data/abcd-ambiguity-classes" tc) (splits (reverse kimmo_e'))
     (lang:r)
        -> do let verbose = "v" `elem` r || "d" `elem` r
-             let nosub = "nosub" `elem` r
+             let subr = if "nosub" `elem` r then "nosub" else "withsub"
+             let noambcls = "noambcls" `elem` r
+
              let dirname = "data/" ++ lang ++ "/" 
              let grfile  = dirname ++ lang ++ ".rlx"
              let tagfile = dirname ++ lang ++ ".tags"
-             let rdsfile = dirname ++ lang ++ ".readings." ++ if nosub then "nosub" else "withsub"
-             let ambcls  = dirname ++ lang ++ "-ambiguity-classes"
+             let rdsfile = dirname ++ lang ++ ".readings." ++ subr
+             let ambcls  = if noambcls then "data/dummy-amb-cls" 
+                                        else dirname ++ lang ++ "-ambiguity-classes"
              tsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile tagfile
              (tsets, rls) <- readRules' grfile
-             let tcInGr = nub $ concatMap toTags' tsets
+             let tcInGr = [] --nub $ concatMap toTags' tsets
              tcInLex <- (map parse . words) `fmap` readFile rdsfile
              let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
+             mapM_ print tc
              let ts = nub $ tsInApe ++ concat tc
              let tagmap = mkTagMap ts tc
              let allinds = IS.fromList [1..length tc]
