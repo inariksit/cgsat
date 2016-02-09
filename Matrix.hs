@@ -28,11 +28,11 @@ main = do
  case args of
   []    -> error "give a lexicon and tag combinations"
   (w:t:_) -> do ws <- words `fmap` readFile w
-                tcs <- (map parseTC . words) `fmap` readFile t
+                tcs <- (map parseReadings . words) `fmap` readFile t
                 let ts = concat tcs
                 let readings = map (toReadingMap tcs) ws 
-                mapM_ print (take 50 readings)
-                mapM_ print $ M.toList $ toGraph ( readings)
+                --mapM_ print (take 50 readings)
+                mapM_ (print . fst) $ M.toList $ toGraph ( readings)
 --                mapM_ print $ toGraph readings
 
 --------------------------------------------------------------------------------
@@ -72,20 +72,28 @@ onlyValues bad m = nub $ [vs' | (k, vs) <- M.toList m
                               , not (null vs') ]
 
 invertMap :: (Ord k, Ord v) => v -> M.Map k [v] -> M.Map [v] [k]
-invertMap bad m = M.fromListWith (++) pairs
-  where pairs = [(vs, [k]) | (k, vs) <- M.toList m
+invertMap bad m = M.fromListWith (max) pairs
+  where pairs = [(vs', [k]) | (k, vs) <- M.toList m
                            , let vs' = filter (/=bad) vs
                            , not (null vs') ]
 
---TODO subreadings & lemmas
-parseTC :: String -> [Tag]
-parseTC str = map toTag $ filter (not.null) $ split isValid str
+
+parseReadings :: String -> [Tag]
+parseReadings str = mainrP ++ concat subrsPI
+ where
+  (mainr:subrs) = split (=='+') str
+  mainrP = parse' mainr :: [Tag]
+  subrsP = map parse' subrs :: [[Tag]]
+  subrsPI = map (\(n,subr) -> map (Subreading $ FromStart n) subr)
+                (zip [1..] subrsP) :: [[Tag]] 
+
+
+parse' :: String -> [Tag]
+parse' str = map toTag $ filter (not.null) $ split (=='<') str
  where 
-  isValid c = c=='<' || c=='+'
   toTag ">>>" = BOS
   toTag "<<<" = EOS
   toTag []    = error "empty tag"
-  toTag ('"':str) = Lem $ delete '"' str
   toTag str = if last str=='>' then Tag (init str) else Lem str 
 
 split :: (a -> Bool) -> [a] -> [[a]]
