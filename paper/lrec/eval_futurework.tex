@@ -16,12 +16,12 @@ The results are shown in table~\ref{table:res}.
 \centering
 \begin{tabular}{|l|l|l|l|}
 \hline
-                      & \textsc{nld}  & \textsc{spa}  & \textsc{fin}  \\ \hline
+              & \textsc{nld}  & \textsc{spa}  & \textsc{fin}  \\ \hline
 \# rules      & 59              & 279      & 1185     \\ \hline
-\# readings      & 276             & 2191     & 2012    \\ \hline
-\# conflicts       & 1               & 1        & 51    \\ \hline
+\# readings   & 336             & 2191     & 2012    \\ \hline
+\# conflicts  & 8 (1 + 5 + 2)   & 1        & 51    \\ \hline
 \clock{} all rules       & 7s              & 3min 22s    & 3h 26min    \\ \hline
-\clock{} last rule       & 4s              & 7s                & 3min 40s    \\ \hline
+\clock{} last rule       & 4s              & 7s          & 3min 40s    \\ \hline
 % This is with just 2000ish variables for Finnish, below is with 5700
 
 % \clock{} last rule       & 4s              & 7s          & 30min 25s    \\ \hline
@@ -29,7 +29,7 @@ The results are shown in table~\ref{table:res}.
 %\# variables: last rule & 33915         & 247153            &    \\ \hline
 
 \end{tabular}
-\caption{Detecting rules that cannot be applied}
+\caption{}
 \label{table:res}
 \end{table}
 
@@ -45,13 +45,33 @@ We did not check for false negatives in any of the grammars.
 The Spanish grammar had an erroneous set definition, where a word was
 required to have almost all POS tags at the same time. After fixing
 the set definition, our test did not reveal other problems.
-The Dutch grammar had the following rules in the given order, making the latter impossible to apply:
+
+The Dutch grammar had two kinds of errors: rule-internal due to nonexistent tags, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in 2 rules as the main reading. 
+
+There were two genuine conflicts with rule interaction. The first one is shown below:
+
 \begin{itemize}
 \item[] 
 \begin{verbatim}REMOVE Adv IF (1 Noun) ;
 REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun) ;
 \end{verbatim}
 \end{itemize}
+
+The first one is more straight-forward: two rules, which both remove an adverb, were in an order where the first has more broad condition: remove adverb if followed by a noun. In contrast, the second rule has a stricter requirement: only remove adverb if it is preceded by a determiner; the adverb itself is ambiguous with an adjective, and followed by a noun. The proble is that the first rule removes the adverb in all possible cases, and the second will not have any chance to act. If the rules were in the opposite order, then there would be no problem.
+
+
+The second conflict, shown below, is more subtle. 
+
+\begin{itemize}
+\item[] 
+\begin{verbatim}SELECT DetPos IF (-1 (vbser pres p3 sg)) (0 ("zijn"i)) (1 Noun);
+SELECT DetPosNotZijn IF (1 Noun);
+\end{verbatim}
+\end{itemize}
+
+On the first glance it seems that there is no conflict: the first rule requires a Det Pos which is at the same time ``zijn'', as seen by the requirement \texttt{(0 ("zijn"i))}. However, this has a different semantics in the CG-3 formalism, as well as in SAT-CG. The rules match a situation where there is \emph{any} Det Pos and \emph{any} zijn, including the verb reading. The correct way would be
+
+
 
 For the Finnish grammar, we did not have time to investigate all the
 results. We could verify approximately \nicefrac{1}{3} as true positives and

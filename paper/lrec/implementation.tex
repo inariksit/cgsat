@@ -74,6 +74,27 @@ $w_5' \Leftrightarrow [ w_5 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$
 
 \todo{List of word forms+readings; list of distinct readings; make into matrix where we see that x and y can be ambiguous but a and z never; smart things with constraints (Koen)}
 
+There is another point to mention: the readings in grammar can be underspecified (e.g. `verb sg''), whereas the lexicon only gives us fully specified (``verb pres p2 sg'') readings. 
+In addition, the sets in the grammar may include word forms or lemmas, but we remove those from the readings that we extract from the lexicon, in order to have 100s-1000s of variables instead of 100 000s.
+A simple solution is to retain the lemmas and word forms only for those entries where it is specified in the grammar, and otherwise leave them out. For example, the grammar may contain the following list:
+
+\begin{itemize}
+ \item[] \texttt{LIST ZijnVerb = ("zijn" vbser pres pl) ;}
+\end{itemize}
+
+Clearly there is something special about the verb \emph{zijn}, not just any verb. Looking at the lexicon, we find \emph{zijn} in the following entries:
+
+\begin{itemize}
+ \item[] \texttt{zijn:zijn<det><pos><mfn><pl>}
+ \item[] \texttt{zijn:zijn<det><pos><mfn><sg>}
+ \item[] \texttt{zijn:zijn<vbser><inf>}
+ \item[] \texttt{zijn:zijn<vbser><pres><pl>}
+\end{itemize}
+
+Thus we add special entries for these: in addition to the anonymous \texttt{<det><pos><mfn><pl>} reading, we add \texttt{<"zijn"><det><pos><mfn><pl>}.
+
+
+
 Now with this, we can detect even these kinds of rules as problematic:
 
  \begin{itemize}
