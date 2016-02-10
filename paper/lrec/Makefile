@@ -1,8 +1,8 @@
 all:
-	pdflatex lrec2016_listenmaa_claessen.tex
+	xelatex lrec2016_listenmaa_claessen.tex
 	bibtex lrec2016_listenmaa_claessen
-	pdflatex lrec2016_listenmaa_claessen.tex
-	pdflatex lrec2016_listenmaa_claessen.tex
+	xelatex lrec2016_listenmaa_claessen.tex
+	xelatex lrec2016_listenmaa_claessen.tex
 
 xe:
 	xelatex lrec2016_listenmaa_claessen.tex
