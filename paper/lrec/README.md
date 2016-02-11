@@ -19,6 +19,22 @@ When creating a symbolic sentence, `1*` and `1` will only create one word to the
 * Binary search-ish ?
 * Are there tricky cases? If we have rules `[r1...r100]` and rules 29 and 70 conflict, how do we start? Split at 1-50 and 51-100, if both halves can be run without conflict, then start adding 1-51, 1-52 etc. until 1-70 conflicts, then start removing from the beginning, until 30-70 doesn't conflict.
 
-### Word-internal constraints
+### Some remarks about creating a list of all readings
 
-Ok the boundary thing looks like it works now. Then just add everything else \:D/
+* Sentence boundary (BOS/EOS) is a word in the symbolic sentence
+* `sent` is also a word in the symbolic sentence. The BOS/EOS (>>>/<<<) are magic tags by VISL CG-3, and I adopt the convention. When parsing, I split text into sentences by punctuation (yep not gonna work for A.C.R.O.N.Y.M.S.) and wrap it in BOS _ EOS.
+
+For grammar testing, I generate a list of all readings from the Apertium lexicon. I do
+
+`lt-expand apertium-<lang>.<lang>.dix | sed 's/:[<>]:/:/' | cut -f 2 -d :` to get rid of the word forms. This still has lemmas, so you can remove everything on the lines before the first `<`. Then just `sort -u`, and you have a list of readings, such as `<det><def><mf><sg>, <det><def><mfn><pl>`.
+
+However, the grammar often contains tag combinations that have lemmas or word forms in them, such as `REMOVE ("haar") + Noun IF (1 Noun)`. We add these combinations to the list of readings as follows:
+
+
+```
+for i in `egrep -v "^ *#|^DELIMITERS|^SOFT-DELIMITERS" fin.rlx | egrep -o "\"[^\"]*\"" | tr -d '"'`; do echo $i | sed -E 's/([^:]*):([^<]*)(<.*)/\3<\2/ ; done | sort -u
+```
+
+If we want the word form, replace the sed with `sed -E 's/([^:]*):([^<]*)(<.*)/\3<\1/`. This is due to the way I'm parsing it: `<` is the split character, and then I check the end, if there's a `>`, then it's a normal tag, otherwise lemma. (I didn't put in special case for word form, but that is easy to add.)
+
+I also add >>> and <<< into the readings.
