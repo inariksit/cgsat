@@ -1,8 +1,8 @@
 all:
-	xelatex lrec2016_listenmaa_claessen.tex
+	pdflatex lrec2016_listenmaa_claessen.tex
 	bibtex lrec2016_listenmaa_claessen
-	xelatex lrec2016_listenmaa_claessen.tex
-	xelatex lrec2016_listenmaa_claessen.tex
+	pdflatex lrec2016_listenmaa_claessen.tex
+	pdflatex lrec2016_listenmaa_claessen.tex
 
 xe:
 	xelatex lrec2016_listenmaa_claessen.tex
@@ -19,4 +19,4 @@ show:
 	git show --word-diff
 
 clean:
-	rm *.aux *.log *.dvi *.fdb_latexmk *.bbl *.toc *.fls
+	rm *.aux *.log *.dvi *.fdb_latexmk *.bbl *.toc *.fls *.bcf *.blg *.out

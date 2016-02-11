@@ -1,73 +1,43 @@
-%
-% File nodalida2015.tex
-%
-% Contact beata.megyesi@lingfil.uu.se
-%
-% Based on the instruction file for EACL 2014
-% which in turn was based on the instruction files for previous 
-% ACL and EACL conferences.
+\documentclass[10pt, a4paper]{article}
+\usepackage{lrec2016}
+\usepackage{multibib}
+\newcites{languageresource}{Language Resources}
+\usepackage{graphicx} % for eps graphics
+\usepackage{epstopdf}
+\usepackage[latin1]{inputenc}
 
-\documentclass[11pt]{article}
-\usepackage{nodalida2015}
-\usepackage{times}
-\usepackage{mathptmx}
-\usepackage{fixltx2e}
-\usepackage{url}
-\usepackage{multirow}
-\usepackage{latexsym}
-\usepackage{cite}
-\usepackage{graphicx}
+% Inari's additions
 \usepackage[colorlinks=true,citecolor=blue,urlcolor=blue]{hyperref}
-\usepackage{authordate1-4}
-\usepackage{multirow}
-%\special{papersize=210mm,297mm} % to avoid having to use "-t a4" with dvips 
-%\setlength\titlebox{6.5cm}  % You can expand the title box if you really have to
-\usepackage{units}
-
-\usepackage{fontspec}
-\usepackage{wasysym}
-
-\newcommand{\mainfontfamily}{Palatino}
-\setmainfont[
-  Ligatures=TeX,
-  Scale=0.9,
-]{\mainfontfamily}
-
-\newfontfamily\scshape[Letters=SmallCaps, Numbers=Uppercase]{Palatino
-  Small Caps}
-
-\newcommand{\monofontfamily}{Monaco} % Monaco
-\setmonofont[Scale=0.8]{\monofontfamily}
-
-
 \usepackage{color}
 \newcommand{\todo}[1]{{\color{cyan}\textbf{[TODO: }#1\textbf{]}}}
-%\newcommand{\textonethird}{\nicefrac{1}{3}}
+\usepackage{units} % for nicefrac
+\usepackage{wasysym} % for clock
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
 \title{Analysing Constraint Grammars with a SAT-solver}
 
-\author{Inari Listenmaa \and Koen Claessen \\
- Chalmers University of Technology, Gothenburg, Sweden \\
- {\tt \{inari,koen\}@chalmers.se} }
+\name{Inari Listenmaa, Koen Claessen}
 
-\date{\today}
+\address{University of Gothenburg, Chalmers University of Technology \\
+         Gothenburg, Sweden \\
+         inari@chalmers.se, koen@chalmers.se\\}
 
-\begin{document}
-\maketitle
 
-\begin{abstract}
-%\small
-We describe a method for
- analysing Constraint Grammars by encoding the
+\abstract{
+We describe a method for analysing Constraint Grammars by encoding the
 rules in SAT.
 Our tools can detect internal conflicts or redundancies in a grammar,
 as well as generate examples to demonstrate the effect of some rule or
 rule set.
 This can help users to diagnose and improve their grammars.
-No corpus is required, only a morphological lexicon.
-%We test our tools with grammars from 100-1000 rules.
-\end{abstract}
+No corpus is required, only a morphological lexicon. \\ 
+\newline 
+\Keywords{Constrain Grammar, SAT, Grammar Analysis} }
+
+\begin{document}
+
+\maketitleabstract
 
 % Introduction & problem description
 \input{problem_desc}
@@ -81,8 +51,16 @@ No corpus is required, only a morphological lexicon.
 \section*{Acknowledgments}
 We thank Eckhard Bick for the idea to apply SAT to CG analysis, and Francis Tyers for insightful discussions.
 
+\section{Bibliographical References}
+\label{main:ref}
 
-\bibliographystyle{acl}
+\bibliographystyle{lrec2016}
 \bibliography{cg}
+
+
+% \section{Language Resource References}
+% \label{lr:ref}
+% \bibliographystylelanguageresource{lrec2016}
+% \bibliographylanguageresource{cg}
 
 \end{document}
