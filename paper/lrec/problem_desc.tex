@@ -5,7 +5,7 @@
 
 %Most of NLP research has been since the 90s aimed towards data-driven methods. While these approaches have produced good results for languages with large annotated corpora, they are practically unusable for low-resourced languages. Even for languages with many resources, \todo{cite Manning (2011)} argues that rule-based methods are needed to push the accuracy of POS taggers from the 97\%s to the near 100\%. POS tagging is a fundamental phase which is required in further syntactic or semantic analysis---hence a good POS-tagger is an important resource for any language. We believe that Constraint Grammar is a good candidate especially for languages with low resources, and in this paper we describe methods for CG writers and users to analyse and improve their grammars.
 
-Constraint Grammar (CG, \cite{karlsson1995constraint})
+Constraint Grammar (CG, \newcite{karlsson1995constraint})
 % \citep[CG,][]{karlsson1995constraint} 
 is a formalism used to disambiguate morphologically analysed text. 
 A grammar consists of rules that target specific analyses for selection or removal, based on contextual tests. For example, the following rule
@@ -22,9 +22,10 @@ Given the following text,
 "<wish>"
         "wish" noun sg
         "wish" verb pl
+        "wish" verb inf
 \end{verbatim}
 \end{itemize}
-the rule will match to the word \emph{wish}, and remove the analysis \texttt{verb pl}.
+the rule will match to the word \emph{wish}, and remove the analyses \texttt{verb pl} and \texttt{verb inf}.
 However, if the target word has only one remaining analysis, then the rule will not apply, even if the condition is met.
 
 CGs are valuable resources for rule-based NLP, especially for lesser
@@ -34,49 +35,56 @@ lightweight and language-independent, and resources can be shared
 between related languages \cite{bick2006spanish,lene_trond_linda2010}.
 Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
-As CGs grow larger, it gets harder for the grammar writers and users
-to keep track of all the rules and their interaction.
-This is partly by design: CG is a shallow formalism, and individual rules can be written to address any property, 
-%such as "any verb" or "the word form `foo' which is tagged as agent"
 
-With our tools, the users can find conflicting rules, diagnose problems and improve their grammars. 
+By design, CG is a shallow and robust formalism. Individual rules can be written to address any property, such as ``verb'', ``copula verb in first person singular'', or ``the word form \emph{sailor} preceded by \emph{drunken} anywhere in the sentence''. This makes it possible to treat very particular edge cases without touching the more general rule: we would simply write the narrow rule first (``if noun AND \emph{sailor}''), and use a general rule (``if noun'') as catch-all. 
+
+However, this design is not without problems. As CGs grow larger, it gets harder to keep track of all the rules and their interaction.
+Our tools will help grammar writers and users to find conflicting rules, diagnose problems and improve their grammars. 
 We expect two major use cases: 
-one where the grammar writer takes a whole grammar and cleans it up, and
-other where the grammar writer tests new rules as they write them. 
+first, to test the effect of new rules while writing a grammar, and second, to take a complete grammar and analyse it as a whole, to find conflicts or dead rules.
 
-%%%%% Motivate testing some rules, not whole grammar
 
-Given the following $n$ rules, a grammar writer may ask some questions while writing a grammar. 
-\begin{itemize}
-\item[] \texttt{SELECT Inf IF (-1 Para OR De) (0C V) ;}
-\item[] \texttt{SELECT Inf IF (-1 Pr) (0C V) ;}
-\item[] \texttt{SELECT Inf IF (-1C Vai) ;}
-\item[] \texttt{SELECT Inf IF (-1C Vbmod) (0C V) ;}
-\item[] \texttt{SELECT Inf IF (-1C Ter/de) ;}
-\item[] \texttt{SELECT Inf IF (-1C Vbmod) (0 Ser) ;}
-\end{itemize}
 
+\begin{figure}[t]
+\begin{center}
 
 \begin{itemize}
-\item Are all the rules distinct? (e.g. Para and De are included in Pr)
-\item Could two or more rules be merged (\texttt{IF -1 Pr OR Vai OR Vbmod ...})?
-\item Does the order of the rules matter? What is the best order?
+\item[]\begin{verbatim}SELECT Inf IF (-1 Para OR De) (0C V) ;
+SELECT Inf IF (-1 Prep) (0C V) ;
+SELECT Inf IF (-1C Vai) ;
+SELECT Inf IF (-1C Vbmod) (0C V) ;
+SELECT Inf IF (-1C Ter/de) ;
+SELECT Inf IF (-1C Vbmod) (0 Ser) ;
+\end{verbatim}
 \end{itemize}
 
-If there 
+\caption{Rules to select infinitive.}
+\end{center}
+
+\label{infrules}
+\end{figure}
+
+
+
+Given the rules in figure~\ref{infrules}, a grammar writer may ask the following questions while writing a grammar. 
+
+\begin{itemize}
+\item Are all the rules distinct? (e.g. \texttt{Para} and \texttt{De} may be included in \texttt{Prep})
+\item Could two or more rules be merged? (e.g. \texttt{SELECT Inf IF -1 Prep OR Vai OR Vbmod ...})
+\item What is the best order for the rules?
+\item Generate a sequence that triggers rule(s) $R$ but not rule(s) $R'$. 
+\end{itemize}
 
 %%%%%
 
-
-
-Some examples of such conflicts are listed below:
+For the second use case, here are examples of conflicts that our tools will detect.
 \begin{itemize}
 \item If a rule appears twice, the second occurrence will be disabled by the first
 \item $R$ selects something in a context, $R'$ removes~it
 \item $R$ removes something from the context of $R'$, so $R'$ can never
   apply
 \item $R$ has an internal conflict, such as non-existent
-tag combination, or contradicting requirements for a context word
+tag combination, or contradictory requirements for a context word
 \end{itemize}
 $R$ can also be a set of rules: for instance, if one rule removes a verb in
 context $C$, and another in context $\neg C$, together these rules
@@ -88,10 +96,7 @@ care of rule interaction requires a {\em semantic} rather than a {\em syntactic}
 %In addition to analysing the whole grammar,
 %Our method can be used to
 %check individual rules. For instance,
-We can also ask the tool to
-generate example sentences that trigger rule(s) $R$ but not rule(s) $R'$. 
-This can help the grammar writer to see
-if they have implemented the rules in the intended way.
+
 
 
 % They can ask specific questions about a given grammar, such as:
@@ -138,9 +143,8 @@ We combine elements from the following aspects of CG research:
 \item Encoding CG in logic \cite{lager98,lager_nivre01,listenmaa_claessen2015}
 \end{itemize}
 
-% In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996,lindberg_eineborg98ilp}.
-% %, \cite{lager01transformation}, \cite{asfrent14} 
-% However, since our work is aimed to aid the process of hand-crafting rules, we omit those works from our discussion.
+In addition, there is a large body of research on automatically inducing rules, e.g. \cite{inducing_cg1996,lindberg_eineborg98ilp,lager01transformation,asfrent14} 
+However, since our work is aimed to aid the process of hand-crafting rules, we omit those works from our discussion.
 
 
 \paragraph{Corpus-based methods in manual grammar development}
@@ -169,7 +173,7 @@ However, this method will not notice a missed opportunity or a grammar-internal 
 \paragraph{Automatic optimisation of hand-written grammars }
 % The corpus-based method can tell the effect of each single rule at their place in the rule sequence, and leaves the grammar writer to make changes in the grammar.
 
-\cite{bick2013tuning} modifies the grammar automatically, by trying
+\newcite{bick2013tuning} modifies the grammar automatically, by trying
 out different rule orders and altering the contexts of the rules.
 Bick reports error reduction of 7--15\% compared to the original grammars.
 As a downside, the grammar writer will likely not know why exactly does the tuned grammar perform better.
@@ -182,7 +186,7 @@ As a downside, the grammar writer will likely not know why exactly does the tune
 
 %\cite{lager98} presents a CG-like shallow parsing system encoded in logic, and \cite{lager_nivre01} continues with a reconstruction of four different formalisms.
 %The earlier works on logical reconstruction don't envision grammar analysis as one of the use cases,
-\cite{lager98} and \cite{lager_nivre01} reconstruct the CG formalism in first-order predicate logic.
+\newcite{lager98} and \newcite{lager_nivre01} reconstruct the CG formalism in first-order predicate logic.
 %, and \cite{listenmaa_claessen2015} implement a CG compiler using a SAT-solver.
 Grammar analysis is a natural use case, due to some key features of the logical reconstruction.
 The traditional CG compiler 
