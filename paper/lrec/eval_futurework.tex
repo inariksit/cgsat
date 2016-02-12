@@ -64,13 +64,17 @@ The second conflict, shown below, is more subtle.
 
 \begin{itemize}
 \item[] 
-\begin{verbatim}SELECT DetPos IF (-1 (vbser pres p3 sg)) (0 ("zijn"i)) (1 Noun);
-SELECT DetPosNotZijn IF (1 Noun);
+\begin{verbatim}SELECT DetPos IF (-1 Verb) (0 "zijn") 
+                 ( 1 Noun) ;
+SELECT DetPosNotZijn IF (1 Noun) ;
 \end{verbatim}
 \end{itemize}
 
-On the first glance it seems that there is no conflict: the first rule requires a Det Pos which is at the same time ``zijn'', as seen by the requirement \texttt{(0 ("zijn"i))}. However, this has a different semantics in the CG-3 formalism, as well as in SAT-CG. The rules match a situation where there is \emph{any} Det Pos and \emph{any} zijn, including the verb reading. The correct way would be
+On the first glance it seems that there is no conflict: the first rule requires a Det Pos which is at the same time ``zijn'', as seen by the requirement \texttt{(0 "zijn")}. However, this has a different semantics in VISL CG-3, which is also repeated in our tool. The rules match a situation where there is \emph{any} Det Pos and \emph{any} zijn, including the verb. The correct way to formulate the first rule would be the following:
 
+\begin{itemize}
+\item[] \texttt{SELECT DetPos + "zijn" IF (-1 Verb) (1 Noun) ;}
+\end{itemize}
 
 
 For the Finnish grammar, we did not have time to investigate all the
@@ -131,18 +135,8 @@ We believe we can still signifcantly improve the performance of the SAT-encoding
 
 \paragraph{Future work} 
 
-We will work on the performance, and fix the errors we found in the
-evaluation, such as the issue with non-exact position.
-We also plan to restrict possible ambiguities in the symbolic words. 
-Currently we have only hard-coded some
-very basic assumptions, such as ``word cannot be ambiguous between a
-boundary and a real word'', but we want to extract these constraints
-automatically from a lexicon.
-% For instance, the Spanish lexicon contains the entries
-% \texttt{casa:casa<n><sg>}  and  \texttt{casa:casar<v><sg><p3>}, thus
-% we know that a word can be ambiguous between a noun and a verb.
-By adding these restrictions to the symbolic words, we hope to
-restrict the search space, and make the SAT problem easier to solve, while at the same time generate more realistic example sentences.
+
+Our solution to hardcode the tag combinations in the readings is feasible for simple morphology, but it can cause problems with more complex morphology. One big downside is that in order to implement \textsc{ADD}, \textsc{ADDREADING} and \textsc{MAP}, we need to be prepared for new readings--even if the lexicon gives all readings that exist in the lexicon, the user might give a nonexistent reading, or in the case of MAP, a syntactic tag, which is (by definition) not in the lexicon. A more scalable solution would be to make each tag a variable, and ask the question ``can this reading be a noun? how about singular? how about conditional?'' separately for each tag. Then we could lift the restriction of tag combinations into a SAT solver: make SAT clauses that prohibit a comparative to go with a verb, or conditional with a noun.
 
 As for longer-term goals, we want to handle the full expressivity of CG-3,
 with \textsc{map}, \textsc{add} and \textsc{substitute} rules, and
