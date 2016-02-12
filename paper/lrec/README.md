@@ -32,7 +32,7 @@ However, the grammar often contains tag combinations that have lemmas or word fo
 
 
 ```
-for i in `egrep -v "^ *#|^DELIMITERS|^SOFT-DELIMITERS" fin.rlx | egrep -o "\"[^\"]*\"" | tr -d '"'`; do echo $i | sed -E 's/([^:]*):([^<]*)(<.*)/\3<\2/ ; done | sort -u
+for i in `egrep -v "^ *#|^DELIMITERS|^SOFT-DELIMITERS" $LANG.rlx | egrep -o "\"[^\"]*\"" | tr -d '"'`; do egrep $i $LANG.expanded | sed -E 's/([^:]*):([^<]*)(<.*)/\3<\2/'' ; done | sort -u
 ```
 
 If we want the word form, replace the sed with `sed -E 's/([^:]*):([^<]*)(<.*)/\3<\1/`. This is due to the way I'm parsing it: `<` is the split character, and then I check the end, if there's a `>`, then it's a normal tag, otherwise lemma. (I didn't put in special case for word form, but that is easy to add.)
