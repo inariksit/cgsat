@@ -98,10 +98,20 @@ Thus we add special entries for these: in addition to the anonymous
 
  In our experience,  even ignoring the clitics doubles the amount of readings.
 
-Another note: the readings in grammar can be underspecified (e.g. ``verb sg''), whereas the lexicon only gives us fully specified (``verb pres p2 sg'') readings. 
+Another note: the readings in grammar can be underspecified (e.g. ``verb sg''), whereas the lexicon only gives us fully specified (``verb pres p2 sg'') readings. \todo{Is this suitable for implementation, or sh0ould it be in eval/discussion/something else?} We tried a version where we took the tag combinations specified in the grammar as readings, and we could insert them into the symbolic sentences as well, but this was not an ideal solution: turns out that the tag lists in the grammars contain often errors (e.g. replacing OR with an AND; using a nonexistent tag; using a wrong subreading number), and if we accept those lists as readings, we will generate symbolic sentences that are impossible, and won't discover the bug in the grammar.
+
+However, if we only want to find rule interaction effects, then using the underspecified readings from the grammar makes the task faster, and it will still catch potential interaction errors.
+
+All in all, our solution to hardcode the tag combinations in the readings is feasible for simple morphology, but it can cause problems with more complex morphology. One big downside is that in order to implement \textsc{ADD}, \textsc{ADDREADING} and \textsc{MAP}, we need to be prepared for new readings--even if the lexicon gives all readings that exist in the lexicon, the user might give a nonexistent reading, or in the case of MAP, a syntactic tag, which is (by definition) not in the lexicon.
 
 
 \paragraph{Creating realistic ambiguities}
+
+In the previous paragraph, we have created realistic \emph{readings}:  ``conditional'' can only go in verb readings, or ``comparative'' with adjective readings. This is done just by hardcoding those combinations into variables. The next step in creating realistic ambiguities is to constrain what readings can go together. For instance, the case of \emph{zijn} shows us that a determiner and a verb, in present tense plural or infinitive, is a possible ambiguity. In contrast, there is no word form in the lexicon
+that would be ambiguous between an adjective and a comma, hence we don't want to generate such ambiguity in our symbolic sentences.
+
+We solve the problem by looking at the lexicon again. We extract all the words and form ambiguity classes \todo{find if that's a term that should be cited/who invented it and where it was first used}: all the words that can be ambiguous with each other. However, with thousands of readings, this would 
+extract all the  leaves us with so many combinations, that hardcoding wouldn't be efficient. We
 
 \todo{List of word forms+readings; list of distinct readings; make into matrix where we see that x and y can be ambiguous but a and z never; smart things with constraints (Koen)}
 
