@@ -32,7 +32,7 @@ main = do
                 let ts = concat tcs
                 let readings = map (toReadingMap tcs) ws 
                 --mapM_ print (take 50 readings)
-                mapM_ (print . fst) $ M.toList $ toGraph ( readings)
+                mapM_ (print) $ M.toList $ toGraph ( readings)
 --                mapM_ print $ toGraph readings
 
 --------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ onlyValues bad m = nub $ [vs' | (k, vs) <- M.toList m
                               , not (null vs') ]
 
 invertMap :: (Ord k, Ord v) => v -> M.Map k [v] -> M.Map [v] [k]
-invertMap bad m = M.fromListWith (max) pairs
+invertMap bad m = M.fromListWith (++) pairs
   where pairs = [(vs', [k]) | (k, vs) <- M.toList m
                            , let vs' = filter (/=bad) vs
                            , not (null vs') ]

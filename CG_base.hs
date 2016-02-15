@@ -29,6 +29,9 @@ instance Ord Tag where
   WF _    `compare` _        = LT
   _       `compare` WF _     = GT
   Lem lem `compare` Lem lem' = lem `compare` lem'
+  Lem lem `compare` Tag tag  = GT
+  Tag tag `compare` Lem lem  = LT
+
   Tag tag `compare` Tag tag' = tag `compare` tag'
   Rgx _ s `compare` Rgx _ s' = s `compare` s'
   foo     `compare` bar      = show foo `compare` show bar
