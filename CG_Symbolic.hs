@@ -68,8 +68,8 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
            | conditions <- toConds (cond rule) ]
           
 --------------------------------------------------------------------------------
-testRule :: Bool -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
-testRule verbose ambcls readings (lastrule,rules) = do
+testRule :: (Bool,Bool) -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
+testRule (verbose,debug) ambcls readings (lastrule,rules) = do
   let tagInds = IS.fromList [1..length readings]
   let (w,trgSInd) = width $ cnd lastrule
   s <- newSolver
@@ -99,21 +99,21 @@ testRule verbose ambcls readings (lastrule,rules) = do
   b <- solve s shouldTriggerLast
   if b 
    then do 
-      when verbose $ do
-           putStrLn $ "Following triggers last rule: " ++ show lastrule
-           solveAndPrintSentence False s shouldTriggerLast afterRules
+      when debug $ do
+        putStrLn $ "Following triggers last rule: " ++ show lastrule
+        solveAndPrintSentence False s shouldTriggerLast afterRules
    else do
-      putStrLn "Conflict!"
-      putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
       when verbose $ do
-           putStrLn $ "with the previous rules:"
-           mapM_ print rules
-  return b
+        putStrLn "Conflict!"
+        putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
+        putStrLn $ "with the previous rules:"
+        mapM_ print rules
+  return (not b) --True if conflicts, False if no conflict
 
  where 
    constrainStuff s form symbword = do
      let mp ind = fromMaybe true (IM.lookup ind symbword)
-     putStrLn $ "constrainStuff: " ++ show symbword
+     --putStrLn $ "constrainStuff: " ++ show symbword
      constraints s mp [] form
   
 --------------------------------------------------------------------------------

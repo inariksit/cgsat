@@ -52,115 +52,132 @@ main = do
   args <- getArgs
 
   --Dummy examples all work with tags "abcd"
-  let ts = map (Tag . (:[])) "abcd"
-  let tc = sequence [ts] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
-  let tagmap = mkTagMap ts tc
-  let allinds = IS.fromList [1..length tc]
-
+  let tags = map (Tag . (:[])) "abcd"
+  let readings = sequence [tags] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
+  let tagmap = mkTagMap tags readings
+  let allinds = IS.fromList [1..length readings]
+  let abcd_ambcls = "data/abcd-ambiguity-classes" 
+  let verbose = (True,True)
   case args of 
     ("kimmo":_)
        -> do let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
              putStrLn "testing with implicit kimmo"
-             mapM_ (testRule True "data/abcd-ambiguity-classes" tc) (splits (reverse kimmo_i'))
+             mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_i'))
 
              let kimmo_e' = map (ruleToRule' tagmap allinds) kimmo_explicit
              putStrLn "testing with explicit kimmo"
-             mapM_ (testRule True "data/abcd-ambiguity-classes" tc) (splits (reverse kimmo_e'))
-    (lang:r)
-       -> do let verbose = "v" `elem` r || "d" `elem` r
+             mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_e'))
+
+    (lang:fromStr:toStr:r)
+       -> do let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
+
              let subr = if "nosub" `elem` r then "nosub" else "withsub"
-             let noambcls = "noambcls" `elem` r
+             let withambcls = "ambcls" `elem` r
+             let withunders = "undersp" `elem` r
 
              let dirname = "data/" ++ lang ++ "/" 
              let grfile  = dirname ++ lang ++ ".rlx"
              let tagfile = dirname ++ lang ++ ".tags"
              let rdsfile = dirname ++ lang ++ ".readings." ++ subr
-             let ambcls  = if noambcls then "data/dummy-amb-cls" 
-                                        else dirname ++ lang ++ "-ambiguity-classes"
-             tsInApe <- (concat . filter (not.null) . map parse . words) 
+             let ambcls  = if withambcls then dirname ++ lang ++ "-ambiguity-classes"
+                            else "data/dummy-amb-cls" 
+
+             let from = read fromStr
+             let to   = read toStr
+                           
+
+             tagsInApe <- (concat . filter (not.null) . map parse . words) 
                          `fmap` readFile tagfile
              (tsets, rls) <- readRules' grfile
-             let tcInGr = [] --nub $ concatMap toTags' tsets
-             tcInLex <- (map parse . words) `fmap` readFile rdsfile
-             let tc = nub $ tcInGr ++ tcInLex  :: [[Tag]]
-             mapM_ print tc
-             let ts = nub $ tsInApe ++ concat tc
-             let tagmap = mkTagMap ts tc
-             let allinds = IS.fromList [1..length tc]
+             let readingsInGr = if withunders then nub $ concatMap toTags' tsets
+                            else [] 
+             readingsInLex <- (map parse . words) `fmap` readFile rdsfile
+             let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
+             let tags = nub $ tagsInApe ++ concat readings
+
+             --mapM_ print readings
+             --mapM_ print tags
+
+             let tagmap = mkTagMap tags readings
+             let allinds = IS.fromList [1..length readings]
              let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
-             mapM_ (testRule verbose ambcls tc) (splits rules)
-{-             
-    ("spa":r)
-       -> do let verbose = "v" `elem` r || "d" `elem` r
-             let debug = "d" `elem` r
-             tsInApe <- (concat . filter (not.null) . map parse . words) 
-                         `fmap` readFile "data/spa/spa_tags.txt"
---             (tsets, rls) <- readRules' "data/spa/apertium-spa.spa.rlx"
-             (tsets, rls) <- readRules' "data/spa/spa_subreadings.rlx"
-             let tcInGr = nub $ map toTags' tsets
-             tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
-             let tc = nub $ (concat tcInGr) ++ tcInLex 
-             let ts = nub $ tsInApe ++ concat tc 
-             let tagmap = mkTagMap ts tc
-             let allinds = IS.fromList [1..length tc]
-             let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
-             print (length rules)
-             --mapM_ print rules
-             --mapM_ (testRule verbose tc) (splits rules)
-             testRule verbose "spa-ambiguity-classes" tc (last $ splits rules)
-             print "foo"
 
-    ("por":r)
-       -> do let verbose = "v" `elem` r || "d" `elem` r
-             let debug = "d" `elem` r
-             tsInApe <- (concat . filter (not.null) . map parse . words) 
-                         `fmap` readFile "data/spa/spa_tags.txt"
-             (tsets, rls) <- readRules' "data/apertium-por.por.rlx"
-             let tcInGr = nub $ map toTags' tsets
-             tcInLex <- (map parse . words) `fmap` readFile "data/spa/spa_tagcombs.txt"
-             let tc = nub $ (concat tcInGr) ++ tcInLex 
-             let ts = nub $ tsInApe ++ concat tc 
-             let tagmap = mkTagMap ts tc
-             let allinds = IS.fromList [1..length tc]
-             let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
-             print (length rules)
-             --mapM_ print rules
-             --mapM_ (testRule verbose tc) (splits rules)
-             testRule verbose "spa-ambiguity-classes" tc (last $ splits rules)
-             --testRule verbose "/tmp/foo" tc (last $ splits rules)
-             putStrLn ""
-    ("fin":r)
-       -> do let verbose = "v" `elem` r || "d" `elem` r
-             let debug = "d" `elem` r
-             (tsets, rls) <- readRules' "data/fin.rlx"
-             tcInLex <- (map parse . words) `fmap` readFile "data/fin-tagcombs.txt"
-             let rules = concat (map reverse rls)
-             let allConds = concatMap (toConds . cond) rules
-             let unnamedTags = nub $ concatMap (map getTagset) allConds
-             let tcInGr = nub $ concatMap toTags' $ tsets ++ unnamedTags
-             let tc = tcInGr ++ tcInLex
-             let ts = concat tc
-             print (length tc)
-             let tagmap = mkTagMap ts tc
-             let allinds = IS.fromList [1..length tc]
-             let rules' = map (ruleToRule' tagmap allinds) rules
-             print (length rules)
-             --mapM_ (testRule verbose tc) (splits rules')
-             testRule verbose "" tc (last $ splits rules')
-             putStrLn "end"
-            -} 
-    _ -> print "usage: cabal analyse [kimmo,nld,spa,fin] [v,d]"
+
+             badrules <- filterM (testRule verbose ambcls readings) (drop from $ take to $ splits rules)
+
+             putStrLn "\nThe following rules have an internal conflict:"
+             rs_bsAlone <- badrules `forM` \rrs@(r,_) -> do b <- testRule (False,False) ambcls readings (r,[]) 
+                                                            return (rrs, b)
+
+             let (internalConf,interactionConf) = partition (\(r,b) -> b) rs_bsAlone
+             mapM_ (print . fst . fst) internalConf
+
+
+             putStrLn "\nFinding out the reason for conflict for the rest:"
+             let shrink (r,rs) = do -- This is not going to work outside small grammars
+                                    let allinits = (,) r `map` inits rs
+                                    brs <- searchInits (testRule verbose ambcls readings) allinits
+                                    let minimalConflict = case brs of 
+                                                            [] -> rs --[last rs]
+                                                            mc -> mc 
+                                    --let moreMinimalConflict = []
+                                    let alltails = (,) r `map` tails minimalConflict
+                                    moreMinimalConflict <- searchTails (testRule verbose ambcls readings) alltails
+                                    putStrLn $ "\n-> " ++ show r ++ " <-"
+                                    mapM_ (\s -> putStrLn $ "\t" ++ show s) moreMinimalConflict
+
+             mapM_ (shrink . fst) interactionConf
 
 
 
-  where 
-   splits :: (Eq a) => [a] -> [(a,[a])]
-   splits xs = xs `for` \x -> let Just ind = elemIndex x xs
-                              in  (x, take ind xs)
 
-   for = flip fmap
+    _ -> print "usage: cabal analyse <3-letter language name> [v,d]"
 
-   toTags' :: TagSet -> [[Tag]]
-   toTags' = concatMap (nub . (\(a,b) -> if all null b then a else a++b)) . toTags
+
+
+ where 
+  searchInits :: ((Rule', [Rule']) -> IO Bool) -> [(Rule', [Rule'])] -> IO [Rule']
+  searchInits = binarySearch True
+
+  searchTails :: ((Rule', [Rule']) -> IO Bool) -> [(Rule', [Rule'])] -> IO [Rule']
+  searchTails = binarySearch False
+
+  binarySearch :: Bool -> ((Rule', [Rule']) -> IO Bool) -> [(Rule', [Rule'])] -> IO [Rule']
+  binarySearch _ testFun []   = print "no conflict" >> return []
+  binarySearch _ testFun [x]  = do --print "binarySearch: 1"
+                                   b <- testFun x
+                                   if b then return (snd x)
+                                    else print "no conflict found" >> return []
+  binarySearch _ testFun [x,y] = do --print "binarySearch: 2"
+                                    b <- testFun x
+                                    if b then return (snd x)
+                                     else do b' <- testFun y
+                                             if b' then return (snd y)
+                                              else print "No conflict!" >> return []
+  --is Inits
+  binarySearch True testFun rrss = 
+    do --print ("searchInits: ", length rrss)
+       let (hd,tl) = splitAt (length rrss `div` 2) rrss
+       b <- testFun (last hd)
+       if not b then binarySearch True testFun tl 
+         else binarySearch True testFun hd
+
+  binarySearch False testFun rrss = 
+    do --print ("searchTails: ", length rrss)
+       let (hd,tl) = splitAt (length rrss `div` 2) rrss
+       b <- testFun (head tl)
+       if not b then binarySearch False testFun hd 
+         else binarySearch False testFun tl
+
+
+
+  splits :: (Eq a) => [a] -> [(a,[a])]
+  splits xs = xs `for` \x -> let Just ind = elemIndex x xs
+                             in  (x, take ind xs)
+ 
+  for = flip fmap
+
+  toTags' :: TagSet -> [[Tag]]
+  toTags' = concatMap (nub . (\(a,b) -> if all null b then a else a++b)) . toTags
 
 
