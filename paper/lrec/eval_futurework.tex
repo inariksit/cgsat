@@ -40,13 +40,10 @@ true positives.
 %The results for the Finnish grammar are inconclusive, 
 % For the Finnish grammar, we did not have time to
 % investigate all of them, but among those we could, we found both true and false negatives.
-We did not check for false negatives in any of the grammars.
+We did not check for false negatives in any of the grammars. However, the test reported a high number of errors even in the smallest grammars, and some of them are intuitively not that bad; we 
 
-The Spanish grammar had an erroneous set definition, where a word was
-required to have almost all POS tags at the same time. After fixing
-the set definition, our test did not reveal other problems.
 
-The Dutch grammar had two kinds of errors: rule-internal due to nonexistent tags, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in 2 rules as the main reading. 
+\paragraph{Dutch} The Dutch grammar had two kinds of errors: rule-internal due to nonexistent tags, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in 2 rules as the main reading. 
 
 There were two genuine conflicts with rule interaction. The first one is shown below:
 
@@ -76,8 +73,26 @@ On the first glance it seems that there is no conflict: the first rule requires 
 \item[] \texttt{SELECT DetPos + "zijn" IF (-1 Verb) (1 Noun) ;}
 \end{itemize}
 
+\paragrahp{Spanish} The Spanish grammar had proportionately the highest number of errors.\footnote{TODO://link/to/error.log} \todo{confirm; I assume this is gonna be so, but let's see Fin & Por}.  The grammar we ran is like the one found in the Apertium repository, apart from 2 changes: we fixed some typos (capital O for 0) in order to make it compile, and commented out two rules that used regular expressions, because our solution does not handle them properly (see more on Future work/Implementation).
 
-For the Finnish grammar, we did not have time to investigate all the
+Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are \todo{n} rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. It is likely that this grammar has been written for an earlier version, where such tag has been in place.
+
+The Spanish grammar has a high number of interaction conflicts, all with the same pattern:
+
+\begin{itemize}
+\item[] 
+\begin{verbatim}REMOVE (a) IF (-1 x) (1 y) ;
+REMOVE (a) IF (-1 x) (1 y) (NOT -1 z);
+\end{verbatim}
+\end{itemize}
+
+This is another, perhaps counter-intuitive instance of more general rule applying before more specific. Negated context works as well to make a rule stricter. The second rule will never apply, because the first will catch all cases.
+
+In addition, there was a number of definitions that were never used. The program doesn't currently point them out to the user, but that is a trivial addition; just like rule-internal conflicts, it doesn't require any semantic analysis. 
+Another error, which was not pointed by the program, but discovered 
+
+
+\paragrahp{Finnish} \todo{Rerun the tests & rewrite this whole section!} For the Finnish grammar, we did not have time to investigate all the
 results. We could verify approximately \nicefrac{1}{3} as true positives and
 \nicefrac{1}{3} as false positives.
 The verified true positives were all rule-internal conflicts. 
@@ -137,6 +152,9 @@ We believe we can still signifcantly improve the performance of the SAT-encoding
 
 
 Our solution to hardcode the tag combinations in the readings is feasible for simple morphology, but it can cause problems with more complex morphology. One big downside is that in order to implement \textsc{ADD}, \textsc{ADDREADING} and \textsc{MAP}, we need to be prepared for new readings--even if the lexicon gives all readings that exist in the lexicon, the user might give a nonexistent reading, or in the case of MAP, a syntactic tag, which is (by definition) not in the lexicon. A more scalable solution would be to make each tag a variable, and ask the question ``can this reading be a noun? how about singular? how about conditional?'' separately for each tag. Then we could lift the restriction of tag combinations into a SAT solver: make SAT clauses that prohibit a comparative to go with a verb, or conditional with a noun.
+Another benefit of this solution is the addition of lemmas and word forms, as well as regular expressions: currently, if we want to add one more lemma for a verb, we need to create as many new variables as there are distinct verb forms---easily hundreds for languages with rich morphology.
+\todo{less rambling: For rules with regular expressions, this would blow up even more: there are rules that only address whether the word form in a condition starts with a lowercase letter, or whether it ends in a certain suffix. A realistic, albeit unsatisfactory option is just to treat it as an underspecified reading, and offer that same regular expression to the user when generating a symbolic sentence. Another, less feasible, solution is to grep all the word forms or lemmas that match the regular expression in question---in the worst case (e.g. lower case), this will match all the entries in the expanded lexicon.}
+
 
 As for longer-term goals, we want to handle the full expressivity of CG-3,
 with \textsc{map}, \textsc{add} and \textsc{substitute} rules, and
