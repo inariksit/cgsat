@@ -135,6 +135,10 @@ SET VPred = ("considerar") OR ("Considerar") OR ("creer") OR ("Creer") OR ("opin
 
 SECTION
 
+SELECT:test N IF (0C Noun_Adj_PP) ;
+SELECT:test N IF (1C Noun_Adj_PP) ;
+
+
 REMOVE:r_cog_1 Cog IF (-1 DetDef) (0 Cog) ;
 REMOVE:r_cog_2 Cog IF (-1 DetInd) (0 Cog) ;
 REMOVE:r_ant_1 Ant IF (-1 DetDef) (0 Ant) ;

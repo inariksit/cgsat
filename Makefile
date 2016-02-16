@@ -1,4 +1,4 @@
-testprog=dist/build/test-cgsat/test-cgsat
+testprog=dist/build/analyse/analyse
 
 default: grammars rest
 
@@ -23,14 +23,10 @@ prof:
 	cabal build
 	cabal run profiling spa
 
-test-pride:
-	$(testprog) data/eng_cg2.rlx data/pride.txt 2>/dev/null 
+spanish:
+	runghc Matrix.hs data/spa/spa.expanded data/spa/spa.readings.withsub > data/spa/spa-ambiguity-classes
+	./testSpa.sh
 
-test-spanish:
-	$(testprog) data/spa/spa_smallset.rlx data/spa/spa_story.txt 2>/dev/null 
-
-test-hungarian:
-	$(testprog) data/hun_cg2.rlx data/hun_story.txt -v 2>/dev/null
 
 test-grammars:
 	cat data/eng_cg2.rlx | ./CG/Test | grep Successful

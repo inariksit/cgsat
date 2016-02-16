@@ -22,7 +22,8 @@ SET NGen = Noun + Gen ;
 
 
 LIST Prn = prn;
-LIST PrnPers = (prn pers);
+LIST Pers = "prpers";
+LIST PrnPers = (prn "prpers");
 LIST PrnItg = (prn itg);
 LIST PrnDemSg = (prn dem sg);
 
@@ -65,7 +66,7 @@ LIST ZijnVerb = ("zijn"i vbser pres pl);
 
 LIST Te = "te" "om te" ;
 
-SET PrnNotPers = (Prn OR PrnItg) - (pers);
+SET PrnNotPers = (Prn OR PrnItg) - Pers;
 SET DetNotZijn = (det) - Zijn;
 SET DetPosNotZijn = DetPos - Zijn;
 SET DetPosZijn = DetPos + Zijn ;
@@ -78,6 +79,8 @@ SECTION
 # REMOVE Adj IF (-1C Pr) ;
 # REMOVE Pr IF (1 Adj) ;
 # -----------
+
+REMOVE Inf IF (-1 PrnPers);
 
 # buiten spelen, om te spelen
 REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);
@@ -134,9 +137,9 @@ REMOVE (vblex pp) IF (-1 Det) (0 Noun);
 
 # remove p1/p2 verb readings if there is no p1/p2 pronoun in the same sentence
 SET VerbP1 = Verb + (p1) ;
-LIST PrnPersP1 = (prn pers p1);
+LIST PrnPersP1 = (prn p1 "prpers");
 SET VerbP2 = Verb + (p2) ;
-LIST PrnPersP2 = (prn pers p2);
+LIST PrnPersP2 = (prn p2 "prpers");
 
 SELECT PrnPersP1 IF (1 EOS);
 
@@ -155,7 +158,7 @@ SELECT (vbser pres pl) IF (-2 BOS) (-1 Adv) (0 ("zijn"i));
 SELECT Pr IF (-1 Cm) (1 Adv);
 
 # uit pinda's
-SELECT Noun IF (-1 Pr) (0 Gen);
+SELECT Noun IF (-1 Pr) (0/1 Gen);
 
 # de oliën
 #REMOVE Verb IF (-1 DetDe);
