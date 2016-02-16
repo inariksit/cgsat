@@ -14,12 +14,25 @@ When creating a symbolic sentence, `1*` and `1` will only create one word to the
 
 `LINK n` needs to work too. So for example `REMOVE a IF -1 * b BARRIER c LINK 1 d LINK 1 e` currently normalises to this `REMOVE a IF (1 e) (0 d) (*-1  b BARRIER c)`.
 
+### Strange behaviour with NOT 
+
+
+```SELECT:n_a_eos_4 N IF (2C N) (1 CnjCoo) (0C Noun_Adj_PP - NP) (-1 Barrera_Inicial_SN) ;```
+
+Works properly
+
+```SELECT:n_a_eos_4 N IF (2C N) (1 CnjCoo) (0C Noun_Adj_PP LINK 0 NOT NP) (-1 Barrera_Inicial_SN) ;```
+
+Reports conflict
+
+Fix!
+
 ### Proper (less ad hoc) shrinking of conflicting rules
 
-* Binary search-ish ?
+* Currently using binary search -- works if the conflict is just one rule, or two rules very close to each other
 * Are there tricky cases? If we have rules `[r1...r100]` and rules 29 and 70 conflict, how do we start? Split at 1-50 and 51-100, if both halves can be run without conflict, then start adding 1-51, 1-52 etc. until 1-70 conflicts, then start removing from the beginning, until 30-70 doesn't conflict.
 
-### Some remarks about creating a list of all readings
+## Some remarks about creating a list of all readings
 
 * Sentence boundary (BOS/EOS) is a word in the symbolic sentence
 * `sent` is also a word in the symbolic sentence. The BOS/EOS (>>>/<<<) are magic tags by VISL CG-3, and I adopt the convention. When parsing, I split text into sentences by punctuation (yep not gonna work for A.C.R.O.N.Y.M.S.) and wrap it in BOS _ EOS.
