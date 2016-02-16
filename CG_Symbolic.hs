@@ -39,8 +39,22 @@ type CondInds = (TrgIS,DifIS)
 --like CG_base's Condition, but s/TagSet/CondInds/
 data Condition' = C' Position (Bool,[CondInds]) deriving (Show,Eq)
 
-data Rule' = R { trg :: TrgInds --Rule allows disjunction in targets, but Rule' does not. 
-                                --We translate one such Rule into [Rule'].
+--Everything below is an ugly hack to fix the problem with 0C
+--The assumptions made about the content DO NOT GENERALISE to general conditions
+--Sorry.
+isC0 :: Condition' -> Bool
+isC0 (C' (Exactly True 0) _) = True
+isC0 _                       = False
+
+cndIndsC0 :: Condition' -> [Int]
+cndIndsC0 (C' (Exactly True 0) (_,cndInds)) = concatMap (\(xs,_) -> IS.toList xs) cndInds
+cndIndsC0 _ = error "I told you not to use this function in other cases! D:"
+
+
+--------------------------------------------------------------------------------
+
+
+data Rule' = R { trg :: TrgInds 
                , cnd :: [[Condition']]
                , isSelect' :: Bool
                , show' :: String
@@ -89,8 +103,25 @@ testRule (verbose,debug) ambcls readings (lastrule,rules) = do
     let otherTags = tagInds IS.\\ yesTags
     let trgLits   = map (trgSWord IM.!) (IS.toList yesTags)
     let otherLits = map (trgSWord IM.!) (IS.toList otherTags)
+
+    let c0conds = isC0 `filter` concat (cnd lastrule)
+
     mht <- orl' s trgLits --must have >0 targetLits
-    mho <- orl' s otherLits --must have >0 otherLits
+
+    --TODO: Replace this with a requirement that works with 0C in condition
+    --Example: SELECT N IF (0C Noun_Adj_PP) ;
+    --targetLits = [everything with N in it]
+    --otherLits = should be [everything with N, Adj and PP in it]
+    mho <- case c0conds of
+            [] -> orl' s otherLits --must have >0 otherLits
+            xs -> do let c0Inds = nub $ concatMap cndIndsC0 xs
+                     print c0Inds
+                     let c0Lits = map (trgSWord IM.!) c0Inds
+                     print (length c0Lits)
+                     let restrictedOtherLits = c0Lits \\ trgLits
+                     print (length restrictedOtherLits)
+                     orl' s restrictedOtherLits
+
     Just condLits <- mkConds s tagInds afterRules trgSInd (cnd lastrule) --we know that all conds are in range: sentence is generated wide enough to ensure that
     ach <- orl' s condLits --conditions must hold
     return (mht, mho, ach)
@@ -197,7 +228,10 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
              _ -> return ()
 
       -- disjunction of *tags* in one condition
-      orl s (show c ++ " in " ++ show absind) =<< sequence 
+      -- sorry for crappy naming, we don't have access to the name anymore;
+      -- and usually position is enough for debugging purposes
+      -- Oh god is this still wrong :(((( TODO check disjunction + Cautious one more time
+      orl s (show position ++ " in " ++ show absind) =<< sequence 
         ( case (positive, cautious) of
            (True, False)  -> [ do y <- orl  s "" yesLits
                                   n <- andl s "" (map neg difLits)
@@ -206,6 +240,7 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
                                 , let yesLits = lookup' yi
                                 , let difLits = lookup' di ]
            (True, True)   -> [ do y <- orl  s "" yesLits
+                                  print ("mkCond:", length yesLits)
                                   n <- andl s "" (map neg otherLits)
                                   andl s "" [y,n]
                                 | (yi, _) <- yesInds_noInds
@@ -228,7 +263,8 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
                             Just ts -> mapMaybe (flip IM.lookup $ ts) (IS.toList is)
                             Nothing -> if positive then error "mkCond: index out of bounds"
                                         else [true] --if no -100, then `NOT -100 foo' is true.
-        , let cautious = isCareful position ]
+        , let cautious = isCareful position 
+        , let negIfPos l = if pos l then neg l else l ]
 
 
 --------------------------------------------------------------------------------
