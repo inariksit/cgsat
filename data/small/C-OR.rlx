@@ -7,6 +7,13 @@ LIST G = g ;
 
 SECTION
 
-REMOVE:rm_d_a_OR_b D IF (-1C A OR B) ;
-REMOVE:rm_e_Ca_OR_Cb E IF ((-1C A) OR (-1C B));
+# Will remove immediately: there are only readings with A or B
+REMOVE:C_a_OR_b D IF (-1C A OR B) ;
+
+# Will not remove: the cohort is not "purely A" or "purely B"
+REMOVE:Ca_OR_Cb1 E IF ((-1C A) OR (-1C B));
+
 REMOVE:rm_b B ;
+
+# Will remove after the B readings have been removed: now the cohort is "purely A" (and an irrelevant C, but it's ok cause all the readings have *at least* A).
+REMOVE:Ca_OR_Cb2 E IF ((-1C A) OR (-1C B));
