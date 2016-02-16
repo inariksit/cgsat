@@ -1,0 +1,17 @@
+DELIMITERS = "<.>" "<!>" "<?>" "<...>" "<¶>" "<:>";
+SOFT-DELIMITERS = "<,>" "<;>";
+
+
+SECTION
+
+# "bad" nowhere in the cohort
+SELECT:s1 (target) (0C (target) OR (dummy) LINK NOT 0 (bad)) ;
+SELECT:s2 (target) (0 (target) OR (dummy) LINK NOT 0 (bad)) ;
+
+# "bad" not in the chosen reading, can be elsewhere
+SELECT:s3 (target) - (bad) ;
+
+# at least one reading without "bad" in the cohort
+SELECT:s4 (target) (0 (target) - (bad) OR (dummy) - (bad)) ;
+
+

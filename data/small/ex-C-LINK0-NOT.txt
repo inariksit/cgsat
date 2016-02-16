@@ -1,0 +1,24 @@
+"<w2>"
+	"w2" target bad
+	"w2" dummy
+
+"<.>"
+	"." sent
+
+
+"<w2>"
+	"w2" target
+	"w2" dummy 
+	"w2" bad
+
+"<.>"
+	"." sent
+
+
+
+"<w2>"
+	"w2" target
+	"w2" dummy
+
+"<.>"
+	"." sent
