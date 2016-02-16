@@ -32,8 +32,8 @@ main = do
                 let ts = concat tcs
                 let readings = map (toReadingMap tcs) ws 
                 --mapM_ print (take 50 readings)
-                mapM_ (print) $ M.toList $ toGraph ( readings)
---                mapM_ print $ toGraph readings
+--                mapM_ (print) $ M.toList $ toGraph ( readings)
+                mapM_ print $ toGraph readings
 
 --------------------------------------------------------------------------------
 
@@ -43,8 +43,8 @@ toGraph readings = readingMap
   group' acc (a,b) = case M.lookup a acc of
                        Just c  -> M.adjust (b:) a acc 
                        Nothing -> M.insert a [b] acc
-  readingMap = invertMap 99999 $ foldl group' M.empty readings 
-  --readingMap = onlyValues 99999 $ foldl group' M.empty readings 
+  --readingMap = invertMap 99999 $ foldl group' M.empty readings 
+  readingMap = onlyValues 99999 $ foldl group' M.empty readings 
 
 
 --weet:weten<vblex><imp><sg> 
