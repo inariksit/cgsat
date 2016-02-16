@@ -46,6 +46,7 @@ pro>
 prs>
 ref>
 rel>
+sent>
 sg>
 sp>
 sup>
@@ -54,7 +55,8 @@ vbhaver>
 vblex>
 vbmod>
 vbser>
-<crea>
+lpar>
+rpar>
 Antes de
 Argentina
 Atlántico
