@@ -85,7 +85,9 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
 testRule :: (Bool,Bool) -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
 testRule (verbose,debug) ambcls readings (lastrule,rules) = do
   let tagInds = IS.fromList [1..length readings]
-  let (w,trgSInd):_ = width $ cnd lastrule
+  let foo@((w,trgSInd):_) = width $ cnd lastrule
+  putStrLn ("all widths: " ++ show foo)
+  putStrLn (show lastrule)
   s <- newSolver
   initialSentence <- mkSentence s w readings
   afterRules <- foldM (apply s tagInds) initialSentence rules
@@ -210,29 +212,32 @@ mkConds s allinds sentence trgind disjconjconds = do
   -- * do yet another orl
 
   --option 2:
-  -- * ask if at least one absInd is inRange (y/n)
-  -- * call mkCond with Position, not SIndex
+  -- * return all possible absInd that are inRange 
+  -- * call mkCond once with a list of them
   -- * do same kind of match as in CG_SAT
   
-  let conds_absinds = [ [ (cond, absInd) | cond <- conjconds 
-                                         , absInd <- absIndex trgind cond ]
-                        | conjconds <- disjconjconds 
-                        , all (inRange trgind) conjconds ]
-  if null conds_absinds then return Nothing
+  let conds_absinds = [ [ (cond, absInds) | cond <- conjconds 
+                                         , let absInds = absIndices trgind cond ]
+                        | conjconds <- disjconjconds ]
+                        --, all (inRange trgind) conjconds ]
+  if null conds_absinds 
+   then return Nothing --is there a meaningful difference between Nothing and []?
    else Just `fmap` mapM (mkCond s allinds sentence) conds_absinds
   
  where
-  absIndex :: SIndex -> Condition' -> [SIndex]
-  absIndex i (C' pos (b,tags)) = filter (i+) <$> posToInt pos
+  absIndices :: SIndex -> Condition' -> [SIndex]
+  absIndices i (C' pos (b,tags)) = let possibleInds = (i+) <$> posToInt pos
+                                       member = flip IM.member
+                                   in filter (member sentence) possibleInds
 
-  inRange :: SIndex -> Condition' -> ([SIndex], Bool)
-  inRange i (C' pos (False,ctags)) = ([],True) -- `NOT -100 a' is always true
-  inRange i (C' pos (True,ctags))  = (possibleInds, b)
-    where possibleInds = (i+) <$> posToInt pos
-          
+  inRange :: SIndex -> Condition' -> Bool
+  inRange i (C' pos (b,tags)) = not b 
+                                 || let possibleInds = (i+) <$> posToInt pos
+                                        member = flip IM.member
+                                    in any (member sentence) possibleInds
 
 
-mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',SIndex)] -> IO Lit
+mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',[SIndex])] -> IO Lit
 mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
  [ do case position of
              (Barrier  foo bar btags) 
@@ -247,8 +252,9 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
       -- disjunction of *tags* in one condition
       -- sorry for crappy naming, we don't have access to the name anymore;
       -- and usually position is enough for debugging purposes
-      --TODO: do the change for (True, True) for other cases and see if it helps
-      orl s (show position ++ " in " ++ show absind) =<< sequence 
+
+      --orl s (show position ++ " in " ++ show absind) =<< sequence 
+      orl s (show position ++ " potentially anywhere if there's a *!") =<< sequence 
         ( case (positive, cautious) of
                               --TODO check: why did I do this in the first place?
                               --Is there a case that  A\B OR A\C = A \ (B AND C) won't cover?
@@ -257,13 +263,14 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
                                   n <- andl s "" (map neg difLits)
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_noInds --only case where we use noInds!
-                                , let yesLits = lookup' yi
-                                , let difLits = lookup' di ]
+                                , let yesLits = lu yi
+                                , let difLits = lu di ]
 
+           --TODO: see if it's enough to do this for all, then do "let yi = ..." once at the bottom
            (True, True)   -> [ do let yi = IS.unions $ fst $ unzip yesInds_noInds
                                   let oi = allinds IS.\\  yi
-                                  let yesLits = lookup' yi
-                                  let otherLits = lookup' oi 
+                                  let yesLits = lu yi
+                                  let otherLits = lu oi 
                                   y <- orl  s "" yesLits
                                   n <- andl s "" (map neg otherLits)
                                   andl s "" [y,n] ]
@@ -281,17 +288,18 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
                                   andl s "" [y,n]
                                 | (yi, _) <- yesInds_noInds
                                 , let oi = allinds IS.\\ yi
-                                , let noLits = lookup' yi
-                                , let otherLits = lookup' oi ]
+                                , let noLits = lu yi
+                                , let otherLits = lu oi ]
            (False, True)  -> [ orl s "" otherLits
                                 | (yi, _) <- yesInds_noInds
                                 , let oi = allinds IS.\\ yi
-                                , let otherLits = lookup' oi ] )
-        | (c@(C' position (positive,yesInds_noInds)), absind) <- conjconds_absinds
-        , let lookup' is = case IM.lookup absind sentence of
-                            Just ts -> mapMaybe (flip IM.lookup $ ts) (IS.toList is)
-                            Nothing -> if positive then error "mkCond: index out of bounds"
-                                        else [true] --if no -100, then `NOT -100 foo' is true.
+                                , let otherLits = lu oi ] )
+        | (c@(C' position (positive,yesInds_noInds)), absinds) <- conjconds_absinds
+        , let lu is = case mapMaybe (flip IM.lookup $ sentence) absinds of
+                       [] -> if positive then error "mkCond: index out of bounds"
+                              else [true] --if no -100, then `NOT -100 foo' is true.
+                       ts -> mapMaybe (flip IM.lookup $ IM.unions ts) (IS.toList is)
+
         , let cautious = isCareful position 
         , let negIfPos l = if pos l then neg l else l ]
 
@@ -346,19 +354,24 @@ lookupLit sentence si wi =
 
 --------------------------------------------------------------------------------
 
+--each condition comes with a *list* of positions
+--each list must have a corresponding information where the trgInd is supposed to be
+--example: -1*,1,2* gives min -1 --> 2 = 4; max -3 --> 4 = 8
+--lists returned in poss : [-1,-2,-3],[1],[2,3,4]
+--one thing must come from one list -> sequence into 
+--   [[-1,2,1],[-1,3,1], ... [-3,3,1],[-3,4,1]]
+--then get the min and max in each such list:
+--   [(-1,2),  (-1,3),   ... (-3,3),  (-3,4)]
+--and then just find the position of 0 in each, that must be the trgInd
 width :: [[Condition']] -> [(Int,SIndex)]
 width []   = [(1,1)]
 width [[]] = [(1,1)]
-width cs   = [ (length [minI..maxI], 
-                1+(fromJust $ elemIndex 0 [minI..maxI]))
-                | minI <- minInds
-                , maxI <- maxInds ]
+width cs   = trace (show mins_maxs) $ [ (length [mi..ma], 
+                1+(fromJust $ elemIndex 0 [mi..ma]))
+                | (mi,ma) <- mins_maxs]
  where
-  --if multiple *-conditions, just do combinations of all!
-  minInds = nub [ 0 `min` minimum pos | pos <- poss ]
-  maxInds = nub [ 0 `max` maximum pos | pos <- poss ]
-  poss = [ i | C' pos _ <- concat cs 
-             , let i = posToInt pos ]
+  mins_maxs = [ (0 `min` minimum pos, 0 `max` maximum pos) | pos <- sequence poss ]
+  poss = [ posToInt pos | C' pos _ <- concat cs ]
 
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> [Int]
