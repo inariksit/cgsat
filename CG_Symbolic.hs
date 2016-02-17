@@ -230,23 +230,36 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
       -- disjunction of *tags* in one condition
       -- sorry for crappy naming, we don't have access to the name anymore;
       -- and usually position is enough for debugging purposes
-      -- Oh god is this still wrong :(((( TODO check disjunction + Cautious one more time
+      --TODO: do the change for (True, True) for other cases and see if it helps
       orl s (show position ++ " in " ++ show absind) =<< sequence 
         ( case (positive, cautious) of
+                              --TODO check: why did I do this in the first place?
+                              --Is there a case that  A\B OR A\C = A \ (B AND C) won't cover?
+                              --How about A\B OR C\D?
            (True, False)  -> [ do y <- orl  s "" yesLits
                                   n <- andl s "" (map neg difLits)
                                   andl s "" [y,n]
                                 | (yi, di) <- yesInds_noInds --only case where we use noInds!
                                 , let yesLits = lookup' yi
                                 , let difLits = lookup' di ]
-           (True, True)   -> [ do y <- orl  s "" yesLits
+
+           (True, True)   -> [ do let yi = IS.unions $ fst $ unzip yesInds_noInds
+                                  let oi = allinds IS.\\  yi
+                                  let yesLits = lookup' yi
+                                  let otherLits = lookup' oi 
+                                  y <- orl  s "" yesLits
                                   print ("mkCond:", length yesLits)
                                   n <- andl s "" (map neg otherLits)
-                                  andl s "" [y,n]
-                                | (yi, _) <- yesInds_noInds
-                                , let oi = allinds IS.\\ yi
-                                , let yesLits = lookup' yi
-                                , let otherLits = lookup' oi ]
+                                  andl s "" [y,n] ]
+           --(True, True)   -> [ do y <- orl  s "" yesLits
+           --                       print ("mkCond:", length yesLits)
+           --                       n <- andl s "" (map neg otherLits)
+           --                       andl s "" [y,n]
+           --                     | (yi, _) <- yesInds_noInds
+           --                     , let oi = allinds IS.\\ yi
+           --                     , let yesLits = lookup' yi
+           --                     , let otherLits = lookup' oi ]
+
            (False, False) -> [ do n <- andl s "" (map neg noLits)
                                   y <- orl s "" otherLits --some lit must be positive
                                   andl s "" [y,n]
