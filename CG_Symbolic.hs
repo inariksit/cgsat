@@ -217,7 +217,8 @@ mkConds s allinds sentence trgind disjconjconds = do
   -- * do same kind of match as in CG_SAT
   
   let conds_absinds = [ [ (cond, absInds) | cond <- conjconds 
-                                         , let absInds = absIndices trgind cond ]
+                                         , let absInds = absIndices trgind cond 
+                                         , not (null absInds) ]
                         | conjconds <- disjconjconds ]
                         --, all (inRange trgind) conjconds ]
   if null conds_absinds 
