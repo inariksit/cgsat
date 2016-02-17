@@ -85,7 +85,7 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
 testRule :: (Bool,Bool) -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
 testRule (verbose,debug) ambcls readings (lastrule,rules) = do
   let tagInds = IS.fromList [1..length readings]
-  let (w,trgSInd) = width $ cnd lastrule
+  let (w,trgSInd):_ = width $ cnd lastrule
   s <- newSolver
   initialSentence <- mkSentence s w readings
   afterRules <- foldM (apply s tagInds) initialSentence rules
@@ -108,7 +108,7 @@ testRule (verbose,debug) ambcls readings (lastrule,rules) = do
 
     mht <- orl' s trgLits --must have >0 targetLits
 
-    --TODO: Replace this with a requirement that works with 0C in condition
+
     --Example: SELECT N IF (0C Noun_Adj_PP) ;
     --targetLits = [everything with N in it]
     --otherLits = should be [everything with N, Adj and PP in it]
@@ -122,7 +122,11 @@ testRule (verbose,debug) ambcls readings (lastrule,rules) = do
                      print (length restrictedOtherLits)
                      orl' s restrictedOtherLits
 
-    Just condLits <- mkConds s tagInds afterRules trgSInd (cnd lastrule) --we know that all conds are in range: sentence is generated wide enough to ensure that
+    --we know that all conds are in range: sentence is generated wide enough to ensure that
+    cl <- mkConds s tagInds afterRules trgSInd (cnd lastrule) 
+    let condLits = case cl of 
+                    Just cls -> cls
+                    Nothing -> error ("condLits: error in " ++ show lastrule ++  show (w,trgSInd))
     ach <- orl' s condLits --conditions must hold
     return (mht, mho, ach)
   let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
@@ -199,20 +203,33 @@ apply s allinds sentence rule = do
 
 mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
 mkConds s allinds sentence trgind disjconjconds = do
+
+  --option 1: 
+  -- * return all possible absInd that are inRange 
+  -- * call mkCond individually with all of them
+  -- * do yet another orl
+
+  --option 2:
+  -- * ask if at least one absInd is inRange (y/n)
+  -- * call mkCond with Position, not SIndex
+  -- * do same kind of match as in CG_SAT
+  
   let conds_absinds = [ [ (cond, absInd) | cond <- conjconds 
-                                         , let absInd = absIndex trgind cond ]
+                                         , absInd <- absIndex trgind cond ]
                         | conjconds <- disjconjconds 
                         , all (inRange trgind) conjconds ]
   if null conds_absinds then return Nothing
    else Just `fmap` mapM (mkCond s allinds sentence) conds_absinds
   
  where
-  absIndex :: SIndex -> Condition' -> SIndex
-  absIndex i (C' pos (b,tags)) = i+posToInt pos
+  absIndex :: SIndex -> Condition' -> [SIndex]
+  absIndex i (C' pos (b,tags)) = filter (i+) <$> posToInt pos
 
-  inRange :: SIndex -> Condition' -> Bool
-  inRange i (C' pos (b,ctags)) = not b -- `NOT -100 a' is always true
-                                  || IM.member (i+posToInt pos) sentence
+  inRange :: SIndex -> Condition' -> ([SIndex], Bool)
+  inRange i (C' pos (False,ctags)) = ([],True) -- `NOT -100 a' is always true
+  inRange i (C' pos (True,ctags))  = (possibleInds, b)
+    where possibleInds = (i+) <$> posToInt pos
+          
 
 
 mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',SIndex)] -> IO Lit
@@ -248,7 +265,6 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
                                   let yesLits = lookup' yi
                                   let otherLits = lookup' oi 
                                   y <- orl  s "" yesLits
-                                  print ("mkCond:", length yesLits)
                                   n <- andl s "" (map neg otherLits)
                                   andl s "" [y,n] ]
            --(True, True)   -> [ do y <- orl  s "" yesLits
@@ -330,23 +346,28 @@ lookupLit sentence si wi =
 
 --------------------------------------------------------------------------------
 
-width :: [[Condition']] -> (Int,SIndex)
-width []   = (1,1)
-width [[]] = (1,1)
-width cs   = (length [minInd..maxInd], 
-             1+(fromJust $ elemIndex 0 [minInd..maxInd]))
+width :: [[Condition']] -> [(Int,SIndex)]
+width []   = [(1,1)]
+width [[]] = [(1,1)]
+width cs   = [ (length [minI..maxI], 
+                1+(fromJust $ elemIndex 0 [minI..maxI]))
+                | minI <- minInds
+                , maxI <- maxInds ]
  where
-  minInd = 0 `min` minimum poss
-  maxInd = 0 `max` maximum poss
+  --if multiple *-conditions, just do combinations of all!
+  minInds = nub [ 0 `min` minimum pos | pos <- poss ]
+  maxInds = nub [ 0 `max` maximum pos | pos <- poss ]
   poss = [ i | C' pos _ <- concat cs 
              , let i = posToInt pos ]
 
 --for (C)BARRIER, count an extra place to place the barrier tag
-posToInt :: Position -> Int
-posToInt (Exactly _ i) = i
-posToInt (AtLeast _ i) = i
-posToInt (Barrier _ i _)  = if i<0 then i-1 else i+1
-posToInt (CBarrier _ i _) = if i<0 then i-1 else i+1
+posToInt :: Position -> [Int]
+posToInt (Exactly _ i) = [i]
+posToInt (AtLeast _ i) = case (i<0) of 
+                          True  -> [i,i-1,i-2] 
+                          False -> [i,i+1,i+2]
+posToInt (Barrier _ i _)  = if i<0 then [i-1,i-2,i-3] else [i+1,i+2,i+3]
+posToInt (CBarrier _ i _) = if i<0 then [i-1,i-2,i-3] else [i+1,i+2,i+3]
 
 isCareful :: Position -> Bool
 isCareful (Exactly b _) = b
@@ -357,7 +378,7 @@ isCareful (CBarrier b _ _) = b
 getPos :: Condition' -> SIndex
 getPos (C' (Barrier  _ i _) _) = i
 getPos (C' (CBarrier _ i _) _) = i
-getPos (C'  position        _) = posToInt position
+getPos (C'  position        _) = head $ posToInt position
 
 for :: (Functor f) => f a -> (a -> b) -> f b
 for = flip fmap
