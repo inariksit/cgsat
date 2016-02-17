@@ -86,8 +86,7 @@ testRule :: (Bool,Bool) -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
 testRule (verbose,debug) ambcls readings (lastrule,rules) = do
   let tagInds = IS.fromList [1..length readings]
   let foo@((w,trgSInd):_) = width $ cnd lastrule
-  putStrLn ("all widths: " ++ show foo)
-  putStrLn (show lastrule)
+--  putStrLn ("all widths: " ++ show foo)
   s <- newSolver
   initialSentence <- mkSentence s w readings
   afterRules <- foldM (apply s tagInds) initialSentence rules
@@ -115,6 +114,7 @@ testRule (verbose,debug) ambcls readings (lastrule,rules) = do
     --targetLits = [everything with N in it]
     --otherLits = should be [everything with N, Adj and PP in it]
     mho <- case c0conds of
+            _ -> orl' s otherLits --must have >0 otherLits
             [] -> orl' s otherLits --must have >0 otherLits
             xs -> do let c0Inds = nub $ concatMap cndIndsC0 xs
                      print c0Inds
@@ -215,6 +215,13 @@ mkConds s allinds sentence trgind disjconjconds = do
   -- * return all possible absInd that are inRange 
   -- * call mkCond once with a list of them
   -- * do same kind of match as in CG_SAT
+
+  --TODO: now it says conflict for everything, e.g.
+  -- -> SELECT:bajo_4 pr IF (0 "bajo"|"Bajo") (-1 vbser) <-
+  --      SELECT:bajo_3 pr IF (0 "bajo"|"Bajo") (1 det)
+  -- find out why!!!!!
+
+
   
   let conds_absinds = [ [ (cond, absInds) | cond <- conjconds 
                                          , let absInds = absIndices trgind cond 
@@ -367,9 +374,9 @@ lookupLit sentence si wi =
 width :: [[Condition']] -> [(Int,SIndex)]
 width []   = [(1,1)]
 width [[]] = [(1,1)]
-width cs   = trace (show mins_maxs) $ [ (length [mi..ma], 
-                1+(fromJust $ elemIndex 0 [mi..ma]))
-                | (mi,ma) <- mins_maxs]
+width cs   = [ (len, tind) | (mi,ma) <- mins_maxs 
+                           , let len = length [mi..ma]
+                           , let tind = maybe 99999 (1+) (elemIndex 0 [mi..ma]) ]
  where
   mins_maxs = [ (0 `min` minimum pos, 0 `max` maximum pos) | pos <- poss ]
   poss = sequence [ posToInt pos | C' pos _ <- concat cs ]
