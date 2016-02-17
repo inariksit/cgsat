@@ -355,11 +355,11 @@ lookupLit sentence si wi =
 --------------------------------------------------------------------------------
 
 --each condition comes with a *list* of positions
---each list must have a corresponding information where the trgInd is supposed to be
---example: -1*,1,2* gives min -1 --> 2 = 4; max -3 --> 4 = 8
+--each list must have a corresponding trgInd place
+--example: -1*,1,2* gives widths from 4 (-1 --> 2) to 8 (-3 --> 4)
 --lists returned in poss : [-1,-2,-3],[1],[2,3,4]
 --one thing must come from one list -> sequence into 
---   [[-1,2,1],[-1,3,1], ... [-3,3,1],[-3,4,1]]
+--   [[-1,1,2],[-1,1,3], ... [-3,1,3],[-3,1,4]]
 --then get the min and max in each such list:
 --   [(-1,2),  (-1,3),   ... (-3,3),  (-3,4)]
 --and then just find the position of 0 in each, that must be the trgInd
@@ -370,8 +370,8 @@ width cs   = trace (show mins_maxs) $ [ (length [mi..ma],
                 1+(fromJust $ elemIndex 0 [mi..ma]))
                 | (mi,ma) <- mins_maxs]
  where
-  mins_maxs = [ (0 `min` minimum pos, 0 `max` maximum pos) | pos <- sequence poss ]
-  poss = [ posToInt pos | C' pos _ <- concat cs ]
+  mins_maxs = [ (0 `min` minimum pos, 0 `max` maximum pos) | pos <- poss ]
+  poss = sequence [ posToInt pos | C' pos _ <- concat cs ]
 
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> [Int]
