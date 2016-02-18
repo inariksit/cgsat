@@ -158,6 +158,8 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
 
     else do
       when debug $ do 
+        putStrLn "-------"
+        putStrLn $ "Rule " ++ show lastrule ++":"
         putStrLn "could not solve with previous, trying to loosen requirements:"
         solveAndPrintSentence False s [mustHaveTrg, mustHaveOther] afterRules
         solveAndPrintSentence False s [mustHaveTrg, allCondsHold] afterRules
@@ -285,12 +287,12 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
            (True, False)  -> [ do y <- orl  s "" yesLits
                                   n <- andl s "" (map neg difLits)
                                   andl s "" [y,n]
-                                | (yi, di) <- yesInds_noInds --only case where we use noInds!
+                                | (yi, di) <- yesInds_difInds --only case where we use noInds!
                                 , let yesLits = lu yi
                                 , let difLits = lu di ]
 
            --TODO: see if it's enough to do this for all, then do "let yi = ..." once at the bottom
-           (True, True)   -> [ do let yi = IS.unions $ fst $ unzip yesInds_noInds
+           (True, True)   -> [ do let yi = IS.unions $ fst $ unzip yesInds_difInds
                                   let oi = allinds IS.\\  yi
                                   let yesLits = lu yi
                                   let otherLits = lu oi 
@@ -306,18 +308,28 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
            --                     , let yesLits = lookup' yi
            --                     , let otherLits = lookup' oi ]
 
-           (False, False) -> [ do n <- andl s "" (map neg noLits)
+                                      --"yesInds" mean "noInds" for NOT
+           (False, False) -> [ do let ni = IS.unions $ fst $ unzip yesInds_difInds
+                                  let oi = allinds IS.\\ ni
+                                  let noLits = lu ni
+                                  let otherLits = lu oi
+                                  n <- andl s "" (map neg noLits)
                                   y <- orl s "" otherLits --some lit must be positive
-                                  andl s "" [y,n]
-                                | (yi, _) <- yesInds_noInds
-                                , let oi = allinds IS.\\ yi
-                                , let noLits = lu yi
-                                , let otherLits = lu oi ]
+                                  andl s "" [y,n] ]
+
+           --(False, False) -> [ do n <- andl s "" (map neg noLits)
+           --                       y <- orl s "" otherLits --some lit must be positive
+           --                       andl s "" [y,n]
+           --                     | (yi, _) <- yesInds_noInds
+           --                     , let oi = allinds IS.\\ yi
+           --                     , let noLits = lu yi
+           --                     , let otherLits = lu oi ]
+
            (False, True)  -> [ orl s "" otherLits
-                                | (yi, _) <- yesInds_noInds
+                                | (yi, _) <- yesInds_difInds
                                 , let oi = allinds IS.\\ yi
                                 , let otherLits = lu oi ] )
-        | (c@(C' position (positive,yesInds_noInds)), absinds) <- conjconds_absinds
+        | (c@(C' position (positive,yesInds_difInds)), absinds) <- conjconds_absinds
         , let lu is = case mapMaybe   (flip IM.lookup $ sentence) absinds of
                        [] -> if positive then error "mkCond: index out of bounds"
                               else [true] --if no -100, then `NOT -100 foo' is true.
