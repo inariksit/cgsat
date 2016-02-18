@@ -90,40 +90,30 @@ testRule (verbose,debug) form readings (lastrule,rules) = do
   let allwidths@((firstW,firstTrg):otherwidths) = width $ cnd lastrule
   
   --if the shortest reading conflicts, we want to keep that result
-  resFst <- testRule' form readings (lastrule,rules) (firstW,firstTrg)
+  resFst <- testRule' debug form readings (lastrule,rules) (firstW,firstTrg)
 
   --if any of the other lengths is fine, we keep that
   --if all the longer lengths conflict, we just return the first
-
+  when debug $ putStrLn ("first result: " ++ show resFst)
   case (resFst,otherwidths) of
     (None,_) -> return resFst
     (_,  []) -> return resFst
     (_,   _) -> do when debug $ do
                       putStrLn $ "rule with *, trying many combinations"
-                      putStrLn $ "first result: " ++ show resFst
                    someLengthWorks <- asum `fmap` sequence 
-                    [ liftM confToMaybe (testRule' form readings (lastrule,rules) (w,trgSInd))
+                    [ liftM confToMaybe (testRule' False form readings (lastrule,rules) (w,trgSInd))
                       | (w,trgSInd) <- otherwidths ]
                    return $ fromMaybe resFst someLengthWorks 
 
   --if b 
   -- then do 
-  --    when debug $ do
-  --      putStrLn $ "Following triggers last rule: " ++ show lastrule
-  --      solveAndPrintSentence False s shouldTriggerLast afterRules
-  --    return (Just ())
-  -- else do
-  --    when verbose $ do
-  --      putStrLn "Conflict!"
-  --      putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
-  --      putStrLn $ "with the previous rules:"
-  --      mapM_ print rules
+  --    
 
 
 
-testRule' :: Form -> [[Tag]] -> (Rule', [Rule']) 
+testRule' :: Bool -> Form -> [[Tag]] -> (Rule', [Rule']) 
           -> (Int,SIndex) -> IO Conflict
-testRule' form readings (lastrule,rules) (w,trgSInd) = do
+testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
   --print (w,trgSInd)
 
   let tagInds = IS.fromList [1..length readings]
@@ -134,7 +124,7 @@ testRule' form readings (lastrule,rules) (w,trgSInd) = do
   afterRules <- foldM (apply s tagInds) initialSentence rules
 
 
-  defaultRules s afterRules
+  --defaultRules s afterRules
 
 
   let shouldTriggerLast s sentence = do
@@ -146,7 +136,7 @@ testRule' form readings (lastrule,rules) (w,trgSInd) = do
         mht <- orl' s trgLits --must have >0 targetLits
         mho <- orl' s otherLits --must have >0 otherLits 
        --we know that all conds are in range: sentence is generated wide enough to ensure that
-        Just cl <- mkConds s tagInds sentence trgSInd (cnd lastrule)
+        Just cl <- mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule"
         ach <- orl' s cl --conditions must hold
         print cl
         return (mht, mho, ach)
@@ -155,14 +145,24 @@ testRule' form readings (lastrule,rules) (w,trgSInd) = do
   
   b <- solve s [mustHaveTrg, mustHaveOther, allCondsHold]
   --print b
-  if b then return None
+  if b 
+    then do 
+      when debug $ do
+        putStrLn $ "Following triggers last rule WITH PREVIOUS: " ++ show lastrule
+        solveAndPrintSentence False s [mustHaveTrg, mustHaveOther, allCondsHold] afterRules
+      return None
 
-    else do s' <- newSolver
-            initialSentence' <- mkSentence s' w readings
-            defaultRules s' initialSentence'
-            (mustHaveTrg', mustHaveOther', allCondsHold') <- shouldTriggerLast s' initialSentence'
-            b' <- solve s' [mustHaveTrg', mustHaveOther', allCondsHold']
-            if b' then return $ With rules
+    else do
+      when debug $ putStrLn "could not solve with previous, trying alone"
+      s' <- newSolver
+      initialSentence' <- mkSentence s' w readings
+      defaultRules s' initialSentence'
+      (mustHaveTrg', mustHaveOther', allCondsHold') <- shouldTriggerLast s' initialSentence'
+      b' <- solve s' [mustHaveTrg', mustHaveOther', allCondsHold']
+      when (debug && b') $ do
+        putStrLn $ "Following triggers last rule ALONE: " ++ show lastrule
+        solveAndPrintSentence False s' [mustHaveTrg', mustHaveOther', allCondsHold'] initialSentence'
+      if b' then return $ With rules
               else return Internal
 
  where
@@ -187,7 +187,7 @@ apply s allinds sentence rule = do
 
   --         :: Sentence -> (SIndex,Word) -> Sentence
   let applyToWord sentence (i,word) = do
-       disjConds <- mkConds s allinds sentence i (cnd rule)
+       disjConds <- mkConds s allinds sentence i (cnd rule) "apply"
        case disjConds of
          Nothing -> return sentence --conditions out of scope, no changes in sentence
          Just cs -> do
@@ -223,8 +223,8 @@ apply s allinds sentence rule = do
   lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
 --------------------------------------------------------------------------------
 
-mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
-mkConds s allinds sentence trgind disjconjconds = do
+mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> String -> IO (Maybe [Lit])
+mkConds s allinds sentence trgind disjconjconds str = do
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
   -- * call mkCond with arguments of type (Condition, [SIndex])
   -- * in mkCond, make one big orl with all matching literals in all matching SIndixes
@@ -233,7 +233,7 @@ mkConds s allinds sentence trgind disjconjconds = do
                                          , let absinds = absIndices trgind cond 
                                          , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
-  putStrLn "conds_absinds:"
+  putStrLn $ "conds_absinds (calling from) " ++ str ++ ":"
   mapM_ (mapM_ print) conds_absinds
   putStrLn "-----"
   if null conds_absinds || all null conds_absinds
