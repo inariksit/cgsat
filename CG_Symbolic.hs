@@ -38,19 +38,19 @@ type TrgInds = (TrgIS,DifIS) --,WhoCares = all \ trg.
 type CondInds = (TrgIS,DifIS)
 
 --like CG_base's Condition, but s/TagSet/CondInds/
-data Condition' = C' Position (Bool,[CondInds]) deriving (Show,Eq)
+data Condition' = C' Position (Bool,[CondInds]) | Always' deriving (Show,Eq)
 
 
-data Conflict = None | Internal | With [Rule'] deriving (Show,Eq)
+data Conflict = NoConf | Internal | With [Rule'] deriving (Show,Eq)
 
 --sometimes we just want to know if there is conflict, not what kind
 confToBool :: Conflict -> Bool
-confToBool None = False
-confToBool _    = True
+confToBool NoConf = False
+confToBool _      = True
 
 confToMaybe :: Conflict -> Maybe Conflict
-confToMaybe None = Just None
-confToMaybe _    = Nothing
+confToMaybe NoConf = Just NoConf
+confToMaybe _      = Nothing
 
 
 --------------------------------------------------------------------------------
@@ -78,36 +78,38 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
   --So we can just ignore whatever difs toTags gives us and go with
   trgInds = lu (concat trgs, [[]])
   isSel = isSelect rule
-  conds = [  [ C' index (positive, yesInds_noInds)
-              | C index (positive, ctags) <- conditions
-              , let yesInds_noInds = map lu (toTags ctags) ]
-           | conditions <- toConds (cond rule) ]
+  conds = (map.map) condToCond' (toConds $ cond rule)
+  --conds = [  [ C' index (positive, yesInds_noInds)
+  --            | C index (positive, ctags) <- conditions
+  --            , let yesInds_noInds = map lu (toTags ctags) ]
+  --         | conditions <- toConds (cond rule) ]
+
+  condToCond' (C index (positive, ctags)) = 
+     let yesInds_noInds = map lu (toTags ctags) 
+     in  C' index (positive, yesInds_noInds)
+  condToCond' Always = Always' --C' (Exactly False 0) (True, [])
           
 --------------------------------------------------------------------------------
 testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
-testRule (verbose,debug) form readings (lastrule,rules) = do
+testRule (verbose,debug) form rds (lastrule,rules) = do
 
   let allwidths@((firstW,firstTrg):otherwidths) = width $ cnd lastrule
   
   --if the shortest reading conflicts, we want to keep that result
-  resFst <- testRule' debug form readings (lastrule,rules) (firstW,firstTrg)
+  resFst <- testRule' debug form rds (lastrule,rules) (firstW,firstTrg)
 
   --if any of the other lengths is fine, we keep that
   --if all the longer lengths conflict, we just return the first
-  when debug $ putStrLn ("first result: " ++ show resFst)
+  when debug $ putStrLn ("first result for " ++ show lastrule ++ ": " ++ show resFst)
   case (resFst,otherwidths) of
-    (None,_) -> return resFst
-    (_,  []) -> return resFst
-    (_,   _) -> do when debug $ do
-                      putStrLn $ "rule with *, trying many combinations"
-                   someLengthWorks <- asum `fmap` sequence 
-                    [ liftM confToMaybe (testRule' False form readings (lastrule,rules) (w,trgSInd))
-                      | (w,trgSInd) <- otherwidths ]
-                   return $ fromMaybe resFst someLengthWorks 
-
-  --if b 
-  -- then do 
-  --    
+    (NoConf,_) -> return resFst
+    (_,    []) -> return resFst
+    (_,     _) -> do when debug $ do
+                        putStrLn $ "rule with *, trying many combinations"
+                     someLengthWorks <- asum `fmap` sequence 
+                       [ confToMaybe `fmap` testRule' False form rds (lastrule,rules) w
+                        | w <- otherwidths ]
+                     return $ fromMaybe resFst someLengthWorks   
 
 
 
@@ -124,7 +126,7 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
   afterRules <- foldM (apply s tagInds) initialSentence rules
 
 
-  --defaultRules s afterRules
+  defaultRules s afterRules
 
 
   let shouldTriggerLast s sentence = do
@@ -136,24 +138,33 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
         mht <- orl' s trgLits --must have >0 targetLits
         mho <- orl' s otherLits --must have >0 otherLits 
        --we know that all conds are in range: sentence is generated wide enough to ensure that
-        Just cl <- mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule"
+        cl <- liftM2 fromMaybe (return []) --(error $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
+        --                                show lastrule ++ "\n, sentence width " ++ show w ++ 
+        --                                ", target index " ++ show trgSInd) 
+                               (mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule")
         ach <- orl' s cl --conditions must hold
-        print cl
+        --print cl
         return (mht, mho, ach)
 
   (mustHaveTrg, mustHaveOther, allCondsHold) <- shouldTriggerLast s afterRules
   
   b <- solve s [mustHaveTrg, mustHaveOther, allCondsHold]
-  --print b
   if b 
     then do 
       when debug $ do
         putStrLn $ "Following triggers last rule WITH PREVIOUS: " ++ show lastrule
         solveAndPrintSentence False s [mustHaveTrg, mustHaveOther, allCondsHold] afterRules
-      return None
+      return NoConf
 
     else do
-      when debug $ putStrLn "could not solve with previous, trying alone"
+      when debug $ do 
+        putStrLn "could not solve with previous, trying to loosen requirements:"
+        solveAndPrintSentence False s [mustHaveTrg, mustHaveOther] afterRules
+        solveAndPrintSentence False s [mustHaveTrg, allCondsHold] afterRules
+        solveAndPrintSentence False s [mustHaveOther, allCondsHold] afterRules
+        
+        putStrLn "...and now trying to solve the same rule with a fresh sentence:"
+
       s' <- newSolver
       initialSentence' <- mkSentence s' w readings
       defaultRules s' initialSentence'
@@ -168,7 +179,7 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
  where
   defaultRules s sentence = 
    sequence_ [ do addClause s lits          --Every word must have >=1 reading
-              --  constraints s mp [] form  --Constraints based on lexicon
+                  --constraints s mp [] form  --Constraints based on lexicon
                | word <- IM.elems sentence 
                , let lits = IM.elems word 
                , let mp i = fromMaybe true (IM.lookup i word) ] --TODO why is true default?
@@ -223,21 +234,22 @@ apply s allinds sentence rule = do
   lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
 --------------------------------------------------------------------------------
 
+--OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
 mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> String -> IO (Maybe [Lit])
 mkConds s allinds sentence trgind disjconjconds str = do
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
   -- * call mkCond with arguments of type (Condition, [SIndex])
   -- * in mkCond, make one big orl with all matching literals in all matching SIndixes
-
-  let conds_absinds = [ [ (cond, absinds) | cond <- conjconds 
-                                         , let absinds = absIndices trgind cond 
-                                         , not (null absinds) ] --TODO test with NOT!!!!
+  let conds_absinds = [ [ (cond, absinds) | cond <- conjconds --e
+                                          , let absinds = absIndices trgind cond 
+                                          , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
-  putStrLn $ "conds_absinds (calling from) " ++ str ++ ":"
-  mapM_ (mapM_ print) conds_absinds
-  putStrLn "-----"
+  when False $ do
+    putStrLn $ "conds_absinds (calling from) " ++ str ++ ":"
+    mapM_ (mapM_ print) conds_absinds
+    putStrLn "-----"
   if null conds_absinds || all null conds_absinds
-   then return Nothing --is there a meaningful difference between Nothing and []?
+   then return Nothing --[true] --is there a meaningful difference between Nothing and []?
    else Just `fmap` mapM (mkCond s allinds sentence) conds_absinds
   
  where
@@ -245,6 +257,7 @@ mkConds s allinds sentence trgind disjconjconds str = do
   absIndices i (C' pos (b,tags)) = let possibleInds = (i+) <$> posToInt pos
                                        member = flip IM.member
                                    in filter (member sentence) possibleInds
+  absIndices i Always'           = [i]
 
 
 mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',[SIndex])] -> IO Lit
@@ -308,7 +321,7 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
         , let lu is = case mapMaybe   (flip IM.lookup $ sentence) absinds of
                        [] -> if positive then error "mkCond: index out of bounds"
                               else [true] --if no -100, then `NOT -100 foo' is true.
-                       ts -> mapMaybe   (flip IM.lookup $ IM.unions ts) (IS.toList is)
+                       ts -> concatMap (\i -> mapMaybe (IM.lookup i) ts) (IS.toList is)
         --, let lu is = case IM.lookup absind sentence of
         --                     Just ts -> mapMaybe   (flip IM.lookup $ ts) (IS.toList is)
         --                     Nothing -> if positive then error "mkCond: index out of bounds"
@@ -385,7 +398,7 @@ width cs   = [ (len, tind) | (mi,ma) <- mins_maxs
                            , let tind = maybe 99999 (1+) (elemIndex 0 [mi..ma]) ]
  where
   mins_maxs = [ (0 `min` minimum pos, 0 `max` maximum pos) | pos <- poss ]
-  poss = sequence [ posToInt pos | C' pos _ <- concat cs ]
+  poss = sequence $ map getPos (concat cs)
 
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> [Int]
@@ -402,10 +415,10 @@ isCareful (AtLeast b _) = b
 isCareful (Barrier b _ _) = b
 isCareful (CBarrier b _ _) = b
 
-getPos :: Condition' -> SIndex
-getPos (C' (Barrier  _ i _) _) = i
-getPos (C' (CBarrier _ i _) _) = i
-getPos (C'  position        _) = head $ posToInt position
+getPos :: Condition' -> [Int]
+getPos Always'    = [1]
+getPos (C' pos _) = posToInt pos
+
 
 for :: (Functor f) => f a -> (a -> b) -> f b
 for = flip fmap
