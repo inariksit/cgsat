@@ -85,10 +85,14 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
 testRule :: (Bool,Bool) -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
 testRule (verbose,debug) ambcls readings (lastrule,rules) = do
   let tagInds = IS.fromList [1..length readings]
-  let foo@((w,trgSInd):_) = width $ cnd lastrule
+  let foo@((w,trgSInd):otherWidths) = width $ cnd lastrule
 --  putStrLn ("all widths: " ++ show foo)
   s <- newSolver
   initialSentence <- mkSentence s w readings
+
+  sequence_ [ addClause s lits | word <- IM.elems initialSentence 
+                               , let lits = IM.elems word ]
+                               
   afterRules <- foldM (apply s tagInds) initialSentence rules
 
   ambclasses <- readFile ambcls
@@ -115,14 +119,14 @@ testRule (verbose,debug) ambcls readings (lastrule,rules) = do
     --otherLits = should be [everything with N, Adj and PP in it]
     mho <- case c0conds of
             _ -> orl' s otherLits --must have >0 otherLits
-            [] -> orl' s otherLits --must have >0 otherLits
-            xs -> do let c0Inds = nub $ concatMap cndIndsC0 xs
-                     print c0Inds
-                     let c0Lits = map (trgSWord IM.!) c0Inds
-                     print (length c0Lits)
-                     let restrictedOtherLits = c0Lits \\ trgLits
-                     print (length restrictedOtherLits)
-                     orl' s restrictedOtherLits
+            --[] -> orl' s otherLits --must have >0 otherLits
+            --xs -> do let c0Inds = nub $ concatMap cndIndsC0 xs
+            --         print c0Inds
+            --         let c0Lits = map (trgSWord IM.!) c0Inds
+            --         print (length c0Lits)
+            --         let restrictedOtherLits = c0Lits \\ trgLits
+            --         print (length restrictedOtherLits)
+            --         orl' s restrictedOtherLits
 
     --we know that all conds are in range: sentence is generated wide enough to ensure that
     cl <- mkConds s tagInds afterRules trgSInd (cnd lastrule) 
@@ -171,7 +175,7 @@ apply s allinds sentence rule = do
        case disjConds of
          Nothing -> return sentence --conditions out of scope, no changes in sentence
          Just cs -> do
-           let trgIndsList = (IS.toList trgInds)
+           let trgIndsList = IS.toList trgInds
            condsHold <- orl' s cs
            let trgPos   = mapMaybe (lu' word) trgIndsList
            let otherNeg = map (neg . lu word) (IS.toList otherInds)
@@ -204,7 +208,16 @@ apply s allinds sentence rule = do
 --------------------------------------------------------------------------------
 
 mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
-mkConds s allinds sentence trgind disjconjconds = do
+mkConds s allinds sentence trgind disjconjconds = 
+  --trace ("conditions: " ++  show 
+
+  -- ([ [ (cond, absind) | cond <- conjconds 
+  --                                       , let absinds = absIndices trgind cond 
+  --                                       , absind <- absinds
+  --                                       , not (null absinds) ] --TODO test with NOT!!!!
+  --                      | conjconds <- disjconjconds ]) ) $ 
+
+  do
 
   --option 1: 
   -- * return all possible absInd that are inRange 
@@ -223,12 +236,12 @@ mkConds s allinds sentence trgind disjconjconds = do
 
 
   
-  let conds_absinds = [ [ (cond, absInds) | cond <- conjconds 
-                                         , let absInds = absIndices trgind cond 
-                                         , not (null absInds) ]
+  let conds_absinds = [ [ (cond, absinds) | cond <- conjconds 
+                                         , let absinds = absIndices trgind cond 
+                                         --, absind <- absinds
+                                         , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
-                        --, all (inRange trgind) conjconds ]
-  if null conds_absinds 
+  if null conds_absinds || all null conds_absinds
    then return Nothing --is there a meaningful difference between Nothing and []?
    else Just `fmap` mapM (mkCond s allinds sentence) conds_absinds
   
@@ -238,14 +251,9 @@ mkConds s allinds sentence trgind disjconjconds = do
                                        member = flip IM.member
                                    in filter (member sentence) possibleInds
 
-  inRange :: SIndex -> Condition' -> Bool
-  inRange i (C' pos (b,tags)) = not b 
-                                 || let possibleInds = (i+) <$> posToInt pos
-                                        member = flip IM.member
-                                    in any (member sentence) possibleInds
-
 
 mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',[SIndex])] -> IO Lit
+--mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',SIndex)] -> IO Lit
 mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
  [ do case position of
              (Barrier  foo bar btags) 
@@ -307,6 +315,10 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
                        [] -> if positive then error "mkCond: index out of bounds"
                               else [true] --if no -100, then `NOT -100 foo' is true.
                        ts -> mapMaybe (flip IM.lookup $ IM.unions ts) (IS.toList is)
+        --, let lu is = case IM.lookup absind sentence of
+        --                     Just ts -> mapMaybe (flip IM.lookup $ ts) (IS.toList is)
+        --                     Nothing -> if positive then error "mkCond: index out of bounds"
+        --                                 else [true] --if no -100, then `NOT -100 foo' is true.
 
         , let cautious = isCareful position 
         , let negIfPos l = if pos l then neg l else l ]
