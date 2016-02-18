@@ -17,10 +17,10 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, CG_Symbolic
+  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, CG_Symbolic, AmbiguityClass
   other-modules:       CG.ErrM, Apertium.ErrM,
                        Apertium.Abs, Apertium.Lex, Apertium.Par,
-                       CG.Abs, CG.Lex, CG.Par, CG.Print, AmbiguityClass
+                       CG.Abs, CG.Lex, CG.Par, CG.Print
 --  other-extensions:    
   build-depends:       base,
                        containers,
