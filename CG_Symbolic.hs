@@ -241,18 +241,21 @@ mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> String -
 mkConds s allinds sentence trgind disjconjconds str = do
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
   -- * call mkCond with arguments of type (Condition, [SIndex])
-  -- * in mkCond, make one big orl with all matching literals in all matching SIndixes
-  let conds_absinds = [ [ (cond, absinds) | cond <- conjconds --e
+  -- * in mkCond, sometimes we can get away with a big orl that contains literals
+  --    from different symbolic words, but with cautious or negation, can't do that
+
+  let conds_absinds = [ [ (cond, absinds) | cond <- nub conjconds 
                                           , let absinds = absIndices trgind cond 
                                           , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
   when False $ do
-    putStrLn $ "conds_absinds (calling from) " ++ str ++ ":"
+    putStrLn $ "conds_absinds (calling from " ++ str ++ "):"
+    print conds_absinds
     mapM_ (mapM_ print) conds_absinds
     putStrLn "-----"
   if null conds_absinds || all null conds_absinds
    then return Nothing --[true] --is there a meaningful difference between Nothing and []?
-   else Just `fmap` mapM (mkCond s allinds sentence) conds_absinds
+   else Just `fmap` mapM (mkCond s allinds sentence str) conds_absinds
   
  where
   absIndices :: SIndex -> Condition' -> [SIndex]
@@ -262,85 +265,66 @@ mkConds s allinds sentence trgind disjconjconds str = do
   absIndices i Always'           = [i]
 
 
-mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',[SIndex])] -> IO Lit
---mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',SIndex)] -> IO Lit
-mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
- [ do case position of
-             (Barrier  foo bar btags) 
-               -> do --putStrLn "found a barrier!"
-                     addClause s [true] --TODO
+mkCond :: Solver -> WIndSet -> Sentence -> String -> [(Condition',[SIndex])] -> IO Lit
+mkCond s allinds sentence str conjconds_absinds = do 
+  andl' s =<< sequence [ orl s "" =<< sequence
+                         [ go cond absind --by absInd
+                           | (cond,absinds) <- conjconds_absinds 
+                           , absind <- absinds ] ]
+--  lits_by_condition
+
+ where
+  lookup' :: Bool -> SIndex -> WIndSet -> [Lit]
+  lookup' b ai is = case IM.lookup ai sentence of
+                      Nothing -> if b then error "mkCond: index out of bounds"
+                                  else [true] --if no -100, then `NOT -100 foo' is true
+                      Just wd -> mapMaybe (\i -> IM.lookup i wd) (IS.toList is)
+
+  go :: Condition' -> SIndex -> IO Lit 
+  go Always' _  = return true
+  go c@(C' position (positive,yesInds_difInds)) absind = do 
+
+    --OBS. this IS.unions is for *tag disjunction*,
+    --we keep literals from different symbolic words separate,
+    --this function only touches stuff in one word
+    let yi_ALLINONE = IS.unions $ fst $ unzip yesInds_difInds
+    let oi_ALLINONE = allinds IS.\\ yi_ALLINONE
+
+    let lu = lookup' positive absind
+
+    case position of
+      (Barrier  foo bar btags) 
+        -> do --putStrLn "found a barrier!"
+              addClause s [true] --TODO
                                          
-             (CBarrier foo bar btags)
-               -> do --putStrLn "found a cbarrier!"
-                     addClause s [true] --TODO
-             _ -> return ()
+      (CBarrier foo bar btags)
+        -> do --putStrLn "found a cbarrier!"
+              addClause s [true] --TODO
+      _ -> return ()
 
-      -- disjunction of *tags* in one condition
-      -- sorry for crappy naming, we don't have access to the name anymore;
-      -- and usually position is enough for debugging purposes
+    case (positive, isCareful position) of
+      (True, False) -> orl s "" =<< sequence
+                          [ do let yesLits = lu yi
+                               let difLits = lu di
+                               y <- orl  s "" yesLits
+                               n <- andl s "" (map neg difLits)
+                               andl s "" [y,n]
+                            | (yi, di) <- yesInds_difInds ] --foreach TAG COMBINATION!
+                        --only case where we really need difInds!
+                           
+      (True, True)  -> do let yesLits = lu yi_ALLINONE
+                          let otherLits = lu oi_ALLINONE
+                          y <- orl  s "" yesLits
+                          n <- andl s "" (map neg otherLits)
+                          andl s "" [y,n] 
 
-      orl s (show position ++ " in " ++ show absinds) =<< sequence 
-        ( case (positive, cautious) of
-                              --TODO check: why did I do this in the first place?
-                              --Is there a case that  A\B OR A\C = A \ (B AND C) won't cover?
-                              --How about A\B OR C\D?
-           (True, False)  -> [ do y <- orl  s "" yesLits
-                                  n <- andl s "" (map neg difLits)
-                                  andl s "" [y,n]
-                                | (yi, di) <- yesInds_difInds --only case where we use noInds!
-                                , let yesLits = lu yi
-                                , let difLits = lu di ]
+                       --OBS. "yesInds" mean "noInds" for NOT
+      (False,False) -> do let noLits = lu yi_ALLINONE
+                          --let otherLits = lu oi_ALLINONE
+                          andl s "" (map neg noLits)
 
-           --TODO: see if it's enough to do this for all, then do "let yi = ..." once at the bottom
-           (True, True)   -> [ do let yi = IS.unions $ fst $ unzip yesInds_difInds
-                                  let oi = allinds IS.\\  yi
-                                  let yesLits = lu yi
-                                  let otherLits = lu oi 
-                                  y <- orl  s "" yesLits
-                                  n <- andl s "" (map neg otherLits)
-                                  andl s "" [y,n] ]
-           --(True, True)   -> [ do y <- orl  s "" yesLits
-           --                       print ("mkCond:", length yesLits)
-           --                       n <- andl s "" (map neg otherLits)
-           --                       andl s "" [y,n]
-           --                     | (yi, _) <- yesInds_noInds
-           --                     , let oi = allinds IS.\\ yi
-           --                     , let yesLits = lookup' yi
-           --                     , let otherLits = lookup' oi ]
-
-                                      --"yesInds" mean "noInds" for NOT
-           (False, False) -> [ do let ni = IS.unions $ fst $ unzip yesInds_difInds
-                                  let oi = allinds IS.\\ ni
-                                  let noLits = lu ni
-                                  let otherLits = lu oi
-                                  n <- andl s "" (map neg noLits)
-                                  y <- orl s "" otherLits --some lit must be positive
-                                  andl s "" [y,n] ]
-
-           --(False, False) -> [ do n <- andl s "" (map neg noLits)
-           --                       y <- orl s "" otherLits --some lit must be positive
-           --                       andl s "" [y,n]
-           --                     | (yi, _) <- yesInds_noInds
-           --                     , let oi = allinds IS.\\ yi
-           --                     , let noLits = lu yi
-           --                     , let otherLits = lu oi ]
-
-           (False, True)  -> [ orl s "" otherLits
-                                | (yi, _) <- yesInds_difInds
-                                , let oi = allinds IS.\\ yi
-                                , let otherLits = lu oi ] )
-        | (c@(C' position (positive,yesInds_difInds)), absinds) <- conjconds_absinds
-        , let lu is = case mapMaybe   (flip IM.lookup $ sentence) absinds of
-                       [] -> if positive then error "mkCond: index out of bounds"
-                              else [true] --if no -100, then `NOT -100 foo' is true.
-                       ts -> concatMap (\i -> mapMaybe (IM.lookup i) ts) (IS.toList is)
-        --, let lu is = case IM.lookup absind sentence of
-        --                     Just ts -> mapMaybe   (flip IM.lookup $ ts) (IS.toList is)
-        --                     Nothing -> if positive then error "mkCond: index out of bounds"
-        --                                 else [true] --if no -100, then `NOT -100 foo' is true.
-
-        , let cautious = isCareful position 
-        , let negIfPos l = if pos l then neg l else l ]
+      (False, True) -> do let otherLits = lu oi_ALLINONE
+                          andl s "" otherLits
 
 
 --------------------------------------------------------------------------------
