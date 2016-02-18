@@ -268,9 +268,8 @@ mkConds s allinds sentence trgind disjconjconds str = do
 mkCond :: Solver -> WIndSet -> Sentence -> String -> [(Condition',[SIndex])] -> IO Lit
 mkCond s allinds sentence str conjconds_absinds = do 
   andl' s =<< sequence [ orl s "" =<< sequence
-                         [ go cond absind --by absInd
-                           | (cond,absinds) <- conjconds_absinds 
-                           , absind <- absinds ] ]
+                         [ go cond absind | absind <- absinds ] 
+                         | (cond,absinds) <- conjconds_absinds ]
 --  lits_by_condition
 
  where
@@ -303,15 +302,26 @@ mkCond s allinds sentence str conjconds_absinds = do
       _ -> return ()
 
     case (positive, isCareful position) of
+      --naive version (works if no set difference & OR combination)
+      --(True, False) -> do let yesLits = lu yi_ALLINONE
+      --                    orl  s "" yesLits                   
       (True, False) -> orl s "" =<< sequence
                           [ do let yesLits = lu yi
                                let difLits = lu di
                                y <- orl  s "" yesLits
                                n <- andl s "" (map neg difLits)
                                andl s "" [y,n]
-                            | (yi, di) <- yesInds_difInds ] --foreach TAG COMBINATION!
-                        --only case where we really need difInds!
-                           
+                            | (yi, di) <- yesInds_difInds ] 
+                            --only case where we may need difInds:
+                            --with rule like A\B OR C\D, we can have
+                            --a)  MUST have one: [a, ac, ad, acd, ae ..] 
+                            --    MAY NOT have:  [b, ab, ..]
+                            --    CAN have:      [d, cd, e, ..]
+
+                            --b)  MUST have one: [c, ac, bc, ace, ce ..] 
+                            --    MAY NOT have:  [d, cd, ...]
+                            --    CAN have:      [b, ab, e, ..]
+
       (True, True)  -> do let yesLits = lu yi_ALLINONE
                           let otherLits = lu oi_ALLINONE
                           y <- orl  s "" yesLits
