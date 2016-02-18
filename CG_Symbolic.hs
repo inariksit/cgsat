@@ -7,7 +7,7 @@ import SAT.Named
 import AmbiguityClass
 
 import Control.Monad
---import Data.Foldable ( asum )
+import Data.Foldable ( asum )
 import qualified Data.IntSet as IS
 import qualified Data.IntMap as IM
 import Data.List
@@ -48,6 +48,11 @@ confToBool :: Conflict -> Bool
 confToBool None = False
 confToBool _    = True
 
+confToMaybe :: Conflict -> Maybe Conflict
+confToMaybe None = Just None
+confToMaybe _    = Nothing
+
+
 --------------------------------------------------------------------------------
 
 
@@ -82,9 +87,24 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
 testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
 testRule (verbose,debug) form readings (lastrule,rules) = do
 
-  let allwidths@((w,trgSInd):otherWidths) = width $ cnd lastrule
+  let allwidths@((firstW,firstTrg):otherwidths) = width $ cnd lastrule
   
-  --testRule' (verbose,debug) form readings (lastrule,rules)
+  --if the shortest reading conflicts, we want to keep that result
+  resFst <- testRule' form readings (lastrule,rules) (firstW,firstTrg)
+
+  --if any of the other lengths is fine, we keep that
+  --if all the longer lengths conflict, we just return the first
+
+  case (resFst,otherwidths) of
+    (None,_) -> return resFst
+    (_,  []) -> return resFst
+    (_,   _) -> do when debug $ do
+                      putStrLn $ "rule with *, trying many combinations"
+                      putStrLn $ "first result: " ++ show resFst
+                   someLengthWorks <- asum `fmap` sequence 
+                    [ liftM confToMaybe (testRule' form readings (lastrule,rules) (w,trgSInd))
+                      | (w,trgSInd) <- otherwidths ]
+                   return $ fromMaybe resFst someLengthWorks 
 
   --if b 
   -- then do 
@@ -99,79 +119,60 @@ testRule (verbose,debug) form readings (lastrule,rules) = do
   --      putStrLn $ "with the previous rules:"
   --      mapM_ print rules
 
-  return None
 
 
 testRule' :: Form -> [[Tag]] -> (Rule', [Rule']) 
           -> (Int,SIndex) -> IO Conflict
 testRule' form readings (lastrule,rules) (w,trgSInd) = do
+  --print (w,trgSInd)
 
   let tagInds = IS.fromList [1..length readings]
 
-  
+
   s <- newSolver
   initialSentence <- mkSentence s w readings
-                               
   afterRules <- foldM (apply s tagInds) initialSentence rules
 
 
- 
-  sequence_ [ do addClause s lits          --Every word must have >=1 reading
-                 constraints s mp [] form  --Constraints based on lexicon
-              | word <- IM.elems afterRules 
-              , let lits = IM.elems word 
-              , let mp i = fromMaybe true (IM.lookup i word) ] --TODO why is true default?
+  defaultRules s afterRules
 
 
   let shouldTriggerLast s sentence = do
-        let Just trgSWord = IM.lookup trgSInd sentence
+        let trgSWord = fromMaybe (error "shouldTriggerLast: no trg index found") (IM.lookup trgSInd sentence)
         let (yesTags,_) = trg lastrule
         let otherTags = tagInds IS.\\ yesTags
         let trgLits   = map (trgSWord IM.!) (IS.toList yesTags)
         let otherLits = map (trgSWord IM.!) (IS.toList otherTags)
-
         mht <- orl' s trgLits --must have >0 targetLits
         mho <- orl' s otherLits --must have >0 otherLits 
-
        --we know that all conds are in range: sentence is generated wide enough to ensure that
         Just cl <- mkConds s tagInds sentence trgSInd (cnd lastrule)
         ach <- orl' s cl --conditions must hold
-
+        print cl
         return (mht, mho, ach)
+
   (mustHaveTrg, mustHaveOther, allCondsHold) <- shouldTriggerLast s afterRules
   
   b <- solve s [mustHaveTrg, mustHaveOther, allCondsHold]
+  --print b
   if b then return None
+
     else do s' <- newSolver
-            (mustHaveTrg', mustHaveOther', allCondsHold') <- shouldTriggerLast s' initialSentence
+            initialSentence' <- mkSentence s' w readings
+            defaultRules s' initialSentence'
+            (mustHaveTrg', mustHaveOther', allCondsHold') <- shouldTriggerLast s' initialSentence'
             b' <- solve s' [mustHaveTrg', mustHaveOther', allCondsHold']
-            if b then return $ With rules
+            if b' then return $ With rules
               else return Internal
 
-{- where
+ where
+  defaultRules s sentence = 
+   sequence_ [ do addClause s lits          --Every word must have >=1 reading
+              --  constraints s mp [] form  --Constraints based on lexicon
+               | word <- IM.elems sentence 
+               , let lits = IM.elems word 
+               , let mp i = fromMaybe true (IM.lookup i word) ] --TODO why is true default?
 
-
-  shouldTriggerLast :: Solver -> Rule' -> Sentence -> (Int,SIndex) -> (Lit,Lit,Lit)
-  shouldTriggerLast s sentence rule (w,trgSInd) = do
-    let Just trgSWord = IM.lookup trgSInd sentence
-    let (yesTags,_) = trg rule
-    let otherTags = tagInds IS.\\ yesTags
-    let trgLits   = map (trgSWord IM.!) (IS.toList yesTags)
-    let otherLits = map (trgSWord IM.!) (IS.toList otherTags)
-
-    mht <- orl' s trgLits --must have >0 targetLits
-    mho <- orl' s otherLits --must have >0 otherLits 
-
-    --we know that all conds are in range: sentence is generated wide enough to ensure that
-    --cl <- mkConds s tagInds sentence trgSInds 
-    --let condLits = case cl of 
-    --                Just cls -> cls
-    --                Nothing -> error ("condLits: error in " ++ show lastrule ++  show (w,trgSInd))
-    Just cl <- mkConds s tagInds sentence trgSInd (cnd rule)
-    ach <- orl' s cl --conditions must hold
-
-    return (mht, mho, ach) -}
-  
 --------------------------------------------------------------------------------
 
 
@@ -223,8 +224,7 @@ apply s allinds sentence rule = do
 --------------------------------------------------------------------------------
 
 mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
-mkConds s allinds sentence trgind disjconjconds = 
-  do
+mkConds s allinds sentence trgind disjconjconds = do
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
   -- * call mkCond with arguments of type (Condition, [SIndex])
   -- * in mkCond, make one big orl with all matching literals in all matching SIndixes
@@ -233,6 +233,9 @@ mkConds s allinds sentence trgind disjconjconds =
                                          , let absinds = absIndices trgind cond 
                                          , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
+  putStrLn "conds_absinds:"
+  mapM_ (mapM_ print) conds_absinds
+  putStrLn "-----"
   if null conds_absinds || all null conds_absinds
    then return Nothing --is there a meaningful difference between Nothing and []?
    else Just `fmap` mapM (mkCond s allinds sentence) conds_absinds
@@ -261,8 +264,7 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
       -- sorry for crappy naming, we don't have access to the name anymore;
       -- and usually position is enough for debugging purposes
 
-      --orl s (show position ++ " in " ++ show absind) =<< sequence 
-      orl s (show position ++ " potentially anywhere if there's a *!") =<< sequence 
+      orl s (show position ++ " in " ++ show absinds) =<< sequence 
         ( case (positive, cautious) of
                               --TODO check: why did I do this in the first place?
                               --Is there a case that  A\B OR A\C = A \ (B AND C) won't cover?
