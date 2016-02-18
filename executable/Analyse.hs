@@ -5,9 +5,11 @@ import CG_parse
 import CG_Symbolic
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
+import AmbiguityClass
 
 import Control.Monad
 import Data.List
+import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.IntSet as IS
 import System.Environment ( getArgs ) 
@@ -56,82 +58,91 @@ main = do
   let readings = sequence [tags] -- ++ [[Tag "a",Tag "b"],[Tag "a",Tag "c"],[Tag "b",Tag "c"]]
   let tagmap = mkTagMap tags readings
   let allinds = IS.fromList [1..length readings]
-  let abcd_ambcls = "data/abcd-ambiguity-classes" 
+  abcd_ambcls <- do ambclauses <- readFile "data/abcd-ambiguity-classes" 
+                    let xss  = map read (lines ambclauses) :: [[Int]]
+                    return $ formula xss 
   let verbose = (True,True)
+
   case args of 
-    ("kimmo":_)
-       -> do let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
-             putStrLn "testing with implicit kimmo"
-             mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_i'))
+   ("kimmo":_) -> do
+    let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
+    putStrLn "testing with implicit kimmo"
+    mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_i'))
 
-             let kimmo_e' = map (ruleToRule' tagmap allinds) kimmo_explicit
-             putStrLn "testing with explicit kimmo"
-             mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_e'))
+    let kimmo_e' = map (ruleToRule' tagmap allinds) kimmo_explicit
+    putStrLn "testing with explicit kimmo"
+    mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_e'))
 
-    (lang:fromStr:toStr:r)
-       -> do let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
+   (lang:fromStr:toStr:r)-> do 
 
-             let subr = if "nosub" `elem` r then "nosub" else "withsub"
-             let withambcls = "ambcls" `elem` r
-             let withunders = "undersp" `elem` r
+    let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
 
-             let dirname = "data/" ++ lang ++ "/" 
-             let grfile  = dirname ++ lang ++ ".rlx"
-             let tagfile = dirname ++ lang ++ ".tags"
-             let rdsfile = dirname ++ lang ++ ".readings." ++ subr
-             let ambcls  = if withambcls then dirname ++ lang ++ "-ambiguity-classes"
-                            else "data/dummy-amb-cls" 
+    let subr = if "nosub" `elem` r then "nosub" else "withsub"
+    let withambcls = "ambcls" `elem` r
+    let withunders = "undersp" `elem` r
 
-             let from = read fromStr
-             let to   = read toStr
-                           
-
-             tagsInApe <- (concat . filter (not.null) . map parse . words) 
-                         `fmap` readFile tagfile
-             (tsets, rls) <- readRules' grfile
-             let readingsInGr = if withunders then nub $ concatMap toTags' tsets
-                            else [] 
-             readingsInLex <- (map parse . words) `fmap` readFile rdsfile
-             let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
-             let tags = nub $ tagsInApe ++ concat readings
-
-             --mapM_ print readings
-             --mapM_ print tags
-
-             let tagmap = mkTagMap tags readings
-             let allinds = IS.fromList [1..length readings]
-             let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
+    let dirname = "data/" ++ lang ++ "/" 
+    let grfile  = dirname ++ lang ++ ".rlx"
+    let tagfile = dirname ++ lang ++ ".tags"
+    let rdsfile = dirname ++ lang ++ ".readings." ++ subr
+    ambcls <- if withambcls 
+                then do let acfile = dirname ++ lang ++ "-ambiguity-classes"
+                        ambclauses <- readFile acfile
+                        let xss  = map read (lines ambclauses) :: [[Int]]
+                        return $ formula xss 
+                  else return $ formula []
 
 
-             badrules <- filterM (testRule verbose ambcls readings) (drop from $ take to $ splits rules)
+    let from = read fromStr
+    let to   = read toStr
 
-             putStrLn "\nThe following rules have an internal conflict:"
-             rs_bsAlone <- badrules `forM` \rrs@(r,_) -> do b <- testRule (False,False) ambcls readings (r,[]) 
-                                                            return (rrs, b)
+             
+--------------------------------------------------------------------------------                           
 
-             let (internalConf,interactionConf) = partition (\(r,b) -> b) rs_bsAlone
-             mapM_ (print . fst . fst) internalConf
+    tagsInApe <- (concat . filter (not.null) . map parse . words) 
+                   `fmap` readFile tagfile
+    (tsets, rls) <- readRules' grfile
+    let readingsInGr = if withunders then nub $ concatMap toTags' tsets
+                                       else [] 
+    readingsInLex <- (map parse . words) `fmap` readFile rdsfile
+    let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
+    let tags = nub $ tagsInApe ++ concat readings
+
+            --mapM_ print readings
+            --mapM_ print tags
+
+    let tagmap = mkTagMap tags readings
+    let allinds = IS.fromList [1..length readings]
+    let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
+
+-------------------------------------------------------------------------------- 
+    badrules <- filterM (testRule verbose ambcls readings) (drop from $ take to $ splits rules)
+
+    putStrLn "\nThe following rules have an internal conflict:"
+    rs_bsAlone <- badrules `forM` \rrs@(r,_) -> do b <- testRule (False,False) ambcls readings (r,[]) 
+                                                   return (rrs, b)
+
+    let (internalConf,interactionConf) = partition (\(r,b) -> b) rs_bsAlone
+    mapM_ (print . fst . fst) internalConf
 
 
-             putStrLn "\nFinding out the reason for conflict for the rest:"
-             let shrink (r,rs) = do -- This is not going to work outside small grammars
-                                    let allinits = (,) r `map` inits rs
-                                    brs <- searchInits (testRule verbose ambcls readings) allinits
-                                    let minimalConflict = case brs of 
-                                                            [] -> rs --[last rs]
-                                                            mc -> mc 
-                                    --let moreMinimalConflict = []
-                                    let alltails = (,) r `map` tails minimalConflict
-                                    moreMinimalConflict <- searchTails (testRule verbose ambcls readings) alltails
-                                    putStrLn $ "\n-> " ++ show r ++ " <-"
-                                    mapM_ (\s -> putStrLn $ "\t" ++ show s) moreMinimalConflict
+    putStrLn "\nFinding out the reason for conflict for the rest:"
+    let shrink (r,rs) = do -- This is not going to work outside small grammars
+                           let allinits = (,) r `map` inits rs
+                           brs <- searchInits (testRule verbose ambcls readings) allinits
+                           let minimalConflict = brs --fromMaybe rs brs
+                           --let moreMinimalConflict = []
+                           let alltails = (,) r `map` tails minimalConflict
+                           moreMinimalConflict <- searchTails (testRule verbose ambcls readings) alltails
+                           putStrLn $ "\n-> " ++ show r ++ " <-"
+                           mapM_ (\s -> putStrLn $ "\t" ++ show s) moreMinimalConflict
 
-             mapM_ (shrink . fst) interactionConf
+    mapM_ (shrink . fst) interactionConf
 
 
 
 
-    _ -> print "usage: cabal analyse <3-letter language name> [v,d]"
+   _ -> print "usage: cabal analyse <3-letter language name> [v,d]"
 
 
 
@@ -144,12 +155,10 @@ main = do
 
   binarySearch :: Bool -> ((Rule', [Rule']) -> IO Bool) -> [(Rule', [Rule'])] -> IO [Rule']
   binarySearch _ testFun []   = print "no conflict" >> return []
-  binarySearch _ testFun [x]  = do --print "binarySearch: 1"
-                                   b <- testFun x
+  binarySearch _ testFun [x]  = do b <- testFun x
                                    if b then return (snd x)
                                     else print "no conflict found" >> return []
-  binarySearch _ testFun [x,y] = do --print "binarySearch: 2"
-                                    b <- testFun x
+  binarySearch _ testFun [x,y] = do b <- testFun x
                                     if b then return (snd x)
                                      else do b' <- testFun y
                                              if b' then return (snd y)
