@@ -7,6 +7,7 @@ import SAT.Named
 import AmbiguityClass
 
 import Control.Monad
+--import Data.Foldable ( asum )
 import qualified Data.IntSet as IS
 import qualified Data.IntMap as IM
 import Data.List
@@ -39,17 +40,13 @@ type CondInds = (TrgIS,DifIS)
 --like CG_base's Condition, but s/TagSet/CondInds/
 data Condition' = C' Position (Bool,[CondInds]) deriving (Show,Eq)
 
---Everything below is an ugly hack to fix the problem with 0C
---The assumptions made about the content DO NOT GENERALISE to general conditions
---Sorry.
-isC0 :: Condition' -> Bool
-isC0 (C' (Exactly True 0) _) = True
-isC0 _                       = False
 
-cndIndsC0 :: Condition' -> [Int]
-cndIndsC0 (C' (Exactly True 0) (_,cndInds)) = concatMap (\(xs,_) -> IS.toList xs) cndInds
-cndIndsC0 _ = error "I told you not to use this function in other cases! D:"
+data Conflict = None | Internal | With [Rule'] deriving (Show,Eq)
 
+--sometimes we just want to know if there is conflict, not what kind
+confToBool :: Conflict -> Bool
+confToBool None = False
+confToBool _    = True
 
 --------------------------------------------------------------------------------
 
@@ -82,80 +79,98 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
            | conditions <- toConds (cond rule) ]
           
 --------------------------------------------------------------------------------
-testRule :: (Bool,Bool) -> FilePath -> [[Tag]] -> (Rule', [Rule']) -> IO Bool
-testRule (verbose,debug) ambcls readings (lastrule,rules) = do
+testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
+testRule (verbose,debug) form readings (lastrule,rules) = do
+
+  let allwidths@((w,trgSInd):otherWidths) = width $ cnd lastrule
+  
+  --testRule' (verbose,debug) form readings (lastrule,rules)
+
+  --if b 
+  -- then do 
+  --    when debug $ do
+  --      putStrLn $ "Following triggers last rule: " ++ show lastrule
+  --      solveAndPrintSentence False s shouldTriggerLast afterRules
+  --    return (Just ())
+  -- else do
+  --    when verbose $ do
+  --      putStrLn "Conflict!"
+  --      putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
+  --      putStrLn $ "with the previous rules:"
+  --      mapM_ print rules
+
+  return None
+
+
+testRule' :: Form -> [[Tag]] -> (Rule', [Rule']) 
+          -> (Int,SIndex) -> IO Conflict
+testRule' form readings (lastrule,rules) (w,trgSInd) = do
+
   let tagInds = IS.fromList [1..length readings]
-  let foo@((w,trgSInd):otherWidths) = width $ cnd lastrule
---  putStrLn ("all widths: " ++ show foo)
+
+  
   s <- newSolver
   initialSentence <- mkSentence s w readings
-
-  sequence_ [ addClause s lits | word <- IM.elems initialSentence 
-                               , let lits = IM.elems word ]
                                
   afterRules <- foldM (apply s tagInds) initialSentence rules
 
-  ambclasses <- readFile ambcls
-  let als  = lines ambclasses
-  let xss  = map read als :: [[Int]]
-  let form = formula xss 
 
-  mapM_ (constrainStuff s form) (IM.elems afterRules)
+ 
+  sequence_ [ do addClause s lits          --Every word must have >=1 reading
+                 constraints s mp [] form  --Constraints based on lexicon
+              | word <- IM.elems afterRules 
+              , let lits = IM.elems word 
+              , let mp i = fromMaybe true (IM.lookup i word) ] --TODO why is true default?
 
-  (mustHaveTrg, mustHaveOther, allCondsHold) <- do
-    let Just trgSWord = IM.lookup trgSInd afterRules
-    let (yesTags,_) = trg lastrule
+
+  let shouldTriggerLast s sentence = do
+        let Just trgSWord = IM.lookup trgSInd sentence
+        let (yesTags,_) = trg lastrule
+        let otherTags = tagInds IS.\\ yesTags
+        let trgLits   = map (trgSWord IM.!) (IS.toList yesTags)
+        let otherLits = map (trgSWord IM.!) (IS.toList otherTags)
+
+        mht <- orl' s trgLits --must have >0 targetLits
+        mho <- orl' s otherLits --must have >0 otherLits 
+
+       --we know that all conds are in range: sentence is generated wide enough to ensure that
+        Just cl <- mkConds s tagInds sentence trgSInd (cnd lastrule)
+        ach <- orl' s cl --conditions must hold
+
+        return (mht, mho, ach)
+  (mustHaveTrg, mustHaveOther, allCondsHold) <- shouldTriggerLast s afterRules
+  
+  b <- solve s [mustHaveTrg, mustHaveOther, allCondsHold]
+  if b then return None
+    else do s' <- newSolver
+            (mustHaveTrg', mustHaveOther', allCondsHold') <- shouldTriggerLast s' initialSentence
+            b' <- solve s' [mustHaveTrg', mustHaveOther', allCondsHold']
+            if b then return $ With rules
+              else return Internal
+
+{- where
+
+
+  shouldTriggerLast :: Solver -> Rule' -> Sentence -> (Int,SIndex) -> (Lit,Lit,Lit)
+  shouldTriggerLast s sentence rule (w,trgSInd) = do
+    let Just trgSWord = IM.lookup trgSInd sentence
+    let (yesTags,_) = trg rule
     let otherTags = tagInds IS.\\ yesTags
     let trgLits   = map (trgSWord IM.!) (IS.toList yesTags)
     let otherLits = map (trgSWord IM.!) (IS.toList otherTags)
 
-    let c0conds = isC0 `filter` concat (cnd lastrule)
-
     mht <- orl' s trgLits --must have >0 targetLits
-
-
-    --Example: SELECT N IF (0C Noun_Adj_PP) ;
-    --targetLits = [everything with N in it]
-    --otherLits = should be [everything with N, Adj and PP in it]
-    mho <- case c0conds of
-            _ -> orl' s otherLits --must have >0 otherLits
-            --[] -> orl' s otherLits --must have >0 otherLits
-            --xs -> do let c0Inds = nub $ concatMap cndIndsC0 xs
-            --         print c0Inds
-            --         let c0Lits = map (trgSWord IM.!) c0Inds
-            --         print (length c0Lits)
-            --         let restrictedOtherLits = c0Lits \\ trgLits
-            --         print (length restrictedOtherLits)
-            --         orl' s restrictedOtherLits
+    mho <- orl' s otherLits --must have >0 otherLits 
 
     --we know that all conds are in range: sentence is generated wide enough to ensure that
-    cl <- mkConds s tagInds afterRules trgSInd (cnd lastrule) 
-    let condLits = case cl of 
-                    Just cls -> cls
-                    Nothing -> error ("condLits: error in " ++ show lastrule ++  show (w,trgSInd))
-    ach <- orl' s condLits --conditions must hold
-    return (mht, mho, ach)
-  let shouldTriggerLast = [mustHaveTrg, mustHaveOther, allCondsHold]
-  
-  b <- solve s shouldTriggerLast
-  if b 
-   then do 
-      when debug $ do
-        putStrLn $ "Following triggers last rule: " ++ show lastrule
-        solveAndPrintSentence False s shouldTriggerLast afterRules
-   else do
-      when verbose $ do
-        putStrLn "Conflict!"
-        putStrLn $ "Cannot trigger the last rule: " ++ show lastrule
-        putStrLn $ "with the previous rules:"
-        mapM_ print rules
-  return (not b) --True if conflicts, False if no conflict
+    --cl <- mkConds s tagInds sentence trgSInds 
+    --let condLits = case cl of 
+    --                Just cls -> cls
+    --                Nothing -> error ("condLits: error in " ++ show lastrule ++  show (w,trgSInd))
+    Just cl <- mkConds s tagInds sentence trgSInd (cnd rule)
+    ach <- orl' s cl --conditions must hold
 
- where 
-   constrainStuff s form symbword = do
-     let mp ind = fromMaybe true (IM.lookup ind symbword)
-     --putStrLn $ "constrainStuff: " ++ show symbword
-     constraints s mp [] form
+    return (mht, mho, ach) -}
   
 --------------------------------------------------------------------------------
 
@@ -163,7 +178,7 @@ testRule (verbose,debug) ambcls readings (lastrule,rules) = do
 apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
 apply s allinds sentence rule = do
   --putStrLn ("apply " ++ show rule)
-  let (trgIndsRaw,_) = trg rule --IntSet
+  let (trgIndsRaw,_) = trg rule -- :: IntSet
   let otherIndsRaw   = allinds IS.\\ trgIndsRaw
   let (trgInds,otherInds) = if isSelect' rule
                               then (otherIndsRaw,trgIndsRaw)
@@ -177,7 +192,7 @@ apply s allinds sentence rule = do
          Just cs -> do
            let trgIndsList = IS.toList trgInds
            condsHold <- orl' s cs
-           let trgPos   = mapMaybe (lu' word) trgIndsList
+           let trgPos   = mapMaybe   (lu' word) trgIndsList
            let otherNeg = map (neg . lu word) (IS.toList otherInds)
            someTrgIsTrue <- orl' s trgPos
            noOtherIsTrue <- andl' s otherNeg
@@ -209,36 +224,13 @@ apply s allinds sentence rule = do
 
 mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
 mkConds s allinds sentence trgind disjconjconds = 
-  --trace ("conditions: " ++  show 
-
-  -- ([ [ (cond, absind) | cond <- conjconds 
-  --                                       , let absinds = absIndices trgind cond 
-  --                                       , absind <- absinds
-  --                                       , not (null absinds) ] --TODO test with NOT!!!!
-  --                      | conjconds <- disjconjconds ]) ) $ 
-
   do
+  -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
+  -- * call mkCond with arguments of type (Condition, [SIndex])
+  -- * in mkCond, make one big orl with all matching literals in all matching SIndixes
 
-  --option 1: 
-  -- * return all possible absInd that are inRange 
-  -- * call mkCond individually with all of them
-  -- * do yet another orl
-
-  --option 2:
-  -- * return all possible absInd that are inRange 
-  -- * call mkCond once with a list of them
-  -- * do same kind of match as in CG_SAT
-
-  --TODO: now it says conflict for everything, e.g.
-  -- -> SELECT:bajo_4 pr IF (0 "bajo"|"Bajo") (-1 vbser) <-
-  --      SELECT:bajo_3 pr IF (0 "bajo"|"Bajo") (1 det)
-  -- find out why!!!!!
-
-
-  
   let conds_absinds = [ [ (cond, absinds) | cond <- conjconds 
                                          , let absinds = absIndices trgind cond 
-                                         --, absind <- absinds
                                          , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
   if null conds_absinds || all null conds_absinds
@@ -311,12 +303,12 @@ mkCond s allinds sentence conjconds_absinds = andl' s =<< sequence
                                 , let oi = allinds IS.\\ yi
                                 , let otherLits = lu oi ] )
         | (c@(C' position (positive,yesInds_noInds)), absinds) <- conjconds_absinds
-        , let lu is = case mapMaybe (flip IM.lookup $ sentence) absinds of
+        , let lu is = case mapMaybe   (flip IM.lookup $ sentence) absinds of
                        [] -> if positive then error "mkCond: index out of bounds"
                               else [true] --if no -100, then `NOT -100 foo' is true.
-                       ts -> mapMaybe (flip IM.lookup $ IM.unions ts) (IS.toList is)
+                       ts -> mapMaybe   (flip IM.lookup $ IM.unions ts) (IS.toList is)
         --, let lu is = case IM.lookup absind sentence of
-        --                     Just ts -> mapMaybe (flip IM.lookup $ ts) (IS.toList is)
+        --                     Just ts -> mapMaybe   (flip IM.lookup $ ts) (IS.toList is)
         --                     Nothing -> if positive then error "mkCond: index out of bounds"
         --                                 else [true] --if no -100, then `NOT -100 foo' is true.
 
