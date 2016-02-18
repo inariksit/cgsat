@@ -126,19 +126,19 @@ main = do
 
     rs_cs <- catMaybes `fmap` sequence
                [ do c <- testRule verbose ambcls readings rrs
-                    if c==None then return Nothing
+                    if c==NoConf then return Nothing
                       else return $ Just (rrs, c)
                  | rrs <- rulesToTest ]
 
     let (internalConf,interactionConf) = partition (\(r,c) -> c==Internal) rs_cs
     when (not $ null internalConf) $  do
       putStrLn "\nThe following rules have an internal conflict:"
-      mapM_ (print . fst) internalConf
+      mapM_ (print . fst . fst) internalConf
 
 
     
     let shrink (r,rs) = do -- This is not going to work outside small grammars
-                           let allinits = (,) r `map` inits rs
+                           let allinits = (,) r `map` filter (not.null) (inits rs)
                            brs <- searchInits (testRule verbose ambcls readings) allinits
                            let minimalConflict = brs --fromMaybe rs brs
                            --let moreMinimalConflict = []
@@ -170,26 +170,26 @@ main = do
   binarySearch :: Bool -> ((Rule', [Rule']) -> IO Conflict) -> [(Rule', [Rule'])] -> IO [Rule']
   binarySearch _ testFun []   = print "no conflict" >> return []
   binarySearch _ testFun [x]  = do b <- testFun x
-                                   if b/=None then return (snd x)
+                                   if b/=NoConf then return (snd x)
                                     else print "no conflict found" >> return []
   binarySearch _ testFun [x,y] = do b <- testFun x
-                                    if b/=None then return (snd x)
+                                    if b/=NoConf then return (snd x)
                                      else do b' <- testFun y
-                                             if b'/=None then return (snd y)
+                                             if b'/=NoConf then return (snd y)
                                               else print "No conflict!" >> return []
   --is Inits
   binarySearch True testFun rrss = 
     do --print ("searchInits: ", length rrss)
        let (hd,tl) = splitAt (length rrss `div` 2) rrss
        b <- testFun (last hd)
-       if b==None then binarySearch True testFun tl 
+       if b==NoConf then binarySearch True testFun tl 
          else binarySearch True testFun hd
 
   binarySearch False testFun rrss = 
     do --print ("searchTails: ", length rrss)
        let (hd,tl) = splitAt (length rrss `div` 2) rrss
        b <- testFun (head tl)
-       if b==None then binarySearch False testFun hd 
+       if b==NoConf then binarySearch False testFun hd 
          else binarySearch False testFun tl
 
 
