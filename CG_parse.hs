@@ -297,14 +297,17 @@ transCond c = case c of
   CondTempl templs        -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
                                 return $ foldr1 CGB.OR cs
 
-  --TODO there might be something strange in LINK 
-  CondLinked (c:cs)       -> do first@(CGB.C pos tags) <- transCond c
-                                let base = getPos pos
-                                conds <- mapM transCond cs
-                                return $ foldr CGB.AND first (fixPos base conds [])
+  --TODO 
+  CondLinked (c1:c2:cs)   -> do parent@(CGB.C posParent _tags) <- transCond c1
+                                firstChild@(CGB.C posBase _tags) <- transCond c2
+                                let base = getPos posBase
+                                otherChildren <- mapM transCond cs
+                                let fixedConds = map (addParent posParent) (fixPos base otherChildren [])
+                                return $ foldr CGB.AND parent (firstChild:fixedConds)
+                                --return $ foldr CGB.AND first (fixPos posFirst conds [])
 
   where fixPos base []                  res = res
-        fixPos base (CGB.C pos tags:cs) res = 
+        fixPos base c@(CGB.C pos tags:cs) res = trace (show c ++ " " ++ show res) $
           let newBase = base + getPos pos
               newPos = changePos pos newBase
           in fixPos newBase cs ((CGB.C newPos tags):res)
@@ -335,6 +338,8 @@ transCond c = case c of
         mapSubr i (CGB.TS ts) = CGB.TS $ (map.map) (CGB.Subreading i) ts
         mapSubr i (CGB.Diff ts1 ts2) = CGB.Diff (mapSubr i ts1) (mapSubr i ts2)
         mapSubr i (CGB.Cart ts1 ts2) = CGB.Cart (mapSubr i ts1) (mapSubr i ts2)
+
+        addParent parent (CGB.C pos tags) = CGB.C (CGB.LINK parent pos) tags
 
 
 transPosition :: Position -> State Env (CGB.Position, Maybe CGB.Subpos)

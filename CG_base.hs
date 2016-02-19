@@ -166,7 +166,7 @@ data Position = Exactly Cautious Int
               | AtLeast Cautious Int
               | Barrier Cautious Int TagSet 
               | CBarrier Cautious Int TagSet 
-              | LINK Position [Position] deriving (Eq)
+              | LINK {parent::Position , self::Position} deriving (Eq)
 
 
 instance Show Position where
@@ -174,7 +174,7 @@ instance Show Position where
   show (AtLeast True i) = "*" ++ show i ++ "C"
   show (Exactly False i) = show i
   show (AtLeast False i) = "*" ++ show i
-  show (LINK pos1 linkedpos) = show pos1 ++ intercalate " LINK " (map show linkedpos)
+  show (LINK pos1 linkedpos) = show pos1 ++ " LINK " ++ show linkedpos
   show p                 = let (a,b) = showPosTuple p in a++b
 
 showPosTuple :: Position -> (String, String)
