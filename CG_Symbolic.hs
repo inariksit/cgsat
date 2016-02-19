@@ -270,7 +270,6 @@ mkCond s allinds sentence str conjconds_absinds = do
   andl' s =<< sequence [ orl s "" =<< sequence
                          [ go cond absind | absind <- absinds ] 
                          | (cond,absinds) <- conjconds_absinds ]
---  lits_by_condition
 
  where
   lookup' :: Bool -> SIndex -> WIndSet -> [Lit]
@@ -412,14 +411,17 @@ posToInt (Exactly _ i) = [i]
 posToInt (AtLeast _ i) = case (i<0) of 
                           True  -> [i,i-1,i-2] 
                           False -> [i,i+1,i+2]
-posToInt (Barrier _ i _)  = if i<0 then [i-1,i-2,i-3] else [i+1,i+2,i+3]
-posToInt (CBarrier _ i _) = if i<0 then [i-1,i-2,i-3] else [i+1,i+2,i+3]
+posToInt (Barrier _ i _)  = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
+posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
+posToInt (LINK parent child) = [ pI + cI | pI <- posToInt parent 
+                                         , cI <- posToInt child ]
 
 isCareful :: Position -> Bool
 isCareful (Exactly b _) = b
 isCareful (AtLeast b _) = b
 isCareful (Barrier b _ _) = b
 isCareful (CBarrier b _ _) = b
+isCareful (LINK _par child) = isCareful child
 
 getPos :: Condition' -> [Int]
 getPos Always'    = [1]
