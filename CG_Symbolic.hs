@@ -126,11 +126,10 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
 
   afterRules <- foldM (apply s tagInds) initialSentence rules
 
-
   defaultRules s afterRules
-  dummysolve <- solve s []
-  print dummysolve
 
+  foo <- solve s []
+  print foo
   let shouldTriggerLast s sentence = do
         let trgSWord = fromMaybe (error "shouldTriggerLast: no trg index found") (IM.lookup trgSInd sentence)
         let (yesTags,_) = trg lastrule
@@ -159,7 +158,8 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
       return NoConf
 
     else do
-      when debug $ do 
+      --when debug $ do 
+      when False $ do 
         putStrLn "-------"
         putStrLn $ "Rule " ++ show lastrule ++":"
         putStrLn "could not solve with previous, trying to loosen requirements:"
@@ -187,10 +187,14 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
   defaultRules s sentence = 
    sequence_ [ do addClause s lits          --Every word must have >=1 reading
                   --constraints s mp [] form  --Constraints based on lexicon
+                  constrainStuff s form word
                | word <- IM.elems sentence 
                , let lits = IM.elems word 
-               , let mp i = fromMaybe true (IM.lookup i word) ] --TODO why is true default?
+               , let mp i = fromJust (IM.lookup i word) ] --TODO why is true default?
 
+  constrainStuff s frm symbword = 
+    let mp ind = fromMaybe (error $ "constrainStuff: " ++ show ind) $ IM.lookup ind symbword 
+    in  constraints s mp [] frm
 --------------------------------------------------------------------------------
 
 
@@ -248,18 +252,19 @@ mkConds s allinds sentence trgind disjconjconds str = do
   -- * call mkCond with arguments of type (Condition, [SIndex])
   -- * in mkCond, sometimes we can get away with a big orl that contains literals
   --    from different symbolic words, but with cautious or negation, can't do that
+  let debug = str=="testRule" 
 
   let conds_absinds = [ [ (cond, absinds) | cond <- nub conjconds 
                                           , let absinds = absIndices trgind cond 
                                           , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
-  when False $ do
-    putStrLn $ "conds_absinds (calling from " ++ str ++ "):"
-    print conds_absinds
-    mapM_ (mapM_ print) conds_absinds
-    putStrLn "-----"
+
   if null conds_absinds || all null conds_absinds
-   then do print "D:" ; return Nothing  --is there a meaningful difference between Nothing and []?
+   then do when debug $ 
+            do putStrLn $ "conds_absinds (calling from " ++ str ++ "):"
+               mapM_ print disjconjconds
+               putStrLn "-----"
+           return Nothing  --when called from apply, it is expected to not match sometimes
    else Just `fmap` mapM (mkCond s allinds sentence str) conds_absinds
   
  where
@@ -413,12 +418,12 @@ width cs   = [ (len, tind) | (mi,ma) <- mins_maxs
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> [Int]
 posToInt (Exactly _ i) = [i]
-posToInt (AtLeast _ i) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
-posToInt (Barrier _ i _)  = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
-posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
+posToInt (AtLeast _ i) = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
+posToInt (Barrier _ i _)  = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
+posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
 posToInt (LINK parent child) = --trace (show (posToInt parent) ++ ", " ++ show child) $
                                [ pI + cI | (pI,cI) <- posToInt parent 
-                                          `zip` (cycle $ posToInt child) ]
+                                          `zip` posToInt child ]
 
 isCareful :: Position -> Bool
 isCareful (Exactly b _) = b

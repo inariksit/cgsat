@@ -41,13 +41,13 @@ ex_not = concat $ snd $ parseRules False
 
 kimmo_explicit = concat $ snd $ parseRules False
      ( "REMOVE:r1 (a) IF (0 (b)) (-1 (c)) ;" ++
-       "REMOVE:r2 (b) IF (0 (a)) (-1 (c)) ;" ++
-       "REMOVE:l  (c) IF (-1 (c)) ;" )
+       "REMOVE:r2 (b) IF (0 (a)) (-1 (c)) ;" ) -- ++
+   --    "REMOVE:l  (c) IF (-1 (c)) ;" )
 
 kimmo_implicit = concat $ snd $ parseRules False
      ( "REMOVE:r1 (a) IF  (-1 (c)) ;" ++
-       "REMOVE:r2 (b) IF  (-1 (c)) ;" ++
-       "REMOVE:l  (c) IF (-1 (c)) ;" )
+       "REMOVE:r2 (b) IF  (-1 (c)) ;" ) 
+--       "REMOVE:l  (c) IF (-1 (c)) ;" )
 
 
 main = do
@@ -65,13 +65,20 @@ main = do
 
   case args of 
    ("kimmo":_) -> do
-    let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
-    putStrLn "testing with implicit kimmo"
-    mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_i'))
 
     let kimmo_e' = map (ruleToRule' tagmap allinds) kimmo_explicit
     putStrLn "testing with explicit kimmo"
     mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_e'))
+
+    let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
+    putStrLn "testing with implicit kimmo"
+    mapM_ (testRule verbose abcd_ambcls readings) (splits (reverse kimmo_i'))
+
+
+    let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
+    putStrLn "testing with implicit kimmo WITHOUT ambiguity classes"
+    mapM_ (testRule verbose (formula [[]]) readings) (splits (reverse kimmo_i'))
+
 
    (lang:fromStr:toStr:r)-> do 
 
@@ -90,7 +97,7 @@ main = do
                         ambclauses <- readFile acfile
                         let xss  = map read (lines ambclauses) :: [[Int]]
                         return $ formula xss 
-                  else return $ NotTag 9999999
+                  else return $ formula [[]]
 
 
     let from = read fromStr
@@ -99,14 +106,15 @@ main = do
              
 --------------------------------------------------------------------------------                           
 
-    tagsInApe <- (concat . map parse . filter (not.null) . words) 
+    tagsInLex <- (concat . map parse . filter (not.null) . words) 
                    `fmap` readFile tagfile
     (tsets, rls) <- readRules' grfile
-    let readingsInGr = if withunders then nub $ concatMap toTags' tsets
-                                       else [] 
-    readingsInLex <- (map parse . filter (not.null) . words) `fmap` readFile rdsfile
+    let readingsInGr = if withunders && not withambcls --will mess up ambiguity class thing
+                        then nub $ concatMap toTags' tsets
+                        else [] 
+    readingsInLex <- (map parse . words) `fmap` readFile rdsfile
     let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
-    let tags = nub $ tagsInApe ++ concat readings
+    let tags = nub $ tagsInLex ++ concat readings
 
     print (length readings, length (filter (not.null) readings))
     mapM_ print tags
