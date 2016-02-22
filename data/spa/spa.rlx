@@ -23,7 +23,7 @@ LIST Prep = (pr) ;
 LIST CnjCoo = (cnjcoo) ;
 # quantes vegades s'executa cada regla?
 # había sido inventado por los griegos mientras que los españoles aseguraban
-# elimina españoles adj, però no griegos adj; si se suprimeix la segona part de la frase, sí se suprimeix griegos adj
+# elimina españoles adj, però no griegos adj; si se suprimeix la segona part_de la frase, sí se suprimeix griegos adj
 LIST CnjSub = (cnjsub) ;
 LIST CnjAdv = (cnjadv) ;
 LIST Rel = (rel) ;		# PROBLEMA: està malparit en eo-es i eo-ca: prn.rel i rel.adv (es-ca: rel.adv, rel.an, rel.nn, rel.aa)
@@ -73,7 +73,7 @@ SET Ant = (np ant) ;
 SET Cog = (np cog) ;
 SET Ant_Cog = Ant OR Cog ;
 
-SET DetDef = (det def) ;
+SET DetDef = (det_def) ;
 SET DetInd = (det ind) ;
 
 SET Noun_Adj = N OR A ;
@@ -135,9 +135,16 @@ SET VPred = ("considerar") OR ("Considerar") OR ("creer") OR ("Creer") OR ("opin
 
 SECTION
 
-SELECT:test N IF (0C Noun_Adj_PP) ;
-SELECT:test N IF (1C Noun_Adj_PP) ;
+REMOVE:media_1 N IF (-1 A);
 
+SELECT:media_1 N IF (-3C Num OR A) (-2 N) (-1 CnjCoo) (0 ("media")) ;
+SELECT:subj4 PRS (*-1 ("ser") LINK 1 A LINK 1 ("que")) (0C Verb) ;
+SELECT:subj5 PRS (*-1 ("ser") LINK 1 Adv_PreAdv LINK 1 A LINK 1 ("que")) (0C Verb) ;
+SELECT:media_1 N IF (-3C Num OR A) (-2 N) (-1 CnjCoo) (0 ("media")) ;
+
+REMOVE:r_bajo_0 A IF (-1C PreAdv) (0 ("bajo") OR ("Bajo")) ; # 
+
+# Actual rules start here!
 
 REMOVE:r_cog_1 Cog IF (-1 DetDef) (0 Cog) ;
 REMOVE:r_cog_2 Cog IF (-1 DetInd) (0 Cog) ;
@@ -145,21 +152,21 @@ REMOVE:r_ant_1 Ant IF (-1 DetDef) (0 Ant) ;
 REMOVE:r_ant_2 Ant IF (-1 DetInd) (0 Ant) ;
 
 SELECT:este_2 Det IF (0 ("este") + $$MascSg) (-1 Verb_Prep) (1 A + $$MascSg) (2 N + $$MascSg) ;
-	# de este bonito estado
+	#_de este bonito estado
 SELECT:este_1 Det IF (0 ("este") + $$MascSg) (-1 Verb_Prep) (1 N + $$MascSg) ;
-	# de este estado
+	#_de este estado
 SELECT:este_2 Det IF (0 ("Este") + $$MascSg) (-1 >>>) (1 A + $$MascSg) (2 N + $$MascSg) ;
 	# Este bonito estado
 SELECT:este_1 Det IF (0 ("Este") + $$MascSg) (-1 >>>) (1 N + $$MascSg) ;
 	# Este estado
 
-# Tio estas ligita al la (mis)difinoj de accionista__n, albañil__n, gilipollas__n kaj reh/én__n
+# Tio estas ligita al la (mis)difinoj_de accionista__n, albañil__n, gilipollas__n kaj reh/én__n
 #SELECT:n_mf_1 Masc IF (0C N LINK NOT 0 Defensa) (-1C Vblex OR Prep OR ("como")) (NOT -1 PP) (1 <<< OR Prep) ;
 	## cogieron rehenes.
 #SELECT:n_mf_2 Masc IF (0C N LINK NOT 0 Defensa) (-1C Num) (-2C Vblex OR Prep OR ("como")) (NOT -2 PP) (1 <<< OR Prep) ;
 	## cogieron tres rehenes.
 
-# se referirán, desde entonces, a los indígenas del Magreb como pueblos líbicos, aunque
+# se referirán,_desde entonces, a los indígenas_del Magreb como pueblos líbicos, aunque
 REMOVE:r_verb_1 Vblex (0 Vblex + Pers) (*1C Vblex + Pers BARRIER Cnj_Rel) ;
 # SELECT:r_verb_2 Vblex (0 Vblex + Pers) (-1C Pro) ; No: podría recurrir a ellas para hacer
 
@@ -185,17 +192,17 @@ SELECT:bajo_3 Prep (0 ("bajo") OR ("Bajo")) (1 Det) ;
 SELECT:bajo_4 Prep (0 ("bajo") OR ("Bajo")) (-1 Copula) ;
 SELECT:bajo_5 Prep (0 ("bajo") OR ("Bajo")) (-1C N) (1C N) ;
 	# Económicamente es muy bajo el rango. XXXXX
-SELECT:debidoa_1 Prep (0 ("debido a") OR ("Debido a")) (NOT -1 ("ser") OR ("Ser")) ;
-SELECT:debidoa_2 Prep (0 ("debido a") OR ("Debido a")) (-1 >>>) ;
-SELECT:debidoa_3 Prep (0 ("debido a") OR ("Debido a")) (-1C PP) ;
-REMOVE:debidoa_1b ("a") (0 ("debido a") OR ("Debido a")) (NOT -1 ("ser") OR ("Ser")) ;
-REMOVE:debidoa_2b ("a") (0 ("debido a") OR ("Debido a")) (-1 >>>) ;
-REMOVE:debidoa_3b ("a") (0 ("debido a") OR ("Debido a")) (-1C PP) ;
+SELECT:debidoa_1 Prep (0 ("debido_a") OR ("Debido_a")) (NOT -1 ("ser") OR ("Ser")) ;
+SELECT:debidoa_2 Prep (0 ("debido_a") OR ("Debido_a")) (-1 >>>) ;
+SELECT:debidoa_3 Prep (0 ("debido_a") OR ("Debido_a")) (-1C PP) ;
+REMOVE:debidoa_1b ("a") (0 ("debido_a") OR ("Debido_a")) (NOT -1 ("ser") OR ("Ser")) ;
+REMOVE:debidoa_2b ("a") (0 ("debido_a") OR ("Debido_a")) (-1 >>>) ;
+REMOVE:debidoa_3b ("a") (0 ("debido_a") OR ("Debido_a")) (-1C PP) ;
 #SELECT:bajo_ms Prep (0 ("bajo") OR ("Bajo")) (-1C N) (NOT -1 MascSg ) (1C N) (NOT 1 MascSg) ;
 	# elaborada bajo presidencia
-SELECT:pr_cnjadv_1 Prep (0 ("después de") OR ("Después de") OR ("antes de") OR ("Antes de") OR ("tras") OR ("Tras")) (1 Det OR Pron LINK NOT 0 Enc) ;
-SELECT:pr_cnjadv_2 Prep (0 ("después de") OR ("Después de") OR ("antes de") OR ("Antes de") OR ("tras") OR ("Tras")) (1C A) ;
-SELECT:pr_cnjadv_3 CnjAdv (0 ("después de") OR ("Después de") OR ("antes de") OR ("Antes de") OR ("tras") OR ("Tras")) (1C Inf OR Enc) ;
+SELECT:pr_cnjadv_1 Prep (0 ("después_de") OR ("Después_de") OR ("antes_de") OR ("Antes_de") OR ("tras") OR ("Tras")) (1 Det OR Pron LINK NOT 0 Enc) ;
+SELECT:pr_cnjadv_2 Prep (0 ("después_de") OR ("Después_de") OR ("antes_de") OR ("Antes_de") OR ("tras") OR ("Tras")) (1C A) ;
+SELECT:pr_cnjadv_3 CnjAdv (0 ("después_de") OR ("Después_de") OR ("antes_de") OR ("Antes_de") OR ("tras") OR ("Tras")) (1C Inf OR Enc) ;
 
 SELECT:que_1 CnjSub (0 ("que")) (-1C Inf OR Enc) ;
 SELECT:que_2 CnjSub (0 ("que")) (-1C Vblex LINK NOT 0 PP) ;
@@ -240,11 +247,11 @@ SELECT:adj_adv_5_fp A (-2C N + $$FemPl) (-1C Adv) (0 A + $$FemPl) ;
 #REMOVE:np_a_fp A IF (0 NP LINK 0 (adj f pl)) (-1 Prep) (1C N) (NOT 1 FemPl) ;
 	# asignaba a Armenia territorios
 
-# eliminación del imperativo en competición con el presente del indicativo
+# eliminación_del imperativo en competición con el presente_del indicativo
 REMOVE:imp_1 Imp IF (0 (vblex pri p3 sg) LINK 0 (vblex imp p2 sg)) ;
 REMOVE:imp_2 Imp IF (-1 ("que")) (0 Verb) ;
 
-# elección de subjuntivo después de "que"
+# elección_de subjuntivo_después_de "que"
 SELECT:subj1 PRS (*-1 ("que") OR ("Que") BARRIER (Cnj_Rel_End)) (*-1 VerboSubj) (0C Verb) ;
 #REMOVE:subj2 PRS (*-1 >>> BARRIER CnjAdv OR CnjSub OR Rel) (NOT -1 ("no") OR ("No") OR ("nunca") OR ("Nunca")) (0C Verb) ;
 
@@ -292,9 +299,9 @@ SUBSTITUTE:dob_neg_4 ("ninguno") ("alguno") TARGET ("ninguno") IF (*-2 AdvNeg LI
 
 SELECT:estado_1 N IF (-1 Det + Masc) (0 ("estado") OR ("Estado")) ;
 SELECT:estado_2 PP IF (-1 Vbhaver) (0 ("estado")) (1 PP) ;
-### SELECT:estado_3 N IF (-1 ("[a-záéíóúñ].*"r)) (0 ("Estado")) ;	# "Estado" (con mayúscula) va precedido de una palabra con minúscula inicial
+### SELECT:estado_3 N IF (-1 ("[a-záéíóúñ].*"r)) (0 ("Estado")) ;	# "Estado" (con mayúscula) va precedido_de una palabra con minúscula inicial
 
-# la tierra como medio de vida
+# la tierra como medio_de vida
 
 # vía pr/n
 REMOVE:via1 Prep IF (-1 Det + $$FemSg) (0 ("vía") + $$FemSg) ;
@@ -321,7 +328,7 @@ REMOVE:sentir_sentar_4 Sentar (0 Sentar) (1 Det) ; # siento una cosa (pero: me s
 REMOVE:creer_crear_1 Crear (0 Crear) (1C Inf OR Enc) ;
 REMOVE:creer_crear_2 Crear (0 Crear) (1C ("que")) ;
 REMOVE:creer_crear PRS (0 ("<crea>")) (NOT *-1 ("que") BARRIER (Cnj_Rel_End)) ;
-SELECT:ser_ir_1 Ser (0 Ser LINK 0 Ir) (1C PP) ; # no sempre funciona, però sí de costum
+SELECT:ser_ir_1 Ser (0 Ser LINK 0 Ir) (1C PP) ; # no sempre funciona, però sí_de costum
 SELECT:ser_ir_1 Ir (0 Ser LINK 0 Ir) (1 Ger) ;
 SELECT:fundar_fundir_1 Fundar (0 Fundar) (-1C Ref) ; # se non è vero...
 
@@ -376,18 +383,18 @@ SELECT:s_na_1_ms N IF (-1 Det + $$MascSg) (0 Noun_Adj_PP + $$MascSg LINK NOT 0 N
 SELECT:s_na_1_fs N IF (-1 Det + $$FemSg) (0 Noun_Adj_PP + $$FemSg LINK NOT 0 NP) (1 <<< OR Prep OR Det) ;
 SELECT:s_na_1_mp N IF (-1 Det + $$MascPl) (0 Noun_Adj_PP + $$MascPl LINK NOT 0 NP) (1 <<< OR Prep OR Det) ;
 SELECT:s_na_1_fp N IF (-1 Det + $$FemPl) (0 Noun_Adj_PP + $$FemPl LINK NOT 0 NP) (1 <<< OR Prep OR Det) ;
-	# la ofensiva de pascua
-	# la política del gobierno (per error, es veu Det i no Prep)
+	# la ofensiva_de pascua
+	# la política_del gobierno (per error, es veu Det i no Prep)
 
 SELECT:n_a_eos_1 N IF (0 Noun_Adj_PP LINK NOT 0 Adv OR PP OR Ger OR Inf OR NP OR ("ser") OR ("sino")) (-1C Vblex) (NOT -1 PP OR ("hablar") OR VPred) (1 Barrera_Final_Estrict_SN) ;
-	# detonar explosivos.
+	#_detonar explosivos.
 	# nos vino impuesto.
 SELECT:n_a_eos_1b N IF (0 Noun_Adj_PP LINK NOT 0 Adv OR PP OR Ger OR Inf OR NP OR ("ser") OR ("sino")) (-1C Vblex) (NOT -1 PP OR ("hablar") OR VPred) (1 CnjCoo) (2 Barrera_Final_Estrict_SN) ;
-	# detonando explosivos y derrumbando
+	#_detonando explosivos y_derrumbando
 
 SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 Barrera_Final_Estrict_SN) ;
 SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 CM OR CnjCoo) (1 Barrera_Final_Estrict_SN) ;
-	# detonar los explosivos.
+	#_detonar los explosivos.
 	# PERO: Las clasificaciones más reconocidas internacionalmente son la francesa y la estadounidense.
 	# PERO: muy poco conocida.
 
@@ -411,14 +418,14 @@ REMOVE:r_na_3_fp Noun_Adj_PP IF (-1 Det + $$FemPl) (0 NP + $$FemPl) (1 Adj_PP + 
 
 # ADJ NOM
 
-# elimina la opción "adjetivo" de aquellos adjetivos que sólo pueden anteceder un nombre ("buen", "mal", etc.) y no están delante de uno
+# elimina la opción "adjetivo"_de aquellos adjetivos que sólo pueden anteceder un nombre ("buen", "mal", etc.) y no están_delante_de uno
 REMOVE:pre_adj_1 A IF (0 PreAdj) (NOT 1 N) ;
 
 REMOVE:r_na_6_ms A OR PP IF (-2 Det + $$MascSg) (-1C A + $$MascSg) (0 Noun_Adj_PP + $$MascSg LINK 0 N OR NP) (1 Barrera_Final_SN OR Ant_Cog) ;
 REMOVE:r_na_6_fs A OR PP IF (-2 Det + $$FemSg) (-1C A + $$FemSg) (0 Noun_Adj_PP + $$FemSg LINK 0 N OR NP) (1 Barrera_Final_SN OR Ant_Cog) ;
 REMOVE:r_na_6_mp A OR PP IF (-2 Det + $$MascPl) (-1C A + $$MascPl) (0 Noun_Adj_PP + $$MascPl LINK 0 N OR NP) (1 Barrera_Final_SN OR Ant_Cog) ;
 REMOVE:r_na_6_fp A OR PP IF (-2 Det + $$FemPl) (-1C A + $$FemPl) (0 Noun_Adj_PP + $$FemPl LINK 0 N OR NP) (1 Barrera_Final_SN OR Ant_Cog) ;
-## PERO: una densa doble capa de pelo
+## PERO: una_densa doble capa_de pelo
 
 REMOVE:r_na_6_msc A OR PP IF (-2 Det + $$MascSg) (-1C A + $$MascSg) (0 Noun_Adj_PP + $$MascSg LINK 0 N OR NP) (1 CM) (2 Barrera_Final_Estrict_SN) ;
 REMOVE:r_na_6_fsc A OR PP IF (-2 Det + $$FemSg) (-1C A + $$FemSg) (0 Noun_Adj_PP + $$FemSg LINK 0 N OR NP) (1 CM) (2 Barrera_Final_Estrict_SN) ;
@@ -627,7 +634,7 @@ REMOVE:r_na_9_fp_fp A OR PP IF (-1 Det + $$FemPl) (0 Noun_Adj_PP + $$FemPl LINK 
 #### final clasificación
 
 # "intelectual alemán judío exiliado." FUNCIONA
-	# Nombrado administrador general de Canarias
+	# Nombrado administrador general_de Canarias
 	# explotada por esclavos, volviendo
 	# a los Ejércitos Blancos contrarrevolucionarios durante
 	# los japoneses controlaron la política paralelamente.
