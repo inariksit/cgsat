@@ -90,7 +90,7 @@ main = do
                         ambclauses <- readFile acfile
                         let xss  = map read (lines ambclauses) :: [[Int]]
                         return $ formula xss 
-                  else return $ formula []
+                  else return $ NotTag 9999999
 
 
     let from = read fromStr
@@ -99,17 +99,17 @@ main = do
              
 --------------------------------------------------------------------------------                           
 
-    tagsInApe <- (concat . filter (not.null) . map parse . words) 
+    tagsInApe <- (concat . map parse . filter (not.null) . words) 
                    `fmap` readFile tagfile
     (tsets, rls) <- readRules' grfile
     let readingsInGr = if withunders then nub $ concatMap toTags' tsets
                                        else [] 
-    readingsInLex <- (map parse . words) `fmap` readFile rdsfile
+    readingsInLex <- (map parse . filter (not.null) . words) `fmap` readFile rdsfile
     let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
     let tags = nub $ tagsInApe ++ concat readings
 
-            --mapM_ print readings
-            --mapM_ print tags
+    print (length readings, length (filter (not.null) readings))
+    mapM_ print tags
 
     let tagmap = mkTagMap tags readings
     let allinds = IS.fromList [1..length readings]
@@ -117,12 +117,6 @@ main = do
     let rulesToTest = (drop from $ take to $ splits rules)
 
 -------------------------------------------------------------------------------- 
-
-    --badrules <- filterM (\a -> confToBool `fmap` testRule verbose ambcls readings a) (drop from $ take to $ splits rules)
-
-
-    --rs_bsAlone <- badrules `forM` \rrs@(r,_) -> do b <- testRule (False,False) ambcls readings (r,[]) 
-    --                                             return (rrs, b)
 
     rs_cs <- catMaybes `fmap` sequence
                [ do c <- testRule verbose ambcls readings rrs
