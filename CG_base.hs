@@ -10,7 +10,7 @@ import Text.Regex
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma and word form are also in tags.
 data Tag = Tag String | Lem String | WF String | Subreading Subpos Tag |
-           Rgx Regex String | EOS | BOS
+           {-Rgx Regex String | -} EOS | BOS 
 
 data Subpos = FromStart Integer | FromEnd Integer | Wherever deriving (Eq)
 
@@ -33,14 +33,14 @@ instance Ord Tag where
   Tag tag `compare` Lem lem  = LT
 
   Tag tag `compare` Tag tag' = tag `compare` tag'
-  Rgx _ s `compare` Rgx _ s' = s `compare` s'
+--  Rgx _ s `compare` Rgx _ s' = s `compare` s'
   foo     `compare` bar      = show foo `compare` show bar
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
   show (WF str) = "\"<" ++ str ++ ">\""
   show (Lem str) = "\"" ++ str ++ "\""
-  show (Rgx _r s) =  "\"" ++ s ++ "\"r"
+--  show (Rgx _r s) =  "\"" ++ s ++ "\"r"
   show (Tag str) = str
   show (Subreading n tag) = "+" ++ show n ++ "_" ++ show tag
   show BOS       = ">>>"

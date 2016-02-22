@@ -177,9 +177,11 @@ transTag tag = case tag of
                                   _           -> CGB.TS [[CGB.Lem s]]
                         modify $ \env -> env { unnamed = ts : unnamed env }
                         return ts
-  Regex (Str s) -> do let ts = CGB.TS [[CGB.Rgx (mkRegex s) s]]
-                      modify $ \env -> env { unnamed = ts : unnamed env }
-                      return ts
+  --Regex (Str s) -> do let ts = CGB.TS [[CGB.Rgx (mkRegex s) s]]
+  --                    modify $ \env -> env { unnamed = ts : unnamed env }
+  --                    return ts
+  Regex (Str s) -> return $ CGB.TS [[]]
+
   Tag (Id str)  -> do let ts = CGB.TS [[CGB.Tag str]]
                       modify $ \env -> env { unnamed = ts : unnamed env }
                       return ts
@@ -303,7 +305,7 @@ transCond c = case c of
                                 let base = getPos posBase
                                 otherChildren <- mapM transCond cs
                                 let fixedConds = map (addParent posParent) (fixPos base otherChildren [])
-                                return $ foldr CGB.AND parent (firstChild:fixedConds)
+                                return $ foldr CGB.AND parent (addParent posParent firstChild:fixedConds)
                                 --return $ foldr CGB.AND first (fixPos posFirst conds [])
 
   where fixPos base []                  res = res
