@@ -123,11 +123,13 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
 
   s <- newSolver
   initialSentence <- mkSentence s w readings
+
   afterRules <- foldM (apply s tagInds) initialSentence rules
 
 
   defaultRules s afterRules
-
+  dummysolve <- solve s []
+  print dummysolve
 
   let shouldTriggerLast s sentence = do
         let trgSWord = fromMaybe (error "shouldTriggerLast: no trg index found") (IM.lookup trgSInd sentence)
@@ -138,9 +140,9 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
         mht <- orl' s trgLits --must have >0 targetLits
         mho <- orl' s otherLits --must have >0 otherLits 
        --we know that all conds are in range: sentence is generated wide enough to ensure that
-        cl <- liftM2 fromMaybe (return []) --(error $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
-        --                                show lastrule ++ "\n, sentence width " ++ show w ++ 
-        --                                ", target index " ++ show trgSInd) 
+        cl <- liftM fromJust --(fail $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
+                                        --show lastrule ++ "\n, sentence width " ++ show w ++ 
+                                        --", target index " ++ show trgSInd) 
                                (mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule")
         ach <- orl' s cl --conditions must hold
         --print cl
@@ -164,6 +166,9 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
         solveAndPrintSentence False s [mustHaveTrg, mustHaveOther] afterRules
         solveAndPrintSentence False s [mustHaveTrg, allCondsHold] afterRules
         solveAndPrintSentence False s [mustHaveOther, allCondsHold] afterRules
+        --solveAndPrintSentence False s [mustHaveTrg] afterRules
+        --solveAndPrintSentence False s [mustHaveOther] afterRules
+        --solveAndPrintSentence False s [allCondsHold] afterRules
         
         putStrLn "...and now trying to solve the same rule with a fresh sentence:"
 
@@ -254,7 +259,7 @@ mkConds s allinds sentence trgind disjconjconds str = do
     mapM_ (mapM_ print) conds_absinds
     putStrLn "-----"
   if null conds_absinds || all null conds_absinds
-   then return Nothing --[true] --is there a meaningful difference between Nothing and []?
+   then do print "D:" ; return Nothing  --is there a meaningful difference between Nothing and []?
    else Just `fmap` mapM (mkCond s allinds sentence str) conds_absinds
   
  where
@@ -341,9 +346,9 @@ mkCond s allinds sentence str conjconds_absinds = do
 mkSentence :: Solver -> Int -> [[Tag]] -> IO Sentence
 mkSentence s w tcs = IM.fromList `fmap` sequence 
                        [ ((,) n . IM.fromList) `fmap` sequence 
-                         [ (,) m `fmap` newLit s (shTC t n) | (m, t) <- zip [1..] tcs ]
+                         [ (,) m `fmap` newLit s (showReading t n) | (m, t) <- zip [1..] tcs ]
                             | n <- [1..w] ] 
- where shTC ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
+ where showReading ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
 
 mkTagMap :: [Tag] -> [[Tag]] -> TagMap
 mkTagMap ts tcs = M.fromList $
@@ -361,17 +366,17 @@ lookupTag alltags allinds (trg,dif) =
  where
   go acc []     = acc         --default is empty set, because intersect [] _ == []
   go acc (t:ts) = let inds = case t of
-                              (Rgx r s) -> IS.empty `fromMaybe` lookupRegex t alltags
+                              --(Rgx r s) -> IS.empty `fromMaybe` lookupRegex t alltags
                               _         -> IS.empty `fromMaybe` M.lookup t alltags
                   in go (IS.intersection acc inds) ts
                                 
-lookupRegex :: Tag -> TagMap -> Maybe WIndSet
-lookupRegex (Rgx r s) tagmap = trace ("lookupRegex: " ++ s) $
-  Just $ IS.unions $ M.elems $ M.filterWithKey (\t _ -> matchTag r t) tagmap
- where
-  matchTag regex (WF str)  = isJust $ matchRegex regex str
-  matchTag regex (Lem str) = isJust $ matchRegex regex str
-  matchTag regex _         = False
+--lookupRegex :: Tag -> TagMap -> Maybe WIndSet
+--lookupRegex (Rgx r s) tagmap = trace ("lookupRegex: " ++ s) $
+--  Just $ IS.unions $ M.elems $ M.filterWithKey (\t _ -> matchTag r t) tagmap
+-- where
+--  matchTag regex (WF str)  = isJust $ matchRegex regex str
+--  matchTag regex (Lem str) = isJust $ matchRegex regex str
+--  matchTag regex _         = False
 --lookupRegex tag = lookup tag tagmap shouldn't happen anyway
 
 
@@ -408,13 +413,12 @@ width cs   = [ (len, tind) | (mi,ma) <- mins_maxs
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> [Int]
 posToInt (Exactly _ i) = [i]
-posToInt (AtLeast _ i) = case (i<0) of 
-                          True  -> [i,i-1,i-2] 
-                          False -> [i,i+1,i+2]
+posToInt (AtLeast _ i) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
 posToInt (Barrier _ i _)  = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
 posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
-posToInt (LINK parent child) = [ pI + cI | pI <- posToInt parent 
-                                         , cI <- posToInt child ]
+posToInt (LINK parent child) = --trace (show (posToInt parent) ++ ", " ++ show child) $
+                               [ pI + cI | (pI,cI) <- posToInt parent 
+                                          `zip` (cycle $ posToInt child) ]
 
 isCareful :: Position -> Bool
 isCareful (Exactly b _) = b
@@ -426,6 +430,7 @@ isCareful (LINK _par child) = isCareful child
 getPos :: Condition' -> [Int]
 getPos Always'    = [1]
 getPos (C' pos _) = posToInt pos
+--getPos
 
 
 for :: (Functor f) => f a -> (a -> b) -> f b
