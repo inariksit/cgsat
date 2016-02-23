@@ -304,9 +304,9 @@ transCond c = case c of
                                 firstChild@(CGB.C posBase _tags) <- transCond c2
                                 let base = getPos posBase
                                 otherChildren <- mapM transCond cs
-                                let fixedConds = map (addParent posParent) (fixPos base otherChildren [])
-                                return $ foldr CGB.AND parent (addParent posParent firstChild:fixedConds)
-                                --return $ foldr CGB.AND first (fixPos posFirst conds [])
+                                let fixedConds = map (addParent posParent) (firstChild:fixPos base otherChildren [])
+                                return $ foldr CGB.AND parent fixedConds
+
 
   where fixPos base []                  res = res
         fixPos base c@(CGB.C pos tags:cs) res = trace (show c ++ " " ++ show res) $
@@ -335,8 +335,9 @@ transCond c = case c of
                           CGB.AtLeast b i -> (b,i)
              btags <- transTagSet bts  --there is no `BARRIER NOT ts' option,
                                        --you just write `BARRIER (*)-ts'
+             ctags <- transTagSet ts
+             return $ CGB.C (bcons caut int btags) (isPositive,ctags)
 
-             liftM (CGB.C $ bcons caut int btags) ((,) isPositive `fmap` transTagSet ts)
         mapSubr i (CGB.TS ts) = CGB.TS $ (map.map) (CGB.Subreading i) ts
         mapSubr i (CGB.Diff ts1 ts2) = CGB.Diff (mapSubr i ts1) (mapSubr i ts2)
         mapSubr i (CGB.Cart ts1 ts2) = CGB.Cart (mapSubr i ts1) (mapSubr i ts2)
