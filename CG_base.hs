@@ -178,11 +178,11 @@ instance Show Position where
   show p                 = let (a,b) = showPosTuple p in a++b
 
 showPosTuple :: Position -> (String, String)
-showPosTuple p = (show p, "")
 showPosTuple (Barrier  True i ts) = ("*" ++ show i ++ "C ", " BARRIER " ++ show ts)
 showPosTuple (CBarrier True i ts) = ("*" ++ show i ++ "C ", " CBARRIER " ++ show ts)
 showPosTuple (Barrier  False i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show ts)
 showPosTuple (CBarrier False i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
+showPosTuple p = (show p, "")
 
   
 
