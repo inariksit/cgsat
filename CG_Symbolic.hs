@@ -87,7 +87,7 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
   condToCond' (C index (positive, ctags)) = 
      let yesInds_noInds = map lu (toTags ctags) 
      in  C' index (positive, yesInds_noInds)
-  condToCond' Always = Always' --C' (Exactly False 0) (True, [])
+  condToCond' Always = Always'
           
 --------------------------------------------------------------------------------
 testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
@@ -107,7 +107,7 @@ testRule (verbose,debug) form rds (lastrule,rules) = do
     (_,     _) -> do when debug $ do
                         putStrLn $ "rule with *, trying many combinations"
                      someLengthWorks <- asum `fmap` sequence 
-                       [ confToMaybe `fmap` testRule' False form rds (lastrule,rules) w
+                       [ confToMaybe `fmap` testRule' True form rds (lastrule,rules) w
                         | w <- otherwidths ]
                      return $ fromMaybe resFst someLengthWorks   
 
@@ -128,8 +128,6 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
 
   defaultRules s afterRules
 
-  foo <- solve s []
-  print foo
   let shouldTriggerLast s sentence = do
         let trgSWord = fromMaybe (error "shouldTriggerLast: no trg index found") (IM.lookup trgSInd sentence)
         let (yesTags,_) = trg lastrule
@@ -139,10 +137,13 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
         mht <- orl' s trgLits --must have >0 targetLits
         mho <- orl' s otherLits --must have >0 otherLits 
        --we know that all conds are in range: sentence is generated wide enough to ensure that
-        cl <- liftM fromJust --(fail $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
-                                        --show lastrule ++ "\n, sentence width " ++ show w ++ 
-                                        --", target index " ++ show trgSInd) 
-                               (mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule")
+       --cl <- fromJust `fmap` mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule"
+        clMaybe <- mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule"    
+        let cl = case clMaybe of
+                    Just x -> x
+                    Nothing -> error $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
+                                        show lastrule ++ "\n, sentence width " ++ show w ++ 
+                                        ", target index " ++ show trgSInd                    
         ach <- orl' s cl --conditions must hold
         --print cl
         return (mht, mho, ach)
@@ -180,21 +181,17 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
       when (debug && b') $ do
         putStrLn $ "Following triggers last rule ALONE: " ++ show lastrule
         solveAndPrintSentence False s' [mustHaveTrg', mustHaveOther', allCondsHold'] initialSentence'
+      deleteSolver s'
       if b' then return $ With rules
               else return Internal
 
  where
   defaultRules s sentence = 
    sequence_ [ do addClause s lits          --Every word must have >=1 reading
-                  --constraints s mp [] form  --Constraints based on lexicon
-                  constrainStuff s form word
+                  constraints s mp [] form  --Constraints based on lexicon
                | word <- IM.elems sentence 
                , let lits = IM.elems word 
-               , let mp i = fromJust (IM.lookup i word) ] --TODO why is true default?
-
-  constrainStuff s frm symbword = 
-    let mp ind = fromMaybe (error $ "constrainStuff: " ++ show ind) $ IM.lookup ind symbword 
-    in  constraints s mp [] frm
+               , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i word) ] 
 --------------------------------------------------------------------------------
 
 
@@ -303,11 +300,13 @@ mkCond s allinds sentence str conjconds_absinds = do
     case position of
       (Barrier  foo bar btags) 
         -> do --putStrLn "found a barrier!"
-              addClause s [true] --TODO
+              --addClause s [true] --TODO
+              return ()
                                          
       (CBarrier foo bar btags)
         -> do --putStrLn "found a cbarrier!"
-              addClause s [true] --TODO
+              --addClause s [true] --TODO
+              return ()
       _ -> return ()
 
     case (positive, isCareful position) of
@@ -418,12 +417,12 @@ width cs   = [ (len, tind) | (mi,ma) <- mins_maxs
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInt :: Position -> [Int]
 posToInt (Exactly _ i) = [i]
-posToInt (AtLeast _ i) = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
+posToInt (AtLeast _ i) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
 posToInt (Barrier _ i _)  = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
 posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
 posToInt (LINK parent child) = --trace (show (posToInt parent) ++ ", " ++ show child) $
                                [ pI + cI | (pI,cI) <- posToInt parent 
-                                          `zip` posToInt child ]
+                                          `zip` (cycle $ posToInt child) ]
 
 isCareful :: Position -> Bool
 isCareful (Exactly b _) = b
