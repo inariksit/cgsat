@@ -51,3 +51,13 @@ for i in `egrep -v "^ *#|^DELIMITERS|^SOFT-DELIMITERS" $LANG.rlx | egrep -o "\"[
 If we want the word form, replace the sed with `sed -E 's/([^:]*):([^<]*)(<.*)/\3<\1/`. This is due to the way I'm parsing it: `<` is the split character, and then I check the end, if there's a `>`, then it's a normal tag, otherwise lemma. (I didn't put in special case for word form, but that is easy to add.)
 
 I also add >>> and <<< into the readings.
+
+## Idea about creating realistic ambiguities
+
+```haskell
+let trgPos   = mapMaybe   (lu' word) trgIndsList
+```
+
+This is what I do at every application of a rule to a symbolic word.
+
+What if, in addition, each `trgInd` in `trgIndsList` comes with a list of `allowedAmbiguityInds`, and we add clauses "if w1 is `trgInd`, then it cannot be any of `~[allowedAmbiguityInds]`"?
