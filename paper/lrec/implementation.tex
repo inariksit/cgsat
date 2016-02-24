@@ -2,7 +2,7 @@
 \label{sec:implementation}
 
 In this section, we describe the implementation of the tool.
-The SAT-encoding we use is similar to the one introduced in \cite{listenmaa_claessen2015}, with one key difference: in this paper, we operate on {\em symbolic sentences} instead of concrete sentences from a corpus. The idea is that the SAT-solver is going to find the concrete sentence for us.
+The SAT-encoding we use is similar to the one introduced in \newcite{listenmaa_claessen2015}, with one key difference: in this paper, we operate on {\em symbolic sentences} instead of concrete sentences from a corpus. The idea is that the SAT-solver is going to find the concrete sentence for us.
 
 \paragraph{Preliminaries}
 
@@ -12,7 +12,9 @@ Before we can do any analysis any of the rules, we need to find out what the set
 
 Furthermore, when we analyse a rule $R$, we need to decide the {\em width} $w(R)$ of the rule $R$: How many different words should there be in a sentence that can trigger $R$? Most often, $w(R)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
 
-If the context contains a \verb!*!, we may need to make an approximation of $w(R)$ which may result in false negatives later on in the analysis.
+If the context contains a \verb!*!,
+we may need to make an approximation of $w(R)$ which may result in false negatives later on in the analysis.
+%we create sentences that are up to 3 words wider than the context without \verb!*!, and try them all.
 
 \paragraph{Symbolic sentences}
 
@@ -70,80 +72,6 @@ $w_5' \Leftrightarrow [ w_5 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$
 \end{tabular}
 \end{center}
 
-\paragraph{Choosing the readings}
-
-Earlier we have shown an example with 5 readings (\texttt{det def}, \texttt{noun sg}, ...). In a realistic case, we operate between hundreds and thousands of readings. This is very much dependent on language: Dutch, the simplest language, has 336 readings.
-
-We expand an Apertium morphological lexicon, throw away the word forms and take all the analyses. An exception is when the grammar contains rules that target a specific lemma or word form.
-A simple solution is to retain the lemmas and word forms only for those entries where it is specified in the grammar, and otherwise leave them out. For example, the Dutch grammar contains the following rule:
-
-\begin{itemize}
- \item[] \texttt{REMOVE ("zijn"i vbser) IF (-1 (pr)) (1 Noun) ;}
-\end{itemize}
-
-This hints that there is something special about the verb \emph{zijn}, compared to the other verbs. Looking at the lexicon, we find \emph{zijn} in the following entries:
-
-\begin{itemize}
- \item[] \begin{verbatim}zijn:zijn<det><pos><mfn><pl>
-zijn:zijn<det><pos><mfn><sg>
-zijn:zijn<vbser><inf>
-zijn:zijn<vbser><pres><pl>
-\end{verbatim}
-\end{itemize}
-
-Thus we add special entries for these: in addition to the anonymous
- \texttt{<det><pos><mfn><pl>} reading, we add \texttt{<"zijn"><det><pos><mfn><pl>}.
-
- However, for languages with more readings, this may not be feasible. For instance, Spanish has a high number of readings, not only because of many inflectional forms, but because it is possible to add 1-2 clitics to
-  lexicon has a high number of readings mostly because of the verbs: in addition to the verb forms, there are clitics attached to them. The number of verb readings without clitics is 213, and with clitics 1572.
-
- In our experience,  even ignoring the clitics doubles the amount of readings.
-
-Another note: the readings in grammar can be underspecified (e.g. \texttt{verb sg}), whereas the lexicon only gives us fully specified (\texttt{verb pres p2 sg}) readings. We tried a version where we took the tag combinations specified in the grammar as readings, and we could insert them into the symbolic sentences as well, but this was not an ideal solution: turns out that the tag lists in the grammars contain often errors (e.g. replacing OR with an AND; using a nonexistent tag; using a wrong level in a subreading), and if we accept those lists as readings, we will generate symbolic sentences that are impossible, and won't discover the bug in the grammar.
-
-However, if we only want to find rule interaction effects, then using the underspecified readings from the grammar makes the task faster, and it will still catch potential interaction errors.
-
-
-
-\paragraph{Creating realistic ambiguities}
-
-In the previous paragraph, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic ambiguities is to constrain what readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we don't want to generate such ambiguity in our symbolic sentences.
-
-We solve the problem creating \emph{ambiguity classes}: groups of analyses that can be ambiguous with each other. 
-We represent the expanded morphological lexicon as a matrix, as seen in figure~\todo{make a nice picture with rows and columns}: word forms on the rows and analyses on the columns. Each distinct row forms an ambiguity class. For example, the ambiguity class that 
-and form clusters based on which readings can be confused with each other. 
-%This is done after the previous step: we simply treat the lemma or word form as another tag. 
-Then we form SAT clauses that allow or prohibit certain combinations. These clauses will interact with the constraints created from the rules, and the end result will be closer to real-life sentences.
-
-Our approach is similar to \todo{cite Cutting, Kupiec et al.}, who use ambiguity classes instead of distinct word forms, in order to reduce the number of parameters in a Hidden Markov Model. They take advantage of the fact that they don't have to model ``bear'' and ``wish'' as separate entries, but they can just reduce it to ``word that can be ambiguous between noun and verb'', and use it as a parameter in their HMM. 
-We can do a similar thing by saving a list of words with each ambiguity class. For example, we map the ambiguity class ``feminine plural noun or a separable verb infinitive'' to the list of word forms \{``uitgaven'', ``toespraken''\}, and then, if we generate such reading for our symbolic word, we can give one of these words as an example word.
-
-
-
-
-
-Now with this, we can detect even these kinds of rules as problematic:
-
- \begin{itemize}
- \item[] \begin{verbatim}
- REMOVE verb IF (-1 det) ;
- REMOVE noun IF (-1 det) ;
- \end{verbatim}
- \end{itemize}
-
- With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a noun; the verb is gone already.
- However, in the context of real life texts, the grammar writer might actually mean the following:
-
- \begin{itemize}
- \item[] \begin{verbatim}
- REMOVE verb IF (-1 det) (0 noun) ;
- REMOVE noun IF (-1 det) (0 verb) ;
- \end{verbatim}
- \end{itemize}
-
- In that case, those rules are contradictory, and we would like to find it out. The additional constraints will prevent the SAT solver from creating an ambiguity where noun is ambiguous with e.g. punctuation.
-
-
 \paragraph{Putting it all together}
 
 Once we know how to apply one rule $R'$ to a symbolic sentence, we can apply all rules preceding the rule $R$ that is under analysis. We simply apply each rule to the result of applying the previous rule. In this way, we end up with a symbolic sentence that represents all sentences that could be the result of applying all those rules.
@@ -167,6 +95,76 @@ $v_1 \wedge (v_2 \vee v_3 \vee v_4 \vee v_5)$
 \end{tabular}
 \end{center}
 If the SAT-solver can find a solution to all constraints generated so far, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $R$. This means that there is something wrong with the grammar.
+
+
+\paragraph{Creating realistic readings}
+
+Earlier we have shown an example with 5 readings (``det def'', ``noun sg'', ...). In a realistic case, we operate between hundreds and thousands of readings. 
+%This is very much dependent on language: the simplest language we tested was Dutch, with 336 readings. The most complex was 
+In order to find the set of readings, we expand a morphological lexicon\footnote{We used the lexica from Apertium, found in \url{https://svn.code.sf.net/p/apertium/svn/languages/}.}, ignore the word forms and lemmas, and take all distinct analyses. 
+However, many grammar rules target a specific lemma or word form.
+A simple solution is to retain the lemmas and word forms only for those entries where it is specified in the grammar, and otherwise leave them out. For example, the Dutch grammar contains the following rule:
+
+\begin{itemize}
+ \item[] \texttt{REMOVE ("zijn" vbser) IF (-1 Prep) (1 Noun) ;}
+\end{itemize}
+
+This hints that there is something special about the verb \emph{zijn}, compared to the other verbs. Looking at the lexicon, we find \emph{zijn} in the following entries:
+
+\begin{itemize}
+ \item[] 
+\begin{verbatim}zijn:zijn<det><pos><mfn><pl>
+zijn:zijn<det><pos><mfn><sg>
+zijn:zijn<vbser><inf>
+zijn:zijn<vbser><pres><pl>
+\end{verbatim}
+\end{itemize}
+
+Thus we add special entries for these: in addition to the anonymous
+ \texttt{<det><pos><mfn><pl>} reading, we add \texttt{<"zijn"><det><pos><mfn><pl>}. 
+The lemma is treated as just another tag.
+
+ However, for languages with more readings, this may not be feasible. For instance, Spanish has a high number of readings, not only because of many inflectional forms, but because it is possible to add 1--2 clitics to the verb forms.
+The number of verb readings without clitics is 213, and with clitics 1572.
+With the previously mentioned approach, we would have to double 1572 entries for each verb lemma. Even ignoring the clitics, each verb lemma would still result in 213 new readings.
+
+ In our experience,  even ignoring the clitics doubles the amount of readings.
+
+Another note: the readings in grammar can be underspecified (e.g. \texttt{verb sg}), whereas the lexicon only gives us fully specified (\texttt{verb pres p2 sg}) readings. We tried a version where we took the tag combinations specified in the grammar as readings, and we could insert them into the symbolic sentences as well, but this was not an ideal solution: turns out that the tag lists in the grammars contain often errors (e.g. replacing OR with an AND; using a nonexistent tag; using a wrong level in a subreading), and if we accept those lists as readings, we will generate symbolic sentences that are impossible, and won't discover the bug in the grammar.
+
+However, if we only want to find rule interaction effects, then using the underspecified readings from the grammar makes the task faster, and it will still catch potential interaction errors. 
+
+
+
+\paragraph{Creating realistic ambiguities}
+
+In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic ambiguities is to constrain what readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we don't want to generate such ambiguity in our symbolic sentences.
+
+We solve the problem by creating \emph{ambiguity classes}: groups of analyses that can be ambiguous with each other. 
+We represent the expanded morphological lexicon as a matrix, as seen in figure~\todo{make a nice picture with rows and columns}: word forms on the rows and analyses on the columns. Each distinct row forms an ambiguity class. For example, the ambiguity class \verb![1257,496,16]! %TODO better description
+contains masculine plural adjectives and masculine plural past participles.
+Then we form SAT clauses that allow or prohibit certain combinations. These clauses will interact with the constraints created from the rules, and the end result will be closer to real-life sentences.
+
+Our approach is similar to \newcite{cutting_etal92}, who use ambiguity classes instead of distinct word forms, in order to reduce the number of parameters in a Hidden Markov Model. They take advantage of the fact that they don't have to model ``bear'' and ``wish'' as separate entries, but they can just reduce it to ``word that can be ambiguous between noun and verb'', and use it as a parameter in their HMM. 
+We can do a similar thing by saving a list of words with each ambiguity class. For example, we map the ambiguity class ``feminine plural noun or a separable verb infinitive'' to the list of word forms \{``uitgaven'', ``toespraken''\}, and then, if we generate such reading for our symbolic word, we can give one of these words as an example word.
+
+There are two advantages of restricting the ambiguity within words.
+Firstly, we can create more realistic example sentences, which should help the grammar writer.
+Secondly, we can possibly detect some more conflicts. Assume that the grammar contains the following rules:
+
+ \begin{itemize}
+ \item[] 
+\begin{verbatim}
+ REMOVE adj IF (-1 aux) ;
+ REMOVE pp  IF (-1 aux) ;
+ \end{verbatim}
+ \end{itemize}
+
+ With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a past participle; the adjective will be gone already.
+However, it could be that past participles (pp) only ever get confused with adjectives---in that case, the above rules would be in conflict with each other.
+ By removing the adjective reading, the first rule selects the past participle reading, making it an instance of ``$R$ selects something in a context, $R'$ removes~it''. 
+The additional constraints will prevent the SAT-solver from creating an ambiguity outside the allowed classes, and such a case would be caught as a conflict.
+
 
 % \paragraph{Other questions we can ask}
 
