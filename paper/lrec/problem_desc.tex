@@ -36,12 +36,25 @@ between related languages \cite{bick2006spanish,lene_trond_linda2010}.
 Mature CGs contain some thousands of rules, but even small CGs are shown to be effective \cite{lene_trond2011}.
 
 
-By design, CG is a shallow and robust formalism. Individual rules can be written to address any property, such as ``verb'', ``copula verb in first person singular'', or ``the word form \emph{sailor} preceded by \emph{drunken} anywhere in the sentence''. This makes it possible to treat very particular edge cases without touching the more general rule: we would simply write the narrow rule first (``if noun AND \emph{sailor}''), and use a general rule (``if noun'') as catch-all. 
+By design, CG is a shallow and robust formalism. 
+There is no particular hierarchy between lexical, morphological,
+syntactic or even semantic tags: individual rules can be written to address any
+property, such as ``verb'', ``copula verb in first person singular'',
+or ``the word form \emph{sailor}, preceded by \emph{drunken} anywhere in the
+sentence''. This makes it possible to treat very particular edge
+cases without touching the more general rule: we would simply write
+the narrow rule first (``if noun AND \emph{sailor}''), and introduce
+the general rule (``if noun'') later.
 
-However, this design is not without problems. As CGs grow larger, it gets harder to keep track of all the rules and their interaction.
-Our tools will help grammar writers and users to find conflicting rules, diagnose problems and improve their grammars. 
+
+However, this design is not without problems. As CGs grow larger, it
+gets harder to keep track of all the rules and their interaction.
+Our tools will help grammar writers and users to find conflicting
+rules, diagnose problems and improve their grammars. 
 We expect two major use cases: 
-first, to test the effect of new rules while writing a grammar, and second, to take a complete grammar and analyse it as a whole, to find conflicts or dead rules.
+first, to test the effect of new rules while writing a grammar, and
+second, to take a complete grammar and analyse it as a whole, to find
+conflicts or dead rules.
 
 
 
@@ -49,7 +62,8 @@ first, to test the effect of new rules while writing a grammar, and second, to t
 \begin{center}
 
 \begin{itemize}
-\item[]\begin{verbatim}SELECT Inf IF (-1 Para OR De) (0C V) ;
+\item[]
+\begin{verbatim}SELECT Inf IF (-1 Para OR De) (0C V) ;
 SELECT Inf IF (-1 Prep) (0C V) ;
 SELECT Inf IF (-1C Vai) ;
 SELECT Inf IF (-1C Vbmod) (0C V) ;
@@ -58,7 +72,7 @@ SELECT Inf IF (-1C Vbmod) (0 Ser) ;
 \end{verbatim}
 \end{itemize}
 
-\caption{Rules to select infinitive.}
+\caption{Rules to select infinitive in Portuguese.}
 \end{center}
 
 \label{infrules}
@@ -92,10 +106,28 @@ remove a verb in all possible cases, disabling any future rule that
 targets verbs.
 
 While rule-internal conflicts can be detected by simpler means, taking
-care of rule interaction requires a {\em semantic} rather than a {\em syntactic} analysis.
-%In addition to analysing the whole grammar,
-%Our method can be used to
-%check individual rules. For instance,
+care of rule interaction requires a {\em semantic} rather than a {\em
+ syntactic} analysis.
+In order to find effects of rule interaction, we must keep track of
+the possible sentences at each step. After each rule, we have two
+possibilities: the rule fires, or it does not fire. In case the rule does
+not fire, we have again two options: either its conditions are not met,
+or its target is the only remaining analysis. 
+
+We express these requirements as a \emph{Boolean satisfiability problem} (SAT).
+SAT problems consist of two components: a set of Boolean variables, and a set
+of clauses on those variables. For instance, let the set be $\{a,b\}$
+and the formulas $\{a \vee b, \neg{}a\}$. A program called \emph{SAT
+  solver} will try to find a solution, where all the variables have a
+value. For this particular problem, the unique solution is $a=False,
+b=True$. It is also possible for a SAT problem to have no solution, or
+multiple solutions.
+
+
+%these possibilities as SAT variables, and ask for a solution: ``after all
+%rules in $R$ have applied, is there an input that will make $r'$ fire?'' 
+%To our knowledge, there is no other CG tool that would keep track of
+%previously executed rules
 
 
 
