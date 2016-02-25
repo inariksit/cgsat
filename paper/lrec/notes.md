@@ -149,16 +149,16 @@ or [w1<det>,w1<det><def>]
 
 "<w1>"
         det def
-	adv
-	adj
+	      adv
+        adj
 "<w2>"
         n
         v
 ```
 
 Try to apply `REMOVE adj IF (1 v)` s.t. will trigger `l`
-* can't change conditions: `w2` must have a `v` in order to remove it
-* only `adj` left not possible: `w2` must have a `det`
+* can't change conditions: `w2` must have a `v`, because it is target of `l`
+* only `adj` left not possible: `w1` must have a `det`, because it is condition of `l`
 * remove `adj`
 
 ```
@@ -167,7 +167,7 @@ and [~w1<adj><attr>, ~w1<adj><pred>, ...]
 
 "<w1>"
         det def
-	adv
+        adv
 "<w2>"
         v
         n
@@ -176,14 +176,14 @@ and [~w1<adj><attr>, ~w1<adj><pred>, ...]
 
 Last rule:
 ```
-   REMOVE inf  IF (-1 (prn pers))
+   REMOVE Inf  IF (-1 PronPers)
 ```
 
 Earlier rules:
 ```
-   REMOVE:r_pr_v pr  IF (1 vblex vbmod vaux vbhaver vbser ) (NOT 0 "te" "om te" )
-   REMOVE:r_adv_n adv  IF (1 n np )
-   SELECT:s_pr_v pr  + "te" "om te"  IF (1 vblex vbmod vaux vbhaver vbser  + inf )
+   REMOVE: Pr         IF (1 Verb) (NOT 0 "te")
+   REMOVE: Adv        IF (1 Noun)
+   SELECT: Pr + "te"  IF (1 Vblex + Inf)
 ```
 
 Examined rule creates a model with many solutions, among which the following:
@@ -196,14 +196,15 @@ Examined rule creates a model with many solutions, among which the following:
 ```
 
 Then we apply the earlier rules to our symbolic string. First two are fine. They don't affect the analyses that are crucial to our examined rule.
-However, the third SELECT rule has `vblex inf` in its context. When we add this clause to SAT solver, it will try to find another model which satisfies the examined rule, but will make the SELECT rule to have no effect. We find one, which satisfies scenario 2: condition is not met.
+However, the third SELECT rule has `vblex inf` in its context, and the last rule has `inf` in its target.
+When we add this clause to SAT solver, it will try to find another model which satisfies the last rule, but will make the SELECT rule to have no effect. We find one, which satisfies scenario 2: condition is not met.
 
 ```
   "<w1>"
         prn pers
   "<w2>"
         <<<
-        inf
+        vbmod inf
 ```
 
 ---------
@@ -216,28 +217,8 @@ However, the third SELECT rule has `vblex inf` in its context. When we add this 
 Conflict!
 Cannot trigger the last rule: REMOVE adv IF (-1 det) (0 adj) (1 n|np)
 with the previous rules:
- REMOVE:r_pr_v pr IF (1 vblex|vbmod|vaux|vbhaver|vbser) (NOT 0 "te"|"om te")
- REMOVE:r_adv_n adv IF (1 n|np)
- SELECT:s_pr_v pr + "te"|"om te" IF (1 vblex|vbmod|vaux|vbhaver|vbser + inf)
- ...
-
-The sentence should have these properties:
-* must have: [w2<adv>,w2<adv><itg>,w2<rel><adv>]
-* must have: [w2<"<EOS>"><<<<><sent>,w2<>>>>,w2<prn><pers><p2>]...
-* must hold: (-1 det) in 1 & (0 adj) in 2 & (1 n|np) in 3
+ REMOVE adv IF (1 n|np)
 ```
-
-Then it tries combinations of 2 requirements:
-
-```
-solveAndPrintSentence: Conflict with assumptions 
-* must have: [w2<adv>,w2<adv><itg>,w2<rel><adv>]
-* must hold: (-1 det) in 1 & (0 adj) in 2 & (1 n|np) in 3
-```
-
-Problem is combining targe with condition.
-In order to find the previous rule that conflicts, start by finding rules that have the same target.
-
 
 
 
@@ -257,12 +238,24 @@ That w2 is such a multi-purpose word! ^_^
 
 ## Nice examples where the new method works
 
-Look at the following three rules.
+Add new variable `wN'<reading>` for `wN<reading` when it is targeted by a rule. Readings which are not targets, remain unchanged from previous round.
+
+The value of `wN''<tag>` depends on `wN'<tag>`, which in turn depends on `wN<tag>`. This means that a rule which requires `wN''<tag>` to be true, will affect also `wN'<tag>` and `wN<tag>`. The value of a variable at any stage can be influenced by new rules.
+
+Motivation: some analysis will be given a value because it's a target, other because it's a condition. We can't just arbitrarily say "now w1 is a noun, now it's not, now it's noun again."
+
+Illustrate this with the following two sets of three rules.
 
 ```
 r1 = REMOVE V   IF (-1C Det) ;
 r2 = REMOVE Det IF ( 1  V)   ;
 r3 = REMOVE V   IF (-1  Det) ;
+```
+
+```
+r4 = REMOVE V   IF (-1C Det)
+s5 = SELECT Det IF (1 V)
+r6 = REMOVE V   IF (-1 Det)
 ```
 
 Is there an input which can go through the rules and trigger at the last?
@@ -281,10 +274,6 @@ In other words, the value of the new variable is determined by the formula
 
 Solving at this point isn't particularly exciting; we could just get any solution, including multiple ones where `w1` and `w2` don't include determiners or verbs at all.
 
-The value of `wN''<tag>` depends on `wN'<tag>`, which in turn depends on `wN<tag>`. This means that a rule which requires `wN''<tag>` to be true, will affect also `wN'<tag>` and `wN<tag>`. If  a d the value of a variable at any stage can be influenced by new rules.
-
-only now add the example about the difference of r2 and s2!
-motivate: value required by condition vs. value required by target
 
 ```
 "<w1>"
@@ -301,15 +290,15 @@ motivate: value required by condition vs. value required by target
    * In that case, the input would already trigger `r1`
    * Cannot do neither => conflict
 
-Now contrast with a rule sequence where the second rule actually performs an action to its target. As before, but `r2` is changed for `s2`.
+Now contrast with a rule sequence where the second rule actually performs an action to its target. As before, but `r2` is changed for `s5`.
 
 ```
-REMOVE:r1 V IF (-1C Det)
-SELECT:s2 Det IF (1 V)
-REMOVE:r3 V IF (-1 Det)
+REMOVE:r4 V   IF (-1C Det)
+SELECT:s5 Det IF (1 V)
+REMOVE:r6 V   IF (-1 Det)
 ```
 
-Now it is possible to construe something that will get past the first rule *and* will trigger the 3rd rule:
+Now it is possible to construe something that will get past the first rule *and* will trigger r6:
 
 ```
 "<w1>"
@@ -337,6 +326,8 @@ Something that will get past the second rule and will trigger the 3rd rule:
 The rule `s2` should be fine after `r1`. 
 
 
+
+
 ## Heuristics to search for conflicting rules
 
 After applying all rules to the symbolic sentence, we try to solve with the following requirements:
@@ -349,22 +340,9 @@ If we don't find a solution with this, we try to pinpoint where the problem is. 
 
 If 1+2 is fine but _+3 conflicts, we start looking at the conditions. Three easy to detect reasons:
 
-### Conditions within one rule are incompatible with each other
+### Internal conflict
 
-Real life example:
-
-```
-SELECT:subj4 PRS (*-1 ("ser") LINK 1 A LINK 1 ("que")) (0C Verb) ;
-```
-
-Just look a bit closer, how LINK 1 normalises to following:
-```
-SELECT:subj4 Prs IF (1 "que") (0 Adj) (*-1 "ser") (0C Verb) ;
-```
-
-and here we have a conflict: `IF (0 Adj)` and `IF (0C Verb)`.
-
-Detect by creating a fresh sentence with new solver and just try to solve with both requirements.
+Detect by creating a fresh sentence with new solver and just try to solve with all requirements.
 
 
 ### Tag combination is not predefined
