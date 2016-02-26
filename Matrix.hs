@@ -5,9 +5,10 @@ import Data.List
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
---import Debug.Trace
 import System.Environment ( getArgs ) 
 
+
+--import Debug.Trace
 trace str a = a
 
 type Key = Int
@@ -31,8 +32,8 @@ main = do
                 tcs <- (map parseReadings . words) `fmap` readFile t
                 let ts = concat tcs
                 let readings = map (toReadingMap tcs) ws 
-                --mapM_ print (take 50 readings)
---                mapM_ (print) $ M.toList $ toGraph ( readings)
+                --mapM_ print (take 50 readings)-
+                --mapM_ (print) $ M.toList $ toGraph ( readings)
                 mapM_ print $ toGraph readings
 
 --------------------------------------------------------------------------------
@@ -61,7 +62,7 @@ toReadingMap tcs str = trace (show (weet,key)) $ (weet, key)
   tags = if null tagsList then [Tag $ delete '>' vblex_imp_sg]
            else map Tag $ tail $ map (delete '>') tagsList
   key = case elemIndex tags tcs of
-          Just k' -> trace "key found" $ k'
+          Just k' -> trace "key found" $ k'+1
           Nothing -> 99999
 
 
