@@ -138,7 +138,23 @@ However, if we only want to find rule interaction effects, then using the unders
 
 \paragraph{Creating realistic ambiguities}
 
+
+
+
 In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic ambiguities is to constrain what readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we don't want to generate such ambiguity in our symbolic sentences.
+
+\begin{center}
+\begin{tabular}{c|c|c|c|c}
+
+
+            & n nt sg  & n f pl  &  vblex sep inf & det pos mfn  \\ \hline
+uitgaven    & 0        & 1       & 1              & 0    \\ 
+toespraken  & 0        & 1       & 1              & 0    \\ 
+haar        & 1        & 0       & 0              & 1    \\ 
+
+
+\end{tabular}
+\end{center}
 
 We solve the problem by creating \emph{ambiguity classes}: groups of analyses that can be ambiguous with each other. 
 We represent the expanded morphological lexicon as a matrix, as seen in figure~\todo{make a nice picture with rows and columns}: word forms on the rows and analyses on the columns. Each distinct row forms an ambiguity class. For example, the ambiguity class \verb![1257,496,16]! %TODO better description
