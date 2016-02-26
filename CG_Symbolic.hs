@@ -71,18 +71,18 @@ ruleToRule' :: TagMap -> IS.IntSet -> Rule -> Rule'
 ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
  where
   nm = show rule
-  lu = lookupTag tagmap allinds
-  (trgs,_difs) = unzip $ toTags $ target rule
-  --Difs are not important as a target.
-  --TagSets include difs, because difs are important with *conditions*.
-  --So we can just ignore whatever difs toTags gives us and go with
-  trgInds = lu (concat trgs, [[]])
   isSel = isSelect rule
+
+  lu = lookupTag tagmap allinds
+  (trgs,difs) = unzip $ toTags $ target rule
+
+  -- TODO: should it work for `Det - Zijn OR Foo - Bar'?
+  -- Concatting the difs won't do the trick there.
+  -- This is properly handled in mkCond (two nested lists).
+  -- Will fix if I see a grammar rule that has disjoint diffs in target.
+  trgInds = lu (concat trgs, concat difs)
+
   conds = (map.map) condToCond' (toConds $ cond rule)
-  --conds = [  [ C' index (positive, yesInds_noInds)
-  --            | C index (positive, ctags) <- conditions
-  --            , let yesInds_noInds = map lu (toTags ctags) ]
-  --         | conditions <- toConds (cond rule) ]
 
   condToCond' (C index (positive, ctags)) = 
      let yesInds_noInds = map lu (toTags ctags) 
@@ -107,7 +107,7 @@ testRule (verbose,debug) form rds (lastrule,rules) = do
     (_,     _) -> do when debug $ do
                         putStrLn $ "rule with *, trying many combinations"
                      someLengthWorks <- asum `fmap` sequence 
-                       [ confToMaybe `fmap` testRule' True form rds (lastrule,rules) w
+                       [ confToMaybe `fmap` testRule' debug form rds (lastrule,rules) w
                         | w <- otherwidths ]
                      return $ fromMaybe resFst someLengthWorks   
 
@@ -130,12 +130,24 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
 
   let shouldTriggerLast s sentence = do
         let trgSWord = fromMaybe (error "shouldTriggerLast: no trg index found") (IM.lookup trgSInd sentence)
-        let (yesTags,_) = trg lastrule
-        let otherTags = tagInds IS.\\ yesTags
-        let trgLits   = map (trgSWord IM.!) (IS.toList yesTags)
-        let otherLits = map (trgSWord IM.!) (IS.toList otherTags)
-        mht <- orl' s trgLits --must have >0 targetLits
-        mho <- orl' s otherLits --must have >0 otherLits 
+        let (trgIndsRaw,_difIndsRaw) = trg lastrule -- :: IntSet
+                                                    -- we don't care about difs here anymore,
+                                                    -- it's all included in target.
+                                                    -- mkCond needs to still have access to difInds,
+                                                    -- that's why the type includes it.
+        let otherIndsRaw   = tagInds IS.\\ trgIndsRaw
+
+        let (trgInds,otherInds) = if isSelect' lastrule
+                                   then (otherIndsRaw,trgIndsRaw)
+                                   else (trgIndsRaw,otherIndsRaw)
+
+
+        let trgLits   = map (trgSWord IM.!) (IS.toList trgInds)
+        let otherLits = map (trgSWord IM.!) (IS.toList otherInds)
+
+        mht <- orl' s trgLits -- 1) must have ≥1 targetLits
+        mho <- orl' s otherLits -- 2) must have ≥1 otherLits 
+
        --we know that all conds are in range: sentence is generated wide enough to ensure that
        --cl <- fromJust `fmap` mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule"
         clMaybe <- mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule"    
@@ -144,8 +156,9 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
                     Nothing -> error $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
                                         show lastrule ++ "\n, sentence width " ++ show w ++ 
                                         ", target index " ++ show trgSInd                    
-        ach <- orl' s cl --conditions must hold
-        --print cl
+
+        ach <- orl' s cl -- 3) conditions must hold
+
         return (mht, mho, ach)
 
   (mustHaveTrg, mustHaveOther, allCondsHold) <- shouldTriggerLast s afterRules
@@ -159,8 +172,8 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
       return NoConf
 
     else do
-      --when debug $ do 
-      when False $ do 
+      when debug $ do 
+      --when False $ do 
         putStrLn "-------"
         putStrLn $ "Rule " ++ show lastrule ++":"
         putStrLn "could not solve with previous, trying to loosen requirements:"
@@ -211,13 +224,29 @@ apply s allinds sentence rule = do
          Nothing -> return sentence --conditions out of scope, no changes in sentence
          Just cs -> do
            let trgIndsList = IS.toList trgInds
+
            condsHold <- orl' s cs
            let trgPos   = mapMaybe   (lu' word) trgIndsList
+
+           --This is probably a bad idea--just brainstormed that what if we do ambiguity class constraints here.
+           --Doesn't compile, don't bother commenting out.
+           {-let allowedAmbiguities = 
+              [ do Just trgLit <- lu' word trgInd
+                   canBeAmbiguousWithTarget <- mapMaybe (lu' word) possibleAmbiguities
+                   allowedAmb <- implies ("if target is " ++ show trgLit ++ ", it can be ambiguous with ...")
+                                         trgLit
+                                         (map neg (TODO complement of canBeAmbiguousWithTarget))
+
+                | trgInd <- trgIndsList
+                , let possibleAmbiguities = findPossibleAmbiguities trgInd ]-}
+
            let otherNeg = map (neg . lu word) (IS.toList otherInds)
-           someTrgIsTrue <- orl' s trgPos
+
+           someTrgIsTrue <- orl' s trgPos --trgPosWithAmbclassConstraints --TODO make trgPosWith... to include relevant stuff
            noOtherIsTrue <- andl' s otherNeg
            onlyTrgLeft <- andl' s [someTrgIsTrue, noOtherIsTrue]
            cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
+
            newTrgLits <- sequence
              --wN<a>' is true if both of the following:
              [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
@@ -300,12 +329,12 @@ mkCond s allinds sentence str conjconds_absinds = do
     case position of
       (Barrier  foo bar btags) 
         -> do --putStrLn "found a barrier!"
-              --addClause s [true] --TODO
+              --addClause s [some nice barrier clause] --TODO
               return ()
                                          
       (CBarrier foo bar btags)
         -> do --putStrLn "found a cbarrier!"
-              --addClause s [true] --TODO
+              --addClause s [some nice barrier clause] --TODO
               return ()
       _ -> return ()
 
@@ -342,7 +371,7 @@ mkCond s allinds sentence str conjconds_absinds = do
                           andl s "" (map neg noLits)
 
       (False, True) -> do let otherLits = lu oi_ALLINONE
-                          andl s "" otherLits
+                          orl s "" otherLits
 
 
 --------------------------------------------------------------------------------
@@ -420,6 +449,7 @@ posToInt (Exactly _ i) = [i]
 posToInt (AtLeast _ i) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
 posToInt (Barrier _ i _)  = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
 posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
+--TODO fix the LINK case
 posToInt (LINK parent child) = --trace (show (posToInt parent) ++ ", " ++ show child) $
                                [ pI + cI | (pI,cI) <- posToInt parent 
                                           `zip` (cycle $ posToInt child) ]
