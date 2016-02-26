@@ -8,8 +8,8 @@ import qualified Data.IntSet as IS
 import System.Environment ( getArgs ) 
 
 
---import Debug.Trace
-trace str a = a
+import Debug.Trace
+--trace str a = a
 
 type Key = Int
 type ExampleWordForm = String
@@ -30,11 +30,11 @@ main = do
   []    -> error "give a lexicon and tag combinations"
   (w:t:_) -> do ws <- words `fmap` readFile w
                 tcs <- (map parseReadings . words) `fmap` readFile t
+                mapM_ print tcs
                 let ts = concat tcs
                 let readings = map (toReadingMap tcs) ws 
-                --mapM_ print (take 50 readings)-
-                --mapM_ (print) $ M.toList $ toGraph ( readings)
-                mapM_ print $ toGraph readings
+                mapM_ (print) $ M.toList $ toGraph ( readings)
+                --mapM_ print $ toGraph readings
 
 --------------------------------------------------------------------------------
 
@@ -44,8 +44,8 @@ toGraph readings = readingMap
   group' acc (a,b) = case M.lookup a acc of
                        Just c  -> M.adjust (b:) a acc 
                        Nothing -> M.insert a [b] acc
-  --readingMap = invertMap 99999 $ foldl group' M.empty readings 
-  readingMap = onlyValues 99999 $ foldl group' M.empty readings 
+  readingMap = invertMap 99999 $ foldl group' M.empty readings 
+  --readingMap = onlyValues 99999 $ foldl group' M.empty readings 
 
 
 --weet:weten<vblex><imp><sg> 
@@ -57,13 +57,12 @@ toGraph readings = readingMap
 toReadingMap :: [[Tag]] -> String -> (ExampleWordForm, Key)
 toReadingMap tcs str = trace (show (weet,key)) $ (weet, key)
  where
-  (weet, vblex_imp_sg) = break (==':') str
-  tagsList = split (=='<') vblex_imp_sg
-  tags = if null tagsList then [Tag $ delete '>' vblex_imp_sg]
-           else map Tag $ tail $ map (delete '>') tagsList
+  (weet, ':':weten_vblex_imp_sg) = break (==':') str
+  (_weten,         vblex_imp_sg) = break (=='<') weten_vblex_imp_sg
+  tags = parseReadings vblex_imp_sg
   key = case elemIndex tags tcs of
-          Just k' -> trace "key found" $ k'+1
-          Nothing -> 99999
+          Just k' -> trace ("key found: " ++ show tags) k'+1
+          Nothing -> trace ("key not found: " ++ show tags) 99999
 
 
 
