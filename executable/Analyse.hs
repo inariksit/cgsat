@@ -60,7 +60,7 @@ main = do
   let allinds = IS.fromList [1..length readings]
   abcd_ambcls <- do ambclauses <- readFile "data/abcd-ambiguity-classes" 
                     let xss  = map read (lines ambclauses) :: [[Int]]
-                    return $ formula xss 
+                    return $ (formula xss , xss)
   let verbose = (True,True)
 
   case args of 
@@ -77,7 +77,7 @@ main = do
 
     let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
     putStrLn "testing with implicit kimmo WITHOUT ambiguity classes"
-    mapM_ (testRule verbose (formula [[]]) readings) (splits (reverse kimmo_i'))
+    mapM_ (testRule verbose (formula [[]], [[]]) readings) (splits (reverse kimmo_i'))
 
 
    (lang:fromStr:toStr:r)-> do 
@@ -96,8 +96,8 @@ main = do
                 then do let acfile = dirname ++ lang ++ "-ambiguity-classes"
                         ambclauses <- readFile acfile
                         let xss  = map read (lines ambclauses) :: [[Int]]
-                        return $ formula xss 
-                  else return $ formula [[]]
+                        return $ (formula xss, xss)
+                  else return $ (formula [[]], [[]])
 
 
     let from = read fromStr
@@ -116,13 +116,15 @@ main = do
     let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
     let tags = nub $ tagsInLex ++ concat readings
 
-    print (length readings, length (filter (not.null) readings))
-    mapM_ print tags
+    --print (length readings, length (filter (not.null) readings))
+    --mapM_ print tags
 
     let tagmap = mkTagMap tags readings
     let allinds = IS.fromList [1..length readings]
-    let rules = map (ruleToRule' tagmap allinds) (concat (map reverse rls))
-    let rulesToTest = (drop from $ take to $ splits rules)
+
+    let chosenRules = drop from $ take to $ concat (map reverse rls)
+    let rulesToTest = splits $ map (ruleToRule' tagmap allinds) chosenRules
+
 
 -------------------------------------------------------------------------------- 
 
@@ -139,22 +141,24 @@ main = do
 
 
     
-    let shrink (r,rs) = do -- This is not going to work outside small grammars
-                           let allinits = (,) r `map` filter (not.null) (inits rs)
-                           brs <- searchInits (testRule verbose ambcls readings) allinits
-                           let minimalConflict = brs --fromMaybe rs brs
-                           --let moreMinimalConflict = []
-                           let alltails = (,) r `map` tails minimalConflict
-                           moreMinimalConflict <- searchTails (testRule verbose ambcls readings) alltails
-                           putStrLn $ "\n-> " ++ show r ++ " <-"
-                           mapM_ (\s -> putStrLn $ "\t" ++ show s) moreMinimalConflict
+    let shrink (r,rs) = do
+         putStrLn $ "\n-> " ++ show r ++ " <-"
+         case rs of
+               [r] -> putStrLn $ "\t" ++ show r
+               _  -> do -- This is not going to work outside small grammars
+                        let allinits = (,) r `map` filter (not.null) (inits rs)
+                        brs <- searchInits (testRule verbose ambcls readings) allinits
+                        let minimalConflict = brs --fromMaybe rs brs
+                        --let moreMinimalConflict = []
+                        let alltails = (,) r `map` tails minimalConflict
+                        moreMinimalConflict <- searchTails (testRule verbose ambcls readings) alltails
+                        mapM_ (\s -> putStrLn $ "\t" ++ show s) moreMinimalConflict
 
     when (not $ null interactionConf) $ do
       putStrLn "\nThe following rules conflict with other rule(s):"
       mapM_ (shrink . fst) interactionConf
 
     when (null rs_cs) $ putStrLn "no conflicts, hurra!"
-
 
 
 
