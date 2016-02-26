@@ -109,6 +109,9 @@ To catch them more systematically, we could add a feature that alerts in all cas
 
 Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are \todo{n} rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. It is likely that this grammar has been written for an earlier version, where such tag has been in place.
 
+
+
+
 The Spanish grammar has a high number of interaction conflicts, all with the same pattern:
 
 \begin{itemize}
@@ -118,10 +121,43 @@ REMOVE (a) IF (-1 x) (1 y) (NOT -1 z);
 \end{verbatim}
 \end{itemize}
 
-This is another, perhaps counter-intuitive instance of more general rule applying before more specific. Negated context works as well to make a rule stricter. The second rule will never apply, because the first will catch all cases.
+
+This is another instance of more general rule applying before more specific. Negated context works as well to make a rule stricter. The second rule will never apply, because the first will catch all cases.
 
 In addition, there was a number of definitions that were never used. The program doesn't currently point them out to the user, but that is a trivial addition; just like rule-internal conflicts, it doesn't require any semantic analysis. 
-Another error, which was not pointed by the program, but discovered 
+Another error, which was not pointed by the program, but discovered when we tried to extract the readings from the grammar and use them 
+
+
+
+As with the Dutch grammar, we ran the tool on individual rules and examined the sequences that were generated. None of the following was marked as a conflict, but looking at the output indicated that 
+
+\begin{itemize}
+\item[] 
+\begin{verbatim}
+REMOVE Vblex IF (0 "como") (*-1 Vblex BARRIER Cnj_Rel) ;
+REMOVE Vblex IF (0 "como") (*1 Vblex BARRIER Cnj_Rel) ;
+\end{verbatim}
+\end{itemize}
+
+Here is something that the ambiguity class constraint should find out.
+The grammar writer wants to disambiguate the word form ``como'', which can be either a preposition, adverb or the first person singular of the verb ``comer''. 
+However, the rule here addresses the lemma ``como'' instead of the word form, hence the SAT-solver cannot create a solution where \texttt{vblex} and ``como'' are in the same reading. The automated 0-to-target conversion could come in handy here too.
+
+Side note: if this rule was written as \texttt{Vblex + "como"}, it would have been caught as a conflicting tag combination. ``Como'' as a lemma does not occur with \texttt{vblex}; it is only one word form which is ambiguous.
+
+\begin{itemize}
+\item[] 
+\begin{verbatim}
+REMOVE Podar  IF (0 Podar) (1 Adv) (2C Inf OR Enc) ;
+REMOVE Sentar IF (0 Sentar) (1C Inf OR Enc) ;
+\end{verbatim}
+\end{itemize}
+
+The comments make it clear that the first rule is meant to disambiguate between poder and podar, and the second rule between sentir and sentar. But the rule does not mention anything about ``poder'' nor ``sentir''; the SAT-solver gave a triggering sequence without 
+
+This is actually a shortcoming of our way of handling the lemmas. If the lemmas and word forms were integrated to the analyses in a more feasible way, then the ambiguity class constraints would create a sequence where ``podar'' was ambiguous with ``poder'', instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
+
+
 
 
 \paragraph{Finnish} \todo{Rerun the tests and rewrite this whole section!} For the Finnish grammar, we did not have time to investigate all the
