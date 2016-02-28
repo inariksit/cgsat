@@ -17,18 +17,39 @@ The results are shown in table~\ref{table:res}.
 \begin{tabular}{|l|l|l|l|}
 
 \hline
-              & \textsc{nld}  & \textsc{spa}  & \textsc{fin}  \\ \hline
-\# rules      & 59              & 279      & 1185     \\ \hline
-\# readings   & 336             & 2191     & 2012    \\ \hline
-\# conflicts  & 7 (1 + 5 + 1)   & 1        & 51    \\ \hline
-\clock{} all rules       & ??s              & ??min ??s    & ?h ??min    \\ \hline
-\clock{} last rule       & ??s              & ??s          & ?min ??s    \\ \hline
+                   & \textsc{nld}  & \textsc{spa}lem  & \textsc{spa}nolem \\ \hline
+\# rules           & 59            & 279       & 279     \\ \hline
+\# readings        & 336           & 3905      & 1735    \\ \hline
+\# conflicts       & 7             & n         & m    \\ \hline
+\clock{} all rules & ??s           & + 1h      & 30m-1h   \\ \hline
+\clock{} last rule & ??s           & ??s       & ?min ??s    \\ \hline
+\clock{} all rules 
+without ambiguity 
+classes            & 10ish sec       & ??min ??s    & ?h ??min    \\ \hline
 
 %\# variables: last rule & 33915         & 247153            &    \\ \hline
 
 \end{tabular}
 \caption{\todo{make more tables}}
 \label{table:res}
+\end{table}
+
+\begin{table}[]
+\centering
+\begin{tabular}{|l|l|l|l|}
+
+\hline
+              & n clitics & m clitics & only underspecified \\ \hline
+\# rules      & 1185      & 1185      & 1185\\ \hline
+\# readings   & many & more & only like <2000   \\ \hline
+\# conflicts  & n   & m        & super many    \\ \hline
+\clock{} all rules       & ??s              & ??min ??s    & ?h ??min    \\ \hline
+\clock{} last rule       & ??s              & ??s          & ?min ??s    \\ \hline
+
+
+\end{tabular}
+\caption{Special table for Finnish}
+\label{table:resFin}
 \end{table}
 
 \paragraph{Accuracy} 
@@ -160,7 +181,16 @@ This is actually a shortcoming of our way of handling the lemmas. If the lemmas 
 
 
 
-\paragraph{Finnish} \todo{Rerun the tests and rewrite this whole section!} For the Finnish grammar, we did not have time to investigate all the
+\paragraph{Finnish} 
+\todo{Rerun the tests and rewrite this whole section!} 
+
+The results for the Finnish grammar are shown separately, in table~\ref{table:resFin}.
+We were not able to use the method with ambiguity classes at all---expanding the Finnish morphological lexicon results in \todo{100s of gigabytes?} of word forms, which is simply too big for our method to work. 
+For future development, we will see if it is possible to manipulate the finite automata directly, instead of relying on the output in text.
+
+In addition to the previous problem, we had a large number of readings. In order to make the test run faster, we tried a few shortcuts. First, we restricted the amount of clitics per word form, and even ignored all the specified readings
+
+For the Finnish grammar, we did not have time to investigate all the
 results. We could verify approximately \nicefrac{1}{3} as true positives and
 \nicefrac{1}{3} as false positives.
 The verified true positives were all rule-internal conflicts. 
