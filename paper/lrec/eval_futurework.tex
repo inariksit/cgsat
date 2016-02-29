@@ -9,7 +9,14 @@ with 279 rules; and
 Finnish\footnote{\url{https://github.com/flammie/omorfi/blob/master/src/vislcg3/omorfi.cg3}},
 with 1185 rules. We left out \textsc{add}, \textsc{map} and other rule
 types introduced in CG-3, and only tested \textsc{remove} and \textsc{select} rules.
-The results are shown in table~\ref{table:res}. 
+The results for Dutch and Spanish are shown in table~\ref{table:res},
+and the results for Finnish in table~\ref{table:resFin}.
+
+A natural follow-up evaluation would be to compare the performance of the
+grammar in the original state, and after removing the conflicts found
+by our tool. Unfortunately, we were not able to perform such
+evaluation, due to the lack of available gold standard corpora for all
+the languages.
 
 
 \begin{table}[]
