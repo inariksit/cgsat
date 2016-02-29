@@ -25,9 +25,14 @@
 
 
 \abstract{
-We describe a method for analysing Constraint Grammars by encoding the
-rules in SAT.
-Our tools can detect internal conflicts or redundancies in a grammar,
+We describe a method for analysing and improving Constraint Grammars (CG).
+% by encoding the rules in SAT.
+Traditional CG engines execute the rules in an imperative and
+sequential manner, which makes it impossible to track interaction
+between rules.
+In contrast, we represent CG rules as logic constraints, which
+can then be tested for contradictions and inconsistencies.
+Our tool can detect internal conflicts or redundancies in a grammar,
 as well as generate examples to demonstrate the effect of some rule or
 rule set.
 This can help users to diagnose and improve their grammars.
