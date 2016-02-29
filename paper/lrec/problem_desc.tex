@@ -87,9 +87,9 @@ Given the rules in figure~\ref{infrules}, a grammar writer may ask the following
 
 \begin{itemize}
 \item Are all the rules distinct? (e.g. \texttt{Para} and \texttt{De} may be included in \texttt{Prep})
-\item Could two or more rules be merged? (e.g. \texttt{SELECT Inf IF -1 Prep OR Vai OR Vbmod ...})
+\item Can two or more rules be merged? (e.g. \texttt{SELECT Inf IF (-1C Prep OR Vai OR Vbmod ...)})
 \item What is the best order for the rules?
-\item Generate a sequence that triggers rule(s) $R$ but not rule(s) $R'$. 
+\item Generate a sequence that triggers rules $R$ but not rules $R'$. 
 \end{itemize}
 
 %%%%%
@@ -97,13 +97,13 @@ Given the rules in figure~\ref{infrules}, a grammar writer may ask the following
 For the second use case, here are examples of conflicts that our tool will detect.
 \begin{itemize}
 \item If a rule appears twice, the second occurrence will be disabled by the first
-\item $R$ selects something in a context, $r$ removes~it
+\item $r$ selects something in a context, $r'$ removes~it
 \item $R$ removes something from the context of $r$, so $r$ can never
   apply
 \item $r$ has an internal conflict, such as non-existent
 tag combination, or contradictory requirements for a context word
 \end{itemize}
-$R$ can be one rule or a set of rules: for instance, if one rule removes a verb in
+$R$ can be a single rule or a set of rules: for instance, if one rule removes a verb in
 context $C$, and another in context $\neg C$, together these rules
 remove a verb in all possible cases, disabling any future rule that
 targets verbs.
@@ -118,21 +118,30 @@ care of rule interaction requires a {\em semantic} rather than a {\em
 % text from limited domains. 
 We must keep track of all the possible sentences after applying each
 rule. At each step, we have two options: either the rule fires,
-or it does not fire. In case the rule does not fire, we have again two
-options: either its conditions are not met,
-or its target is the only remaining analysis. This results in a complex table
+or it does not fire. In case the rule does not fire, we have two
+reasons why not: one or more of its conditions does not hold, or its
+target is the only remaining analysis. The result is a complex table
 of interdependent decisions---some determined by being the target of a
 rule, others by being a condition.
 
 We express these constraints as a \emph{Boolean satisfiability problem} (SAT).
-SAT problems consist of two components: a set of Boolean variables, and a set
-of clauses on those variables. For instance, let the set be $\{a,b\}$
-and the formulas $\{a \vee b, \neg{}a\}$. A program called \emph{SAT
-  solver} will try to find a solution, where all the variables have a
-value. For this particular problem, the unique solution is $a=False,
-b=True$. It is also possible for a SAT problem to have no solution, or
-multiple solutions.
+A SAT-problem consists of two components: a set of Boolean variables, and a set
+of clauses on those variables. For instance, let the set ov variables
+be $\{a, b\}$ and the formulas $\{a \vee b, \neg{}a\}$. A program called
+\emph{SAT-solver} will try to find a solution, where all the variables
+are replaced by a Boolean value. For this particular problem, the
+unique solution is $\{a=False, b=True\}$, but it is also possible for a
+SAT-problem to have no solution or multiple solutions.
+In the case of CG analysis, the model we build is a \emph{sentence},
+which starts as potentially anything, and is being shaped by all the
+rules along the way. This is how we can generate possible inputs, as
+well as check if the grammar is internally consistent.
 
+The paper is structured as follows. Section~\ref{sec:prev} relates our
+work to the previous research. 
+Section~\ref{sec:implementation} discusses the implementation more in depth, and
+Section~\ref{sec:eval} presents preliminary results. 
+Section~\ref{sec:conclusion} discusses future work and concludes the paper.
 
 
 %these possibilities as SAT variables, and ask for a solution: ``after all
@@ -155,7 +164,7 @@ multiple solutions.
 % Constraints for the structure of the sequences come from the CG rules themselves.
 % We encode both of these constraints as a satisfiability problem, and use a SAT-solver to generate answers to the previous questions.
 
-%The paper is structured as follows. Section~\ref{sec:prev} relates our work to the previous research. 
+
 % Section~\ref{sec:implementation} discusses the implementation, 
 % Section~\ref{sec:eval} presents preliminary results and discusses future work. 
 %Section~\ref{sec:conclusion} concludes the paper.

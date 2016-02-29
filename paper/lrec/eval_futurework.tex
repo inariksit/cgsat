@@ -253,8 +253,8 @@ We believe we can still signifcantly improve the performance of the SAT-encoding
 %  The majority of the correctly detected errors in the Finnish grammar were rule-internal---these errors don't need the context of the other rules at all.
 
 
-\section{Future work}
-
+\section{Future work and conclusions}
+\label{sec:conclusion}
 
 Our solution to hardcode the tag combinations in the readings is feasible for simple morphology, but it can cause problems with more complex morphology. One big downside is that in order to implement \textsc{ADD}, \textsc{ADDREADING} and \textsc{MAP}, we need to be prepared for new readings--even if the lexicon gives all readings that exist in the lexicon, the user might give a nonexistent reading, or in the case of MAP, a syntactic tag, which is (by definition) not in the lexicon. A more scalable solution would be to make each tag a variable, and ask the question ``can this reading be a noun? how about singular? how about conditional?'' separately for each tag. Then we could lift the restriction of tag combinations into a SAT solver: make SAT clauses that prohibit a comparative to go with a verb, or conditional with a noun.
 Another benefit of this solution is the addition of lemmas and word forms, as well as regular expressions: currently, if we want to add one more lemma for a verb, we need to create as many new variables as there are distinct verb forms---easily hundreds for languages with rich morphology.
