@@ -12,29 +12,45 @@ import Text.Regex
 data Tag = Tag String | Lem String | WF String | Subreading Subpos Tag |
            {-Rgx Regex String | -} EOS | BOS 
 
-data Subpos = FromStart Integer | FromEnd Integer | Wherever deriving (Eq)
+data Subpos = FromStart Integer | FromEnd Integer | Wherever
 
 instance Show Subpos where
   show (FromStart n) = show n
   show (FromEnd   n) = show (-n)
   show Wherever = "*"
 
+instance Eq Subpos where
+  Wherever    == anywhere    = True
+  anywhere    == Wherever    = True
+  FromStart n == FromStart m = n==m
+  FromEnd   n == FromEnd   m = n==m
+  _           == _           = False
+
+
 --because Regex has no Eq instance
 instance Eq Tag where
+  Subreading s t == Subreading s' t' = s==s' && t==t'
   foo == bar = show foo == show bar
 
 -- | Wordform should be first element in an analysis.
 instance Ord Tag where
-  WF word `compare` WF word' = word `compare` word'
-  WF _    `compare` _        = LT
-  _       `compare` WF _     = GT
-  Lem lem `compare` Lem lem' = lem `compare` lem'
-  Lem lem `compare` Tag tag  = GT
-  Tag tag `compare` Lem lem  = LT
+  BOS `compare` _   = GT
+  EOS `compare` BOS = LT
+  EOS `compare` _   = GT 
+  WF word `compare` WF word'  = word `compare` word'
+  WF _    `compare` _         = LT
+  _       `compare` WF _      = GT
+  Lem lem `compare` Lem lem'  = lem `compare` lem'
+  Lem lem `compare` Tag tag   = GT
+  Tag tag `compare` Lem lem   = LT
 
-  Tag tag `compare` Tag tag' = tag `compare` tag'
+  Tag tag `compare` Tag tag'  = tag `compare` tag'
 --  Rgx _ s `compare` Rgx _ s' = s `compare` s'
-  foo     `compare` bar      = show foo `compare` show bar
+  Subreading _ t `compare` 
+       Subreading _ t'        = t `compare` t'
+  Subreading _ t `compare` t' = t `compare` t'
+  t `compare` Subreading _ t' = t `compare` t'
+  foo `compare`bar = error ("compare: " ++ show foo ++ show bar)
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
@@ -42,7 +58,7 @@ instance Show Tag where
   show (Lem str) = "\"" ++ str ++ "\""
 --  show (Rgx _r s) =  "\"" ++ s ++ "\"r"
   show (Tag str) = str
-  show (Subreading n tag) = "+" ++ show n ++ "_" ++ show tag
+  show (Subreading n tag) = show n ++ "+" ++ show tag
   show BOS       = ">>>"
   show EOS       = "<<<"
 

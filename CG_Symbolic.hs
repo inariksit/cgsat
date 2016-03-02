@@ -231,12 +231,11 @@ apply s allinds sentence rule = do
 
            condsHold <- orl' s cs
            let trgPos   = mapMaybe   (lu' word) trgIndsList
-
            let otherNeg = map (neg . lu word) (IS.toList otherInds)
 
            someTrgIsTrue <- orl' s trgPos 
            noOtherIsTrue <- andl' s otherNeg
-           onlyTrgLeft <- andl' s [someTrgIsTrue, noOtherIsTrue]
+           onlyTrgLeft <- andl' s [ someTrgIsTrue, noOtherIsTrue ]
            cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
 
            newTrgLits <- sequence
@@ -394,6 +393,7 @@ mkTagMap ts tcs = M.fromList $
                    ts `for` \t -> let getInds = IS.fromList . map (1+) . findIndices (elem t)
                                   in (t, getInds tcs) 
 
+                            -- [[Tag]],[[Tag]]
 lookupTag :: TagMap -> WIndSet -> (Trg,Dif) -> (WIndSet,WIndSet)
 lookupTag alltags allinds (trg,dif) = 
   let trgInds = if trg==[[]] then allinds --this means IF (-1 (*))
