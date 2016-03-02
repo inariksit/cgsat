@@ -147,18 +147,22 @@ In the previous section, we have created realistic \emph{readings}, by simply ha
 \begin{tabular}{c|c|c|c|c}
 
 
-            & n nt sg  & n f pl  &  vblex sep inf & det pos mfn  \\ \hline
-uitgaven    & 0        & 1       & 1              & 0    \\ 
-toespraken  & 0        & 1       & 1              & 0    \\ 
-haar        & 1        & 0       & 0              & 1    \\ 
+            & n nt sg  & n f pl  & vblex sep inf & det pos mfn  \\ \hline
+uitgaven    & 0        & 1       & 1             & 0    \\ 
+toespraken  & 0        & 1       & 1             & 0    \\ 
+haar        & 1        & 0       & 0             & 1    \\ 
 
 
 \end{tabular}
 \end{center}
 
 We solve the problem by creating \emph{ambiguity classes}: groups of analyses that can be ambiguous with each other. 
-We represent the expanded morphological lexicon as a matrix, as seen in figure~\todo{make a nice picture with rows and columns}: word forms on the rows and analyses on the columns. Each distinct row forms an ambiguity class. For example, the ambiguity class \verb![1257,496,16]! %TODO better description
-contains masculine plural adjectives and masculine plural past participles.
+We represent the expanded morphological lexicon as a matrix, as seen
+above: word forms on the rows and analyses on the columns. Each
+distinct row forms an ambiguity class. For example, one class may
+contain words that are ambiguous between plural feminine nouns and
+separable verb infinitives; another contains masculine plural adjectives 
+and masculine plural past participles.
 Then we form SAT clauses that allow or prohibit certain combinations. These clauses will interact with the constraints created from the rules, and the end result will be closer to real-life sentences.
 
 Our approach is similar to \newcite{cutting_etal92}, who use ambiguity classes instead of distinct word forms, in order to reduce the number of parameters in a Hidden Markov Model. They take advantage of the fact that they don't have to model ``bear'' and ``wish'' as separate entries, but they can just reduce it to ``word that can be ambiguous between noun and verb'', and use it as a parameter in their HMM. 
