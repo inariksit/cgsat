@@ -68,7 +68,7 @@ instance Show Rule' where
 --We call this once for every rule, lookupTag does some expensive intersections and stuff
 --Also many rules share targets and conditions--can we save the results?
 ruleToRule' :: TagMap -> IS.IntSet -> Rule -> Rule'
-ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
+ruleToRule' tagmap allinds rule = R trget conds isSel nm
  where
   nm = show rule
   isSel = isSelect rule
@@ -76,11 +76,12 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
   lu = lookupTag tagmap allinds
   (trgs,difs) = unzip $ toTags $ target rule
 
-  -- TODO: should it work for `Det - Zijn OR Foo - Bar'?
-  -- Concatting the difs won't do the trick there.
-  -- This is properly handled in mkCond (two nested lists).
-  -- Will fix if I see a grammar rule that has disjoint diffs in target.
-  trgInds = lu (concat trgs, concat difs)
+  -- TODO: will this work for `Det - Zijn OR Foo - Bar'?
+  -- unions will just merge everything together and ignore the difInds.
+  -- Note that mkCond handles this properly, with two nested lists.
+  -- Will look into it if I see a grammar rule that has disjoint diffs in target.
+  (trgInds,difInds) = unzip [ lu (trg,dif) | (trg,dif) <- toTags $ target rule ]
+  trget = (IS.unions trgInds, IS.empty)
 
   conds = (map.map) condToCond' (toConds $ cond rule)
 
@@ -90,7 +91,7 @@ ruleToRule' tagmap allinds rule = R trgInds conds isSel nm
   condToCond' Always = Always'
           
 --------------------------------------------------------------------------------
-testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
+testRule :: (Bool,Bool) -> (Form,[[Int]]) -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
 testRule (verbose,debug) form rds (lastrule,rules) = do
 
   let allwidths@((firstW,firstTrg):otherwidths) = width $ cnd lastrule
@@ -113,9 +114,9 @@ testRule (verbose,debug) form rds (lastrule,rules) = do
 
 
 
-testRule' :: Bool -> Form -> [[Tag]] -> (Rule', [Rule']) 
+testRule' :: Bool -> (Form,[[Int]]) -> [[Tag]] -> (Rule', [Rule']) 
           -> (Int,SIndex) -> IO Conflict
-testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
+testRule' debug (form,acls) readings (lastrule,rules) (w,trgSInd) = do
   --print (w,trgSInd)
 
   let tagInds = IS.fromList [1..length readings]
@@ -123,10 +124,12 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
 
   s <- newSolver
   initialSentence <- mkSentence s w readings
+  defaultRules s initialSentence
 
-  afterRules <- foldM (apply s tagInds) initialSentence rules
 
-  defaultRules s afterRules
+  afterRules <- foldM (apply s tagInds acls) initialSentence rules
+
+--  defaultRules s afterRules
 
   let shouldTriggerLast s sentence = do
         let trgSWord = fromMaybe (error "shouldTriggerLast: no trg index found") (IM.lookup trgSInd sentence)
@@ -162,7 +165,7 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
         return (mht, mho, ach)
 
   (mustHaveTrg, mustHaveOther, allCondsHold) <- shouldTriggerLast s afterRules
-  
+
   b <- solve s [mustHaveTrg, mustHaveOther, allCondsHold]
   if b 
     then do 
@@ -172,8 +175,8 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
       return NoConf
 
     else do
-      when debug $ do 
-      --when False $ do 
+      --when debug $ do 
+      when False $ do 
         putStrLn "-------"
         putStrLn $ "Rule " ++ show lastrule ++":"
         putStrLn "could not solve with previous, trying to loosen requirements:"
@@ -197,6 +200,7 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
       deleteSolver s'
       if b' then return $ With rules
               else return Internal
+              
 
  where
   defaultRules s sentence = 
@@ -208,8 +212,10 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
 --------------------------------------------------------------------------------
 
 
-apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
-apply s allinds sentence rule = do
+--apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
+--apply s allinds sentence rule = do
+apply :: Solver -> WIndSet -> [[Int]] -> Sentence -> Rule' -> IO Sentence
+apply s allinds acls sentence rule = do
   --putStrLn ("apply " ++ show rule)
   let (trgIndsRaw,_) = trg rule -- :: IntSet
   let otherIndsRaw   = allinds IS.\\ trgIndsRaw
@@ -256,7 +262,6 @@ apply s allinds sentence rule = do
            let newsw = foldl changeAna word (zip trgIndsList newTrgLits)
            return $ changeWord sentence i newsw
            
-
   foldM applyToWord sentence (IM.assocs sentence)
 
  where
@@ -278,20 +283,27 @@ mkConds s allinds sentence trgind disjconjconds str = do
   -- * call mkCond with arguments of type (Condition, [SIndex])
   -- * in mkCond, sometimes we can get away with a big orl that contains literals
   --    from different symbolic words, but with cautious or negation, can't do that
-  let debug = str=="testRule" 
+  let debug = False --str=="testRule" 
 
   let conds_absinds = [ [ (cond, absinds) | cond <- nub conjconds 
                                           , let absinds = absIndices trgind cond 
                                           , not (null absinds) ] --TODO test with NOT!!!!
                         | conjconds <- disjconjconds ]
 
-  if null conds_absinds || all null conds_absinds
+  if allCondsInScope disjconjconds conds_absinds
+--if null conds_absinds || all null conds_absinds
    then do when debug $ 
-            do putStrLn $ "conds_absinds (calling from " ++ str ++ "):"
-               mapM_ print disjconjconds
+            do putStrLn $ "conds_absinds all in scope! (calling from " ++ str ++ "):"
+               --mapM_ print disjconjconds
+               mapM_ (mapM_ print) conds_absinds
+               putStrLn "-----"
+           Just `fmap` mapM (mkCond s allinds sentence str) conds_absinds
+   else do when debug $ 
+            do putStrLn $ "conds_absinds not null (calling from " ++ str ++ "):"
+               mapM_ (mapM_ print) conds_absinds
                putStrLn "-----"
            return Nothing  --when called from apply, it is expected to not match sometimes
-   else Just `fmap` mapM (mkCond s allinds sentence str) conds_absinds
+
   
  where
   absIndices :: SIndex -> Condition' -> [SIndex]
@@ -300,13 +312,19 @@ mkConds s allinds sentence trgind disjconjconds str = do
                                    in filter (member sentence) possibleInds
   absIndices i Always'           = [i]
 
+  allCondsInScope :: (Show a, Show b) => [[a]] -> [[b]] -> Bool
+  allCondsInScope []     []     = True
+  allCondsInScope (a:as) (b:bs) = length a == length b && allCondsInScope as bs
+  allCondsInScope foo    bar    = error ("allCondsInScope: " ++ show foo ++ ", " ++ show bar) -- False
+ 
 
-mkCond :: Solver -> WIndSet -> Sentence -> String -> [(Condition',[SIndex])] -> IO Lit
+mkCond :: Solver -> WIndSet -> Sentence -> String 
+       -> [(Condition',[SIndex])] --[(one condition, all possible indices where it can happen)]
+       -> IO Lit                  -- needs to happen in only one ind; that's the orl' 2 lines down!
 mkCond s allinds sentence str conjconds_absinds = do 
-  andl' s =<< sequence [ orl s "" =<< sequence
+  andl' s =<< sequence [ orl' s  =<< sequence
                          [ go cond absind | absind <- absinds ] 
-                         | (cond,absinds) <- conjconds_absinds ]
-
+                          | (cond,absinds) <- conjconds_absinds ]
  where
   lookup' :: Bool -> SIndex -> WIndSet -> [Lit]
   lookup' b ai is = case IM.lookup ai sentence of
@@ -379,9 +397,11 @@ mkCond s allinds sentence str conjconds_absinds = do
 mkSentence :: Solver -> Int -> [[Tag]] -> IO Sentence
 mkSentence s w tcs = IM.fromList `fmap` sequence 
                        [ ((,) n . IM.fromList) `fmap` sequence 
-                         [ (,) m `fmap` newLit s (showReading t n) | (m, t) <- zip [1..] tcs ]
+                         [ (,) m `fmap` newLit s (showReading t n m) | (m, t) <- zip [1..] tcs ]
                             | n <- [1..w] ] 
- where showReading ts i = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
+ where
+  showReading [l] _ m = show l ++ "_" ++ show m
+  showReading ts i m  = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
 
 mkTagMap :: [Tag] -> [[Tag]] -> TagMap
 mkTagMap ts tcs = M.fromList $
@@ -489,7 +509,9 @@ parse str = maintags ++ concat subtags
   toTag ">>>" = BOS
   toTag "<<<" = EOS
   toTag []    = error "empty tag"
-  toTag str = if last str=='>' then Tag (init str) else Lem str
+  toTag str = if last str=='>' then Tag (init str) 
+                else if last str=='$' then WF (init str)
+                                      else Lem str
 
 split :: (a -> Bool) -> [a] -> [[a]]
 split p [] = []
