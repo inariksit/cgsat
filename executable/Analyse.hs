@@ -60,7 +60,7 @@ main = do
   let allinds = IS.fromList [1..length readings]
   abcd_ambcls <- do ambclauses <- readFile "data/abcd-ambiguity-classes" 
                     let xss  = map read (lines ambclauses) :: [[Int]]
-                    return $ (formula xss , xss)
+                    return $ formula xss
   let verbose = (True,True)
 
   case args of 
@@ -77,28 +77,28 @@ main = do
 
     let kimmo_i' = map (ruleToRule' tagmap allinds) kimmo_implicit
     putStrLn "testing with implicit kimmo WITHOUT ambiguity classes"
-    mapM_ (testRule verbose (formula [[]], [[]]) readings) (splits (reverse kimmo_i'))
+    mapM_ (testRule verbose (formula [[]]) readings) (splits (reverse kimmo_i'))
 
 
    (lang:fromStr:toStr:r)-> do 
 
     let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
 
-    let subr = if "nosub" `elem` r then "nosub" else "withsub"
+    let subr = if "nosub" `elem` r then ".nosub" else ".withsub"
+    let lhack = if "lemmahack" `elem` r then ".lemmahack" else ""
     let withambcls = "ambcls" `elem` r
     let withunders = "undersp" `elem` r
-
+ 
     let dirname = "data/" ++ lang ++ "/" 
     let grfile  = dirname ++ lang ++ ".rlx"
     let tagfile = dirname ++ lang ++ ".tags"
-    let rdsfile = dirname ++ lang ++ ".readings." ++ subr
+    let rdsfile = dirname ++ lang ++ ".readings" ++ subr ++ lhack
     ambcls <- if withambcls 
-                then do let acfile = dirname ++ lang ++ "-ambiguity-classes"
+                then do let acfile = dirname ++ lang ++ ".ambiguity-classes" ++ lhack
                         ambclauses <- readFile acfile
                         let xss  = map read (lines ambclauses) :: [[Int]]
-                        return $ (formula xss, xss)
-                  else return $ (formula [[]], [[]])
-
+                        return $ formula xss
+                  else return $ formula [[]]
 
     let from = read fromStr
     let to   = read toStr
@@ -117,7 +117,7 @@ main = do
     let tags = nub $ tagsInLex ++ concat readings
 
     --print (length readings, length (filter (not.null) readings))
-    --mapM_ print tags
+    mapM_ print tags
 
     let tagmap = mkTagMap tags readings
     let allinds = IS.fromList [1..length readings]
@@ -160,7 +160,7 @@ main = do
 
     when (null rs_cs) $ putStrLn "no conflicts, hurra!"
 
-
+--}
 
    _ -> print "usage: cabal analyse <3-letter language name> [v,d]"
 

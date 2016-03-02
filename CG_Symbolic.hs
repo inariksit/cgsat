@@ -91,7 +91,7 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
   condToCond' Always = Always'
           
 --------------------------------------------------------------------------------
-testRule :: (Bool,Bool) -> (Form,[[Int]]) -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
+testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
 testRule (verbose,debug) form rds (lastrule,rules) = do
 
   let allwidths@((firstW,firstTrg):otherwidths) = width $ cnd lastrule
@@ -114,9 +114,9 @@ testRule (verbose,debug) form rds (lastrule,rules) = do
 
 
 
-testRule' :: Bool -> (Form,[[Int]]) -> [[Tag]] -> (Rule', [Rule']) 
+testRule' :: Bool -> Form -> [[Tag]] -> (Rule', [Rule']) 
           -> (Int,SIndex) -> IO Conflict
-testRule' debug (form,acls) readings (lastrule,rules) (w,trgSInd) = do
+testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
   --print (w,trgSInd)
 
   let tagInds = IS.fromList [1..length readings]
@@ -127,7 +127,7 @@ testRule' debug (form,acls) readings (lastrule,rules) (w,trgSInd) = do
   defaultRules s initialSentence
 
 
-  afterRules <- foldM (apply s tagInds acls) initialSentence rules
+  afterRules <- foldM (apply s tagInds) initialSentence rules
 
 --  defaultRules s afterRules
 
@@ -212,10 +212,8 @@ testRule' debug (form,acls) readings (lastrule,rules) (w,trgSInd) = do
 --------------------------------------------------------------------------------
 
 
---apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
---apply s allinds sentence rule = do
-apply :: Solver -> WIndSet -> [[Int]] -> Sentence -> Rule' -> IO Sentence
-apply s allinds acls sentence rule = do
+apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
+apply s allinds sentence rule = do
   --putStrLn ("apply " ++ show rule)
   let (trgIndsRaw,_) = trg rule -- :: IntSet
   let otherIndsRaw   = allinds IS.\\ trgIndsRaw
@@ -234,21 +232,9 @@ apply s allinds acls sentence rule = do
            condsHold <- orl' s cs
            let trgPos   = mapMaybe   (lu' word) trgIndsList
 
-           --This is probably a bad idea--just brainstormed that what if we do ambiguity class constraints here.
-           --Doesn't compile, don't bother commenting out.
-           {-let allowedAmbiguities = 
-              [ do Just trgLit <- lu' word trgInd
-                   canBeAmbiguousWithTarget <- mapMaybe (lu' word) possibleAmbiguities
-                   allowedAmb <- implies ("if target is " ++ show trgLit ++ ", it can be ambiguous with ...")
-                                         trgLit
-                                         (map neg (TODO complement of canBeAmbiguousWithTarget))
-
-                | trgInd <- trgIndsList
-                , let possibleAmbiguities = findPossibleAmbiguities trgInd ]-}
-
            let otherNeg = map (neg . lu word) (IS.toList otherInds)
 
-           someTrgIsTrue <- orl' s trgPos --trgPosWithAmbclassConstraints --TODO make trgPosWith... to include relevant stuff
+           someTrgIsTrue <- orl' s trgPos 
            noOtherIsTrue <- andl' s otherNeg
            onlyTrgLeft <- andl' s [someTrgIsTrue, noOtherIsTrue]
            cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
