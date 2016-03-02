@@ -2,11 +2,11 @@
 \label{sec:eval}
 
 We tested three grammars to find conflicting rules: 
-Dutch\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-nld/apertium-nld.nld.rlx}},
+Dutch\footnote{\scriptsize{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-nld/apertium-nld.nld.rlx}}},
 with 59 rules; 
-Spanish\footnote{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}},
+Spanish\footnote{\scriptsize{\url{https://svn.code.sf.net/p/apertium/svn/languages/apertium-spa/apertium-spa.spa.rlx}}},
 with 279 rules; and 
-Finnish\footnote{\url{https://github.com/flammie/omorfi/blob/master/src/vislcg3/omorfi.cg3}},
+Finnish\footnote{\scriptsize{\url{https://github.com/flammie/apertium-fin/raw/master/apertium-fin.fin.rlx}}},
 with 1185 rules. We left out \textsc{add}, \textsc{map} and other rule
 types introduced in CG-3, and only tested \textsc{remove} and \textsc{select} rules.
 The results for Dutch and Spanish are shown in table~\ref{table:res},
@@ -15,7 +15,7 @@ and the results for Finnish in table~\ref{table:resFin}.
 A natural follow-up evaluation would be to compare the performance of the
 grammar in the original state, and after removing the conflicts found
 by our tool. Unfortunately, we did not have time to perform such
-evaluation, and in addition, we only have gold standard corpus (20~000) words for Spanish.
+evaluation, and in addition, we only have gold standard corpus (20~000~words) for Spanish.
 
 
 
@@ -27,36 +27,22 @@ evaluation, and in addition, we only have gold standard corpus (20~000) words fo
                    & \textsc{nld}  & \textsc{spa}lem  & \textsc{spa}nolem \\ \hline
 \# rules           & 59            & 279       & 279     \\ \hline
 \# readings        & 336           & 3905      & 1735    \\ \hline
-\# conflicts       & 7             & n         & m    \\ \hline
-\clock{} all rules & ??s           & + 1h      & 30m-1h   \\ \hline
+\# true positives  & 7             & n         & m    \\ \hline
+\# false positives & 0             & n         & m    \\ \hline
+\clock{} with amb. 
+           classes & ??s           & + 1h      & 30m-1h   \\ \hline
 % \clock{} last rule & ??s           & ??s       & ?min ??s    \\ \hline
 \clock{} no amb. 
-classes            & 10ish sec       & ??min ??s    & ?h ??min    \\ \hline
+           classes & 10ish sec       & ??min ??s    & ?h ??min    \\ \hline
 
 %\# variables: last rule & 33915         & 247153            &    \\ \hline
 
 \end{tabular}
-\caption{\todo{make more tables}}
+\caption{Results for Dutch and Spanish grammars.}
 \label{table:res}
 \end{table}
 
-\begin{table}[]
-\centering
-\begin{tabular}{|l|l|l|l|}
 
-\hline
-              & n clitics & m clitics & only underspecified \\ \hline
-\# rules      & 1185      & 1185      & 1185\\ \hline
-\# readings   & many & more & only like <2000   \\ \hline
-\# conflicts  & n   & m        & super many    \\ \hline
-\clock{} all rules       & ??s              & ??min ??s    & ?h ??min    \\ \hline
-\clock{} last rule       & ??s              & ??s          & ?min ??s    \\ \hline
-
-
-\end{tabular}
-\caption{Special table for Finnish}
-\label{table:resFin}
-\end{table}
 
 
 The experiments revealed problems in all grammars. For the smaller
@@ -67,14 +53,12 @@ true positives.
 % investigate all of them, but among those we could, we found both true and false negatives.
 We did not systematically check for false negatives in any of the
 grammars, but we kept track of a number of known tricky cases; mostly
-rules that had been false positives in earlier stages of the
-development, and other rules with similar patterns, as well as rules
-with negations.
+rules with negations and complex set operations.
 %While this does not guarantee the lack of false negatives, it indicates some degree of reliability. 
-As the tool matures and we add
-new features, a more in-depth analysis will be needed.
+As the tool matures and we add new features, a more in-depth analysis
+will be needed.
 
-\paragraph{Dutch} The Dutch grammar had two kinds of errors: rule-internal, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in 2 rules as the main reading. 
+\subsection{Dutch} The Dutch grammar had two kinds of errors: rule-internal, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in 2 rules as the main reading. 
 
 There was one genuine conflict with rule interaction, shown below:
 
@@ -134,13 +118,19 @@ requirement, but used correctly: the intended semantics was indeed
 that the adjective and the adverb are in different readings. However,
 in this case, the precise way to express the target is \texttt{SELECT DetPos + "zijn"}.
 
+We found the same kind of definitions in many other rules and grammars.
+To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used, and automatically construct a version of the rule that moves whatever tags in the 0-condition into the target, then asks the user which one was meant.
+
 % In the latter case, the grammar writer would hopefully notice the imprecise definition and change their definition. However, this is more of a happy side effect than intended feature---the grammar writer cannot count on our tool to notice all similar cases.
 
-\paragraph{Spanish} The Spanish grammar had proportionately the highest number of errors. \todo{confirm; I assume this is gonna be so, but let's see Fin and Por}.  The grammar we ran is like the one found in the Apertium repository, apart from 2 changes: we fixed some typos (capital O for 0) in order to make it compile, and commented out two rules that used regular expressions, because our solution does not handle them properly (see more on Future work/Implementation).
+\subsection{Spanish} The Spanish grammar had proportionately the
+highest number of errors. The grammar we ran is like the one
+found in the Apertium repository, apart from two changes: we fixed
+some typos (capital O for 0) in order to make it compile, and
+commented out two rules that used regular expressions, because our
+solution does not handle them properly; see more on Section~\ref{sec:conclusion}.
 
 Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are \todo{n} rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. It is likely that this grammar has been written for an earlier version, where such tag has been in place.
-
-
 
 
 The Spanish grammar has a high number of interaction conflicts, \todo{n} with the same pattern:
@@ -158,22 +148,25 @@ specific. Negated context works as well to make a rule stricter. The
 second rule will never apply, because the first will catch all
 cases. For a full list of found conflicts, see \todo{\url{actual://link.here/spanish/error.log}}
 
-In addition, there was a number of definitions that were never
-used. The program doesn't currently point them out to the user, but
-that is a trivial addition; just like rule-internal conflicts, it does
-not require any semantic analysis. 
-We also discovered problems in some set definitions, when we tried to
-use the set definitions from the grammar directly as our readings.
+In addition, there was a number of set definitions that were never
+used. Since VISL CG-3 already points out unused sets, we did not add such
+feature in our tool. However, we noticed an unexpected benefit when
+we tried to use the set definitions from the grammar directly as our
+readings: this way, we can discover inconsistencies even in
+set definitions that are not used in any rule.
+%If a set definition is impossible, using it in a rule makes the rule have an internal conflict.
 For instance, the following definition requires the word to be all of
-the listed parts of speech at the same time:
+the listed parts of speech at the same time---the grammar writer meant
+OR instead of +:
 \begin{itemize}
 \item[] 
 \texttt{SET NP\_Member = N + A + Det + PreAdv + Adv + Pron ;}
 \end{itemize}
 
-This particular definition was never used in the rules, so it would not
-have caused a conflict. We noticed it by accident, when the SAT-solver
-offered it in an example sequence that, meant for another rule.
+If it was used in any rule, that rule would have been marked as
+conflicting. We noticed the error by accident, when the program
+offered the reading \texttt{w2<n><np><adj><det><preadv><adv><prn>}
+in an example sequence meant for another rule.
 
 
 As with the Dutch grammar, we ran the tool on individual rules and
@@ -184,10 +177,6 @@ context word should be in the same reading or different readings.
 We observed also cases where the grammar writer has specified desired
 behaviour in comments, but the rule does not do what the grammar
 writer intended. 
-
-We found the same kind of formulation in many other rules and grammars.
-To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used, and automatically construct a version of the rule that moves whatever tags in the 0-condition into the target, then asks the user which one was meant.
-
 
 % \begin{itemize}
 % \item[] 
@@ -225,55 +214,77 @@ To catch them more systematically, we could add a feature that alerts in all cas
 \end{itemize}
 
 The comments make it clear that the first rule is meant to disambiguate between poder and podar, and the second rule between sentir and sentar. But the rule does not mention anything about ``poder'' nor ``sentir''; the SAT-solver gave a triggering sequence without 
+We found the same kind of formulation in many other rules and grammars.
+To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used, and automatically construct a version of the rule that moves whatever tags in the 0-condition into the target, then asks the user which one was meant.
 
 This example shows a shortcoming of our way of handling the lemmas. If
 the lemmas and word forms were integrated to the analyses in a more
 feasible way, then the ambiguity class constraints would create a
-sequence where ``podar'' was ambiguous with ``poder'', instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
+sequence where ``podar'' was ambiguous with ``poder'', only in the
+word worm ``<puedo>'' instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
 
 
+\begin{table*}[t!]
+\centering
+\begin{tabular}{|l|l|l|l|}
+
+\hline
+              & 1 clitic & 2 clitics & readings only from the grammar \\ \hline
+\# readings   & many     & more & \textless{}2000   \\ \hline
+\# true 
+   positives  & n   & m        & o    \\ \hline
+\# false 
+   positives  & p   & q        & super many    \\ \hline
+\clock{}amb.
+      classes & ??s              & ??min ??s    & ?h ??min  \\ \hline
+\clock{}no amb.
+      classes & ??s              & ??s          & ?min ??s  \\ \hline
 
 
-\paragraph{Finnish} 
+\end{tabular}
+\caption{Results for Finnish (1185 rules).}
+\label{table:resFin}
+\end{table*}
 
-\todo{Rerun the tests and rewrite this whole section!} 
+\subsection{Finnish} 
 
 The results for the Finnish grammar are shown separately, in table~\ref{table:resFin}.
 We were not able to use the method with ambiguity classes at all---expanding the Finnish morphological lexicon results in \todo{100s of gigabytes?} of word forms, which is simply too big for our method to work. 
 For future development, we will see if it is possible to manipulate the finite automata directly, instead of relying on the output in text.
 
-In addition to the previous problem, we had a large number of readings. In order to make the test run faster, we tried a few shortcuts. First, we restricted the amount of clitics per word form, and even ignored all the specified readings
+In addition to the previous problem, we had a large number of
+readings. In order to make the test run faster, we used a few shortcuts.
+shortcuts. 
+Firstly, we restricted the amount of clitics per word form, and even
+ignored all the specified readings.
+Secondly, we added ambiguity class constraints for only
+\emph{intraparadigmatic ambiguities}: homonymous wordforms belonging
+to the same lexeme, in a way that is systematic to the whole
+paradigm. We reduced the morphological lexicon to contain only one
+example of each inflection paradigm, and then expanded it: with all
+the clitics, this resulted in \todo{n} word forms. Then we applied the
+normal method of creating the ambiguity classes, and specified some
+default cases manually, such as punctuation and word boundaries.
+Thirdly, we ignored the fully specified readings from the
+lexicon and used only tag combinations from the grammar, as described
+in Section~\ref{sec:realistic_readings}.
 
-The Finnish grammar was the largest and most complex of all the
-grammars we have tested. 
+The results of these three variants are described in
+table~\ref{table:resFin}. As expected, using only readings from the
+grammar resulted in most false positives. 
 
 
+\subsection{Performance} 
+The running time of the grammars goes from seconds to hours. 
+As can be seen from the times, increasing the number of readings
+matters more than increasing the number of rules.
+In addition, the ambiguity class constraints take a long time. 
 
-To improve performance, we ignored the fully specified readings from the
-lexicon and used only tag combinations from the grammar:
-for example, the rule \texttt{REMOVE (verb sg) IF (-1 det)}
-gives us ``verb sg'' and ``det''.
-The shortcut works most of the time, but it is possible to
-miss some cases: e.g. \texttt{SELECT Pron + Rel IF (0 Nom)} 
-may assume ``pron rel nom'' in one reading, but our method only gives
-``pron rel'' and ``nom'' separately. 
-17 false positives were caused by this shortcut. 
-In addition, 2 false positives were caused by the naive implementation of
-rules with \verb!*! in their context.
+However, many of the use cases do not require running the whole
+grammar. Testing the interaction between 5--10 rules takes just
+seconds, regardless of the language. 
 
-Due to these reasons, the results about the Finnish grammar are
-inconclusive. We only include them to show some preliminary data on larger grammars.
-%For a condition situated $n$ or more words to the left or right, we only create a word exactly $n$ words away. This is something to be fixed in the future.
-
-\paragraph{Performance} The speed of the check is an obvious issue,
-especially for the Finnish grammar. 
-As mentioned before, we used 2000 readings extracted from the grammar.
-With the full set of 6000 readings from the lexicon, the speed
-was even worse: checking the last rule took 30 minutes, as opposed to
-3 minutes with 2000 readings. 
-%We never finished running the whole rule set with 6000 readings, but
-%it would have taken potentially days.
-We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimise for speed at all.
+%We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimise for speed at all.
 
 % A Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
 % Around 3700 come from the Apertium morphological lexicon, excluding clitics, and around 2000 are defined in the grammar, as a target (\texttt{REMOVE ("bear" verb) IF ...}) or as a condition (\texttt{REMOVE ... IF (-1 ("bear" noun))}. The majority of them are lexical, whereas we don't include anything but morphological tags from the lexicon.
@@ -291,9 +302,44 @@ We believe we can still signifcantly improve the performance of the SAT-encoding
 \section{Future work and conclusions}
 \label{sec:conclusion}
 
-The evaluation indicates that the tool finds cases that are not
-obvious to the human eye.
+The evaluation indicates that the tool finds conflicts and dead rules
+from actual grammars. We did not have a volunteer to test the tool in
+the process of grammar writing, so we cannot conclude whether the
+constructed examples are useful for getting new insights on the rules.
+However, there are still a number of features to improve and add.
 
+\paragraph{Combining morphological and lexical tags}
+
+Our solution to hardcode the tag combinations in the readings is
+feasible for simple morphology, but it can cause problems with more
+complex morphology.
+Another benefit of this solution is the addition of lemmas and word
+forms, as well as regular expressions: currently, if we want to add
+one more lemma for a verb, we need to create as many new variables as
+there are distinct verb forms---easily hundreds for languages with
+rich morphology.
+This may also be feasible to support regular expressions, in a nicer
+way than just spitting out the regex. (MORE ON THAT)
+
+\paragraph{Full expressivity of CG-3}
+
+In order to implement \textsc{substitute},
+\textsc{add}, \textsc{addreading} and \textsc{map}, we need to be
+prepared for new readings--even if the lexicon gives all readings that
+exist in the lexicon, the user might give a nonexistent reading, or in
+the case of MAP, a syntactic tag, which is (by definition) not in the
+lexicon. A more scalable solution would be to make each tag a
+variable, and ask the question ``can this reading be a noun? how about
+singular? how about conditional?'' separately for each tag. Then we
+could lift the restriction of tag combinations into a SAT solver: make
+SAT clauses that prohibit a comparative to go with a verb, or
+conditional with a noun.
+
+
+% \paragraph{Regular expressions}
+% For rules with regular expressions, this would blow up even more: there are rules that only address whether the word form in a condition starts with a lowercase letter, or whether it ends in a certain suffix. A realistic, albeit unsatisfactory option is just to treat it as an underspecified reading, and offer that same regular expression to the user when generating a symbolic sentence. Another, less feasible, solution is to grep all the word forms or lemmas that match the regular expression in question---in the worst case (e.g. lower case), this will match all the entries in the expanded lexicon.
+
+\paragraph{Support for grammar writers}
 One additional feature is to suggest reformattings for a rule. Recall
 figure~\ref{fig:regroup} from the introduction; in that case, the
 original rule was written by the original author, and another
@@ -302,12 +348,6 @@ reverse operation could also be possible. If a rule with long
 disjunctions conflicts, it may be useful to split it into smaller
 conditions, and eliminate one at a time, in order to find the
 reason(s) for the conflict.
-
-
-
-Our solution to hardcode the tag combinations in the readings is feasible for simple morphology, but it can cause problems with more complex morphology. One big downside is that in order to implement \textsc{ADD}, \textsc{ADDREADING} and \textsc{MAP}, we need to be prepared for new readings--even if the lexicon gives all readings that exist in the lexicon, the user might give a nonexistent reading, or in the case of MAP, a syntactic tag, which is (by definition) not in the lexicon. A more scalable solution would be to make each tag a variable, and ask the question ``can this reading be a noun? how about singular? how about conditional?'' separately for each tag. Then we could lift the restriction of tag combinations into a SAT solver: make SAT clauses that prohibit a comparative to go with a verb, or conditional with a noun.
-Another benefit of this solution is the addition of lemmas and word forms, as well as regular expressions: currently, if we want to add one more lemma for a verb, we need to create as many new variables as there are distinct verb forms---easily hundreds for languages with rich morphology.
-\todo{less rambling: For rules with regular expressions, this would blow up even more: there are rules that only address whether the word form in a condition starts with a lowercase letter, or whether it ends in a certain suffix. A realistic, albeit unsatisfactory option is just to treat it as an underspecified reading, and offer that same regular expression to the user when generating a symbolic sentence. Another, less feasible, solution is to grep all the word forms or lemmas that match the regular expression in question---in the worst case (e.g. lower case), this will match all the entries in the expanded lexicon.}
 
 
 As for longer-term goals, we want to handle the full expressivity of CG-3,
@@ -319,6 +359,9 @@ in comparison with a corpus-based method or machine learning.
 Finally, if the method proves feasible for CG, we want
 to try applying it to other grammar formalisms.
 
+\subsection{Conclusions}
+
+It is nice!
 
 % * Preliminary results
 %  - dutch & spanish
