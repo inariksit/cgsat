@@ -36,7 +36,17 @@ test :: IO ()
 test =
   do let xss  = [[1,2,3],[2,3,4],[1,4],[5],[6,7],[3,7]]
          univ = S.toList . S.fromList . concat $ xss
-     
+
+     print univ
+
+     let acfile = "data/spa/spa-ambiguity-classes-hackylemmas"
+     ambclauses <- readFile acfile
+     let xss'  = map read (lines ambclauses) :: [[Int]]
+         univ' = S.toList . S.fromList . concat $ xss'
+     (univ'==univ') `seq` print univ'
+     print (length univ')
+     print $ [1..1638] \\ univ'
+
      -- compute the formula once
      putStrLn "Computing formula..."
      let p = formula xss
@@ -74,6 +84,12 @@ data Form
   | Or [Form]
   | NotTag Int
  deriving ( Eq, Ord, Show )
+
+formula' :: [[Int]] -> Int ->  Form
+formula' xss univsz = build yss
+ where
+  univ = [1..univsz]
+  yss  = S.toList . S.fromList $ [ univ \\ xs | xs <- xss ]
 
 formula :: [[Int]] -> Form
 formula xss = build yss
@@ -126,8 +142,9 @@ constraints s mp pre (Or [p]) =
 
 constraints s mp pre p =
   do qs <- asOr s mp p
-     --print (take 5 $ pre++qs)
      addClause s (pre ++ qs)
+     --print (take 5 $ pre++qs)
+     --(qs == qs) `seq` putStrLn "constraints: Done."
  where
   asOr s mp (And [])   = do return [true]
   asOr s mp (And [p])  = do asOr s mp p

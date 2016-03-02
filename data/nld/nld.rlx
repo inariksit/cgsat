@@ -75,12 +75,30 @@ SET PrTe = Pr + Te ;
 
 SECTION
 
-# These rules are introduced only to cause conflicts!
-# REMOVE Adj IF (-1C Pr) ;
-# REMOVE Pr IF (1 Adj) ;
-# -----------
 
-REMOVE Inf IF (-1 PrnPers);
+# Playground area 
+
+# unsafe
+
+SELECT DetPos - Zijn IF (1 Noun) (0 "zijn");
+SELECT DetPos IF (-1 (vblex pres p3 sg)) (0 ("zijn"i)) (1 Noun);
+
+
+
+
+# is zijn zus
+#SELECT DetPos + Zijn IF (-1 (vblex pres p3 sg)) (1 Noun);
+
+
+#SELECT DetPos IF  (0 ("zijn"i)) (1 Noun);
+
+
+REMOVE Pr IF (1 Adj) ;
+REMOVE Pr IF (1* Adj) ;
+
+
+# real grammar starts !
+
 
 # buiten spelen, om te spelen
 REMOVE:r_pr_v  Pr  IF (1 Verb) (NOT 0 Te);

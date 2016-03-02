@@ -149,6 +149,18 @@ SET Number = NotSg | NotPl ;
 SET Barrera_Inicial_Estrict_SN = BOS OR Pr OR CS OR CA OR Rel ;
 
 
+#PLAYGROUND
+#SELECT Rel IF (-1 De) (-1/* Detnt) ;
+
+#SELECT Inf IF (-1 Pr) (0C V) ;
+
+#SELECT Inf IF (-1 Para OR De) (0C V) ;
+
+
+
+
+## REAL RULES
+
 SECTION
 
 SELECT Inf IF (-1 Pr) (0C V) ;

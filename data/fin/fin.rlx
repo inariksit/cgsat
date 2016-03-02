@@ -690,6 +690,13 @@ SET N-NOT-GEN = n - (n gen) ;
 SECTION
 
 
+# PLAYGROUND STARTS
+#REMOVE:ja-pcle PCLE IF (0 JA) ;
+#REMOVE PRON IF (0 YKS-PRON) (0 YKS-NUM); 
+
+
+
+# PLAYGROUND ENDS
 ### TODO: 
 # CLAUSE BOUNDARY CONSTRAINTS
 
@@ -755,8 +762,8 @@ REMOVE NOM IF (-1 CLB?) (0 NOM) (0 VFIN) (1C NOM); # FMT: "Tuli ilta, ja tuli aa
 SET YKS-PRON = ("yks" pron) OR ("yksi" pron) ;
 SET YKS-NUM = ("yks" num) OR ("yksi" num) ;
 
-#Inari TODO this messes up the rule width
-#Inari REMOVE PRON IF (0 YKS-PRON) (0 YKS-NUM); # FMT: "Kokoontukoot vedet, jotka ovat taivaan alla, yhteen  paikkaan, niin että kuiva tulee näkyviin"
+
+REMOVE PRON IF (0 YKS-PRON) (0 YKS-NUM); # FMT: "Kokoontukoot vedet, jotka ovat taivaan alla, yhteen  paikkaan, niin että kuiva tulee näkyviin"
 
 # This is problematic: hänen on pakko ostaa, selects prop.
 # SELECT PROP IF (NOT -1 BOS OR PUNCT);
@@ -1726,7 +1733,9 @@ REMOVE PXSG3 IF (*-1 PL ); #+ @SUBJ→) ;
 # REMOVE (Po Sg3) IF (0 WORD LINK *-1 THIRD_PERSON_PL BARRIER THIRD_PERSON_PL) ;
 # REMOVE (ADV Sg3) IF (0 WORD LINK *-1 THIRD_PERSON_PL BARRIER THIRD_PERSON_PL) ;
 
-SELECT N + GEN IF (0 N + NOM) (0 WORD LINK *-1 NOM BARRIER CLB) (0 WORD LINK *-1 V BARRIER CLB); 
+#Inari make LINK * work properly!!!!!
+#Inari SELECT N + GEN IF (0 N + NOM) (0 WORD LINK *-1 NOM BARRIER CLB) (0 WORD LINK *-1 V BARRIER CLB); 
+SELECT N + GEN IF (0 N + NOM) (0 WORD) (*-1 NOM BARRIER CLB) (*-1 V BARRIER CLB); 
 
 
 # SELECT Pr IF (1 Par) ;
@@ -2125,7 +2134,9 @@ SELECT <COERCE!> (NOT 1 DUMMY)     ; #  #843
 SELECT INF1 (-1C NOUN+INF1) (*1C VFIN LINK NOT *-1 CLB?) ; 
 REMOVE INF1 (*-1 CLB? LINK NOT *1 VFIN) (NOT *-1 INF1) (*1 CLB? LINK NOT *-1 VFIN) (0 VFIN) (NOT *-1 KO) (NOT *-1 NOUN+INF1) (NOT *-1 INF1-VERB) ; 
 # "yritys täyttää ehdot" (ELIMINOI COORD-MAHD)
-SELECT INF1 (*-1 VOI LINK NOT *1 CLB?) (*-1 VOI LINK NOT *1 INF1) ; 
+
+#Inari SELECT INF1 (*-1 VOI LINK NOT *1 CLB?) (*-1 VOI LINK NOT *1 INF1) ; 
+SELECT INF1 (*-1 VOI LINK NOT *1 CLB? OR INF1) ; 
 "pitää" SELECT V + PRS + SG3  (1C INF1) ; 
 "pitää" SELECT V + PRS + SG3  (NOT 1 CLB?) (NOT 1 VFIN) (2C INF1) ; 
 SELECT V + PRS + PL3 (-2C N) (-2 NOM) (-2 PL) (*-1 CLB? LINK NOT *1 VFIN) (*1 CLB? LINK NOT *-1 VFIN)   ; # ARVIOT HUOMISESTA MUUTTUVAT
@@ -2341,7 +2352,8 @@ SET N_P_GEN = (pron gen) OR (n gen) ;
 
 
 "puoli" SELECT NUM + SG + GEN  (1 GEN)    ; # PUOLEN METRIN MITTAIneN
-SELECT V + PRS/IMPRT + ACT + NEG (*-1C NEGV LINK NOT *1 VFIN/PRSPRC/INF) (NOT 0 N) (NOT 0 PRON) (NOT *1 NEG) (NOT *-1 NEG) (NOT 0 PASS) (NOT *-1 NIIN) (*-1C NEGV LINK NOT *1 CLB?) (*-1C NEGV LINK NOT 0 IMPRT) ; 
+#Inari: LINK * SELECT V + PRS/IMPRT + ACT + NEG (*-1C NEGV LINK NOT *1 VFIN/PRSPRC/INF) (NOT 0 N) (NOT 0 PRON) (NOT *1 NEG) (NOT *-1 NEG) (NOT 0 PASS) (NOT *-1 NIIN) (*-1C NEGV LINK NOT *1 CLB?) (*-1C NEGV LINK NOT 0 IMPRT) ; 
+SELECT V + PRS/IMPRT + ACT + NEG (*-1C NEGV LINK NOT 0 IMPRT LINK NOT 1 VFIN/PRSPRC/INF OR CLB?) (NOT 0 N OR PRON OR PASS) (NOT *1 NEG) (NOT *-1 NEG OR NIIN) ; 
 REMOVE IMP + P2 + SG (-1 N/V/A/PRON/Q) ; 
 "kaksi" SELECT NUM + SG + GEN  (1 GEN) ; 
 "kaksi" SELECT NUM + SG + GEN  (2 GEN) ; 

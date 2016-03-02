@@ -117,7 +117,7 @@ main = do
     let tags = nub $ tagsInLex ++ concat readings
 
     --print (length readings, length (filter (not.null) readings))
-    mapM_ print tags
+    --mapM_ print tags
 
     let tagmap = mkTagMap tags readings
     let allinds = IS.fromList [1..length readings]
