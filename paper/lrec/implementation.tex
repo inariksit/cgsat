@@ -4,7 +4,8 @@
 In this section, we describe the implementation of the tool.
 The SAT-encoding we use is similar to the one introduced in \newcite{listenmaa_claessen2015}, with one key difference: in this paper, we operate on {\em symbolic sentences} instead of concrete sentences from a corpus. The idea is that the SAT-solver is going to find the concrete sentence for us.
 
-\paragraph{Preliminaries}
+%\paragraph
+\subsection{Preliminaries}
 
 Our analysis operates on one rule $R$, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $R$, even after passing all rules $R'$ that came before $R$?''
 
@@ -16,7 +17,8 @@ If the context contains a \verb!*!,
 we may need to make an approximation of $w(R)$ which may result in false negatives later on in the analysis.
 %we create sentences that are up to 3 words wider than the context without \verb!*!, and try them all.
 
-\paragraph{Symbolic sentences}
+%\paragraph
+\subsection{Symbolic sentences}
 
 We start each analysis by creating a so-called {\em symbolic sentence}, which is our representation of the sentence $S$ we are looking for. A symbolic sentence is a sequence of {\em symbolic words}; a symbolic word is a table of all possible readings that a word can have, where each reading is paired up with a SAT-variable.
 
@@ -43,7 +45,8 @@ $w_1 \vee w_2 \vee w_3 \vee w_4 \vee w_5$ \\
 \end{center}
 Any solution to the constraints found by the SAT-solver can be interpreted as a concrete sentence with $w(R)$ words that each have a set of readings.
 
-\paragraph{Applying a rule}
+%\paragraph
+\subsection{Applying a rule}
 
 Next, we need to be able to apply a given rule $R'$ to a symbolic sentence, resulting in a new symbolic sentence.
 
@@ -72,7 +75,8 @@ $w_5' \Leftrightarrow [ w_5 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$
 \end{tabular}
 \end{center}
 
-\paragraph{Putting it all together}
+%\paragraph
+\subsection{Putting it all together}
 
 Once we know how to apply one rule $R'$ to a symbolic sentence, we can apply all rules preceding the rule $R$ that is under analysis. We simply apply each rule to the result of applying the previous rule. In this way, we end up with a symbolic sentence that represents all sentences that could be the result of applying all those rules.
 
@@ -97,7 +101,9 @@ $v_1 \wedge (v_2 \vee v_3 \vee v_4 \vee v_5)$
 If the SAT-solver can find a solution to all constraints generated so far, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $R$. This means that there is something wrong with the grammar.
 
 
-\paragraph{Creating realistic readings}
+%\paragraph{Creating realistic readings}
+\subsection{Creating realistic readings}
+\label{sec:realistic_readings}
 
 Earlier we have shown an example with 5 readings (``det def'', ``noun sg'', ...). In a realistic case, we operate between hundreds and thousands of readings. 
 %This is very much dependent on language: the simplest language we tested was Dutch, with 336 readings. The most complex was 
@@ -136,18 +142,20 @@ In contrast, the lexicon only gives us fully specified readings, such
 as \texttt{verb pres p2 sg}. We implemented a version where we took
 the tag combinations specified in the grammar directly as our
 readings, and we could insert them into the symbolic sentences as well.
-The shortcut works most of the time, but it is possible to
+The shortcut works most of the time, but if only take the readings
+from the grammar and ignore the lexicon, it is possible to
 miss some cases: e.g. \texttt{SELECT Pron + Rel IF (0 Nom)} 
-may assume ``pron rel nom'' in one reading, but our method only gives
+may assume ``pron rel nom'' in one reading, but this method only gives
 ``pron rel'' and ``nom'' separately. 
 In addition, we found that the tag lists in the grammars sometimes
-contain errors, such as replacing OR with an AND; using a nonexistent
-tag; using a wrong level in a subreading. If we accept those lists as
-readings, we will generate symbolic sentences that are impossible, and
-won't discover the bug in the grammar.
+contain errors, such as using a nonexistent tag or using a wrong level
+in a subreading. If we accept those lists as readings, we will
+generate symbolic sentences that are impossible, and won't discover
+the bug in the grammar.
 
-However, if we only want to find rule interaction effects, then using the underspecified readings from the grammar makes the task faster, and it will still catch potential interaction errors. 
-
+However, if we only want to find rule interaction effects, then using
+the underspecified readings from the grammar makes the task faster,
+and it will still catch potential interaction errors.
 
 
 \paragraph{Creating realistic ambiguities}
