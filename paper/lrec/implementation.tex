@@ -130,7 +130,21 @@ With the previously mentioned approach, we would have to double 1572 entries for
 
  In our experience,  even ignoring the clitics doubles the amount of readings.
 
-Another note: the readings in grammar can be underspecified (e.g. \texttt{verb sg}), whereas the lexicon only gives us fully specified (\texttt{verb pres p2 sg}) readings. We tried a version where we took the tag combinations specified in the grammar as readings, and we could insert them into the symbolic sentences as well, but this was not an ideal solution: turns out that the tag lists in the grammars contain often errors (e.g. replacing OR with an AND; using a nonexistent tag; using a wrong level in a subreading), and if we accept those lists as readings, we will generate symbolic sentences that are impossible, and won't discover the bug in the grammar.
+The readings in grammar can be underspecified: for example, the rule
+\texttt{REMOVE (verb sg) IF (-1 det)} gives us ``verb sg'' and ``det''.
+In contrast, the lexicon only gives us fully specified readings, such
+as \texttt{verb pres p2 sg}. We implemented a version where we took
+the tag combinations specified in the grammar directly as our
+readings, and we could insert them into the symbolic sentences as well.
+The shortcut works most of the time, but it is possible to
+miss some cases: e.g. \texttt{SELECT Pron + Rel IF (0 Nom)} 
+may assume ``pron rel nom'' in one reading, but our method only gives
+``pron rel'' and ``nom'' separately. 
+In addition, we found that the tag lists in the grammars sometimes
+contain errors, such as replacing OR with an AND; using a nonexistent
+tag; using a wrong level in a subreading. If we accept those lists as
+readings, we will generate symbolic sentences that are impossible, and
+won't discover the bug in the grammar.
 
 However, if we only want to find rule interaction effects, then using the underspecified readings from the grammar makes the task faster, and it will still catch potential interaction errors. 
 
