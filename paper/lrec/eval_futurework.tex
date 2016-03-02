@@ -14,9 +14,9 @@ and the results for Finnish in table~\ref{table:resFin}.
 
 A natural follow-up evaluation would be to compare the performance of the
 grammar in the original state, and after removing the conflicts found
-by our tool. Unfortunately, we were not able to perform such
-evaluation, due to the lack of available gold standard corpora for all
-the languages.
+by our tool. Unfortunately, we did not have time to perform such
+evaluation, and in addition, we only have gold standard corpus (20~000) words for Spanish.
+
 
 
 \begin{table}[]
@@ -65,8 +65,14 @@ true positives.
 %The results for the Finnish grammar are inconclusive, 
 % For the Finnish grammar, we did not have time to
 % investigate all of them, but among those we could, we found both true and false negatives.
-We did not check for false negatives in any of the grammars. However, the test reported a high number of errors even in the smallest grammars, and some of them are intuitively not that bad; we 
-
+We did not systematically check for false negatives in any of the
+grammars, but we kept track of a number of known tricky cases; mostly
+rules that had been false positives in earlier stages of the
+development, and other rules with similar patterns, as well as rules
+with negations.
+%While this does not guarantee the lack of false negatives, it indicates some degree of reliability. 
+As the tool matures and we add
+new features, a more in-depth analysis will be needed.
 
 \paragraph{Dutch} The Dutch grammar had two kinds of errors: rule-internal, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in 2 rules as the main reading. 
 
@@ -83,7 +89,6 @@ Two rules, which both remove an adverb, were in an order where the first has mor
 
 
 %%% Nevermind, this wasn't a conflict, my program was just buggy :-P
-%This is not a conflict, just pointing out an example how the SAT-solver constructs the only possible sentence where this works.
 
 %\begin{itemize}
 %\item[] 
@@ -180,6 +185,9 @@ We observed also cases where the grammar writer has specified desired
 behaviour in comments, but the rule does not do what the grammar
 writer intended. 
 
+We found the same kind of formulation in many other rules and grammars.
+To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used, and automatically construct a version of the rule that moves whatever tags in the 0-condition into the target, then asks the user which one was meant.
+
 
 % \begin{itemize}
 % \item[] 
@@ -218,10 +226,10 @@ writer intended.
 
 The comments make it clear that the first rule is meant to disambiguate between poder and podar, and the second rule between sentir and sentar. But the rule does not mention anything about ``poder'' nor ``sentir''; the SAT-solver gave a triggering sequence without 
 
-This is actually a shortcoming of our way of handling the lemmas. If the lemmas and word forms were integrated to the analyses in a more feasible way, then the ambiguity class constraints would create a sequence where ``podar'' was ambiguous with ``poder'', instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
-
-We found the same kind of formulation in many other rules and grammars.
-To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used, and automatically construct a version of the rule that moves whatever tags in the 0-condition into the target, then asks the user which one was meant.
+This example shows a shortcoming of our way of handling the lemmas. If
+the lemmas and word forms were integrated to the analyses in a more
+feasible way, then the ambiguity class constraints would create a
+sequence where ``podar'' was ambiguous with ``poder'', instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
 
 
 
@@ -241,19 +249,13 @@ grammars we have tested.
 
 
 
-
-
-the grammar was originally written in 1995, and converted to the
-Omorfi tagset by \cite{pirinen2015}, but there were 15 rules that used the old convention for possessive suffixes.
-
-
 To improve performance, we ignored the fully specified readings from the
 lexicon and used only tag combinations from the grammar:
 for example, the rule \texttt{REMOVE (verb sg) IF (-1 det)}
 gives us ``verb sg'' and ``det''.
 The shortcut works most of the time, but it is possible to
-miss some cases: e.g. \texttt{SELECT PRON + REL IF (0 NOM)} 
-assumes ``pron rel nom'', but our method only gives
+miss some cases: e.g. \texttt{SELECT Pron + Rel IF (0 Nom)} 
+may assume ``pron rel nom'' in one reading, but our method only gives
 ``pron rel'' and ``nom'' separately. 
 17 false positives were caused by this shortcut. 
 In addition, 2 false positives were caused by the naive implementation of
