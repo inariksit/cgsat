@@ -7,14 +7,14 @@ The SAT-encoding we use is similar to the one introduced in \newcite{listenmaa_c
 %\paragraph
 \subsection{Preliminaries}
 
-Our analysis operates on one rule $R$, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $R$, even after passing all rules $R'$ that came before $R$?''
+Our analysis operates on a rule $r$, which is preceded by a list of rules $R$, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $r$, even after passing all rules $R$ that came before $r$?''
 
 Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, the number of readings has ranged from about 300 to about 6000. 
 
-Furthermore, when we analyse a rule $R$, we need to decide the {\em width} $w(R)$ of the rule $R$: How many different words should there be in a sentence that can trigger $R$? Most often, $w(R)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
+Furthermore, when we analyse a rule $r$, we need to decide the {\em width} $w(r)$ of the rule $r$: How many different words should there be in a sentence that can trigger $r$? Most often, $w(r)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
 
 If the context contains a \verb!*!,
-we may need to make an approximation of $w(R)$ which may result in false negatives later on in the analysis.
+we may need to make an approximation of $w(r)$ which may result in false negatives later on in the analysis.
 %we create sentences that are up to 3 words wider than the context without \verb!*!, and try them all.
 
 %\paragraph
@@ -22,7 +22,7 @@ we may need to make an approximation of $w(R)$ which may result in false negativ
 
 We start each analysis by creating a so-called {\em symbolic sentence}, which is our representation of the sentence $S$ we are looking for. A symbolic sentence is a sequence of {\em symbolic words}; a symbolic word is a table of all possible readings that a word can have, where each reading is paired up with a SAT-variable.
 
-The number of words in the symbolic sentence we create when we analyse a rule $R$ is $w(R)$. For the rule in the introduction, we have $w(R)=2$ and a symbolic sentence may look as follows:
+The number of words in the symbolic sentence we create when we analyse a rule $r$ is $w(r)$. For the rule in the introduction, we have $w(r)=2$ and a symbolic sentence may look as follows:
 \begin{center}
 \begin{tabular}{c|c|c}
 word1 & word2 & reading \\
@@ -43,12 +43,12 @@ $v_1 \vee v_2 \vee v_3 \vee v_4 \vee v_5$, \\
 $w_1 \vee w_2 \vee w_3 \vee w_4 \vee w_5$ \\
 \end{tabular}
 \end{center}
-Any solution to the constraints found by the SAT-solver can be interpreted as a concrete sentence with $w(R)$ words that each have a set of readings.
+Any solution to the constraints found by the SAT-solver can be interpreted as a concrete sentence with $w(r)$ words that each have a set of readings.
 
 %\paragraph
 \subsection{Applying a rule}
 
-Next, we need to be able to apply a given rule $R'$ to a symbolic sentence, resulting in a new symbolic sentence.
+Next, we need to be able to apply any given rule $r'$ to a symbolic sentence, resulting in a new symbolic sentence.
 
 For example, if we apply the rule from the introduction to the symbolic sentence above, the result is the following symbolic sentence:
 \begin{center}
@@ -62,7 +62,7 @@ $v_4$ & $w_4'$ & verb sg \\
 $v_5$ & $w_5'$ & verb pl \\
 \end{tabular}
 \end{center}
-The example rule can only affect readings of word2 that have a ``verb'' tag, so we create only two new variables $w_4'$ and $w_5'$ for the result, and reuse the other variables. We add the following constraint for $w_4'$:
+The example rule can only affect readings of word2 that have a ``verb'' tag, so we create only two new variables $w_4'$ and $w_5'$ for the result, and reuse the other variables. We must also add the following constraint for $w_4'$:
 \begin{center}
 \begin{tabular}{c}
 $w_4' \Leftrightarrow [ w_4 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$ \\
@@ -78,13 +78,13 @@ $w_5' \Leftrightarrow [ w_5 \wedge \neg{}(v_1 \wedge (w_1 \vee w_2 \vee w_3)) ]$
 %\paragraph
 \subsection{Putting it all together}
 
-Once we know how to apply one rule $R'$ to a symbolic sentence, we can apply all rules preceding the rule $R$ that is under analysis. We simply apply each rule to the result of applying the previous rule. In this way, we end up with a symbolic sentence that represents all sentences that could be the result of applying all those rules.
+Once we know how to apply any rule $r'$ to a symbolic sentence, resulting in a new symbolic sentence, we can apply all rules preceding the rule $r$ that is under analysis. We simply apply each rule to the result of applying the previous rule. In this way, we end up with a symbolic sentence that represents all sentences that could be the result of applying all those rules.
 
-Finally, we can take a look at the rule $R$ we want to analyse. Here is an example:
+Finally, we can take a look at the rule $r$ we want to analyse. Here is an example:
 \begin{itemize}
 \item[] \texttt{REMOVE det IF (1 verb) ;}
 \end{itemize}
-If we take the symbolic sentence above as input, we want to ask whether or not it can trigger the rule $R$. We do this by adding some more constraints to the SAT-solver.
+If we take the symbolic sentence above as input, we want to ask whether or not it can trigger the rule $r$. We do this by adding some more constraints to the SAT-solver.
 
 First, the context of the rule should be applicable, meaning that the second word should have a reading with a ``verb'' tag:
 \begin{center}
@@ -98,14 +98,13 @@ Second, the rule should be able to remove the ``det'' tag, meaning that the firs
 $v_1 \wedge (v_2 \vee v_3 \vee v_4 \vee v_5)$
 \end{tabular}
 \end{center}
-If the SAT-solver can find a solution to all constraints generated so far, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $R$. This means that there is something wrong with the grammar.
-
+If the SAT-solver can find a solution to all constraints generated so far, we have found a concrete sentence that satisfies our goal. If the SAT-solver cannot find a solution, it means that there are no sentences that can ever trigger rule $r$. (This means that there is something wrong with the grammar.)
 
 %\paragraph{Creating realistic readings}
 \subsection{Creating realistic readings}
 \label{sec:realistic_readings}
 
-Earlier we have shown an example with 5 readings (``det def'', ``noun sg'', ...). In a realistic case, we operate between hundreds and thousands of readings. 
+Earlier we have shown an example with 5 readings (``det def'', ``noun sg'', ...). In a realistic case, we operate between hundreds and thousands of possible readings. 
 %This is very much dependent on language: the simplest language we tested was Dutch, with 336 readings. The most complex was 
 In order to find the set of readings, we expand a morphological lexicon\footnote{We used the lexica from Apertium, found in \url{https://svn.code.sf.net/p/apertium/svn/languages/}.}, ignore the word forms and lemmas, and take all distinct analyses. 
 However, many grammar rules target a specific lemma or word form.
@@ -163,7 +162,7 @@ and it will still catch potential interaction errors.
 
 
 
-In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic ambiguities is to constrain what readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we don't want to generate such ambiguity in our symbolic sentences.
+In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic \emph{ambiguities} is to constrain what readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we don't want to generate such ambiguity in our symbolic sentences.
 
 \begin{center}
 \begin{tabular}{c|c|c|c|c}
@@ -204,7 +203,7 @@ Secondly, we can possibly detect some more conflicts. Assume that the grammar co
 
  With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a past participle; the adjective will be gone already.
 However, it could be that past participles (pp) only ever get confused with adjectives---in that case, the above rules would be in conflict with each other.
- By removing the adjective reading, the first rule selects the past participle reading, making it an instance of ``$R$ selects something in a context, $R'$ removes~it''. 
+ By removing the adjective reading, the first rule selects the past participle reading, making it an instance of ``$r$ selects something in a context, $r'$ removes~it''. 
 The additional constraints will prevent the SAT-solver from creating an ambiguity outside the allowed classes, and such a case would be caught as a conflict.
 
 
