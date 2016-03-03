@@ -230,7 +230,7 @@ word worm ``<puedo>'' instead of randomly chosen readings. So, even though this 
 
 \hline
               & 1 clitic & 2 clitics & readings only from the grammar \\ \hline
-\# readings   & many     & more & \textless{}2000   \\ \hline
+\# readings   & many     & more & lagom   \\ \hline
 \# true 
    positives  & n   & m        & o    \\ \hline
 \# false 
@@ -322,18 +322,20 @@ This may also be feasible to support regular expressions, in a nicer
 way than just spitting out the regex. (MORE ON THAT)
 
 \paragraph{Full expressivity of CG-3}
-
-In order to implement \textsc{substitute},
-\textsc{add}, \textsc{addreading} and \textsc{map}, we need to be
-prepared for new readings--even if the lexicon gives all readings that
-exist in the lexicon, the user might give a nonexistent reading, or in
-the case of MAP, a syntactic tag, which is (by definition) not in the
-lexicon. A more scalable solution would be to make each tag a
-variable, and ask the question ``can this reading be a noun? how about
-singular? how about conditional?'' separately for each tag. Then we
-could lift the restriction of tag combinations into a SAT solver: make
-SAT clauses that prohibit a comparative to go with a verb, or
-conditional with a noun.
+As for longer-term goals, we want to handle the full expressivity of CG-3,
+with \textsc{map}, \textsc{add},  \textsc{addreading} and
+\textsc{substitute} rules, as well as dependency structure. 
+This also means finding different kinds of conflicts.
+In order to implement rules that may add new readings, or new tags to
+existing readings, we need to modify our approach in the SAT-encoding.
+Even if the lexicon gives all readings that exist in the lexicon, the
+user might give a nonexistent reading, or in the case of MAP, a
+syntactic tag, which is (by definition) not in the lexicon. A more
+scalable solution would be to make each tag a variable, and ask the
+question ``can this reading be a noun? how about singular? how about
+conditional?'' separately for each tag. Then we could lift the
+restriction of tag combinations into a SAT solver: make SAT clauses
+that prohibit a comparative to go with a verb, or conditional with a noun.
 
 
 % \paragraph{Regular expressions}
@@ -348,11 +350,6 @@ reverse operation could also be possible. If a rule with long
 disjunctions conflicts, it may be useful to split it into smaller
 conditions, and eliminate one at a time, in order to find the
 reason(s) for the conflict.
-
-
-As for longer-term goals, we want to handle the full expressivity of CG-3,
-with \textsc{map}, \textsc{add} and \textsc{substitute} rules, and
-dependency structure. This also means finding different kinds of conflicts.
 As soon as the tools are mature enough, we want to
 evaluate them with actual grammar writers,
 in comparison with a corpus-based method or machine learning.
