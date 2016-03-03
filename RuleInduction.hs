@@ -71,7 +71,7 @@ showPercent d = (if null p then "0" else p) ++ "." ++ q ++ "%"
 
 speculateRules :: Int -> [Rule] -> (Text,Text) -> (Text,Text) -> IO [Rule]
 speculateRules total rs (ls0,gs0) (ls,gs) =
-  if M.size rs' == 0 then
+  if null rsSorted then
     do return rs
    else
     do putStr ("sents: " ++ rjust 5 (show (length ls')))

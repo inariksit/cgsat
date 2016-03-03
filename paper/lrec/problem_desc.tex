@@ -27,12 +27,12 @@ Given the following text,
 \end{itemize}
 the rule will match to the word \emph{wish}, and remove the readings
 \texttt{"wish" verb pl} and \texttt{"wish" verb inf}.
-However, if the target word has only one remaining reading, then the
+Note that if the target word has only one remaining reading, then the
 rule will not apply, even if the condition is met.
 
 CGs are valuable resources for rule-based NLP, especially for lesser
 resourced languages. They are robust and can be written without large
-corpora---only morphological analyser is needed. The formalism is
+corpora---only a morphological analyser is needed. The formalism is
 lightweight and language-independent, and resources can be shared
 between related languages \cite{bick2006spanish,lene_trond_linda2010}.
 Mature CGs contain some thousands of rules, but even small CGs are
@@ -92,23 +92,23 @@ grammar writer may ask the following questions while writing a grammar.
 \item Are all the rules distinct? (e.g. \texttt{Para} and \texttt{De} may be included in \texttt{Prep})
 \item Can two or more rules be merged? (e.g. \texttt{SELECT Inf IF
     (-1C Prep OR Vai OR Vbmod)})
-\item Can I rewrite a messy rule in a neater way without changing the meaning?
+\item Can a messy rule be rewritten in a neater way without changing the meaning?
 \item What is the best order for the rules?
-\item Generate a sequence that triggers $R$ but not $R'$ 
+\item Generate a sentence that triggers a given list of rules $R$ but not $R'$ 
 \end{itemize}
 
 %%%%%
 
 For the second use case, here are examples of conflicts that our tool will detect.
 \begin{itemize}
-\item If a rule appears twice, the second occurrence will be disabled by the first
-\item $r$ selects something in a context, $r'$ removes~it
-\item $R$ removes something from the context of $r$, so $r$ can never
+\item If two equivalent rules $r$ and $r'$ occur in the grammar, the second occurrence will be disabled by the first
+\item Rule $r$ selects something in a context, and $r'$ removes~it
+\item A list of tules $R$ removes something from the context of a rule $r$, so $r$ can never
   apply
-\item $r$ has an internal conflict, such as non-existent
+\item A rule $r$ has an internal conflict, such as non-existent
 tag combination, or contradictory requirements for a context word
 \end{itemize}
-$R$ can be a single rule or a set of rules: for instance, if one rule removes a verb in
+In the above examples, $R$ can be a single rule or a list of rules: for instance, if one rule removes a verb in
 context $C$, and another in context $\neg C$, together these rules
 remove a verb in all possible cases, disabling any future rule that
 targets verbs.
@@ -131,19 +131,18 @@ rule, others by being a condition.
 
 We express these constraints as a \emph{Boolean satisfiability problem} (SAT).
 A SAT-problem consists of two components: a set of Boolean variables, and a set
-of clauses on those variables. For instance, let the set ov variables
-be $\{a, b\}$ and the formulas $\{a \vee b, \neg{}a\}$. A program called
+of clauses on those variables. For instance, let the set of variables
+be $\{a, b\}$ and the formulas $\{a \vee b, \neg{}a\}$. A program called a
 \emph{SAT-solver} will try to find a solution, where all the variables
 are replaced by a Boolean value. For this particular problem, the
 unique solution is $\{a=False, b=True\}$, but it is also possible for a
 SAT-problem to have no solution or multiple solutions.
-In the case of CG analysis, the model we build is a \emph{sentence},
-which starts as potentially anything, and is being shaped by all the
+In the case of CG analysis, the solution we build (called the \emph{model}) represents a \emph{sentence} that starts as potentially anything, and is being shaped by all the
 rules along the way. This is how we can generate possible inputs, as
 well as check if the grammar is internally consistent.
 
 The paper is structured as follows. Section~\ref{sec:prev} relates our
-work to the previous research. 
+work to previous work. 
 Section~\ref{sec:implementation} discusses the implementation, and
 Section~\ref{sec:eval} presents preliminary results. 
 Section~\ref{sec:conclusion} discusses future work and concludes the paper.
