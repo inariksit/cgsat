@@ -25,20 +25,9 @@
 
 
 \abstract{
-We describe a method for analysing and improving Constraint Grammars (CG).
-% by encoding the rules in SAT.
-Traditional CG engines execute the rules in an imperative and
-sequential manner, which makes it impossible to track interaction
-between rules.
-In contrast, we represent CG rules as logic constraints, which
-can then be tested for contradictions and inconsistencies.
-Our tool can detect internal conflicts or redundancies in a grammar,
-as well as generate examples to demonstrate the effect of some rule or
-rule set.
-This can help users to diagnose and improve their grammars.
-No corpus is required, only a morphological lexicon. \\ 
+We describe a method for analysing Constraint Grammars (CG) that can detect internal conflicts and redundancies in a given grammar, without the need for a corpus. The aim is for grammar writers to be able to automatically diagnose, and then manually improve their grammars. Our method works by automatically translating the given grammar into logical constraints that are analysed by a SAT-solver. We have evaluated our analysis on a number of non-trivial grammars and found inconsistencies.
 \newline 
-\Keywords{Constrain Grammar, SAT, Grammar Analysis} }
+\Keywords{Constraint Grammar, SAT, Grammar Analysis} }
 
 \begin{document}
 
