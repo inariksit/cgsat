@@ -69,7 +69,8 @@ REMOVE Adv IF (-1 Det) (0 Adj) (1 N) ;
 \end{verbatim}
 \end{itemize}
 
-Two rules, which both remove an adverb, were in an order where the first has more broad condition: remove adverb if followed by a noun. In contrast, the second rule has a stricter requirement: only remove adverb if it is preceded by a determiner; the adverb itself is ambiguous with an adjective, and followed by a noun. The proble is that the first rule removes the adverb in all possible cases, and the second will not have any chance to act. If the rules were in the opposite order, then there would be no problem.
+These two rules both remove an adverb, but the first one has a broader condition:
+remove adverb if followed by a noun. In contrast, the second rule has a stricter condition: only remove adverb if it is preceded by a determiner, the adverb itself is ambiguous with an adjective, and followed by a noun. The problem is that the first rule removes the adverb in all possible cases, and the second will not have any chance to act. If the rules were in the opposite order, then there would be no problem.
 
 
 %%% Nevermind, this wasn't a conflict, my program was just buggy :-P
@@ -96,20 +97,20 @@ The following rule was one of them:
 \end{itemize} 
 
 As per VISL CG-3, the condition \texttt{(0 "zijn")} does not require
-that the input would have determiner and ``zijn'' in the same reading:
-just that there is a reading with any determiner, and a reading with any ``zijn'' in the cohort. 
+that the input would have determiner and \emph{zijn} in the same reading:
+just that there is a reading with any determiner, and a reading with any \emph{zijn} in the cohort. 
 Can we catch this imprecise formulation with our tool? The example word constructed by the SAT-solver may as likely be one of the following:
 
 \begin{itemize}
 \item[a.] \begin{verbatim}
 "w2"
     w2<det><pos><f><sg>
-    w2<vbser><inf><"zijn">
+    zijn<vbser><inf>
 \end{verbatim}
 
 \item[b.] \begin{verbatim}
 "w2"
-    w2<det><pos><mfn><pl><"zijn">
+    zijn<det><pos><mfn><pl>
 \end{verbatim}
 \end{itemize}
 
@@ -119,7 +120,7 @@ that the adjective and the adverb are in different readings. However,
 in this case, the precise way to express the target is \texttt{SELECT DetPos + "zijn"}.
 
 We found the same kind of definitions in many other rules and grammars.
-To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used, and automatically construct a version of the rule that moves whatever tags in the 0-condition into the target, then asks the user which one was meant.
+To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used. As a possible extension, we could automatically merge the 0-condition into the target reading, then show the user this new version, along with the original, and ask which one was intended.
 
 % In the latter case, the grammar writer would hopefully notice the imprecise definition and change their definition. However, this is more of a happy side effect than intended feature---the grammar writer cannot count on our tool to notice all similar cases.
 
@@ -213,9 +214,7 @@ writer intended.
 \texttt{REMOVE Sentar IF (0 Sentar) (1C Inf OR Enc) ;}
 \end{itemize}
 
-The comments make it clear that the first rule is meant to disambiguate between poder and podar, and the second rule between sentir and sentar. But the rule does not mention anything about ``poder'' nor ``sentir''; the SAT-solver gave a triggering sequence without 
-We found the same kind of formulation in many other rules and grammars.
-To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used, and automatically construct a version of the rule that moves whatever tags in the 0-condition into the target, then asks the user which one was meant.
+The comments make it clear that the first rule is meant to disambiguate between \emph{poder} and \emph{podar}, and the second rule between \emph{sentir} and \emph{sentar}. But the rule does not mention anything about ``poder'' nor ``sentir''; the SAT-solver gave a triggering sequence without 
 
 This example shows a shortcoming of our way of handling the lemmas. If
 the lemmas and word forms were integrated to the analyses in a more
@@ -249,22 +248,29 @@ word worm ``<puedo>'' instead of randomly chosen readings. So, even though this 
 \subsection{Finnish} 
 
 The results for the Finnish grammar are shown separately, in table~\ref{table:resFin}.
+
 We were not able to use the method with ambiguity classes at all---expanding the Finnish morphological lexicon results in \todo{100s of gigabytes?} of word forms, which is simply too big for our method to work. 
 For future development, we will see if it is possible to manipulate the finite automata directly, instead of relying on the output in text.
 
 In addition to the previous problem, we had a large number of
-readings. In order to make the test run faster, we used a few shortcuts.
-shortcuts. 
+readings to start with: more than 20,000 when all the clitics are added.
+After weeding out the most uncommon combinations, we ended up with sets of 4500--7000 readings. The results are shown in table~\ref{table:resFin}, to give an idea how the additional readings affect the accuracy and performance.
+
+The grammar contains around 900 lemmas and word forms. The procedure described in Section~\ref{sec:realistic_readings} would not have worked, so we simply took the lemmas and word forms, and added them as single readings, which are allowed to combine with any other reading. In addition, we took the underspecified readings when they included a lemma or a word form, such as in \texttt{"aika" SELECT N  (1C VFIN-C) ;}.
+
+ In order to make the test run faster, we used a few shortcuts.
+
 Firstly, we restricted the amount of clitics per word form, and even
 ignored all the specified readings.
-Secondly, we added ambiguity class constraints for only
-\emph{intraparadigmatic ambiguities}: homonymous wordforms belonging
-to the same lexeme, in a way that is systematic to the whole
-paradigm. We reduced the morphological lexicon to contain only one
-example of each inflection paradigm, and then expanded it: with all
-the clitics, this resulted in \todo{n} word forms. Then we applied the
-normal method of creating the ambiguity classes, and specified some
-default cases manually, such as punctuation and word boundaries.
+
+% Secondly, we added ambiguity class constraints for only
+% \emph{intraparadigmatic ambiguities}: homonymous wordforms belonging
+% to the same lexeme, in a way that is systematic to the whole
+% paradigm. We reduced the morphological lexicon to contain only one
+% example of each inflection paradigm, and then expanded it: with all
+% the clitics, this resulted in \todo{n} word forms. Then we applied the
+% normal method of creating the ambiguity classes, and specified some
+% default cases manually, such as punctuation and word boundaries.
 Thirdly, we ignored the fully specified readings from the
 lexicon and used only tag combinations from the grammar, as described
 in Section~\ref{sec:realistic_readings}.
@@ -273,6 +279,13 @@ The results of these three variants are described in
 table~\ref{table:resFin}. As expected, using only readings from the
 grammar resulted in most false positives. 
 
+TODO: using readings from grammar directly, sometimes you can have a typo, like in \emph{lähetii}:
+
+\begin{verbatim}
+"w2"
+        w2<"se"><ela>''''''''
+        w2<"<lähetii>"><vblex>'''''''
+\end{verbatim}
 
 \subsection{Performance} 
 The running time of the grammars goes from seconds to hours. 
