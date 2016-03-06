@@ -214,30 +214,37 @@ writer intended.
 \texttt{REMOVE Sentar IF (0 Sentar) (1C Inf OR Enc) ;}
 \end{itemize}
 
-The comments make it clear that the first rule is meant to disambiguate between \emph{poder} and \emph{podar}, and the second rule between \emph{sentir} and \emph{sentar}. But the rule does not mention anything about ``poder'' nor ``sentir''; the SAT-solver gave a triggering sequence without 
+The comments make it clear that the first rule is meant to disambiguate between \emph{poder} and \emph{podar}, and the second rule between \emph{sentir} and \emph{sentar}. But the rule does not mention anything about \emph{poder} nor \emph{sentir}; without the ambiguity class constraints, the SAT-solver could give a triggering sequence with any other reading in the target.
 
-This example shows a shortcoming of our way of handling the lemmas. If
-the lemmas and word forms were integrated to the analyses in a more
-feasible way, then the ambiguity class constraints would create a
-sequence where ``podar'' was ambiguous with ``poder'', only in the
-word worm ``<puedo>'' instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
+This example shows the 
+shows a shortcoming in our way of handling the lexical conditions. 
+If the lemmas and word forms were integrated to the analyses in a more
+sensible way, then the ambiguity class constraints would create a
+sequence where \emph{podar} was ambiguous with \emph{poder} only in the
+word form \emph{puedo}.
+
+instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
 
 
 \begin{table*}[t!]
 \centering
-\begin{tabular}{|l|l|l|l|}
+\begin{tabular}{|p{2.5cm}|p{3cm}|p{3cm}|p{3cm}|p{3cm}|}
 
 \hline
-              & 1 clitic & 2 clitics & readings only from the grammar \\ \hline
-\# readings   & many     & more & lagom   \\ \hline
+              & 1 clitic + lemmas from grammar & 2 clitics + lemmas from grammar & 1 clitic + all readings 
+                                                from grammar & all readings from grammar \\ \hline
+\# readings   & 5851 (4263 
+                 + 1588) & 9494
+                       (7906 + 1588) & 6657 (4263 + 2394) & 2394  \\ \hline
+\# conflicts  & 214      & 214       & 24                & 24  \\ \hline
+\# interaction & 214      & 214       & 24                & 24  \\ \hline
+
 \# true 
-   positives  & n   & m        & o    \\ \hline
+   positives  & n        & m         & o                & p  \\ \hline
 \# false 
-   positives  & p   & q        & super many    \\ \hline
-\clock{}amb.
-      classes & ??s              & ??min ??s    & ?h ??min  \\ \hline
-\clock{}no amb.
-      classes & ??s              & ??s          & ?min ??s  \\ \hline
+   positives  & p        & q         & r                & s   \\ \hline
+\clock{}all 
+       rules & 12min     & 23min     & 12min &  4min 40s \\ \hline
 
 
 \end{tabular}
@@ -247,21 +254,91 @@ word worm ``<puedo>'' instead of randomly chosen readings. So, even though this 
 
 \subsection{Finnish} 
 
-The results for the Finnish grammar are shown separately, in table~\ref{table:resFin}.
+The results for the Finnish grammar are shown separately, in table~\ref{table:resFin}. We encountered a number of difficulties and used a few shortcuts, which we did not need for the other grammars---most importantly, not using the ambiguity class constraints. Due to these complications, the results are not directly comparable, but we include Finnish in any case, 
+to give an idea how our method scales up: both to grammars with more rules, and to more complex rules.
 
-We were not able to use the method with ambiguity classes at all---expanding the Finnish morphological lexicon results in \todo{100s of gigabytes?} of word forms, which is simply too big for our method to work. 
+\paragraph{Challenges with Finnish} The first challenge is the morphological complexity of Finnish.
+There are more than 20,000 readings, when all possible clitic combinations are included.
+After weeding out the most uncommon combinations, we ended up with sets of 4000--8000 readings.
+
+The second challenge comes from the larger size of the grammar. Whereas the Spanish and Dutch had only tens of word forms or lemmas, the Finnish grammar specifies around 900 of them.
+Due to both of these factors, the procedure described in Section~\ref{sec:realistic_readings} would have exploded the number of readings, so we simply took the lemmas and word forms, and added them as single readings. 
+In cases where they were combined with another tag in the grammar, we took that reading directly: for instance, we took both \emph{aika} and ``\emph{aika} n'' from \texttt{SELECT "aika" + N},
+but nothing from \texttt{SELECT Pron + Sg}. This method gave us 1588 additional readings.
+
+The third were not able to create ambiguity class constraints---expanding the Finnish morphological lexicon results in \todo{100s of gigabytes?} of word forms, which is simply too big for our method to work. 
 For future development, we will see if it is possible to manipulate the finite automata directly, instead of relying on the output in text.
 
-In addition to the previous problem, we had a large number of
-readings to start with: more than 20,000 when all the clitics are added.
-After weeding out the most uncommon combinations, we ended up with sets of 4500--7000 readings. The results are shown in table~\ref{table:resFin}, to give an idea how the additional readings affect the accuracy and performance.
 
-The grammar contains around 900 lemmas and word forms. The procedure described in Section~\ref{sec:realistic_readings} would not have worked, so we simply took the lemmas and word forms, and added them as single readings, which are allowed to combine with any other reading. In addition, we took the underspecified readings when they included a lemma or a word form, such as in \texttt{"aika" SELECT N  (1C VFIN-C) ;}.
+\paragraph{Results}
+The results are shown in table~\ref{table:resFin}.
+In the first column, we included only possessive suffixes. In the second column, we included question clitics as well.
+In the third column, we included all the tag combinations specified in the grammar, and in the fourth, we took only those, ignoring the morphological lexicon completely.
 
- In order to make the test run faster, we used a few shortcuts.
+For the first two columns, there are a high number of internal conflicts. 
+These are almost all due to nonexisting tags. The grammar was written in 1995, and updated by \newcite{pirinen2015}; but this high number of internal conflicts indicates that possibly something has gone wrong in the conversion, or in our expansion of the morphological lexicon.
+As for accuracy, adding the question clitics did not change anything: they were already included in some of the 1588 sets with word forms or lemmas, and that was enough for the SAT-solver to find models with question clitics.
+We left the result in the table just to demonstrate the change in speed.
 
-Firstly, we restricted the amount of clitics per word form, and even
-ignored all the specified readings.
+%Example reading that adds question clitic to our arsenal: \texttt{SELECT "joka" + Pron + Q}
+
+The second two columns are playing with the full set of readings from the grammar. For both of these, the number of reported conflicts was only 24.
+
+
+
+
+
+
+To show some examples of true positives:
+
+%SELECT ("oma" gen) IF (NOT 1 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0 LINK *-1 "olla"|"voida"|"saattaa") (0 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0C nom)
+
+\begin{itemize}
+\item[] \todo{Put back the rule with 0 gen and 0C nom!!! that was actually nice and legit}
+
+\item[]\texttt{SELECT ADV (-1C AD) (NOT 0 PP) (NOT 1 A) ;}
+\end{itemize}
+
+This is an internal conflict, which is not trivial to see: the problem is that the definition of \texttt{PP} includes \texttt{adv} among others. With the sets expanded, this rule becomes \texttt{SELECT adv IF (NOT 0 pp|adv|adp|po|pr) ...}.
+
+The following two examples are interaction conflicts:
+
+\begin{itemize}
+\item[]\begin{verbatim}
+REMOVE A (0 DER) ; 
+REMOVE N (0 DER) ; 
+REMOVE A/N (0 DER) ; 
+\end{verbatim}
+\end{itemize}
+
+In this case, two rules together remove the target of the third, leaving no way for there to be adjective or noun.
+
+\begin{itemize}
+\item[]\begin{verbatim}
+SELECT:r1 .. IF (-1 Comma/N/Pron/Q) ;
+SELECT:r2 .. IF (-2 ..) (-1 Comma) ;
+\end{verbatim}
+\end{itemize}
+
+The rules above have been simplified to show only the relevant part.
+The conflict lies in the fact that \texttt{Comma} is a subset of \texttt{Comma/N/Pron/Q}:
+there is no way to trigger $r2$ without placing a comma in position -1, and thereby triggering $r1$.
+
+
+% All in all, using readings from grammar directly may be useful in order to find just the , sometimes you can have a typo, like in \emph{l\"{a}hetii}:
+
+% \begin{verbatim}
+% "w2"
+%         w2<"se"><ela>
+%         w2<"<lähetii>"><vblex>
+% \end{verbatim}
+
+
+% The second part concerns the tools in use, specifically the Apertium morphological lexicon. We noticed, only after running the experiments, that the expansion of the lexicon does not work properly: for instance, some nominal forms of the verbs were reported as nouns instead of verbs.
+% We reported the errors to the developers of the lexicon, but as there was no time to fix them, we used the readings that we got from expanding the lexicon, and manually added either noun, verb or adjective tag where it was missing.
+
+% kosimisiin:kosia<n><pl><ill>
+% kosimattomuudekseen:kosia<sg><tra><pxsp3> 
 
 % Secondly, we added ambiguity class constraints for only
 % \emph{intraparadigmatic ambiguities}: homonymous wordforms belonging
@@ -271,21 +348,8 @@ ignored all the specified readings.
 % the clitics, this resulted in \todo{n} word forms. Then we applied the
 % normal method of creating the ambiguity classes, and specified some
 % default cases manually, such as punctuation and word boundaries.
-Thirdly, we ignored the fully specified readings from the
-lexicon and used only tag combinations from the grammar, as described
-in Section~\ref{sec:realistic_readings}.
 
-The results of these three variants are described in
-table~\ref{table:resFin}. As expected, using only readings from the
-grammar resulted in most false positives. 
 
-TODO: using readings from grammar directly, sometimes you can have a typo, like in \emph{lähetii}:
-
-\begin{verbatim}
-"w2"
-        w2<"se"><ela>''''''''
-        w2<"<lähetii>"><vblex>'''''''
-\end{verbatim}
 
 \subsection{Performance} 
 The running time of the grammars goes from seconds to hours. 
