@@ -131,20 +131,18 @@ The lemma is treated as just another tag.
 
  However, for languages with more readings, this may not be feasible. For instance, Spanish has a high number of readings, not only because of many inflectional forms, but because it is possible to add 1--2 clitics to the verb forms.
 The number of verb readings without clitics is 213, and with clitics 1572.
-With the previously mentioned approach, we would have to double 1572 entries for each verb lemma. Even ignoring the clitics, each verb lemma would still result in 213 new readings.
+With the previously mentioned approach, we would have to double 1572 entries for each verb lemma. Even ignoring the clitics, each verb lemma still adds 213 new readings.
 
- In our experience,  even ignoring the clitics doubles the amount of readings.
-
-The readings in grammar can be underspecified: for example, the rule
+The readings in a grammar can be underspecified: for example, the rule
 \texttt{REMOVE (verb sg) IF (-1 det)} gives us ``verb sg'' and ``det''.
 In contrast, the lexicon only gives us fully specified readings, such
-as \texttt{verb pres p2 sg}. We implemented a version where we took
+as ``verb pres p2 sg''. We implemented a version where we took
 the tag combinations specified in the grammar directly as our
 readings, and we could insert them into the symbolic sentences as well.
-The shortcut works most of the time, but if only take the readings
+The shortcut works most of the time, but if we only take the readings
 from the grammar and ignore the lexicon, it is possible to
-miss some cases: e.g. \texttt{SELECT Pron + Rel IF (0 Nom)} 
-may assume ``pron rel nom'' in one reading, but this method only gives
+miss some cases: e.g. the rule \texttt{SELECT Pron + Rel IF (0 Nom)} 
+may require ``pron rel nom'' in one reading, but this method only gives
 ``pron rel'' and ``nom'' separately. 
 In addition, we found that the tag lists in the grammars sometimes
 contain errors, such as using a nonexistent tag or using a wrong level
@@ -157,12 +155,12 @@ the underspecified readings from the grammar makes the task faster,
 and it will still catch potential interaction errors.
 
 
-\paragraph{Creating realistic ambiguities}
+\subsection{Creating realistic ambiguities}
 
 
 
 
-In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic \emph{ambiguities} is to constrain what readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we don't want to generate such ambiguity in our symbolic sentences.
+In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic \emph{ambiguities} is to constrain which readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we do not want to generate such ambiguity in our symbolic sentences.
 
 \begin{center}
 \begin{tabular}{c|c|c|c|c}
@@ -177,7 +175,7 @@ haar        & 1        & 0       & 0             & 1    \\
 \end{tabular}
 \end{center}
 
-We solve the problem by creating \emph{ambiguity classes}: groups of analyses that can be ambiguous with each other. 
+We solve the problem by creating \emph{ambiguity classes}: groups of readings that can be ambiguous with each other. 
 We represent the expanded morphological lexicon as a matrix, as seen
 above: word forms on the rows and analyses on the columns. Each
 distinct row forms an ambiguity class. For example, one class may
@@ -187,7 +185,7 @@ and masculine plural past participles.
 Then we form SAT clauses that allow or prohibit certain combinations. These clauses will interact with the constraints created from the rules, and the end result will be closer to real-life sentences.
 
 Our approach is similar to \newcite{cutting_etal92}, who use ambiguity classes instead of distinct word forms, in order to reduce the number of parameters in a Hidden Markov Model. They take advantage of the fact that they don't have to model ``bear'' and ``wish'' as separate entries, but they can just reduce it to ``word that can be ambiguous between noun and verb'', and use it as a parameter in their HMM. 
-We can do a similar thing by saving a list of words with each ambiguity class. For example, we map the ambiguity class ``feminine plural noun or a separable verb infinitive'' to the list of word forms \{``uitgaven'', ``toespraken''\}, and then, if we generate such reading for our symbolic word, we can give one of these words as an example word.
+%We can do a similar thing by saving a list of words with each ambiguity class. For example, we map the ambiguity class ``feminine plural noun or a separable verb infinitive'' to the list of word forms \{``uitgaven'', ``toespraken''\}, and then, if we generate such reading for our symbolic word, we can give one of these words as an example word.
 
 There are two advantages of restricting the ambiguity within words.
 Firstly, we can create more realistic example sentences, which should help the grammar writer.
@@ -202,7 +200,7 @@ Secondly, we can possibly detect some more conflicts. Assume that the grammar co
  \end{itemize}
 
  With our symbolic sentence, these rules will be no problem; to apply the latter, we only need to construct a target that has a realistic ambiguity with a past participle; the adjective will be gone already.
-However, it could be that past participles (pp) only ever get confused with adjectives---in that case, the above rules would be in conflict with each other.
+However, it could be that past participles (pp) only ever get confused with adjectives---in that case, the above rules would contradict each other.
  By removing the adjective reading, the first rule selects the past participle reading, making it an instance of ``$r$ selects something in a context, $r'$ removes~it''. 
 The additional constraints will prevent the SAT-solver from creating an ambiguity outside the allowed classes, and such a case would be caught as a conflict.
 
