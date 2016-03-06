@@ -95,6 +95,7 @@ testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
 testRule (verbose,debug) form rds (lastrule,rules) = do
 
   let allwidths@((firstW,firstTrg):otherwidths) = width $ cnd lastrule
+  --print allwidths
   
   --if the shortest reading conflicts, we want to keep that result
   resFst <- testRule' debug form rds (lastrule,rules) (firstW,firstTrg)
@@ -109,7 +110,7 @@ testRule (verbose,debug) form rds (lastrule,rules) = do
                         putStrLn $ "rule with *, trying many combinations"
                      someLengthWorks <- asum `fmap` sequence 
                        [ confToMaybe `fmap` testRule' debug form rds (lastrule,rules) w
-                        | w <- otherwidths ]
+                        | w <- nub otherwidths ]
                      return $ fromMaybe resFst someLengthWorks   
 
 
@@ -172,6 +173,7 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
       when debug $ do
         putStrLn $ "Following triggers last rule WITH PREVIOUS: " ++ show lastrule
         solveAndPrintSentence False s [mustHaveTrg, mustHaveOther, allCondsHold] afterRules
+      deleteSolver s
       return NoConf
 
     else do
@@ -198,6 +200,7 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
         putStrLn $ "Following triggers last rule ALONE: " ++ show lastrule
         solveAndPrintSentence False s' [mustHaveTrg', mustHaveOther', allCondsHold'] initialSentence'
       deleteSolver s'
+      deleteSolver s
       if b' then return $ With rules
               else return Internal
               
@@ -270,6 +273,11 @@ mkConds s allinds sentence trgind disjconjconds str = do
   --    from different symbolic words, but with cautious or negation, can't do that
   let debug = False --str=="testRule" 
 
+
+  --TODO: there is something strange going on when... 
+  -- >1 conditions for same index
+  -- and one/all of them don't exist
+  -- should give conflict and not error :(
   let conds_absinds = [ [ (cond, absinds) | cond <- nub conjconds 
                                           , let absinds = absIndices trgind cond 
                                           , not (null absinds) ] --TODO test with NOT!!!!
