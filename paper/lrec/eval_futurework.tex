@@ -357,7 +357,7 @@ there is no way to trigger $r2$ without placing a comma in position -1, and ther
 The running time of the grammars goes from seconds to hours. 
 As can be seen from the times, increasing the number of readings
 matters more than increasing the number of rules.
-In addition, the ambiguity class constraints take a long time.
+In addition, the ambiguity class constraints increase the time.
 
 
 However, many of the use cases do not require running the whole
@@ -405,12 +405,6 @@ question ``can this reading be a noun? how about singular? how about
 conditional?'' separately for each tag. Then we could lift the
 restriction of tag combinations into a SAT solver: make SAT clauses
 that prohibit a comparative to go with a verb, or conditional with a noun.
-
-Another benefit of this solution is the addition of lemmas and word
-forms, as well as regular expressions: currently, if we want to add
-one more lemma for a verb, we need to create as many new variables as
-there are distinct verb forms---easily hundreds for languages with
-rich morphology.
 
 We are currently working on adding the concepts of lemmas and word
 forms directly to the representation of the possible readings.
