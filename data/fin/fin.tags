@@ -12,6 +12,7 @@ agent>
 all>
 ant>
 card>
+cm>
 cnjadv>
 cnjcoo>
 cnjsub>
@@ -62,6 +63,7 @@ pprs>
 pres>
 pri>
 prn>
+punct>
 pxpl1>
 pxpl2>
 pxsg1>

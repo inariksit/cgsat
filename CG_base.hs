@@ -35,8 +35,9 @@ instance Eq Tag where
 -- | Wordform should be first element in an analysis.
 instance Ord Tag where
   BOS `compare` _   = GT
-  EOS `compare` BOS = LT
-  EOS `compare` _   = GT 
+  _   `compare` BOS = LT
+  EOS `compare` _   = GT
+  _   `compare` EOS = LT 
   WF word `compare` WF word'  = word `compare` word'
   WF _    `compare` _         = LT
   _       `compare` WF _      = GT

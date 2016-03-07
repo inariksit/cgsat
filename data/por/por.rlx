@@ -360,40 +360,42 @@ REMOVE Imper IF (NOT -1* Interj) (NOT 1* Interj) (NOT 1* Excl) (NOT -1 Cm) ;
 
 SELECT Rel IF (-1 A OR N LINK -1 N OR A OR Pr) (NOT -1 Forma) (0 Que) (1 Fin OR Se OR Não) ;
 
-#SELECT CS IF (-1C Inf) (0 Que) ;
+###### Unsafe rules
 
-#REMOVE Interr IF (NOT 1* Quest) ;
+SELECT CS IF (-1C Inf) (0 Que) ;
 
-#REMOVE Pro IF (NOT 1 V OR Prn) (NOT -1 Inf) (NOT -1 Guess/Inf) ;
+REMOVE Interr IF (NOT 1* Quest) ;
 
-#SELECT Prn IF (0 Um) (1 De) ;
+REMOVE Pro IF (NOT 1 V OR Prn) (NOT -1 Inf) (NOT -1 Guess/Inf) ;
 
-#SELECT Pro IF (-2 Pr) (-1 Inf) (0 Se) ;
+SELECT Prn IF (0 Um) (1 De) ;
+
+SELECT Pro IF (-2 Pr) (-1 Inf) (0 Se) ;
   ## em saber se 
 
-#REMOVE Cog IF (-1 Art) (0C Ant OR Cog)  ;
+REMOVE Cog IF (-1 Art) (0C Ant OR Cog)  ;
 
 
 
 
 #nuboros rules
-#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$MascSg LINK 0 N OR NP) (1 A OR PrfPrc + $$MascSg) ;
+REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (0 N OR A + $$MascSg LINK 0 N OR NP) (1 A OR PrfPrc + $$MascSg) ;
 
 ##jovem inteligente
 
-#REMOVE PrfPrc IF (-1 Barrera_Inicial_Estrict_SN) (O N OR PrfPrc + $$MascSg LINK 0 N OR NP) (1 A OR PrfPrc + $$MascSg) ;
+REMOVE PrfPrc IF (-1 Barrera_Inicial_Estrict_SN) (0 N OR PrfPrc + $$MascSg LINK 0 N OR NP) (1 A OR PrfPrc + $$MascSg) ;
 
 ##escrito grande
 
-#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$MascPl LINK 0 N OR NP) (1 A OR PrfPrc + $$MascPl) ;
+REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (0 N OR A + $$MascPl LINK 0 N OR NP) (1 A OR PrfPrc + $$MascPl) ;
 
 ##velhos inteligentes
 
-#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$FemSg LINK 0 N OR NP) (1 A OR PrfPrc + $$FemSg) ;
+REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (0 N OR A + $$FemSg LINK 0 N OR NP) (1 A OR PrfPrc + $$FemSg) ;
 
 ##capital antiga
 
-#REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (O N OR A + $$FemPl LINK 0 N OR NP) (1 A OR PrfPrc + $$FemPl) ;
+REMOVE A IF (-1 Barrera_Inicial_Estrict_SN) (0 N OR A + $$FemPl LINK 0 N OR NP) (1 A OR PrfPrc + $$FemPl) ;
 
 ##velhas bonitas
 

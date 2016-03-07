@@ -86,14 +86,13 @@ main = do
 
     let subr = if "nosub" `elem` r then ".nosub" else ".withsub"
     let lhack = if "lemmahack" `elem` r then ".lemmahack" else ""
-    let withambcls = "ambcls" `elem` r
-    let withunders = "undersp" `elem` r
+    let rdsfromgrammar = "undersp" `elem` r || "rdsfromgrammar" `elem` r
  
     let dirname = "data/" ++ lang ++ "/" 
     let grfile  = dirname ++ lang ++ ".rlx"
     let tagfile = dirname ++ lang ++ ".tags"
     let rdsfile = dirname ++ lang ++ ".readings" ++ subr ++ lhack
-    ambcls <- if withambcls 
+    ambcls <- if "ambcls" `elem` r
                 then do let acfile = dirname ++ lang ++ ".ambiguity-classes" ++ lhack
                         ambclauses <- readFile acfile
                         let xss  = map read (lines ambclauses) :: [[Int]]
@@ -109,10 +108,14 @@ main = do
     tagsInLex <- (concat . map parse . filter (not.null) . words) 
                    `fmap` readFile tagfile
     (tsets, rls) <- readRules' grfile
-    let readingsInGr = if withunders && not withambcls --will mess up ambiguity class thing
+    let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
                         then nub $ concatMap toTags' tsets
-                        else [] 
+                        else if "underspl" `elem` r
+                          then nub $ filter containsLemmaOrWF $ concatMap toTags' tsets
+                          else [] 
+    --print ("readingsInGr length:", length readingsInGr)
     readingsInLex <- (map parse . words) `fmap` readFile rdsfile
+    --print ("readingsInLex length:", length readingsInLex)
     let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
     let tags = nub $ tagsInLex ++ concat readings
 
@@ -124,6 +127,8 @@ main = do
 
     let chosenRules = drop from $ take to $ concat (map reverse rls)
     let rulesToTest = splits $ map (ruleToRule' tagmap allinds) chosenRules
+
+    --print rulesToTest
 
 
 -------------------------------------------------------------------------------- 
@@ -208,5 +213,14 @@ main = do
 
   toTags' :: TagSet -> [[Tag]]
   toTags' = concatMap (nub . (\(a,b) -> if all null b then a else a++b)) . toTags
+
+  containsLemmaOrWF :: [Tag] -> Bool
+  containsLemmaOrWF []     = False
+  containsLemmaOrWF (x:xs) = case x of
+                              Lem _ -> True
+                              WF _  -> True
+                              Subreading
+                                _ y -> containsLemmaOrWF (y:xs)
+                              _     -> containsLemmaOrWF xs    
 
 

@@ -145,6 +145,16 @@ SECTION
 
 SET Como = ("como") OR ("Como") ;
 
+REMOVE:poder_podar_1 Podar (0 Podar) (1C Inf OR Enc) ;
+REMOVE:sentir_sentar_1 Sentar (0 Sentar) (1C Inf OR Enc) ;
+REMOVE:poder_podar_1b Podar (0 Podar) (1 Adv) (2C Inf OR Enc) ;
+REMOVE:poder_podar_2 Podar (0 Podar) (1C ("que")) ;
+REMOVE:soler_salar_1 Salar (0 Salar) (1C Inf OR Enc) ;
+REMOVE:soler_salar_1b Salar (0 Salar) (1 Adv) (2C Inf OR Enc) ;
+REMOVE:soler_salar_2 Salar (0 Salar) (1C ("que")) ;
+
+
+
 SELECT:r_bajo_0 A (0 ("bajo") OR ("Bajo")) (-1C PreAdv) ;
 
 # Actual rules start here!
