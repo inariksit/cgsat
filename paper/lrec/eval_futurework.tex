@@ -367,6 +367,7 @@ A downside in the ambiguity classes is that generating them takes a long time,
 and while 5-minute overhead may be acceptable when checking the full grammar,
 it is hardly so when analysing just a handful of rules.
 
+
 %We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimise for speed at all.
 
 % A Finnish symbolic word has around 5700 variables in the beginning of the analysis, each representing a possible tag combination.
@@ -389,18 +390,25 @@ The evaluation indicates that the tool finds conflicts and dead rules
 from actual grammars. We did not have a volunteer to test the tool in
 the process of grammar writing, so we cannot conclude whether the
 constructed examples are useful for getting new insights on the rules.
-However, there are still a number of features to improve and add.
+In any case, there are still a number of features to improve and add.
 
 \paragraph{Combining morphological and lexical tags}
 
 Our solution to hardcode the tag combinations in the readings is
 feasible for simple morphology, but it can cause problems with more
 complex morphology.
+A more scalable solution would be to make each tag a variable, and ask the
+question ``can this reading be a noun? how about singular? how about
+conditional?'' separately for each tag. Then we could lift the
+restriction of tag combinations into a SAT solver: make SAT clauses
+that prohibit a comparative to go with a verb, or conditional with a noun.
+
 Another benefit of this solution is the addition of lemmas and word
 forms, as well as regular expressions: currently, if we want to add
 one more lemma for a verb, we need to create as many new variables as
 there are distinct verb forms---easily hundreds for languages with
 rich morphology.
+
 This may also be feasible to support regular expressions, in a nicer
 way than just spitting out the regex. (MORE ON THAT)
 
@@ -413,13 +421,7 @@ In order to implement rules that may add new readings, or new tags to
 existing readings, we need to modify our approach in the SAT-encoding.
 Even if the lexicon gives all readings that exist in the lexicon, the
 user might give a nonexistent reading, or in the case of MAP, a
-syntactic tag, which is (by definition) not in the lexicon. A more
-scalable solution would be to make each tag a variable, and ask the
-question ``can this reading be a noun? how about singular? how about
-conditional?'' separately for each tag. Then we could lift the
-restriction of tag combinations into a SAT solver: make SAT clauses
-that prohibit a comparative to go with a verb, or conditional with a noun.
-
+syntactic tag, which is (by definition) not in the lexicon. 
 
 % \paragraph{Regular expressions}
 % For rules with regular expressions, this would blow up even more: there are rules that only address whether the word form in a condition starts with a lowercase letter, or whether it ends in a certain suffix. A realistic, albeit unsatisfactory option is just to treat it as an underspecified reading, and offer that same regular expression to the user when generating a symbolic sentence. Another, less feasible, solution is to grep all the word forms or lemmas that match the regular expression in question---in the worst case (e.g. lower case), this will match all the entries in the expanded lexicon.
