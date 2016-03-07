@@ -131,6 +131,8 @@ some typos (capital O for 0) in order to make it compile, and
 commented out two rules that used regular expressions, because our
 solution does not handle them properly; see more on Section~\ref{sec:conclusion}.
 
+We include two versions of the Spanish grammar in table~\ref{table:res}: in column 2, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column 3, we just added each word form and lemma as individual readings, allowed to combine with any other reading. \todo{check if true: This did not affect the amount of conflicts detected, but we found some differences in the generated output; examples will be shown later in this section.}
+
 Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are \todo{n} rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. It is likely that this grammar has been written for an earlier version, where such tag has been in place.
 
 
@@ -355,11 +357,15 @@ there is no way to trigger $r2$ without placing a comma in position -1, and ther
 The running time of the grammars goes from seconds to hours. 
 As can be seen from the times, increasing the number of readings
 matters more than increasing the number of rules.
-In addition, the ambiguity class constraints take a long time. 
+In addition, the ambiguity class constraints take a long time.
+
 
 However, many of the use cases do not require running the whole
 grammar. Testing the interaction between 5--10 rules takes just
-seconds, regardless of the language. 
+seconds in all languages, if the ambiguity class constraints are not included. 
+A downside in the ambiguity classes is that generating them takes a long time, 
+and while 5-minute overhead may be acceptable when checking the full grammar,
+it is hardly so when analysing just a handful of rules.
 
 %We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimise for speed at all.
 
