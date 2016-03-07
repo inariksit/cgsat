@@ -376,27 +376,32 @@ seconds, regardless of the language.
 %  The majority of the correctly detected errors in the Finnish grammar were rule-internal---these errors don't need the context of the other rules at all.
 
 
-\section{Future work and conclusions}
+\section{Conclusions and Future Work}
 \label{sec:conclusion}
 
-The evaluation indicates that the tool finds conflicts and dead rules
-from actual grammars. We did not have a volunteer to test the tool in
+We set out to design and implement an automatic analysis of constraint grammars that can find problematic rules and rule combinations, without the need for a corpus.
+Our evaluation indicates that the tool indeed finds non-trivial conflicts and dead rules
+from actual grammars. 
+
+We did not have a volunteer to test the tool in
 the process of grammar writing, so we cannot conclude whether the
 constructed examples are useful for getting new insights on the rules.
-However, there are still a number of features to improve and add.
+
+Also, there are still a number of features to improve and add.
 
 \paragraph{Combining morphological and lexical tags}
 
 Our solution to hardcode the tag combinations in the readings is
 feasible for simple morphology, but it can cause problems with more
 complex morphology.
-Another benefit of this solution is the addition of lemmas and word
-forms, as well as regular expressions: currently, if we want to add
-one more lemma for a verb, we need to create as many new variables as
-there are distinct verb forms---easily hundreds for languages with
-rich morphology.
+We are currently working on adding the concepts of lemmas and word
+forms directly to the representation of the possible readings.
+Currently, if we want to add one more lemma for a verb, we need to
+create as many new variables as there are distinct verb forms---easily
+hundreds for languages with rich morphology. (INARI: Do you really mean to say 'verb forms' here?)
+
 This may also be feasible to support regular expressions, in a nicer
-way than just spitting out the regex. (MORE ON THAT)
+way than just spitting out the regex. (INARI: You said MORE ON THAT here, good because I don't understand what you want to say here :)
 
 \paragraph{Full expressivity of CG-3}
 As for longer-term goals, we want to handle the full expressivity of CG-3,
@@ -407,12 +412,13 @@ In order to implement rules that may add new readings, or new tags to
 existing readings, we need to modify our approach in the SAT-encoding.
 Even if the lexicon gives all readings that exist in the lexicon, the
 user might give a nonexistent reading, or in the case of MAP, a
-syntactic tag, which is (by definition) not in the lexicon. A more
-scalable solution would be to make each tag a variable, and ask the
-question ``can this reading be a noun? how about singular? how about
-conditional?'' separately for each tag. Then we could lift the
-restriction of tag combinations into a SAT solver: make SAT clauses
-that prohibit a comparative to go with a verb, or conditional with a noun.
+syntactic tag, which is (by definition) not in the lexicon. We may need to move
+to a more scalable solution.
+% would be to make each tag a variable, and ask the
+%question ``can this reading be a noun? how about singular? how about
+%conditional?'' separately for each tag. Then we could lift the
+%restriction of tag combinations into a SAT solver: make SAT clauses
+%that prohibit a comparative to go with a verb, or conditional with a noun.
 
 
 % \paragraph{Regular expressions}
@@ -427,15 +433,16 @@ reverse operation could also be possible. If a rule with long
 disjunctions conflicts, it may be useful to split it into smaller
 conditions, and eliminate one at a time, in order to find the
 reason(s) for the conflict.
-As soon as the tools are mature enough, we want to
-evaluate them with actual grammar writers,
+Our next step is to evaluate our tools together with actual grammar writers,
 in comparison with a corpus-based method or machine learning.
-Finally, if the method proves feasible for CG, we want
-to try applying it to other grammar formalisms.
 
-\subsection{Conclusions}
+\paragraph{Other grammar formalisms}
+Finally, we would like to investigate logic-based methods for analysing other grammar
+formalisms, for example Grammatical Framework \cite{gf}. (INARI: can you add a reference here?)
 
-It is nice!
+%\subsection{Conclusions}
+
+%It is nice!
 
 % * Preliminary results
 %  - dutch & spanish
