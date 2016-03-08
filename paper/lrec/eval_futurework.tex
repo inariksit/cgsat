@@ -76,26 +76,11 @@ REMOVE Adv IF (-1 Det) (0 Adj) (1 N) ;
 
 % These two rules both remove an adverb, but the first one has a broader condition:
 % remove adverb if followed by a noun. In contrast, the second rule has a stricter condition: only remove adverb if it is preceded by a determiner, the adverb itself is ambiguous with an adjective, and followed by a noun. 
-The problem is that that
-The first rule has a broader condition, 
-it removes the adverb in all possible cases 
- removes the adverb in all possible cases, and the second will not have any chance to act. If the rules were in the opposite order, then there would be no problem.
+The problem is that the first rule has a broader condition than the second.
+The first rule removes the adverb in all possible cases where the second would, and the second will not have any chance to act. 
+If the rules were in the opposite order, then there would be no problem.
 
 
-%%% Nevermind, this wasn't a conflict, my program was just buggy :-P
-
-%\begin{itemize}
-%\item[] 
-%\begin{verbatim}
-%SELECT DetPosNotZijn IF (1 Noun) ;
-%SELECT DetPos IF (-1 (vbser pres p3 sg)) 
-%                 (0 "zijn") (1 Noun);
-%\end{verbatim}
-%\end{itemize}
-
-% SELECT DetPosNotZijn IF (1 Noun);
-%If the first rule fires, then the condition of the second rule cannot be true: there can never be a ``zijn'' in the target, because the previous rule has selected everything that is a possessive determiner and not ``zijn''. 
-%So, the first rule must not fire. It cannot be because condition does not hold: the condition (1 Noun) is shared with the second rule, and  
 
 We also tested rules individually, in a way that a grammar writer might use our tool when writing new rules.
 The following rule was one of them:
@@ -137,14 +122,12 @@ To catch them more systematically, we could add a feature that alerts in all cas
 highest number of errors. The grammar we ran is like the one
 found in the Apertium repository (linked on the previous page), 
 apart from two changes: we fixed some typos (capital O for 0) in order to make it compile, and
-commented out two rules that used regular expressions, because our
-solution does not handle them properly; see more on Section~\ref{sec:conclusion}.
+commented out two rules that used regular expressions, because we did not implement the support for them yet.
 
 We include two versions of the Spanish grammar in table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}~{\small sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
-This latter version ran much faster, but failed to detect two internal conflicts, both for rules that target a lemma in a condition.
+This latter version ran much faster, but failed to detect an internal conflict for a rule that targets a lemma in a condition.
 % SELECT:pr_cnjadv_3 cnjadv IF (0 "después de") 
-More interesting observation, the first version failed to detect a true interaction conflict, because it marked the two rules as internal conflicts.
-%In addition, there were differences in the generated output; examples will be shown later in this section.
+Surprisingly, the first version failed to detect a true interaction conflict, because it marked the two rules both as internal conflicts.
 
 As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
 
@@ -262,7 +245,7 @@ In fact, we are planning to change how we handle the lexical forms; with those c
 
 \begin{table*}[t!]
 \centering
-\begin{tabular}{|p{2.5cm}|p{3cm}|p{3cm}|p{3cm}|p{3cm}|}
+\begin{tabular}{|p{3.15cm}|p{2.55cm}|p{2.55cm}|p{2.7cm}|p{2.1cm}|}
 
 \hline
               & 1 clitic + 
@@ -272,18 +255,15 @@ In fact, we are planning to change how we handle the lexical forms; with those c
                               grammar & 1 clitic +
                                           all readings 
                                           from grammar    & all readings from grammar \\ \hline
-\# readings   & 5851 (4263 
-                 + 1588) & 9494
-                       (7906 + 1588) & 6657 (4263 + 2394) & 2394  \\ \hline
-\# conflicts  & 214      & 214       & 22                & 22  \\ \hline
-\# internal/interaction & 211 + 3    & 211 + 3           & 19 + 3    & 19 + 3  \\ \hline
+\# readings   & 5851 (4263~+~1588)
+                       & 9494
+                       (7906~+~1588) & 6657 (4263~+~2394) & 2394  \\ \hline
+\#~conflicts  & 214    & 214         & 22                 & 22 \\
+(internal + 
+ interaction) & (211~+~3) & (211~+~3) & (19~+~3)        &  (19~+~3)  \\ \hline
 
-\# true 
-   positives  & n        & m         & o                & p  \\ \hline
-\# false 
-   positives  & p        & q         & r                & s   \\ \hline
-\clock{}all 
-       rules & 12min     & 23min     & 12min &  4min 40s \\ \hline
+\clock{} all 
+       rules & Xh 12min     & Xh 23min   & Xh 12min &  Xh 4min \\ \hline
 
 
 \end{tabular}
@@ -369,32 +349,8 @@ SELECT .. IF (-2 ..) (-1 Comma) ;
 
 The rules above have been simplified to show only the relevant part.
 The conflict lies in the fact that \texttt{Comma} is a subset of \texttt{Comma/N/Pron/Q}:
-there is no way to trigger the second without placing a comma in position -1, and thereby triggering the first rule.
+there is no way to trigger the second rule without placing a comma in position -1, and thereby triggering the first rule.
 
-
-% All in all, using readings from grammar directly may be useful in order to find just the , sometimes you can have a typo, like in \emph{l\"{a}hetii}:
-
-% \begin{verbatim}
-% "w2"
-%         w2<"se"><ela>
-%         w2<"<lähetii>"><vblex>
-% \end{verbatim}
-
-
-% The second part concerns the tools in use, specifically the Apertium morphological lexicon. We noticed, only after running the experiments, that the expansion of the lexicon does not work properly: for instance, some nominal forms of the verbs were reported as nouns instead of verbs.
-% We reported the errors to the developers of the lexicon, but as there was no time to fix them, we used the readings that we got from expanding the lexicon, and manually added either noun, verb or adjective tag where it was missing.
-
-% kosimisiin:kosia<n><pl><ill>
-% kosimattomuudekseen:kosia<sg><tra><pxsp3> 
-
-% Secondly, we added ambiguity class constraints for only
-% \emph{intraparadigmatic ambiguities}: homonymous wordforms belonging
-% to the same lexeme, in a way that is systematic to the whole
-% paradigm. We reduced the morphological lexicon to contain only one
-% example of each inflection paradigm, and then expanded it: with all
-% the clitics, this resulted in \todo{n} word forms. Then we applied the
-% normal method of creating the ambiguity classes, and specified some
-% default cases manually, such as punctuation and word boundaries.
 
 
 
@@ -461,8 +417,6 @@ Currently, if we want to add one more lemma for a verb, we need to
 create as many new variables as there are distinct word forms---easily
 hundreds for languages with rich morphology. 
 
-This may also be feasible to support regular expressions, in a nicer
-way than just spitting out the regex. (INARI: You said MORE ON THAT here, good because I don't understand what you want to say here :)
 
 \paragraph{Full expressivity of CG-3}
 As for longer-term goals, we want to handle the full expressivity of CG-3,
@@ -481,7 +435,9 @@ to a more scalable solution.
 % For rules with regular expressions, this would blow up even more: there are rules that only address whether the word form in a condition starts with a lowercase letter, or whether it ends in a certain suffix. A realistic, albeit unsatisfactory option is just to treat it as an underspecified reading, and offer that same regular expression to the user when generating a symbolic sentence. Another, less feasible, solution is to grep all the word forms or lemmas that match the regular expression in question---in the worst case (e.g. lower case), this will match all the entries in the expanded lexicon.
 
 \paragraph{Support for grammar writers}
-One additional feature is to suggest reformattings for a rule. Recall
+As mentioned earlier, we could support additional checks for common issues,
+such as conditions that concern the target word.
+Another possible feature is to suggest reformattings for a rule. Recall
 figure~\ref{fig:regroup} from the introduction; in that case, the
 original rule was written by the original author, and another
 grammarian thought that the latter form is nicer to read. Doing the
