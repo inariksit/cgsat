@@ -21,23 +21,23 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 
 \begin{table}[]
 \centering
-\begin{tabular}{|l|l|l|l|}
+\begin{tabular}{|p{2.80cm}|l|l|l|}
 
 \hline
                    & \textsc{nld}  & \textsc{spa}lem  & \textsc{spa}nolem \\ \hline
 \# rules           & 59            & 279       & 279     \\ \hline
 \# readings        & 336           & 3905      & 1735    \\ \hline
-\# true positives  & 7             & n         & m    \\ \hline
-\# internal/interaction & 6 + 1    & n         & + 25    \\ \hline
-
-\# false positives & 0             & n         & 5    \\ \hline
-\# internal/interaction & 0        & n         & 5 +   \\ \hline
+\# true positives 
+    \small{(internal + interaction)}
+                   & 7 (6 + 1)     & n         & m ( + 25)   \\ \hline
+\# false positives 
+ \small{(internal + interaction)}
+                   & 0        & n         & 5 +   \\ \hline
 
 \clock{} with amb. 
-           classes & ??s           & 5h 42m    &  11m25  \\ \hline
-% \clock{} last rule & ??s           & ??s       & ?min ??s    \\ \hline
+           classes & ??s           & 5h 42m    &  ??m ?s  \\ \hline
 \clock{} no amb. 
-           classes & 10ish sec       & 14m 16s    & ?h ??min    \\ \hline
+           classes & 10ish sec       & ?m ?s    & 15m 57s    \\ \hline
 
 %\# variables: last rule & 33915         & 247153            &    \\ \hline
 
@@ -222,9 +222,11 @@ writer intended.
 
 
 \begin{itemize}
-\item[] 
-\texttt{REMOVE Podar  IF (0 Podar) (1 Adv) (2C Inf OR Enc) ;} \\
-\texttt{REMOVE Sentar IF (0 Sentar) (1C Inf OR Enc) ;}
+\item[]\begin{verbatim}
+REMOVE Podar  IF (0 Podar) (..) ;
+REMOVE Sentar IF (0 Sentar) (..) ;
+
+\end{verbatim}
 \end{itemize}
 
 The comments make it clear that the first rule is meant to disambiguate between \emph{poder} and \emph{podar}, and the second rule between \emph{sentir} and \emph{sentar}. But the rule does not mention anything about \emph{poder} nor \emph{sentir}; without the ambiguity class constraints, the SAT-solver could give a triggering sequence with any other reading in the target.
@@ -244,13 +246,18 @@ instead of randomly chosen readings. So, even though this was not marked as a co
 \begin{tabular}{|p{2.5cm}|p{3cm}|p{3cm}|p{3cm}|p{3cm}|}
 
 \hline
-              & 1 clitic + lemmas from grammar & 2 clitics + lemmas from grammar & 1 clitic + all readings 
-                                                from grammar & all readings from grammar \\ \hline
+              & 1 clitic + 
+                lemmas from 
+                 grammar & 2 clitics 
+                           + lemmas from 
+                              grammar & 1 clitic +
+                                          all readings 
+                                          from grammar    & all readings from grammar \\ \hline
 \# readings   & 5851 (4263 
                  + 1588) & 9494
                        (7906 + 1588) & 6657 (4263 + 2394) & 2394  \\ \hline
-\# conflicts  & 214      & 214       & 24                & 24  \\ \hline
-\# interaction & 214      & 214       & 24                & 24  \\ \hline
+\# conflicts  & 214      & 214       & 22                & 22  \\ \hline
+\# internal/interaction & 211 + 3    & 211 + 3           & 19 + 3    & 19 + 3  \\ \hline
 
 \# true 
    positives  & n        & m         & o                & p  \\ \hline
@@ -295,8 +302,9 @@ We left the result in the table just to demonstrate the change in speed.
 
 %Example reading that adds question clitic to our arsenal: \texttt{SELECT "joka" + Pron + Q}
 
-The second two columns are playing with the full set of readings from the grammar. For both of these, the number of reported conflicts was only 24.
-
+The second two columns are playing with the full set of readings from the grammar. For both of these, the number of reported conflicts was only 22.
+Given the preliminary nature of the results, we did not do a full analysis of all the 214 reported conflicts.
+We analysed all the 22, and 
 
 
 
@@ -307,13 +315,16 @@ To show some examples of true positives:
 %SELECT ("oma" gen) IF (NOT 1 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0 LINK *-1 "olla"|"voida"|"saattaa") (0 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0C nom)
 
 \begin{itemize}
-\item[] \item[]\texttt{SELECT "oma" + Gen IF .. (0C Nom) ;}
-\item[]\texttt{SELECT ADV (-1C AD) (NOT 0 PP) (NOT 1 A) ;}
+\item[]\begin{verbatim}
+"oma" SELECT Gen IF (..) (0C Nom) ;
+
+SELECT Adv IF (NOT 0 PP) (..) ;
+\end{verbatim}
 \end{itemize}
 
-Both of these are internal conflicts, which may not be trivial to see: 
-the first rule requires the target to be genitive and unambiguously nominative: 
-the problem in the first rule is that the target is required to be  the problem is that the definition of \texttt{PP} includes \texttt{adv} among others. With the sets expanded, this rule becomes \texttt{SELECT adv IF (NOT 0 pp|adv|adp|po|pr) ...}.
+Both of these are internal conflicts, which may not be trivial to see.
+The first rule requires the target to be genitive and unambiguously nominative; however, these two tags cannot combine in the same reading.
+As for the second rule, the definition of \texttt{PP} includes \texttt{adv} among others---with the sets expanded, this rule becomes \texttt{SELECT adv IF (NOT 0 pp|adv|adp|po|pr) ...}.
 
 The following two examples are interaction conflicts:
 
@@ -325,7 +336,7 @@ REMOVE A/N (0 DER) ;
 \end{verbatim}
 \end{itemize}
 
-In this case, two rules together remove the target of the third, leaving no way for there to be adjective or noun.
+The first two rules together remove the target of the third, leaving no way for there to be adjective or noun.
 
 \begin{itemize}
 \item[]\begin{verbatim}
@@ -376,7 +387,7 @@ However, many of the use cases do not require running the whole
 grammar. Testing the interaction between 5--10 rules takes just
 seconds in all languages, if the ambiguity class constraints are not included. 
 A downside in the ambiguity classes is that generating them takes a long time, 
-and while 5-minute overhead may be acceptable when checking the full grammar,
+and while the overhead may be acceptable when checking the full grammar,
 it is hardly so when analysing just a handful of rules.
 
 
