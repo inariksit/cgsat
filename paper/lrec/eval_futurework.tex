@@ -21,23 +21,24 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 
 \begin{table}[]
 \centering
-\begin{tabular}{|p{2.8125cm}|l|l|l|}
+%\begin{tabular}{|p{2.84cm}|p{1.2cm}|p{1.2cm}|p{1.25cm}|}
+\begin{tabular}{|p{2.84cm}|p{1cm}|p{1.15cm}|p{1.55cm}|}
 
 \hline
-                   & \textsc{nld}  & \textsc{spa}lem  & \textsc{spa}nolem \\ \hline
+                   & \textsc{nld}  & \textsc{spa}  & \textsc{spa}~\small{sep.~lem.} \\ \hline
 \# rules           & 59            & 279       & 279     \\ \hline
 \# readings        & 336           & 3905      & 1735    \\ \hline
-\# conflicts found \small{(internal + interaction)}
-                   & 7 (6 + 1)     & 44 (20 + 24)     & 42 (17 + 25) \\ \hline
+\# conflicts found \small{(internal~+~interaction)}
+                   & 7 \small{(6~+~1)}     & 44 \small{(20~+~24)}     & 43 \small{(18~+~25)} \\ \hline
 % \# false positives 
 %  \small{(internal + interaction)}
 %                    & 0             & 1 (1 + 0)       & 1 (1 + 0)  \\ \hline
 
 \clock{} with amb. 
-           classes & ??s           & 1h 46m    &  Xm Ys  \\ \hline
+           classes & ??s           & 1h 46m    &  23 min  \\ \hline
 
 \clock{} no amb. 
-           classes & XXs        & 44m       & 16m      \\ \hline 
+           classes & XXs        & 44 min       & 16 min     \\ \hline 
 
 
 \end{tabular}
@@ -134,13 +135,14 @@ To catch them more systematically, we could add a feature that alerts in all cas
 
 \subsection{Spanish} The Spanish grammar had proportionately the
 highest number of errors. The grammar we ran is like the one
-found in the Apertium repository, apart from two changes: we fixed
-some typos (capital O for 0) in order to make it compile, and
+found in the Apertium repository (linked on the previous page), 
+apart from two changes: we fixed some typos (capital O for 0) in order to make it compile, and
 commented out two rules that used regular expressions, because our
 solution does not handle them properly; see more on Section~\ref{sec:conclusion}.
 
-We include two versions of the Spanish grammar in table~\ref{table:res}: in column 2, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column 3, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
+We include two versions of the Spanish grammar in table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}~{\small sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
 This latter version ran much faster, but failed to detect two internal conflicts, both for rules that target a lemma in a condition.
+% SELECT:pr_cnjadv_3 cnjadv IF (0 "después de") 
 More interesting observation, the first version failed to detect a true interaction conflict, because it marked the two rules as internal conflicts.
 %In addition, there were differences in the generated output; examples will be shown later in this section.
 
@@ -164,9 +166,10 @@ SELECT A OR PP IF (-3 N) (-2 N)
 \end{itemize}
 
 
-For a full list of found conflicts, see error log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}}.
+For a full list of found conflicts, see error log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}}. 
+%It also contains a list of conflicts which were only found by one of the variants.
 
-In addition, there was a number of set definitions that were never
+In addition, the grammar contained a number of set definitions that were never
 used. Since VISL CG-3 already points out unused sets, we did not add such
 feature in our tool. However, we noticed an unexpected benefit when
 we tried to use the set definitions from the grammar directly as our
@@ -174,7 +177,7 @@ readings: this way, we can discover inconsistencies even in
 set definitions that are not used in any rule.
 %If a set definition is impossible, using it in a rule makes the rule have an internal conflict.
 For instance, the following definition requires the word to be all of
-the listed parts of speech at the same time---the grammar writer meant
+the listed parts of speech at the same time---most likely, the grammar writer meant 
 OR instead of +:
 \begin{itemize}
 \item[] 
@@ -227,19 +230,26 @@ writer intended.
 
 \begin{itemize}
 \item[]\begin{verbatim}
-REMOVE Podar  IF (0 Podar) (..) ;
 REMOVE Sentar IF (0 Sentar) (..) ;
-
+SELECT PP     IF (0 "estado") (..) ;
 \end{verbatim}
 \end{itemize}
 
-The comments make it clear that the first rule is meant to disambiguate between \emph{poder} and \emph{podar}, and the second rule between \emph{sentir} and \emph{sentar}. But the rule does not mention anything about \emph{poder} nor \emph{sentir}.
+The comments make it clear that the first rule is meant to disambiguate between \emph{sentar} and \emph{sentir}, but the rule does not mention anything about \emph{sentir}.
 Even with the ambiguity class constraints, the SAT-solver only created an ambiguity where \emph{sentar} in 1st person plural is ambiguous with an anonymous 1st person plural reading.
-This does not reflect the reality, where these targets are only ambiguous with certain verbs, and in certain conjugated forms.
+This does not reflect the reality, where the target is only ambiguous with certain verbs, and in certain conjugated forms.
+
+The second case is potentially more dangerous. 
+The word form $estado_{W}$ 
+can be either a noun ($estado_{L}$, `state'), or the past participle of the verb $estar_{L}$. 
+The condition, however, addresses the lemma of the noun, $estado_L$, whereas the lemma of the PP is $estar_{L}$.
+This means that, in theory, there can be a case where the condition to select the PP is already removed. As for now, the lexicon does not contain other ambiguities with the word form $estado_{W}$, but we could conceive of a scenario where someone adds e.g. a proper noun $Estado_{W,L}$ to the lexicon. Then, if some rule removes the lemma $estado_{L}$, the rule to select PP will not be able to trigger.
+
 
 Another question is whether this level of detail is necessary. 
-After all, the grammar will be used to disambiguate real life texts, where \emph{podar} will likely not have any other ambiguities. 
-If our handling of lexical conditions was better, this sequence would, in fact, only be ambiguous with \emph{poder} in the right conjugation form.
+After all, the grammar will be used to disambiguate real life texts, where \emph{sentar} will likely not have any other ambiguities, and aside from our contrived example, neither will \emph{estado}. 
+In fact, we are planning to change how we handle the lexical forms; with those changes, it will become clear whether the imprecision will result in potential errors, given the current lexicon. 
+
 
 % shows a shortcoming in our way of handling the lexical conditions. 
 % If the lemmas and word forms were integrated to the analyses in a more
