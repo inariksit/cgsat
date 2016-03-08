@@ -13,7 +13,7 @@ Before we can do any analysis any of the rules, we need to find out what the set
 
 Furthermore, when we analyse a rule $r$, we need to decide the {\em width} $w(r)$ of the rule $r$: How many different words should there be in a sentence that can trigger $r$? Most often, $w(r)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
 
-If the context contains a \verb!*!,
+If the context contains a \verb!*! (context word can be anywhere),
 we may need to make an approximation of $w(r)$ which may result in false negatives later on in the analysis.
 %we create sentences that are up to 3 words wider than the context without \verb!*!, and try them all.
 
@@ -126,7 +126,7 @@ zijn:zijn<vbser><pres><pl>
 \end{itemize}
 
 Thus we add special entries for these: in addition to the anonymous
- \texttt{<det><pos><mfn><pl>} reading, we add \texttt{<"zijn"><det><pos><mfn><pl>}. 
+``det pos mfn pl'' reading, we add ``\emph{zijn} det pos mfn pl''. 
 The lemma is treated as just another tag.
 
  However, for languages with more readings, this may not be feasible. For instance, Spanish has a high number of readings, not only because of many inflectional forms, but because it is possible to add 1--2 clitics to the verb forms.
@@ -184,7 +184,7 @@ separable verb infinitives; another contains masculine plural adjectives
 and masculine plural past participles.
 Then we form SAT clauses that allow or prohibit certain combinations. These clauses will interact with the constraints created from the rules, and the end result will be closer to real-life sentences.
 
-Our approach is similar to \newcite{cutting_etal92}, who use ambiguity classes instead of distinct word forms, in order to reduce the number of parameters in a Hidden Markov Model. They take advantage of the fact that they don't have to model ``bear'' and ``wish'' as separate entries, but they can just reduce it to ``word that can be ambiguous between noun and verb'', and use it as a parameter in their HMM. 
+Our approach is similar to \newcite{cutting_etal92}, who use ambiguity classes instead of distinct word forms, in order to reduce the number of parameters in a Hidden Markov Model. They take advantage of the fact that they don't have to model ``bear'' and ``wish'' as separate entries, but they can just reduce it to ``word that can be ambiguous between noun and verb'', and use that as a parameter in their HMM. 
 %We can do a similar thing by saving a list of words with each ambiguity class. For example, we map the ambiguity class ``feminine plural noun or a separable verb infinitive'' to the list of word forms \{``uitgaven'', ``toespraken''\}, and then, if we generate such reading for our symbolic word, we can give one of these words as an example word.
 
 There are two advantages of restricting the ambiguity within words.
