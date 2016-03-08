@@ -294,7 +294,7 @@ In fact, we are planning to change how we handle the lexical forms; with those c
 \subsection{Finnish} 
 
 The results for the Finnish grammar are shown separately, in table~\ref{table:resFin}. We encountered a number of difficulties and used a few shortcuts, which we did not need for the other grammars---most importantly, not using the ambiguity class constraints. Due to these complications, the results are not directly comparable, but we include Finnish in any case, 
-to give an idea how our method scales up: both to grammars with more rules, and to more complex rules.
+to give an idea how our method scales up: both to more rules, and more complex rules.
 
 \paragraph{Challenges with Finnish} The first challenge is the morphological complexity of Finnish.
 There are more than 20,000 readings, when all possible clitic combinations are included.
@@ -312,16 +312,17 @@ For future development, we will see if it is possible to manipulate the finite a
 \paragraph{Results}
 The results are shown in table~\ref{table:resFin}.
 In the first column, we included only possessive suffixes. In the second column, we included question clitics as well.
+Both of these readings include the 1588 lemmas and word forms from the grammar.
 In the third column, we included all the tag combinations specified in the grammar, and in the fourth, we took only those, ignoring the morphological lexicon completely.
 
-For the first two columns, there are a high number of internal conflicts. 
-These are almost all due to nonexisting tags. The grammar was written in 1995, and updated by \newcite{pirinen2015}; but this high number of internal conflicts indicates that possibly something has gone wrong in the conversion, or in our expansion of the morphological lexicon.
+For the first two variants, there are a high number of internal conflicts. 
+These are almost all due to nonexisting tags. The grammar was written in 1995, and updated by \newcite{pirinen2015}; this high number of internal conflicts indicates that possibly something has gone wrong in the conversion, or in our expansion of the morphological lexicon.
 As for accuracy, adding the question clitics did not change anything: they were already included in some of the 1588 sets with word forms or lemmas, and that was enough for the SAT-solver to find models with question clitics.
 We left the result in the table just to demonstrate the change in speed.
 
 %Example reading that adds question clitic to our arsenal: \texttt{SELECT "joka" + Pron + Q}
 
-The second two columns are playing with the full set of readings from the grammar. For both of these, the number of reported conflicts was only 22.
+The second two variants are playing with the full set of readings from the grammar. For both of these, the number of reported conflicts was only 22.
 Given the preliminary nature of the results, we did not do a full analysis of all the 214 reported conflicts.
 We analysed all the 22, and 
 
