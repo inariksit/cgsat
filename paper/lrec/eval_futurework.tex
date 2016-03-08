@@ -62,7 +62,7 @@ rules with negations and complex set operations.
 As the tool matures and we add new features, a more in-depth analysis
 will be needed.
 
-\subsection{Dutch} The Dutch grammar had two kinds of errors: rule-internal, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in 2 rules as the main reading. 
+\subsection{Dutch} The Dutch grammar had two kinds of errors: rule-internal, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in one rule as the main reading. 
 
 There was one genuine conflict with rule interaction, shown below:
 
@@ -73,8 +73,12 @@ REMOVE Adv IF (-1 Det) (0 Adj) (1 N) ;
 \end{verbatim}
 \end{itemize}
 
-These two rules both remove an adverb, but the first one has a broader condition:
-remove adverb if followed by a noun. In contrast, the second rule has a stricter condition: only remove adverb if it is preceded by a determiner, the adverb itself is ambiguous with an adjective, and followed by a noun. The problem is that the first rule removes the adverb in all possible cases, and the second will not have any chance to act. If the rules were in the opposite order, then there would be no problem.
+% These two rules both remove an adverb, but the first one has a broader condition:
+% remove adverb if followed by a noun. In contrast, the second rule has a stricter condition: only remove adverb if it is preceded by a determiner, the adverb itself is ambiguous with an adjective, and followed by a noun. 
+The problem is that that
+The first rule has a broader condition, 
+it removes the adverb in all possible cases 
+ removes the adverb in all possible cases, and the second will not have any chance to act. If the rules were in the opposite order, then there would be no problem.
 
 
 %%% Nevermind, this wasn't a conflict, my program was just buggy :-P
@@ -142,9 +146,8 @@ In addition, there were differences in the generated output; examples will be sh
 Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
 
 As for the 25 interaction conflicts, there were only 9 distinct rules that rendered 25 other rules ineffective.
-In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1, where the groups of 4 rules are variants of otherwise identical rule, with  combinations feminine singular, masculine singular, feminine plural and masculine plular.
+In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1, where the groups of 4 rules are variants of otherwise identical rule, each with different gender and number.
 An example of such conflict is below (gender and number omitted for readability):
-
 
 \begin{itemize}
 \item[] 
@@ -160,7 +163,7 @@ SELECT A OR PP IF (-3 N) (-2 N)
 \end{itemize}
 
 
-For a full list of found conflicts, see \todo{\url{actual://link.here/spanish/error.log}}
+For a full list of found conflicts, see error log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}}.
 
 In addition, there was a number of set definitions that were never
 used. Since VISL CG-3 already points out unused sets, we did not add such
@@ -229,16 +232,21 @@ REMOVE Sentar IF (0 Sentar) (..) ;
 \end{verbatim}
 \end{itemize}
 
-The comments make it clear that the first rule is meant to disambiguate between \emph{poder} and \emph{podar}, and the second rule between \emph{sentir} and \emph{sentar}. But the rule does not mention anything about \emph{poder} nor \emph{sentir}; without the ambiguity class constraints, the SAT-solver could give a triggering sequence with any other reading in the target.
+The comments make it clear that the first rule is meant to disambiguate between \emph{poder} and \emph{podar}, and the second rule between \emph{sentir} and \emph{sentar}. But the rule does not mention anything about \emph{poder} nor \emph{sentir}.
+Even with the ambiguity class constraints, the SAT-solver only created an ambiguity where \emph{sentar} in 1st person plural is ambiguous with an anonymous 1st person plural reading.
+This does not reflect the reality, where these targets are only ambiguous with certain verbs, and in certain conjugated forms.
 
-This example shows the 
-shows a shortcoming in our way of handling the lexical conditions. 
-If the lemmas and word forms were integrated to the analyses in a more
-sensible way, then the ambiguity class constraints would create a
-sequence where \emph{podar} was ambiguous with \emph{poder} only in the
-word form \emph{puedo}.
+Another question is whether this level of detail is necessary. 
+After all, the grammar will be used to disambiguate real life texts, where \emph{podar} will likely not have any other ambiguities. 
+If our handling of lexical conditions was better, this sequence would, in fact, only be ambiguous with \emph{poder} in the right conjugation form.
 
-instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
+% shows a shortcoming in our way of handling the lexical conditions. 
+% If the lemmas and word forms were integrated to the analyses in a more
+% sensible way, then the ambiguity class constraints would create a
+% sequence where \emph{podar} was ambiguous with \emph{poder} only in the
+% word form \emph{puedo}.
+
+% instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
 
 
 \begin{table*}[t!]
