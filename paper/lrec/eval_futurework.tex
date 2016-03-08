@@ -263,7 +263,7 @@ In fact, we are planning to change how we handle the lexical forms; with those c
  interaction) & (211~+~3) & (211~+~3) & (19~+~3)        &  (19~+~3)  \\ \hline
 
 \clock{} all 
-       rules & Xh Ymin     & Xh Ymin   & Xh Ymin &  Xh Ymin \\ \hline
+       rules & 2h 2min     & Xh Ymin   & Xh Ymin &  Xh Ymin \\ \hline
 
 
 \end{tabular}
@@ -326,7 +326,7 @@ SELECT Adv IF (NOT 0 PP) (..) ;
 
 Both of these are internal conflicts, which may not be trivial to see.
 The first rule requires the target to be genitive and unambiguously nominative; however, these two tags cannot combine in the same reading.
-As for the second rule, the definition of \texttt{PP} includes \texttt{adv} among others---with the sets expanded, this rule becomes \texttt{SELECT adv IF (NOT 0 pp|adv|adp|po|pr) ...}.
+As for the second rule, the definition of \texttt{PP} includes \texttt{adv} among others---with the sets expanded, this rule becomes \texttt{SELECT adv IF (NOT 0 pp|adv|adp|po|pr) (...)}.
 
 The following two examples are interaction conflicts:
 
@@ -338,6 +338,7 @@ REMOVE A/N (0 Der) ;
 \end{verbatim}
 \end{itemize}
 
+This is the same pattern we have already seen before, but with a set of rules as the reason for conflict.
 The first two rules together remove the target of the third, leaving no way for there to be adjective or noun.
 
 \begin{itemize}
