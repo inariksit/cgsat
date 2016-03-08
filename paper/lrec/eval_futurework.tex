@@ -28,12 +28,16 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 \# rules           & 59            & 279       & 279     \\ \hline
 \# readings        & 336           & 3905      & 1735    \\ \hline
 \# true positives  & 7             & n         & m    \\ \hline
-\# false positives & 0             & n         & m    \\ \hline
+\# internal/interaction & 6 + 1    & n         & + 25    \\ \hline
+
+\# false positives & 0             & n         & 5    \\ \hline
+\# internal/interaction & 0        & n         & 5 +   \\ \hline
+
 \clock{} with amb. 
-           classes & ??s           & + 1h      & 30m-1h   \\ \hline
+           classes & ??s           & 5h 42m    &  11m25  \\ \hline
 % \clock{} last rule & ??s           & ??s       & ?min ??s    \\ \hline
 \clock{} no amb. 
-           classes & 10ish sec       & ??min ??s    & ?h ??min    \\ \hline
+           classes & 10ish sec       & 14m 16s    & ?h ??min    \\ \hline
 
 %\# variables: last rule & 33915         & 247153            &    \\ \hline
 
@@ -131,25 +135,32 @@ some typos (capital O for 0) in order to make it compile, and
 commented out two rules that used regular expressions, because our
 solution does not handle them properly; see more on Section~\ref{sec:conclusion}.
 
-We include two versions of the Spanish grammar in table~\ref{table:res}: in column 2, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column 3, we just added each word form and lemma as individual readings, allowed to combine with any other reading. \todo{check if true: This did not affect the amount of conflicts detected, but we found some differences in the generated output; examples will be shown later in this section.}
+We include two versions of the Spanish grammar in table~\ref{table:res}: in column 2, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column 3, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
+This latter version ran much faster, but also resulted in 5 false positives, all for rules that require a lemma in a condition.
+In addition, there were differences in the generated output; examples will be shown later in this section.
 
-Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are \todo{n} rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. It is likely that this grammar has been written for an earlier version, where such tag has been in place.
+Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
 
+As for the 25 interaction conflicts, there were only 9 distinct rules that rendered 25 other rules ineffective.
+In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1, where the groups of 4 rules are variants of otherwise identical rule, with  combinations feminine singular, masculine singular, feminine plural and masculine plular.
+An example of such conflict is below (gender and number omitted for readability):
 
-The Spanish grammar has a high number of interaction conflicts, \todo{n} with the same pattern:
 
 \begin{itemize}
 \item[] 
-\begin{verbatim}REMOVE (a) IF (-1 x) (1 y) ;
-REMOVE (a) IF (-1 x) (1 y) (NOT -1 z);
+\begin{verbatim}
+# NOM ADJ ADJ
+SELECT A OR PP IF (-2 N) 
+ (-1 Adj_PP) (0 Adj_PP) (NOT 0 Det);
+
+# NOM ADJ ADJ ADJ
+SELECT A OR PP IF (-3 N) (-2 N) 
+ (-1 Adj_PP) (0 Adj_PP) (NOT 0 Det);
 \end{verbatim}
 \end{itemize}
 
 
-This is another instance of more general rule applying before more
-specific. Negated context works as well to make a rule stricter. The
-second rule will never apply, because the first will catch all
-cases. For a full list of found conflicts, see \todo{\url{actual://link.here/spanish/error.log}}
+For a full list of found conflicts, see \todo{\url{actual://link.here/spanish/error.log}}
 
 In addition, there was a number of set definitions that were never
 used. Since VISL CG-3 already points out unused sets, we did not add such
@@ -265,10 +276,10 @@ After weeding out the most uncommon combinations, we ended up with sets of 4000-
 
 The second challenge comes from the larger size of the grammar. Whereas the Spanish and Dutch had only tens of word forms or lemmas, the Finnish grammar specifies around 900 of them.
 Due to both of these factors, the procedure described in Section~\ref{sec:realistic_readings} would have exploded the number of readings, so we simply took the lemmas and word forms, and added them as single readings. 
-In cases where they were combined with another tag in the grammar, we took that reading directly: for instance, we took both \emph{aika} and ``\emph{aika} n'' from \texttt{SELECT "aika" + N},
-but nothing from \texttt{SELECT Pron + Sg}. This method gave us 1588 additional readings.
+In cases where they were combined with another tag in the grammar, we took that reading directly: for instance, we included both \emph{aika} and ``\emph{aika} n'' from the rule \texttt{SELECT "aika" + N},
+but nothing from the rule \texttt{SELECT Pron + Sg}. This method gave us 1588 additional readings.
 
-The third were not able to create ambiguity class constraints---expanding the Finnish morphological lexicon results in \todo{100s of gigabytes?} of word forms, which is simply too big for our method to work. 
+Finally, we were not able to create ambiguity class constraints---expanding the Finnish morphological lexicon results in \todo{100s of gigabytes?} of word forms, which is simply too big for our method to work. 
 For future development, we will see if it is possible to manipulate the finite automata directly, instead of relying on the output in text.
 
 
@@ -296,12 +307,13 @@ To show some examples of true positives:
 %SELECT ("oma" gen) IF (NOT 1 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0 LINK *-1 "olla"|"voida"|"saattaa") (0 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0C nom)
 
 \begin{itemize}
-\item[] \todo{Put back the rule with 0 gen and 0C nom!!! that was actually nice and legit}
-
+\item[] \item[]\texttt{SELECT "oma" + Gen IF .. (0C Nom) ;}
 \item[]\texttt{SELECT ADV (-1C AD) (NOT 0 PP) (NOT 1 A) ;}
 \end{itemize}
 
-This is an internal conflict, which is not trivial to see: the problem is that the definition of \texttt{PP} includes \texttt{adv} among others. With the sets expanded, this rule becomes \texttt{SELECT adv IF (NOT 0 pp|adv|adp|po|pr) ...}.
+Both of these are internal conflicts, which may not be trivial to see: 
+the first rule requires the target to be genitive and unambiguously nominative: 
+the problem in the first rule is that the target is required to be  the problem is that the definition of \texttt{PP} includes \texttt{adv} among others. With the sets expanded, this rule becomes \texttt{SELECT adv IF (NOT 0 pp|adv|adp|po|pr) ...}.
 
 The following two examples are interaction conflicts:
 
@@ -317,14 +329,14 @@ In this case, two rules together remove the target of the third, leaving no way 
 
 \begin{itemize}
 \item[]\begin{verbatim}
-SELECT:r1 .. IF (-1 Comma/N/Pron/Q) ;
-SELECT:r2 .. IF (-2 ..) (-1 Comma) ;
+SELECT .. IF (-1 Comma/N/Pron/Q) ;
+SELECT .. IF (-2 ..) (-1 Comma) ;
 \end{verbatim}
 \end{itemize}
 
 The rules above have been simplified to show only the relevant part.
 The conflict lies in the fact that \texttt{Comma} is a subset of \texttt{Comma/N/Pron/Q}:
-there is no way to trigger $r2$ without placing a comma in position -1, and thereby triggering $r1$.
+there is no way to trigger the second without placing a comma in position -1, and thereby triggering the first rule.
 
 
 % All in all, using readings from grammar directly may be useful in order to find just the , sometimes you can have a typo, like in \emph{l\"{a}hetii}:
@@ -354,7 +366,7 @@ there is no way to trigger $r2$ without placing a comma in position -1, and ther
 
 
 \subsection{Performance} 
-The running time of the grammars goes from seconds to hours. 
+The running time of the grammars ranges from seconds to hours. 
 As can be seen from the times, increasing the number of readings
 matters more than increasing the number of rules.
 In addition, the ambiguity class constraints increase the time.
@@ -367,6 +379,10 @@ A downside in the ambiguity classes is that generating them takes a long time,
 and while 5-minute overhead may be acceptable when checking the full grammar,
 it is hardly so when analysing just a handful of rules.
 
+
+%Spanish lemmahack: time to create the formulas 5m32.214s
+
+%Spanish no lemmahack: time to create the formulas  62m6.049s
 
 %We believe we can still signifcantly improve the performance of the SAT-encoding. Currently it is just a naive proof-of-concept implementation, and we have not tried to optimise for speed at all.
 
