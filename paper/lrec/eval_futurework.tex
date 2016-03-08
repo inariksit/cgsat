@@ -21,25 +21,24 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 
 \begin{table}[]
 \centering
-\begin{tabular}{|p{2.80cm}|l|l|l|}
+\begin{tabular}{|p{2.8125cm}|l|l|l|}
 
 \hline
                    & \textsc{nld}  & \textsc{spa}lem  & \textsc{spa}nolem \\ \hline
 \# rules           & 59            & 279       & 279     \\ \hline
 \# readings        & 336           & 3905      & 1735    \\ \hline
-\# true positives 
-    \small{(internal + interaction)}
-                   & 7 (6 + 1)     & n         & m ( + 25)   \\ \hline
-\# false positives 
- \small{(internal + interaction)}
-                   & 0        & n         & 5 +   \\ \hline
+\# conflicts found \small{(internal + interaction)}
+                   & 7 (6 + 1)     & 44 (20 + 24)     & 42 (17 + 25) \\ \hline
+% \# false positives 
+%  \small{(internal + interaction)}
+%                    & 0             & 1 (1 + 0)       & 1 (1 + 0)  \\ \hline
 
 \clock{} with amb. 
-           classes & ??s           & 5h 42m    &  ??m ?s  \\ \hline
-\clock{} no amb. 
-           classes & 10ish sec       & ?m ?s    & 15m 57s    \\ \hline
+           classes & ??s           & 1h 46m    &  Xm Ys  \\ \hline
 
-%\# variables: last rule & 33915         & 247153            &    \\ \hline
+\clock{} no amb. 
+           classes & XXs        & 44m       & 16m      \\ \hline 
+
 
 \end{tabular}
 \caption{Results for Dutch and Spanish grammars.}
@@ -58,6 +57,7 @@ true positives.
 We did not systematically check for false negatives in any of the
 grammars, but we kept track of a number of known tricky cases; mostly
 rules with negations and complex set operations.
+
 %While this does not guarantee the lack of false negatives, it indicates some degree of reliability. 
 As the tool matures and we add new features, a more in-depth analysis
 will be needed.
@@ -140,10 +140,11 @@ commented out two rules that used regular expressions, because our
 solution does not handle them properly; see more on Section~\ref{sec:conclusion}.
 
 We include two versions of the Spanish grammar in table~\ref{table:res}: in column 2, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column 3, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
-This latter version ran much faster, but also resulted in 5 false positives, all for rules that require a lemma in a condition.
-In addition, there were differences in the generated output; examples will be shown later in this section.
+This latter version ran much faster, but failed to detect two internal conflicts, both for rules that target a lemma in a condition.
+More interesting observation, the first version failed to detect a true interaction conflict, because it marked the two rules as internal conflicts.
+%In addition, there were differences in the generated output; examples will be shown later in this section.
 
-Again, we can classify the conflicts into internal and interaction. As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
+As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
 
 As for the 25 interaction conflicts, there were only 9 distinct rules that rendered 25 other rules ineffective.
 In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1, where the groups of 4 rules are variants of otherwise identical rule, each with different gender and number.
