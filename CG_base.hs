@@ -29,8 +29,14 @@ instance Eq Subpos where
 
 --because Regex has no Eq instance
 instance Eq Tag where
-  Subreading s t == Subreading s' t' = s==s' && t==t'
-  foo == bar = show foo == show bar
+  WF  str == WF  str' = str == str'
+  Lem str == Lem str' = str == str'
+  Tag str == Tag str' = str == str'
+  EOS     == EOS      = True
+  BOS     == BOS      = True
+  Subreading s' t' 
+   == Subreading s t  = s==s' && t==t'
+  _       == _        = False       
 
 -- | Wordform should be first element in an analysis.
 instance Ord Tag where
@@ -49,9 +55,8 @@ instance Ord Tag where
 --  Rgx _ s `compare` Rgx _ s' = s `compare` s'
   Subreading _ t `compare` 
        Subreading _ t'        = t `compare` t'
-  Subreading _ t `compare` t' = t `compare` t'
-  t `compare` Subreading _ t' = t `compare` t'
-  foo `compare`bar = error ("compare: " ++ show foo ++ show bar)
+  Subreading _ t `compare` t' = LT
+  t `compare` Subreading _ t' = GT
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
@@ -77,6 +82,7 @@ instance Show TagSet where
   show (TS tags) = showTagset tags
   show (Or ts1 ts2) = show ts1 ++ "|" ++ show ts2
   show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2 
+--  show (Cart ts1 ts2) = show $ map concat $ sequence [(toTags' ts1), (toTags' ts2)] 
   show (Cart ts1 ts2) = show ts1 ++ " + " ++ show ts2
   show All = "(*)"
 
@@ -110,13 +116,18 @@ toTags ts = case ts of
   Or   ts1 ts2 -> toTags ts1 ++ toTags ts2
   Diff ts1 ts2 -> [(toTags' ts, toTags' ts2)]
   _            -> [(toTags' ts, [[]])]
-  where
-    toTags' (TS tags) = tags
-    toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2
-    toTags' (Diff ts1 ts2) = toTags' ts1 \\ toTags' ts2 
-    toTags' (Cart ts1 ts2) = map concat $ sequence [(toTags' ts1), (toTags' ts2)]
-    toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
+  --where
+  --  toTags' (TS tags) = tags
+  --  toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2
+  --  toTags' (Diff ts1 ts2) = toTags' ts1 \\ toTags' ts2 
+  --  toTags' (Cart ts1 ts2) = map concat $ sequence [(toTags' ts1), (toTags' ts2)]
+  --  toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
                        --"At least one complete sublist in the rule must be found in the analysis"
+toTags' (TS tags) = tags
+toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2
+toTags' (Diff ts1 ts2) = toTags' ts1 \\ toTags' ts2 
+toTags' (Cart ts1 ts2) = map concat $ sequence [(toTags' ts1), (toTags' ts2)]
+toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
 
 -- | Analysis is just list of tags: for instance the word form "alusta" would get
 -- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
