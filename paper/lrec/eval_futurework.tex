@@ -9,8 +9,8 @@ with 279 rules; and
 Finnish\footnote{\scriptsize{\url{https://github.com/flammie/apertium-fin/raw/master/apertium-fin.fin.rlx}}},
 with 1185 rules. We left out \textsc{add}, \textsc{map} and other rule
 types introduced in CG-3, and only tested \textsc{remove} and \textsc{select} rules.
-The results for Dutch and Spanish are shown in table~\ref{table:res},
-and the results for Finnish in table~\ref{table:resFin}.
+The results for Dutch and Spanish are shown in Table~\ref{table:res},
+and the results for Finnish in Table~\ref{table:resFin}.
 
 A natural follow-up evaluation would be to compare the performance of the
 grammar in the original state, and after removing the conflicts found
@@ -21,24 +21,35 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 
 \begin{table}[]
 \centering
-%\begin{tabular}{|p{2.84cm}|p{1.2cm}|p{1.2cm}|p{1.25cm}|}
 \begin{tabular}{|p{2.84cm}|p{1cm}|p{1.15cm}|p{1.55cm}|}
+%\begin{tabular}{|p{2.9cm}|p{0.95cm}|p{1.15cm}|p{1.55cm}|}
 
 \hline
                    & \textsc{nld}  & \textsc{spa}  & \textsc{spa}~\small{sep.~lem.} \\ \hline
 \# rules           & 59            & 279       & 279     \\ \hline
 \# readings        & 336           & 3905      & 1735    \\ \hline
-\# conflicts found \small{(internal~+~interaction)}
-                   & 7 \small{(6~+~1)}     & 44 \small{(20~+~24)}     & 43 \small{(18~+~25)} \\ \hline
+\# conflicts found 
+ with amb. classes & 7             & 45        & X      \\ 
+{\small (internal~+~interaction)}
+                   & {\small
+                      (6~+~1)}     & {\small 
+                                    (21~+~24)} & {\small (X~+~24)} \\ \hline
+
+\# conflicts found 
+ no amb. classes   & 7             & X        & 43      \\ 
+{\small (internal~+~interaction)}
+                   & {\small
+                      (6~+~1)}     & {\small 
+                                    (18~+~25)} & {\small (18~+~25)} \\ \hline
 % \# false positives 
 %  \small{(internal + interaction)}
 %                    & 0             & 1 (1 + 0)       & 1 (1 + 0)  \\ \hline
 
 \clock{} with amb. 
-           classes & ??s           & 1h 46m    &  23 min  \\ \hline
+           classes & 7 s        & 1h 46m    &  23 min  \\ \hline
 
 \clock{} no amb. 
-           classes & XXs        & 44 min       & 16 min     \\ \hline 
+           classes & 3 s        & 44 min       & 16 min     \\ \hline 
 
 
 \end{tabular}
@@ -51,7 +62,7 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 
 The experiments revealed problems in all grammars. For the smaller
 grammars, we were able to verify manually that the detected rules were
-true positives.
+true positives, save for one case, where we took a shortcut in the Spanish grammar.
 %The results for the Finnish grammar are inconclusive, 
 % For the Finnish grammar, we did not have time to
 % investigate all of them, but among those we could, we found both true and false negatives.
@@ -93,7 +104,7 @@ The following rule was one of them:
 As per VISL CG-3, the condition \texttt{(0 "zijn")} does not require
 that the input would have determiner and \emph{zijn} in the same reading:
 just that there is a reading with any determiner, and a reading with any \emph{zijn} in the cohort. 
-Can we catch this imprecise formulation with our tool? The example word constructed by the SAT-solver may as likely be one of the following:
+Can we catch this imprecise formulation with our tool? The SAT-solver will not mark it as a conflict (which is the correct behaviour). But if we ask it to generate an example sequence, the target word may be any of the following options:
 
 \begin{itemize}
 \item[a.] \begin{verbatim}
@@ -124,10 +135,12 @@ found in the Apertium repository (linked on the previous page),
 apart from two changes: we fixed some typos (capital O for 0) in order to make it compile, and
 commented out two rules that used regular expressions, because we did not implement the support for them yet.
 
-We include two versions of the Spanish grammar in table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}~{\small sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
-This latter version ran much faster, but failed to detect an internal conflict for a rule that targets a lemma in a condition.
-% SELECT:pr_cnjadv_3 cnjadv IF (0 "después de") 
-Surprisingly, the first version failed to detect a true interaction conflict, because it marked the two rules both as internal conflicts.
+We include two versions of the Spanish grammar in Table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}~{\small sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
+This latter version ran much faster, but failed to detect an internal conflict for one rule, and reported a false positive for another. The numbers look the same
+% FAIL TO DETECT: SELECT:pr_cnjadv_3 cnjadv IF (0 "después de") 
+% FALSE POSITIVE: SELECT:este_1 det IF (0 "este" + (m sg)|(m sp)|(mf sg)|(mf sp))
+
+Interestingly, the version $with$ ambiguity classes fails to detect a true interaction conflict, because it---correctly---found an interaction conflict in one of the rules.
 
 As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
 
@@ -149,10 +162,10 @@ SELECT A OR PP IF (-3 N) (-2 N)
 \end{itemize}
 
 
-For a full list of found conflicts, see the log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}} of the running our program. 
+For a full list of found conflicts, see the log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}} of running our program. 
 In addition, the log contains a list of conflicts which were only found by one of the variants.
 
-In addition, the grammar contained a number of set definitions that were never
+In addition, the grammar contains a number of set definitions that were never
 used. Since VISL CG-3 already points out unused sets, we did not add such
 feature in our tool. However, we noticed an unexpected benefit when
 we tried to use the set definitions from the grammar directly as our
@@ -169,7 +182,7 @@ OR instead of +:
 
 If it was used in any rule, that rule would have been marked as
 conflicting. We noticed the error by accident, when the program
-offered the reading \texttt{w2<n><np><adj><det><preadv><adv><prn>}
+offered the reading \texttt{w2<n><adj><det><preadv><adv><prn>}
 in an example sequence meant for another rule.
 
 
@@ -214,7 +227,8 @@ writer intended.
 \begin{itemize}
 \item[]\begin{verbatim}
 REMOVE Sentar IF (0 Sentar) (..) ;
-SELECT PP     IF (0 "estado") (..) ;
+
+SELECT PP IF (0 "estado") (..) ;
 \end{verbatim}
 \end{itemize}
 
@@ -226,7 +240,7 @@ The second case is potentially more dangerous.
 The word form $estado_{W}$ 
 can be either a noun ($estado_{L}$, `state'), or the past participle of the verb $estar_{L}$. 
 The condition, however, addresses the lemma of the noun, $estado_L$, whereas the lemma of the PP is $estar_{L}$.
-This means that, in theory, there can be a case where the condition to select the PP is already removed. As for now, the lexicon does not contain other ambiguities with the word form $estado_{W}$, but we could conceive of a scenario where someone adds e.g. a proper noun $Estado_{W,L}$ to the lexicon. Then, if some rule removes the lemma $estado_{L}$, the rule to select PP will not be able to trigger.
+This means that, in theory, there can be a case where the condition to select the PP is already removed. As for now, the lexicon does not contain other ambiguities with the word form $estado_{W}$, but we could conceive of a scenario where someone adds e.g. a proper noun $Estado_{L}$ to the lexicon. Then, if some rule removes the lemma $estado_{L}$, the rule to select PP will not be able to trigger.
 
 
 Another question is whether this level of detail is necessary. 
@@ -263,7 +277,7 @@ In fact, we are planning to change how we handle the lexical forms; with those c
  interaction) & (211~+~3) & (211~+~3) & (19~+~3)        &  (19~+~3)  \\ \hline
 
 \clock{} all 
-       rules & 2h 2min     & Xh Ymin   & Xh Ymin &  Xh Ymin \\ \hline
+       rules & 2h 2min     & 4h 27min    & Xh Ymin &  Xh Ymin \\ \hline
 
 
 \end{tabular}
@@ -273,7 +287,7 @@ In fact, we are planning to change how we handle the lexical forms; with those c
 
 \subsection{Finnish} 
 
-The results for the Finnish grammar are shown separately, in table~\ref{table:resFin}. We encountered a number of difficulties and used a few shortcuts, which we did not need for the other grammars---most importantly, not using the ambiguity class constraints. Due to these complications, the results are not directly comparable, but we include Finnish in any case, 
+The results for the Finnish grammar are shown separately, in Table~\ref{table:resFin}. We encountered a number of difficulties and used a few shortcuts, which we did not need for the other grammars---most importantly, not using the ambiguity class constraints. Due to these complications, the results are not directly comparable, but we include Finnish in any case, 
 to give an idea how our method scales up: both to more rules, and more complex rules.
 
 \paragraph{Challenges with Finnish} The first challenge is the morphological complexity of Finnish.
@@ -290,7 +304,7 @@ For future development, we will see if it is possible to manipulate the finite a
 
 
 \paragraph{Results}
-The results are shown in table~\ref{table:resFin}.
+The results are shown in Table~\ref{table:resFin}.
 In the first column, we included only possessive suffixes. In the second column, we included question clitics as well.
 Both of these readings include the 1588 lemmas and word forms from the grammar.
 In the third column, we included all the tag combinations specified in the grammar, and in the fourth, we took only those, ignoring the morphological lexicon.
@@ -305,8 +319,7 @@ We left the result in the table just to demonstrate the change in speed.
 The second two variants are playing with the full set of readings from the grammar. For both of these, the number of reported conflicts was only 22.
 Given the preliminary nature of the results, we did not do a full analysis of all the 214 reported conflicts.
 Out of the 22, we found 17 of them as true conflicts,
- but 5 seemed to be caused by our handling of rules with \verb!*!. 
-All of these 5 rules contained a LINK and multiple \verb!*!s. On a positive note, our naive handling of the \verb!*! seems to cover the simplest cases.
+ but 5 seemed to be caused by our handling of rules with \verb!*!: all of these 5 rules contain a LINK and multiple \verb!*!s. On a positive note, our naive handling of the \verb!*! seems to cover the simplest cases.
 
 
 
@@ -439,7 +452,7 @@ to a more scalable solution.
 As mentioned earlier, we could support additional checks for common issues,
 such as conditions that concern the target word.
 Another possible feature is to suggest reformattings for a rule. Recall
-figure~\ref{fig:regroup} from the introduction; in that case, the
+Figure~\ref{fig:regroup} from the introduction; in that case, the
 original rule was written by the original author, and another
 grammarian thought that the latter form is nicer to read. Doing the
 reverse operation could also be possible. If a rule with long
