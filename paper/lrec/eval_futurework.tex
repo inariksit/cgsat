@@ -25,30 +25,28 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 %\begin{tabular}{|p{2.9cm}|p{0.95cm}|p{1.15cm}|p{1.55cm}|}
 
 \hline
-                   & \textsc{nld}  & \textsc{spa}  & \textsc{spa}~\small{sep.~lem.} \\ \hline
+                   & \textsc{nld}  & \textsc{spa}  & \textsc{spa}~\textsuperscript{sep.~lem.} \\ \hline
 \# rules           & 59            & 279       & 279     \\ \hline
 \# readings        & 336           & 3905      & 1735    \\ \hline
-\# conflicts found 
- with amb. classes & 7             & 45        & X      \\ 
+\# true~positives~\textsuperscript{AC}% with~amb.~classes
+                   & 7             & 45        & 44      \\ 
 {\small (internal~+~interaction)}
                    & {\small
                       (6~+~1)}     & {\small 
-                                    (21~+~24)} & {\small (X~+~24)} \\ \hline
+                                    (21~+~24)} & {\small (20~+~24)} \\ \hline
 
-\# conflicts found 
- w/o~amb. classes   & 7             & X        & 43      \\ 
+\# true~positives~\textsuperscript{no AC}  & 7             & 43        & 42      \\ 
 {\small (internal~+~interaction)}
                    & {\small
                       (6~+~1)}     & {\small 
-                                    (18~+~25)} & {\small (18~+~25)} \\ \hline
-% \# false positives 
-%  \small{(internal + interaction)}
-%                    & 0             & 1 (1 + 0)       & 1 (1 + 0)  \\ \hline
+                                    (18~+~25)} & {\small (17~+~25)} \\ \hline
+\# false positives 
+                   & 0             & 0        & 1  \\ \hline
 
 \clock{} with amb. 
-           classes & 7 s        & 1h 46m    &  23 min  \\ \hline
+           classes & 7 s        & 1h 46m   &  23 min  \\ \hline
 
-\clock{} w/o amb. 
+\clock{} no amb. 
            classes & 3 s        & 44 min       & 16 min     \\ \hline 
 
 
@@ -61,16 +59,15 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 
 
 The experiments revealed problems in all grammars. For the smaller
-grammars, we were able to verify manually that the detected rules were
-true positives, save for one case, where we took a shortcut in the Spanish grammar.
+grammars, we were able to verify manually that nearly all detected conflicts were
+true positives---we found one false positive and one false negative,
+when using a shortcut for the Spanish grammar. 
 %The results for the Finnish grammar are inconclusive, 
 % For the Finnish grammar, we did not have time to
 % investigate all of them, but among those we could, we found both true and false negatives.
 We did not systematically check for false negatives in any of the
 grammars, but we kept track of a number of known tricky cases; mostly
 rules with negations and complex set operations.
-
-%While this does not guarantee the lack of false negatives, it indicates some degree of reliability. 
 As the tool matures and we add new features, a more in-depth analysis
 will be needed.
 
@@ -87,8 +84,8 @@ REMOVE Adv IF (-1 Det) (0 Adj) (1 N) ;
 
 % These two rules both remove an adverb, but the first one has a broader condition:
 % remove adverb if followed by a noun. In contrast, the second rule has a stricter condition: only remove adverb if it is preceded by a determiner, the adverb itself is ambiguous with an adjective, and followed by a noun. 
-The problem is that the first rule has a broader condition than the second.
-The first rule removes the adverb in all possible cases where the second would, and the second will not have any chance to act. 
+These two rules share a target: both remove an adverb.
+The problem is that the first rule has a broader condition than the second, hence the second will not have any chance to act. 
 If the rules were in the opposite order, then there would be no problem.
 
 
@@ -103,8 +100,8 @@ The following rule was one of them:
 
 As per VISL CG-3, the condition \texttt{(0 "zijn")} does not require
 that the input would have determiner and \emph{zijn} in the same reading:
-just that there is a reading with any determiner, and a reading with any \emph{zijn} in the cohort. 
-Can we catch this imprecise formulation with our tool? The SAT-solver will not mark it as a conflict (which is the correct behaviour). But if we ask it to generate an example sequence, the target word may be any of the following options:
+just that there is a reading with any determiner, and a reading with any \emph{zijn} among all the readings.
+Can we catch this imprecise formulation with our tool? The SAT-solver will not mark it as a conflict (which is the correct behaviour). But if we ask it to generate an example sequence, the target word may be either of the following options:
 
 \begin{itemize}
 \item[a.] \begin{verbatim}
@@ -135,16 +132,18 @@ found in the Apertium repository (linked on the previous page),
 apart from two changes: we fixed some typos (capital O for 0) in order to make it compile, and
 commented out two rules that used regular expressions, because we did not implement the support for them yet.
 
-We include two versions of the Spanish grammar in Table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}~{\small sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
+We include two versions of the Spanish grammar in Table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}\textsuperscript{sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
 This latter version ran much faster, but failed to detect an internal conflict for one rule, and reported a false positive for another. 
 % FAIL TO DETECT: SELECT:pr_cnjadv_3 cnjadv IF (0 "después de") 
 % FALSE POSITIVE: SELECT:este_1 det IF (0 "este" + (m sg)|(m sp)|(mf sg)|(mf sp))
 
-When we added ambiguity class constraints, we found three more true conflicts, all internal.
-Interestingly, the version \emph{with} ambiguity classes fails to detect an interaction conflict, which the simpler version reports, because one of the rules was first detected as internal conflict.
+When we added ambiguity class constraints, we found three more internal conflicts.
+Interestingly, the version with ambiguity classes fails to detect an interaction conflict, which the simpler version reports, because one of the rules is first detected as an internal conflict. 
+We think that neither of these versions is a false positive or negative; it is just a matter of priority. Sometimes we prefer to know that the rule cannot apply, given the current lexicon. 
+However, we may know that the lexicon is about to be updated, and would rather learn about all potential interaction conflicts.
 
-As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
-One of the conflicts that was only caught by the ambiguity class constraints had the condition \texttt{IF (1 Comma) (..) (1 CnjCoo)}. The additional constraints correctly prevent the SAT-solver to make comma ambiguous with anything else.
+As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}: the problem is that the tag ``cog'' does not exist in the lexicon. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
+One of the conflicts that was only caught by the ambiguity class constraints had the condition \texttt{IF (1 Comma) (..) (1 CnjCoo)}. The additional constraints correctly prevent a comma from being ambiguous with anything else.
 
 As for the 25 interaction conflicts, there were only 9 distinct rules that rendered 25 other rules ineffective.
 In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1, where the groups of 4 rules are variants of otherwise identical rule, each with different gender and number.
@@ -164,8 +163,7 @@ SELECT A OR PP IF (-3 N) (-2 N)
 \end{itemize}
 
 
-For a full list of found conflicts, see the log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}} of running our program. 
-In addition, the log contains a list of conflicts which were only found by one of the variants.
+For a full list of found conflicts, see the annotated log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}} of running our program. 
 
 In addition, the grammar contains a number of set definitions that were never
 used. Since VISL CG-3 already points out unused sets, we did not add such
@@ -173,7 +171,6 @@ feature in our tool. However, we noticed an unexpected benefit when
 we tried to use the set definitions from the grammar directly as our
 readings: this way, we can discover inconsistencies even in
 set definitions that are not used in any rule.
-%If a set definition is impossible, using it in a rule makes the rule have an internal conflict.
 For instance, the following definition requires the word to be all of
 the listed parts of speech at the same time---most likely, the grammar writer meant 
 OR instead of +:
@@ -197,35 +194,6 @@ We observed also cases where the grammar writer has specified desired
 behaviour in comments, but the rule does not do what the grammar
 writer intended. 
 
-% \begin{itemize}
-% \item[] 
-% \begin{verbatim}
-% REMOVE Vblex IF (0 "como") (*-1 Vblex BARRIER Cnj_Rel) ;
-% \end{verbatim}
-% \end{itemize}
-
-% Based on the comments in the file, the grammar writer wants to
-% disambiguate the word form ``como'', which can be either a
-% preposition, adverb or the first person singular of the verb
-% ``comer''. 
-% However, the rule here addresses the \emph{lemma} ``como'' instead of the
-% word form, hence the SAT-solver cannot create a solution where
-% \texttt{vblex} and ``como'' as a lemma are in the same
-% reading. 
-% A precise definition for this rule would target \texttt{vblex "<como>"} 
-% or \texttt{vblex "comer"}, so that it becomes obvious that those two
-% are supposed to be in the same reading. 
-
-% Currently, as all the word forms are allowed to combine with anything,
-% the ambiguity class constraint does not point this
-% The automated 0-to-target conversion could come in handy here too.
-% However, if the 
-
-% TODO An example of the same but in condition. that the ambiguity class constraint, when
-% implemented properly, should find out.
-
-
-
 \begin{itemize}
 \item[]\begin{verbatim}
 REMOVE Sentar IF (0 Sentar) (..) ;
@@ -246,17 +214,11 @@ This means that, in theory, there can be a case where the condition to select th
 
 
 Another question is whether this level of detail is necessary. 
-After all, the grammar will be used to disambiguate real life texts, where \emph{sentar} will likely not have any other ambiguities, and aside from our contrived example, neither will \emph{estado}. 
+After all, the grammar will be used to disambiguate real life texts, where neither \emph{sentar} nor \emph{estado} are likely to have any other ambiguities.
 In fact, we are planning to change how we handle the lexical forms; with those changes, it will become clear whether the imprecision will result in potential errors, given the current lexicon. 
 
 
-% shows a shortcoming in our way of handling the lexical conditions. 
-% If the lemmas and word forms were integrated to the analyses in a more
-% sensible way, then the ambiguity class constraints would create a
-% sequence where \emph{podar} was ambiguous with \emph{poder} only in the
-% word form \emph{puedo}.
 
-% instead of randomly chosen readings. So, even though this was not marked as a conflict, we can say that the weird output of the tool was unnecessary, and by better implementation, the tool would have created more realistic example sequence.
 
 
 \begin{table*}[t!]
@@ -279,7 +241,7 @@ In fact, we are planning to change how we handle the lexical forms; with those c
  interaction) & (211~+~3) & (211~+~3) & (19~+~3)        &  (19~+~3)  \\ \hline
 
 \clock{} all 
-       rules & 2h 2min     & 4h 27min    & Xh Ymin &  Xh Ymin \\ \hline
+       rules & Xh Ymin     & 8h 28min    & 4h 27min &  2h 29min \\ \hline
 
 
 \end{tabular}
