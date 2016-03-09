@@ -36,7 +36,7 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
                                     (21~+~24)} & {\small (X~+~24)} \\ \hline
 
 \# conflicts found 
- no amb. classes   & 7             & X        & 43      \\ 
+ w/o~amb. classes   & 7             & X        & 43      \\ 
 {\small (internal~+~interaction)}
                    & {\small
                       (6~+~1)}     & {\small 
@@ -48,7 +48,7 @@ evaluation, and in addition, we only have gold standard corpus (20~000~words) fo
 \clock{} with amb. 
            classes & 7 s        & 1h 46m    &  23 min  \\ \hline
 
-\clock{} no amb. 
+\clock{} w/o amb. 
            classes & 3 s        & 44 min       & 16 min     \\ \hline 
 
 
@@ -136,13 +136,15 @@ apart from two changes: we fixed some typos (capital O for 0) in order to make i
 commented out two rules that used regular expressions, because we did not implement the support for them yet.
 
 We include two versions of the Spanish grammar in Table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}~{\small sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
-This latter version ran much faster, but failed to detect an internal conflict for one rule, and reported a false positive for another. The numbers look the same
+This latter version ran much faster, but failed to detect an internal conflict for one rule, and reported a false positive for another. 
 % FAIL TO DETECT: SELECT:pr_cnjadv_3 cnjadv IF (0 "después de") 
 % FALSE POSITIVE: SELECT:este_1 det IF (0 "este" + (m sg)|(m sp)|(mf sg)|(mf sp))
 
-Interestingly, the version $with$ ambiguity classes fails to detect a true interaction conflict, because it---correctly---found an interaction conflict in one of the rules.
+When we added ambiguity class constraints, we found three more true conflicts, all internal.
+Interestingly, the version \emph{with} ambiguity classes fails to detect an interaction conflict, which the simpler version reports, because one of the rules was first detected as internal conflict.
 
 As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}---the problem is that the tag \texttt{cog} does not exist in the Apertium dictionary for Spanish. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
+One of the conflicts that was only caught by the ambiguity class constraints had the condition \texttt{IF (1 Comma) (..) (1 CnjCoo)}. The additional constraints correctly prevent the SAT-solver to make comma ambiguous with anything else.
 
 As for the 25 interaction conflicts, there were only 9 distinct rules that rendered 25 other rules ineffective.
 In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1, where the groups of 4 rules are variants of otherwise identical rule, each with different gender and number.
