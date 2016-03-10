@@ -277,7 +277,7 @@ In the first column, we included only possessive suffixes. In the second column,
 Both of these readings include the 1588 lemmas and word forms from the grammar.
 In the third column, we included all the tag combinations specified in the grammar, and in the fourth, we took only those, ignoring the morphological lexicon.
 
-The first two variants contain a high number of internal conflicts. 
+The first two variants reported a high number of internal conflicts. 
 These are almost all due to nonexisting tags. The grammar was written in 1995, and updated by \newcite{pirinen2015}; such a high number of internal conflicts indicates that possibly something has gone wrong in the conversion, or in our expansion of the morphological lexicon.
 As for accuracy, adding the question clitics did not change anything: they were already included in some of the 1588 sets with word forms or lemmas, and that was enough for the SAT-solver to find models with question clitics.
 We left the result in the table just to demonstrate the change in the running time.
@@ -338,12 +338,11 @@ there is no way to trigger the second rule without placing a comma in position -
 
 \subsection{Performance} 
 The running time of the grammars ranges from seconds to hours. 
-As can be seen from the times, increasing the number of readings
-matters more than increasing the number of rules.
-In addition, the ambiguity class constraints increase the time.
-The times in the Finnish table are not entirely comparable with each other: we were forced to run the tests in smaller batches, and it is possible that there are different overheads, unrelated to the size of the SAT-problem, from testing 50 or 500 rules at a time. 
-
-
+Note that the times in the Finnish table are not entirely comparable with each other: we were forced to run the tests in smaller batches, and it is possible that there are different overheads, unrelated to the size of the SAT-problem, from testing 50 or 500 rules at a time. 
+Despite the inaccuracies, we can see that increasing the number of readings 
+and adding the ambiguity class constraints
+slow the program down significantly.
+%In order to understand the effect of each feature more precisely, we should run our tests on grammars that differ on only one of the variables. 
 
 However, many of the use cases do not require running the whole
 grammar. Testing the interaction between 5--10 rules takes just
@@ -390,17 +389,19 @@ In any case, there are still a number of features to improve and add.
 Our solution to hardcode the tag combinations in the readings is
 feasible for simple morphology, but it can cause problems with more
 complex morphology.
-A more scalable solution would be to make each tag a variable, and ask the
-question ``can this reading be a noun? how about singular? how about
-conditional?'' separately for each tag. Then we could lift the
-restriction of tag combinations into a SAT solver: make SAT clauses
-that prohibit a comparative to go with a verb, or conditional with a noun.
+Currently, if we add one new lemma to the set of readings, we need to
+create as many new variables as there are inflectional forms
+for that lemma. %easily hundreds for languages with rich morphology. 
 
 We are currently working on adding the concepts of lemmas and word
 forms directly to the representation of the possible readings.
-Currently, if we want to add one more lemma for a verb, we need to
-create as many new variables as there are distinct word forms---easily
-hundreds for languages with rich morphology. 
+A possible solution would be to make each tag a variable, and ask the
+question ``can this reading be a noun? singular? 
+conditional?'' separately for each tag. Then we could lift the
+restriction of tag combinations into the SAT side: make SAT-clauses
+that prohibit a comparative to go with a verb, or conditional with a noun.
+Alternatively, we can still hardcode the set of morphological readings, and 
+only use SAT-clauses to restrict which lexical form can go with which morphological analysis.
 
 
 \paragraph{Full expressivity of CG-3}
