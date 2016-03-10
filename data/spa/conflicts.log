@@ -1,0 +1,120 @@
+Internal conflicts
+------------------
+
+* Found by all variants:
+
+REMOVE:r_cog_1 (np cog) IF (-1 (det def)) (0 (np cog))
+REMOVE:r_cog_2 (np cog) IF (-1 (det ind)) (0 (np cog))
+SELECT:este_2 det IF (0 "Este" + (m sg)|(m sp)|(mf sg)|(mf sp)) (-1 >>>) (1 adj + (m sg)|(m sp)|(mf sg)|(mf sp)) (2 n + (m sg)|(m sp)|(mf sg)|(mf sp))
+SELECT:este_1 det IF (0 "Este" + (m sg)|(m sp)|(mf sg)|(mf sp)) (-1 >>>) (1 n + (m sg)|(m sp)|(mf sg)|(mf sp))
+SELECT:debidoa_1 pr IF (0 "debido_a"|"Debido_a") (NOT -1 "ser"|"Ser")
+SELECT:debidoa_2 pr IF (0 "debido_a"|"Debido_a") (-1 >>>)
+SELECT:debidoa_3 pr IF (0 "debido_a"|"Debido_a") (-1C pp)
+REMOVE:debidoa_1b "a" IF (0 "debido_a"|"Debido_a") (NOT -1 "ser"|"Ser")
+REMOVE:debidoa_2b "a" IF (0 "debido_a"|"Debido_a") (-1 >>>)
+REMOVE:debidoa_3b "a" IF (0 "debido_a"|"Debido_a") (-1C pp)
+REMOVE:via1 pr IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 "vía" + (f sg)|(f sp)|(mf sg)|(mf sp))
+REMOVE:via2 pr IF (0 "vía" + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 adj + (f sg)|(f sp)|(mf sg)|(mf sp))
+SELECT:media_1 n IF (-3C num) (-2 n) (-1 cnjcoo) (0 "media")
+REMOVE:r_na_3_ms n|adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 np + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp))
+REMOVE:r_na_3_mp n|adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 np + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp))
+REMOVE:r_na_3_fs n|adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 np + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp))
+REMOVE:r_na_3_fp n|adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 np + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp))
+
+* Missed by shortcut with lexical form:
+
+  SELECT:pr_cnjadv_3 cnjadv IF (0 "después_de"|"Después_de"|"antes_de"|"Antes_de"|"tras"|"Tras") (1C inf|enc)
+
+* Only found with ambiguity class constraints:
+
+  SELECT:s_na_4n n IF (0 n|adj|pp) (1 cm|lpar|rpar|"<;>") (2C n) (1 cnjcoo) (2 n|adj|pp)
+  SELECT:s_na_4a adj IF (0 n|adj|pp) (1 cm|lpar|rpar|"<;>") (2C adj) (1 cnjcoo) (2 n|adj|pp)
+  SELECT:n_a_eos_2 n IF (NOT 0 LINK 0 np|"ser") (0 n|adj|pp) (-1 det) (NOT -1 "este"|"Este") (1 cm|lpar|rpar|"<;>"|cnjcoo) (1 <<<|pr|det|cnjsub|cnjadv|rel|(prn pro))
+
+
+The following rules conflict with other rule(s):
+------------------------------------------------
+Format:
+-> This rule cannot apply <-
+	because of this rule
+
+
+* Only found without ambiguity class constraints (because the rule that causes the conflict has an internal conflict)
+
+-> SELECT:n_a_eos_2 n IF (NOT 0 LINK 0 np|"ser") (0 n|adj|pp) (-1 det) (NOT -1 "este"|"Este") (1 cm|lpar|rpar|"<;>"|cnjcoo) (1 <<<|pr|det|cnjsub|cnjadv|rel|(prn pro)) <-
+        SELECT:n_a_eos_2 n IF (NOT 0 LINK 0 np|"ser") (0 n|adj|pp) (-1 det) (NOT -1 "este"|"Este") (1 <<<|pr|det|cnjsub|cnjadv|rel|(prn pro))
+
+
+* Found by all versions:
+
+-> SELECT:naaa1_ms adj|pp IF (-3 n + (m sg)|(m sp)|(mf sg)|(mf sp)) (-2 n + (m sg)|(m sp)|(mf sg)|(mf sp)) (-1 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_ms adj|pp IF (-2 n + (m sg)|(m sp)|(mf sg)|(mf sp)) (-1 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (NOT 0 det)
+
+-> SELECT:naaa1_mp adj|pp IF (-3 n + (m pl)|(m sp)|(mf pl)|(mf sp)) (-2 n + (m pl)|(m sp)|(mf pl)|(mf sp)) (-1 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_mp adj|pp IF (-2 n + (m pl)|(m sp)|(mf pl)|(mf sp)) (-1 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (NOT 0 det)
+
+-> SELECT:naaa1_fs adj|pp IF (-3 n + (f sg)|(f sp)|(mf sg)|(mf sp)) (-2 n + (f sg)|(f sp)|(mf sg)|(mf sp)) (-1 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_fs adj|pp IF (-2 n + (f sg)|(f sp)|(mf sg)|(mf sp)) (-1 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (NOT 0 det)
+
+-> SELECT:naaa1_fp adj|pp IF (-3 n + (f pl)|(f sp)|(mf pl)|(mf sp)) (-2 n + (f pl)|(f sp)|(mf pl)|(mf sp)) (-1 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_fp adj|pp IF (-2 n + (f pl)|(f sp)|(mf pl)|(mf sp)) (-1 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (NOT 0 det)
+
+-> SELECT:naaa1_ms adj|pp IF (-4 n + (m sg)|(m sp)|(mf sg)|(mf sp)) (-3 n + (m sg)|(m sp)|(mf sg)|(mf sp)) (-2 n + (m sg)|(m sp)|(mf sg)|(mf sp)) (-1 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_ms adj|pp IF (-2 n + (m sg)|(m sp)|(mf sg)|(mf sp)) (-1 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (NOT 0 det)
+
+-> SELECT:naaa1_mp adj|pp IF (-4 n + (m pl)|(m sp)|(mf pl)|(mf sp)) (-3 n + (m pl)|(m sp)|(mf pl)|(mf sp)) (-2 n + (m pl)|(m sp)|(mf pl)|(mf sp)) (-1 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_mp adj|pp IF (-2 n + (m pl)|(m sp)|(mf pl)|(mf sp)) (-1 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (NOT 0 det)
+
+-> SELECT:naaa1_fs adj|pp IF (-4 n + (f sg)|(f sp)|(mf sg)|(mf sp)) (-3 n + (f sg)|(f sp)|(mf sg)|(mf sp)) (-2 n + (f sg)|(f sp)|(mf sg)|(mf sp)) (-1 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_fs adj|pp IF (-2 n + (f sg)|(f sp)|(mf sg)|(mf sp)) (-1 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (NOT 0 det)
+
+-> SELECT:naaa1_fp adj|pp IF (-4 n + (f pl)|(f sp)|(mf pl)|(mf sp)) (-3 n + (f pl)|(f sp)|(mf pl)|(mf sp)) (-2 n + (f pl)|(f sp)|(mf pl)|(mf sp)) (-1 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (NOT 0 det) <-
+	SELECT:naa1_fp adj|pp IF (-2 n + (f pl)|(f sp)|(mf pl)|(mf sp)) (-1 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (NOT 0 det)
+
+-> REMOVE:r_na_8_ms_ms adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_ms adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_ms_fs adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_ms adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_ms_mp adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_ms adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_ms_fp adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_ms adj|pp IF (-1 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fs_ms adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fs adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fs_fs adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fs adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fs_mp adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fs adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fs_fp adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fs adj|pp IF (-1 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_mp_ms adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_mp adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_mp_fs adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_mp adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_mp_mp adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_mp adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_mp_fp adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_mp adj|pp IF (-1 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fp_ms adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (m sg)|(m sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m sg)|(m sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fp adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fp_fs adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (f sg)|(f sp)|(mf sg)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f sg)|(f sp)|(mf sg)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fp adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fp_mp adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (m pl)|(m sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (m pl)|(m sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fp adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
+
+-> REMOVE:r_na_8_fp_fp adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (3 LINK 0 n|np) (3 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro)) <-
+	REMOVE:r_na_20_fp adj|pp IF (-1 det + (f pl)|(f sp)|(mf pl)|(mf sp)) (0 LINK 0 n|np) (0 n|adj|pp + (f pl)|(f sp)|(mf pl)|(mf sp)) (1 cnjcoo) (2 det) (3 LINK 0 n|np) (3 n|adj|pp) (4 <<<|pr|det|cnjsub|cnjadv|vblex|vbmod|vbhaver|vbser|rel|(prn pro))
