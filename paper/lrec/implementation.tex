@@ -9,12 +9,12 @@ The SAT-encoding we use is similar to the one introduced in \newcite{listenmaa_c
 
 Our analysis operates on a rule $r$, which is preceded by a list of rules $R$, and is concerned with answering the following question: ``Does there exist an input sentence $S$ that can trigger rule $r$, even after passing all rules $R$ that came before $r$?''
 
-Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, the number of readings has ranged from about 300 to about 6000. 
+Before we can do any analysis any of the rules, we need to find out what the set of all possible readings of a word is. We can do this by extracting this information from a lexicon, but there are other ways too. In our experiments, the number of readings has ranged from about 300 to about 9000. 
 
 Furthermore, when we analyse a rule $r$, we need to decide the {\em width} $w(r)$ of the rule $r$: How many different words should there be in a sentence that can trigger $r$? Most often, $w(r)$ can be easily determined by looking at how far away the rule context indexes in the sentence relative to the target. For example, in the rule mentioned in the introduction, the width is 2.
 
 If the context contains a \verb!*! (context word can be anywhere),
-we may need to make an approximation of $w(r)$ which may result in false negatives later on in the analysis.
+we may need to make an approximation of $w(r)$, which may result in false positives or negatives later on in the analysis.
 %we create sentences that are up to 3 words wider than the context without \verb!*!, and try them all.
 
 %\paragraph
@@ -131,7 +131,7 @@ The lemma is treated as just another tag.
 
  However, for languages with more readings, this may not be feasible. For instance, Spanish has a high number of readings, not only because of many inflectional forms, but because it is possible to add 1--2 clitics to the verb forms.
 The number of verb readings without clitics is 213, and with clitics 1572.
-With the previously mentioned approach, we would have to double 1572 entries for each verb lemma. Even ignoring the clitics, each verb lemma still adds 213 new readings.
+With the previously mentioned approach, we would have to duplicate 1572 entries for each verb lemma. Even ignoring the clitics, each verb lemma still adds 213 new readings.
 
 The readings in a grammar can be underspecified: for example, the rule
 \texttt{REMOVE (verb sg) IF (-1 det)} gives us ``verb sg'' and ``det''.
@@ -144,15 +144,16 @@ from the grammar and ignore the lexicon, it is possible to
 miss some cases: e.g. the rule \texttt{SELECT Pron + Rel IF (0 Nom)} 
 may require ``pron rel nom'' in one reading, but this method only gives
 ``pron rel'' and ``nom'' separately. 
+
 In addition, we found that the tag lists in the grammars sometimes
 contain errors, such as using a nonexistent tag or using a wrong level
 in a subreading. If we accept those lists as readings, we will
-generate symbolic sentences that are impossible, and won't discover
+generate symbolic sentences that are impossible, and not discover
 the bug in the grammar.
+However, if we are primarily interested in rule interaction, then using
+the underspecified readings from the grammar may be an adequate solution.
 
-However, if we only want to find rule interaction effects, then using
-the underspecified readings from the grammar makes the task faster,
-and it will still catch potential interaction errors.
+%In fact, it may even catch interaction conflicts between rules which have an internal conflict
 
 
 \subsection{Creating realistic ambiguities}
@@ -160,7 +161,7 @@ and it will still catch potential interaction errors.
 
 
 
-In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic \emph{ambiguities} is to constrain which readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'', is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we do not want to generate such ambiguity in our symbolic sentences.
+In the previous section, we have created realistic \emph{readings}, by simply hardcoding legal tag combinations into variables. The next step in creating realistic \emph{ambiguities} is to constrain which readings can go together. For instance, the case of \emph{zijn} shows us that ``determiner or verb'' is a possible ambiguity. In contrast, there is no word form in the lexicon that would be ambiguous between an adjective and a comma, hence we do not want to generate such ambiguity in our symbolic sentences.
 
 \begin{center}
 \begin{tabular}{c|c|c|c|c}
@@ -182,7 +183,7 @@ distinct row forms an ambiguity class. For example, one class may
 contain words that are ambiguous between plural feminine nouns and
 separable verb infinitives; another contains masculine plural adjectives 
 and masculine plural past participles.
-Then we form SAT clauses that allow or prohibit certain combinations. These clauses will interact with the constraints created from the rules, and the end result will be closer to real-life sentences.
+Then we form SAT-clauses that allow or prohibit certain combinations. These clauses will interact with the constraints created from the rules, and the end result will be closer to real-life sentences.
 
 Our approach is similar to \newcite{cutting_etal92}, who use ambiguity classes instead of distinct word forms, in order to reduce the number of parameters in a Hidden Markov Model. They take advantage of the fact that they don't have to model ``bear'' and ``wish'' as separate entries, but they can just reduce it to ``word that can be ambiguous between noun and verb'', and use that as a parameter in their HMM. 
 %We can do a similar thing by saving a list of words with each ambiguity class. For example, we map the ambiguity class ``feminine plural noun or a separable verb infinitive'' to the list of word forms \{``uitgaven'', ``toespraken''\}, and then, if we generate such reading for our symbolic word, we can give one of these words as an example word.

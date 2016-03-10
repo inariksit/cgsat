@@ -71,12 +71,12 @@ rules with negations and complex set operations.
 As the tool matures and we add new features, a more in-depth analysis
 will be needed.
 
-\subsection{Dutch} The Dutch grammar had two kinds of errors: rule-internal, and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological analyser, but it appeared in one rule as the main reading. 
+\subsection{Dutch} The Dutch grammar had two kinds of errors: rule-internal and rule interaction. As for rule-internal conflicts, one was due to a misspelling in the list definition for personal pronouns, which rendered 5 rules ineffective. The other was about subreadings: the genitive \emph{s} is analysed as a subreading in the Apertium morphological lexicon, but it appeared in one rule as the main reading. 
 
 There was one genuine conflict with rule interaction, shown below:
 
 \begin{itemize}
-\item[] 
+\item[\textsc{d$_1$.}] 
 \begin{verbatim}REMOVE Adv IF (1 N) ;
 REMOVE Adv IF (-1 Det) (0 Adj) (1 N) ;
 \end{verbatim}
@@ -94,13 +94,20 @@ We also tested rules individually, in a way that a grammar writer might use our 
 The following rule was one of them:
 
 \begin{itemize}
-\item[] 
+\item[\textsc{d$_2$.}] 
 \texttt{SELECT DetPos IF (-1 (vbser pres p3 sg)) (0 "zijn") (1 Noun);}
 \end{itemize} 
 
 As per VISL CG-3, the condition \texttt{(0 "zijn")} does not require
-that the input would have determiner and \emph{zijn} in the same reading:
-just that there is a reading with any determiner, and a reading with any \emph{zijn} among all the readings.
+ \emph{zijn} to be in the same reading with the target \emph{DetPos}.
+It just means that at index 0,
+there is a reading with any possessive determiner, and a reading with any \emph{zijn}.
+However, the intended action is to select a ``det pos \emph{zijn}'' all in one reading;
+this is expressed as \texttt{SELECT DetPos + "zijn"}.
+In contrast, the 0-condition in example~\textsc{d$_1$} is used correctly:
+the adjective and the adverb are supposed to be in different readings.
+
+
 Can we catch this imprecise formulation with our tool? The SAT-solver will not mark it as a conflict (which is the correct behaviour). But if we ask it to generate an example sequence, the target word may be either of the following options:
 
 \begin{itemize}
@@ -116,12 +123,8 @@ Can we catch this imprecise formulation with our tool? The SAT-solver will not m
 \end{verbatim}
 \end{itemize}
 
-Incidentally, the first example of a rule conflict had a similar
-requirement, but used correctly: the intended semantics was indeed
-that the adjective and the adverb are in different readings. However,
-in this case, the precise way to express the target is \texttt{SELECT DetPos + "zijn"}.
 
-We found the same kind of definitions in many other rules and grammars.
+We found the same kind of definition in many other rules and grammars.
 To catch them more systematically, we could add a feature that alerts in all cases where a condition with 0 is used. As a possible extension, we could automatically merge the 0-condition into the target reading, then show the user this new version, along with the original, and ask which one was intended.
 
 % In the latter case, the grammar writer would hopefully notice the imprecise definition and change their definition. However, this is more of a happy side effect than intended feature---the grammar writer cannot count on our tool to notice all similar cases.
@@ -150,7 +153,7 @@ In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1,
 An example of such conflict is below (gender and number omitted for readability):
 
 \begin{itemize}
-\item[] 
+\item[\textsc{s$_{1}$.}] 
 \begin{verbatim}
 # NOM ADJ ADJ
 SELECT A OR PP IF (-2 N) 
@@ -175,7 +178,7 @@ For instance, the following definition requires the word to be all of
 the listed parts of speech at the same time---most likely, the grammar writer meant 
 OR instead of +:
 \begin{itemize}
-\item[] 
+\item[\textsc{s$_2$.}] 
 \texttt{SET NP\_Member = N + A + Det + PreAdv + Adv + Pron ;}
 \end{itemize}
 
@@ -195,7 +198,7 @@ behaviour in comments, but the rule does not do what the grammar
 writer intended. 
 
 \begin{itemize}
-\item[]\begin{verbatim}
+\item[\textsc{s$_3$.}] \begin{verbatim}
 REMOVE Sentar IF (0 Sentar) (..) ;
 
 SELECT PP IF (0 "estado") (..) ;
@@ -241,7 +244,7 @@ In fact, we are planning to change how we handle the lexical forms; with those c
  interaction) & (211~+~3) & (211~+~3) & (19~+~3)        &  (19~+~3)  \\ \hline
 
 \clock{} all 
-       rules & Xh Ymin     & 8h 28min    & 4h 27min &  2h 29min \\ \hline
+       rules (approx.) & \~{}4h 30min     & \~{}9h 30min    & \~{}7h 45min &  \~{}2h 30min \\ \hline
 
 
 \end{tabular}
@@ -276,7 +279,7 @@ In the third column, we included all the tag combinations specified in the gramm
 The first two variants contain a high number of internal conflicts. 
 These are almost all due to nonexisting tags. The grammar was written in 1995, and updated by \newcite{pirinen2015}; such a high number of internal conflicts indicates that possibly something has gone wrong in the conversion, or in our expansion of the morphological lexicon.
 As for accuracy, adding the question clitics did not change anything: they were already included in some of the 1588 sets with word forms or lemmas, and that was enough for the SAT-solver to find models with question clitics.
-We left the result in the table just to demonstrate the change in speed.
+We left the result in the table just to demonstrate the change in the running time.
 
 %Example reading that adds question clitic to our arsenal: \texttt{SELECT "joka" + Pron + Q}
 
@@ -294,7 +297,7 @@ Some examples of true positives are shown in the following.
 %SELECT ("oma" gen) IF (NOT 1 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0 LINK *-1 "olla"|"voida"|"saattaa") (0 n|adj|vblex|vaux|pron|cs|cc|adp|post|pr|intj|num|abbr) (0C nom)
 
 \begin{itemize}
-\item[]\begin{verbatim}
+\item[\textsc{f$_1$}.]\begin{verbatim}
 "oma" SELECT Gen IF (..) (0C Nom) ;
 
 SELECT Adv IF (NOT 0 PP) (..) ;
@@ -308,7 +311,7 @@ As for the second rule, the definition of \texttt{PP} includes \texttt{adv} amon
 The following two examples are interaction conflicts:
 
 \begin{itemize}
-\item[]\begin{verbatim}
+\item[\textsc{f$_2$}.]\begin{verbatim}
 REMOVE A (0 Der) ; 
 REMOVE N (0 Der) ; 
 REMOVE A/N (0 Der) ; 
@@ -319,7 +322,7 @@ This is the same pattern we have already seen before, but with a set of rules as
 The first two rules together remove the target of the third, leaving no way for there to be adjective or noun.
 
 \begin{itemize}
-\item[]\begin{verbatim}
+\item[\textsc{f$_3$.}]\begin{verbatim}
 SELECT .. IF (-1 Comma/N/Pron/Q) ;
 SELECT .. IF (-2 ..) (-1 Comma) ;
 \end{verbatim}
@@ -337,6 +340,8 @@ The running time of the grammars ranges from seconds to hours.
 As can be seen from the times, increasing the number of readings
 matters more than increasing the number of rules.
 In addition, the ambiguity class constraints increase the time.
+The times in the Finnish table are not entirely comparable with each other: we were forced to run the tests in smaller batches, and it is possible that there are different overheads, unrelated to the size of the SAT-problem, from testing 50 or 500 rules at a time. 
+
 
 
 However, many of the use cases do not require running the whole
@@ -344,7 +349,8 @@ grammar. Testing the interaction between 5--10 rules takes just
 seconds in all languages, if the ambiguity class constraints are not included. 
 A downside in the ambiguity classes is that generating them takes a long time, 
 and while the overhead may be acceptable when checking the full grammar,
-it is hardly so when analysing just a handful of rules.
+it is hardly so when analysing just a handful of rules. 
+We are working on an option to store and reuse the ambiguity class constraints.
 
 
 %Spanish lemmahack: time to create the formulas 5m32.214s
