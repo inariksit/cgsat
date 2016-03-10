@@ -108,16 +108,16 @@ In contrast, the 0-condition in example~\textsc{d$_1$} is used correctly:
 the adjective and the adverb are supposed to be in different readings.
 
 
-Can we catch this imprecise formulation with our tool? The SAT-solver will not mark it as a conflict (which is the correct behaviour). But if we ask it to generate an example sequence, the target word may be either of the following options:
+Can we catch this imprecise formulation with our tool? The SAT-solver will not mark it as a conflict (which is the correct behaviour). But if we ask it to generate an example sequence, the target word may be either of the following options. Seeing interpretation a) could then direct the grammar writer to modify the rule.
 
 \begin{itemize}
-\item[a.] \begin{verbatim}
+\item[a)] \begin{verbatim}
 "w2"
     w2<det><pos><f><sg>
     zijn<vbser><inf>
 \end{verbatim}
 
-\item[b.] \begin{verbatim}
+\item[b)] \begin{verbatim}
 "w2"
     zijn<det><pos><mfn><pl>
 \end{verbatim}
@@ -134,6 +134,9 @@ highest number of errors. The grammar we ran is like the one
 found in the Apertium repository (linked on the previous page), 
 apart from two changes: we fixed some typos (capital O for 0) in order to make it compile, and
 commented out two rules that used regular expressions, because we did not implement the support for them yet.
+For a full list of found conflicts, see the annotated log of running our program in \url{
+https://github.com/inariksit/cgsat/blob/master/data/spa/conflicts.log}. 
+
 
 We include two versions of the Spanish grammar in Table~\ref{table:res}: in column \textsc{spa}, we added the lemmas and word forms as described in Section~\ref{sec:realistic_readings}, and in column \textsc{spa}\textsuperscript{sep.~lem.}, we just added each word form and lemma as individual readings, allowed to combine with any other reading. 
 This latter version ran much faster, but failed to detect an internal conflict for one rule, and reported a false positive for another. 
@@ -146,7 +149,7 @@ We think that neither of these versions is a false positive or negative; it is j
 However, we may know that the lexicon is about to be updated, and would rather learn about all potential interaction conflicts.
 
 As an example of internal conflict, there are two rules that use \texttt{SET Cog = (np cog)}: the problem is that the tag ``cog'' does not exist in the lexicon. As another example, four rules require a context word tagged as NP with explicit number, but the lexicon does not indicate any number with NPs. It is likely that this grammar has been written for an earlier version, where such tags have been in place.
-One of the conflicts that was only caught by the ambiguity class constraints had the condition \texttt{IF (1 Comma) (..) (1 CnjCoo)}. The additional constraints correctly prevent a comma from being ambiguous with anything else.
+One of the conflicts that was only caught by the ambiguity class constraints had the condition \texttt{IF (1 Comma) (..) (1 CnjCoo)}. The additional constraints correctly prevent commas from being ambiguous with anything else.
 
 As for the 25 interaction conflicts, there were only 9 distinct rules that rendered 25 other rules ineffective.
 In fact, we can reduce these 9 rules further into 3 different groups: 4 + 4 + 1, where the groups of 4 rules are variants of otherwise identical rule, each with different gender and number.
@@ -165,8 +168,6 @@ SELECT A OR PP IF (-3 N) (-2 N)
 \end{verbatim}
 \end{itemize}
 
-
-For a full list of found conflicts, see the annotated log\footnote{\url{https://github.com/inariksit/cgsat/raw/master/data/spa/conflicts.log}} of running our program. 
 
 In addition, the grammar contains a number of set definitions that were never
 used. Since VISL CG-3 already points out unused sets, we did not add such
