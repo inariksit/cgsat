@@ -14,7 +14,6 @@ module CG_SAT
 --   , disambiguateUnordered
 --   , disamSection
 
--- --  , analyseGrammar
 --   , test
 --   )
 where 
@@ -141,14 +140,6 @@ dechunk ts = (map.map) getTags (groupBy sameInd ts)
 anchor :: [Token] -> [[Lit]]
 anchor toks = (map.map) getLit (groupBy sameInd toks)
 
--- | Apply rules to a symbolic sentence used in grammar analysis. 
---   In addition to only applying rules, construct also clauses for the case where
---   a rule cannot be applied, because its target are the only remaining analyses.
-analyseGrammar :: Solver -> [Token] -> Rule -> IO [([Clause], [Lit])]
-analyseGrammar s toks rule = do
-  case rule of 
-    (Remove _name target conds) -> go s False True (toTags target) (toConds conds) toks
-    (Select _name target conds) -> go s True True (toTags target) (toConds conds) toks
 
 
 -- | Apply rules to tokens. 
@@ -166,25 +157,24 @@ applyRule :: Solver
 applyRule s toks rule = do
   case rule of 
     (Remove _name target conds) 
-        -> map (insertRule rule) `fmap` go s False False (toTags target) (toConds conds) toks
+        -> map (insertRule rule) `fmap` go s False (toTags target) (toConds conds) toks
     (Select _name target conds) 
-        -> map (insertRule rule) `fmap` go s True False (toTags target) (toConds conds) toks
+        -> map (insertRule rule) `fmap` go s True  (toTags target) (toConds conds) toks
 
 
   where
    insertRule rule (cls, helps) = (rule, cls, helps)
     
-go :: Solver -> Bool -> Bool -> [(Trg,Dif)] -> [[Condition]] -> [Token] -> IO [([Clause], [Lit])]
-go s isSelect isGrAna trgs_diffs []         allToks = return []
-go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
+go :: Solver ->  Bool -> [(Trg,Dif)] -> [[Condition]] -> [Token] -> IO [([Clause], [Lit])]
+go s isSelect trgs_diffs []         allToks = return []
+go s isSelect trgs_diffs (conds:cs) allToks = do
    -- putStrLn $ "\ngo with conds=" ++ show conds
    -- putStrLn "-----------------------------"
-   let f = if isGrAna then mkVarsGrammarAnalysis else mkVars
    if isSelect 
-     then let (trg,rm) = select trgs_diffs in f trg rm
-     else let trg      = remove trgs_diffs in f [] trg
+     then let (trg,rm) = select trgs_diffs in mkVars trg rm
+     else let trg      = remove trgs_diffs in mkVars [] trg
 
-   ++> go s isSelect isGrAna trgs_diffs cs allToks
+   ++> go s isSelect trgs_diffs cs allToks
 
         
  where
@@ -243,84 +233,6 @@ go s isSelect isGrAna trgs_diffs (conds:cs) allToks = do
   showHds :: (Show a) => [[a]] -> String
   showHds [[x]] = show x
   showHds xss   = intercalate "," ((map (show.head) xss) ++ ["etc."])
-
-  mkVarsGrammarAnalysis :: [(Token,[Context])] -> [(Token,[Context])] -> IO ([Clause], [Lit])
-  mkVarsGrammarAnalysis sl rm = do 
-
-
-    (rmHelps,rmCls) <- unzip `fmap`sequence
-                      [ do condLits <- findCondLits s ctx
-                           ctx_holds <- andl s ctxName condLits
-                           -- print ("ctx_holds", ctx_holds)
-                           -- print ("~ctx_holds", neg ctx_holds)
-                           --rm_trg <- implies s trgName ctx_holds (neg $ getLit trg)
-                           return ([ctx_holds, getLit trg],  --just to get the helper literal
-                                   [neg ctx_holds, neg $ getLit trg])
-                         | (trg, ctx) <- rm 
-                         , let (conds,insts) = unzip ctx
-                         , let condNames = unwords $ map show conds
-
-                         , let ctxName =  if null insts || null (head insts) || null (getTags $ head $ head insts)
-                                then ""
-                                else (show.head.getTags.head.head) insts ++ condNames
-                         , let thisInstanceName = "(" ++ showHds insts ++ ")"
-                         , let trgName = "rm_" ++ show trg ++ "_if_" ++ thisInstanceName ]
-                         
-
-    let slCls = map (getLit.fst) sl
-    let slHelps = []
-    --print slCls
-
-{-    (slHelps,slCls) <- unzip `fmap` sequence
-                      [ do condLits <- findCondLits s ctx
-                           if_ctx_holds <- andl s ctxName condLits
-                           sl_trg <- implies s trgName if_ctx_holds (getLit trg)
-                           return (if_ctx_holds, sl_trg)
-                         | (trg, ctx) <- sl 
-                         , let (conds,insts) = unzip ctx
-                         , let condNames = unwords $ map show conds
-                         , let ctxName = "if_("++condNames++")" 
-                         , let thisInstanceName = "_if_(" ++ showHds insts ++ ")"
-                         , let trgName = "sl_" ++ show trg ++ thisInstanceName ]
--}
-
-    -- option 2: only target left, cannot apply REMOVE rule
-    -- Only for REMOVE, because SELECT rule cannot lead into an empty cohort.
-    -- SELECT in itself already means "only targets, nothing else".
-    -- Actually if we do SELECT (*) - (*), would it then select nothing => remove everything?
-    -- TODO investigate
-    if null sl then do 
-      let trgNames = [ ts ++ ds  | (trg,dif) <- trgs_diffs
-                                 , let ts = showTagset trg
-                                 , let ds = if all null dif then "" else "-" ++ showTagset dif ]
-      let onlyTrgName = ("only_", intercalate "|" trgNames ++ "_left ")
-
-
-      onlyTrgLits <- sequence [ onlyTargetLeft s trg onlyTrgName | (trg, ctx) <- rm ]
-
-      -- notBoth <- sequence [ xorl s notBothName [ruleApplied, onlyTrg] 
-      --            | (onlyTrg, ruleApplied) <- zip onlyTrgLits rmCls
-      --             , let notBothName = name onlyTrg ++ "_XOR_" ++ name ruleApplied ]
-
-      -- return $ (map (:[]) notBoth,
-      --         notBoth++onlyTrgLits++rmHelps++rmCls++slCls++slHelps)
-
-      return $ (zipWith (:) onlyTrgLits rmCls,
-                onlyTrgLits++concat rmHelps++slHelps) 
-     else do
-      return (slCls:rmCls,
-              concat rmHelps++slHelps) 
-   where
-    onlyTargetLeft :: Solver -> Token -> (String,String) -> IO Lit
-    onlyTargetLeft s trg (only,left) = do
-      let sameIndToks = filter (sameInd trg) allToks
-      let (hasTargets,noTarget) = partition (\t -> tagsMatchRule t trgs_diffs) sameIndToks
-      let tname = only ++ (show.head.getTags) trg ++ left
-      noOthers <- andl s ""  (map (neg.getLit) noTarget)
-      someTargets <- orl s "" (map getLit hasTargets)
-      andl s tname [someTargets, noOthers]
-
-
 
 
   --OBS. ctx::[Context] includes things that match to the tags in the cond,
