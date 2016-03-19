@@ -5,6 +5,9 @@ import Data.List
 import Debug.Trace
 import Text.Regex
 
+-------------------------------------------------------------------------------- 
+-- Tags
+
 -- | All kinds of morphological tags are in the same data type: e.g.  Prep, P1, Conditional.
 -- | We don't specify e.g. which tags can be part of an analysis for which word classes.
 -- | An analysis can contain an arbitrary amount of tags.
@@ -39,9 +42,12 @@ instance Eq Tag where
   _       == _        = False       
 
 -- | Wordform should be first element in an analysis.
+---TODO look into this--may have weirdness in maps
 instance Ord Tag where
+  BOS `compare` BOS = EQ
   BOS `compare` _   = GT
   _   `compare` BOS = LT
+  EOS `compare` EOS = EQ
   EOS `compare` _   = GT
   _   `compare` EOS = LT 
   WF word `compare` WF word'  = word `compare` word'
@@ -69,6 +75,8 @@ instance Show Tag where
   show EOS       = "<<<"
 
 
+-------------------------------------------------------------------------------- 
+-- TagSet: set operations on tags, just to have nicer show function.
 
 data TagSet =
    TS [[Tag]]
@@ -129,34 +137,9 @@ toTags' (Diff ts1 ts2) = toTags' ts1 \\ toTags' ts2
 toTags' (Cart ts1 ts2) = map concat $ sequence [(toTags' ts1), (toTags' ts2)]
 toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
 
--- | Analysis is just list of tags: for instance the word form "alusta" would get
--- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
-type Analysis = [[Tag]]
 
--- | Sentence is just a list of analyses
-type Sentence = [Analysis]
-
-
--- | Rule is either remove or select a list of tags, with contextual tests
-data Rule = Remove {name :: Name, target :: TagSet, cond :: Condition} |
-            Select {name :: Name, target :: TagSet, cond :: Condition} deriving (Eq) 
-data Name = Name String | NoName deriving (Eq)
-
-instance Show Rule where
-  show (Remove (Name nm) tags Always) = "REMOVE:" ++ nm ++ " " ++ show tags
-  show (Remove  NoName   tags Always) = "REMOVE " ++ show tags
-  show (Remove (Name nm) tags cond) = "REMOVE:" ++ nm ++ " " ++
-                                       show tags ++ " IF " ++ show cond 
-  show (Remove  NoName   tags cond) = "REMOVE " ++ show tags ++ " IF " ++ show cond
-  show (Select (Name nm) tags Always) = "SELECT:" ++ nm ++ " " ++ show tags
-  show (Select  NoName   tags Always) = "SELECT " ++ show tags
-  show (Select (Name nm) tags cond) = "SELECT:" ++ nm ++ " " ++
-                                       show tags ++ " IF " ++ show cond 
-  show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " IF " ++ show cond 
-
-isSelect :: Rule -> Bool 
-isSelect (Select _ _ _ ) = True
-isSelect _               = False
+-------------------------------------------------------------------------------- 
+-- Conditions
 
 -- | There is no special constructor for empty condition (ie. remove/select tag everywhere),
 --   but `C _ (_,[])' is assumed to mean that.
@@ -187,33 +170,6 @@ getTagset :: Condition -> TagSet
 getTagset (C _pos (_, tagset)) = tagset
 getTagset Always = TS [[]]
 getTagSet cond = error "getTagset: applied to complex condition " ++ show cond
-
-type Cautious = Bool
-
-data Position = Exactly Cautious Int 
-              | AtLeast Cautious Int
-              | Barrier Cautious Int TagSet 
-              | CBarrier Cautious Int TagSet 
-              | LINK {parent::Position , self::Position} deriving (Eq)
-
-
-instance Show Position where
-  show (Exactly True i) = show i ++ "C"
-  show (AtLeast True i) = "*" ++ show i ++ "C"
-  show (Exactly False i) = show i
-  show (AtLeast False i) = "*" ++ show i
-  show (LINK pos1 linkedpos) = show pos1 ++ " LINK " ++ show linkedpos
-  show p                 = let (a,b) = showPosTuple p in a++b
-
-showPosTuple :: Position -> (String, String)
-showPosTuple (Barrier  True i ts) = ("*" ++ show i ++ "C ", " BARRIER " ++ show ts)
-showPosTuple (CBarrier True i ts) = ("*" ++ show i ++ "C ", " CBARRIER " ++ show ts)
-showPosTuple (Barrier  False i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show ts)
-showPosTuple (CBarrier False i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
-showPosTuple p = (show p, "")
-
-  
-
 
 
 toConds :: Condition -> [[Condition]]
@@ -260,14 +216,58 @@ toConds cond = case cond of
 toCond :: [[Condition]] -> Condition
 toCond condss = foldl1 OR [ foldl1 AND conds | conds <- condss ]
 
--- Shorthand for writing conditions without barriers
-mkC :: String -> TagSet -> Condition
-mkC s tags | last s == '*' = C (AtLeast False $ (read . init) s) (True, tags)
-           | otherwise     = C (Exactly False $ read s)          (True, tags)
 
-lemmaBear :: Condition
-lemmaBear = mkC "0" (TS [[Lem "bear"]])
-always = mkC "0" All
+-------------------------------------------------------------------------------- 
+-- Positions
+
+type Cautious = Bool
+
+data Position = Exactly Cautious Int 
+              | AtLeast Cautious Int
+              | Barrier Cautious Int TagSet 
+              | CBarrier Cautious Int TagSet 
+              | LINK {parent::Position , self::Position} deriving (Eq)
+
+
+instance Show Position where
+  show (Exactly True i) = show i ++ "C"
+  show (AtLeast True i) = "*" ++ show i ++ "C"
+  show (Exactly False i) = show i
+  show (AtLeast False i) = "*" ++ show i
+  show (LINK pos1 linkedpos) = show pos1 ++ " LINK " ++ show linkedpos
+  show p                 = let (a,b) = showPosTuple p in a++b
+
+showPosTuple :: Position -> (String, String)
+showPosTuple (Barrier  True i ts) = ("*" ++ show i ++ "C ", " BARRIER " ++ show ts)
+showPosTuple (CBarrier True i ts) = ("*" ++ show i ++ "C ", " CBARRIER " ++ show ts)
+showPosTuple (Barrier  False i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show ts)
+showPosTuple (CBarrier False i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
+showPosTuple p = (show p, "")
+
+-------------------------------------------------------------------------------- 
+-- Rule
+
+-- | Rule is either remove or select a list of tags, with contextual tests
+data Rule = Remove {name :: Name, target :: TagSet, cond :: Condition} |
+            Select {name :: Name, target :: TagSet, cond :: Condition} deriving (Eq) 
+data Name = Name String | NoName deriving (Eq)
+
+instance Show Rule where
+  show (Remove (Name nm) tags Always) = "REMOVE:" ++ nm ++ " " ++ show tags
+  show (Remove  NoName   tags Always) = "REMOVE " ++ show tags
+  show (Remove (Name nm) tags cond) = "REMOVE:" ++ nm ++ " " ++
+                                       show tags ++ " IF " ++ show cond 
+  show (Remove  NoName   tags cond) = "REMOVE " ++ show tags ++ " IF " ++ show cond
+  show (Select (Name nm) tags Always) = "SELECT:" ++ nm ++ " " ++ show tags
+  show (Select  NoName   tags Always) = "SELECT " ++ show tags
+  show (Select (Name nm) tags cond) = "SELECT:" ++ nm ++ " " ++
+                                       show tags ++ " IF " ++ show cond 
+  show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " IF " ++ show cond 
+
+isSelect :: Rule -> Bool 
+isSelect (Select _ _ _ ) = True
+isSelect _               = False
+
 
 hasBoundary :: Rule -> Bool
 hasBoundary rule = case rule of
@@ -276,49 +276,25 @@ hasBoundary rule = case rule of
   where findBoundary c = any hasB (concat (toConds c))
         hasB (C _pos (_b,tags)) = (not.null) $ [BOS,EOS] `intersect` concat ((concatMap fst . toTags) tags)
 
--- Sets of tags
-verb = TS [[Tag "vblex"],[Tag "vbser"],[Tag "vbmod"]]
-noun = TS [[Tag "n"], [Tag "np"]]
-det  = TS [[Tag "det"]]
-adv  = TS [[Tag "adv"]]
-conj = TS [[Tag "cnjcoo"],[Tag "cnjsub"]]
-prep = TS [[Tag "prep"]]
-sg   = TS [[Tag "sg"]]
-pl   = TS [[Tag "pl"]]
-cnjcoo  = TS [[Tag "cnjcoo"]]
+-------------------------------------------------------------------------------- 
+-- Readings
 
--- Rules
-rmParticle = Remove NoName (TS [[Tag "particle"]]) always
-slVerbAlways = Select NoName verb  always
-slNounIfBear = Select NoName (TS [[Lem "bear", Tag "n"]]) always
-
-rmVerbIfDet = Remove NoName verb (mkC "-1" det)
-rmAdvIfDet = Remove NoName adv (mkC "1" det)
-rmNounIfPron = Remove NoName noun (mkC "-1" (TS [[Tag "pron"]]))
-slPrepIfDet = Select NoName prep (mkC "1" det)
-slNounAfterConj = Select NoName noun (mkC "-1" conj)
-
-slCCifCC = Select NoName cnjcoo (C (Barrier False 1 (TS [[Tag "punct"]])) (True,cnjcoo))
-
-rmPlIfSg = Remove NoName pl (C (Exactly False (-1)) (True,sg))
-rmSgIfPl = Remove NoName sg (mkC "-1" pl)
-
-negTest   = Select NoName verb (mkC "-1" prep)
-negOrTest = Select NoName verb (OR (mkC "-1" conj) (mkC "1" prep))
-
+-- | Reading is just list of tags: for instance the word form "alusta" would get
+-- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
+type Reading = [[Tag]]
 
 -- | Shows all analyses as string, each lemma+tags in one line
-showSentence :: Sentence -> String
-showSentence = concatMap showAnalysis
+showSentence :: [[Reading]] -> String
+showSentence = concatMap showReading
 
 -- concatMap showTags returns this:
 -- "<are>"
 --	"be" vblex pres"<be>"
 --	"are" n sg
 -- so need some trickery
-showAnalysis :: Analysis -> String
-showAnalysis []     = []
-showAnalysis (a:as) = unlines $ showTags a : map showTags as'
+showReading :: Reading -> String
+showReading []     = []
+showReading (a:as) = unlines $ showTags a : map showTags as'
   where as' = (map.filter) notWF as
         notWF (WF _) = False
         notWF _      = True        
