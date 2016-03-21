@@ -30,6 +30,14 @@ instance Eq Subpos where
   _           == _           = False
 
 
+instance Ord Subpos where
+  Wherever    `compare` anywhere    = EQ
+  anywhere    `compare` Wherever    = EQ
+  FromStart n `compare` FromEnd   m = GT
+  FromEnd   n `compare` FromStart m = LT
+  FromStart n `compare` FromStart m = n `compare` m
+  FromEnd   n `compare` FromEnd   m = n `compare` m
+
 --because Regex has no Eq instance
 instance Eq Tag where
   WF  str == WF  str' = str == str'
@@ -44,23 +52,25 @@ instance Eq Tag where
 -- | Wordform should be first element in an analysis.
 ---TODO look into this--may have weirdness in maps
 instance Ord Tag where
-  BOS `compare` BOS = EQ
-  BOS `compare` _   = GT
-  _   `compare` BOS = LT
-  EOS `compare` EOS = EQ
-  EOS `compare` _   = GT
-  _   `compare` EOS = LT 
-  WF word `compare` WF word'  = word `compare` word'
-  WF _    `compare` _         = LT
-  _       `compare` WF _      = GT
-  Lem lem `compare` Lem lem'  = lem `compare` lem'
-  Lem lem `compare` Tag tag   = GT
-  Tag tag `compare` Lem lem   = LT
+  WF w  `compare` WF w'  = w `compare` w'
+  WF _  `compare` _      = LT
+  _     `compare` WF w   = GT
+  Lem l `compare` Lem l' = l `compare` l'
+  Lem l `compare` _      = LT
 
-  Tag tag `compare` Tag tag'  = tag `compare` tag'
+
+  Tag t `compare` Tag t'  = t `compare` t'
+  BOS   `compare` BOS       = EQ
+  BOS   `compare` _         = LT
+--  _     `compare` BOS       = GT
+  EOS   `compare` EOS       = EQ
+  EOS   `compare` _     = LT
+
 --  Rgx _ s `compare` Rgx _ s' = s `compare` s'
-  Subreading _ t `compare` 
-       Subreading _ t'        = t `compare` t'
+  Subreading s t `compare` 
+       Subreading s' t'       = case t `compare` t' of
+                                  EQ -> s `compare` s'
+                                  a  -> a
   Subreading _ t `compare` t' = LT
   t `compare` Subreading _ t' = GT
 
@@ -281,10 +291,13 @@ hasBoundary rule = case rule of
 
 -- | Reading is just list of tags: for instance the word form "alusta" would get
 -- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
-type Reading = [[Tag]]
+type Reading = [Tag]
+type Cohort  = [Reading]
+
+--type Sentence = [Cohort]
 
 -- | Shows all analyses as string, each lemma+tags in one line
-showSentence :: [[Reading]] -> String
+showSentence :: [Reading] -> String
 showSentence = concatMap showReading
 
 -- concatMap showTags returns this:
@@ -292,12 +305,12 @@ showSentence = concatMap showReading
 --	"be" vblex pres"<be>"
 --	"are" n sg
 -- so need some trickery
-showReading :: Reading -> String
-showReading []     = []
-showReading (a:as) = unlines $ showTags a : map showTags as'
-  where as' = (map.filter) notWF as
-        notWF (WF _) = False
-        notWF _      = True        
+showReading :: Reading -> String --[[Tag]] -> String
+showReading [] = []
+showReading ts = showTags (wf++ts)
+  where (wf,ts') = partition isWF ts
+        isWF (WF _) = True
+        isWF _      = False
   
 showTags :: [Tag] -> String
 showTags []         = "[]"
