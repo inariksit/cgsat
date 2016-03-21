@@ -58,7 +58,6 @@ instance Ord Tag where
   Lem l `compare` Lem l' = l `compare` l'
   Lem l `compare` _      = LT
 
-
   Tag t `compare` Tag t'  = t `compare` t'
   BOS   `compare` BOS       = EQ
   BOS   `compare` _         = LT
@@ -97,16 +96,16 @@ data TagSet =
   deriving (Eq,Ord)
 
 instance Show TagSet where
-  show (TS tags) = showTagset tags
+  show (TS tags) = showReadinget tags
   show (Or ts1 ts2) = show ts1 ++ "|" ++ show ts2
   show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2 
 --  show (Cart ts1 ts2) = show $ map concat $ sequence [(toTags' ts1), (toTags' ts2)] 
   show (Cart ts1 ts2) = show ts1 ++ " + " ++ show ts2
   show All = "(*)"
 
-showTagset :: [[Tag]] -> String
-showTagset [[x]] = show x 
-showTagset xs    = intercalate "|" $ map show' xs
+showReadinget :: [[Tag]] -> String
+showReadinget [[x]] = show x 
+showReadinget xs    = intercalate "|" $ map show' xs
   where show' [y] = show y 
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
@@ -296,29 +295,34 @@ type Cohort  = [Reading]
 
 --type Sentence = [Cohort]
 
--- | Shows all analyses as string, each lemma+tags in one line
-showSentence :: [Reading] -> String
-showSentence = concatMap showReading
+isWF :: Tag -> Bool
+isWF (WF _) = True
+isWF _      = False
 
--- concatMap showTags returns this:
+-- | Shows all analyses as string, each lemma+tags in one line
+showSentence :: [Cohort] -> String
+showSentence = concatMap showCohort
+
+-- concatMap showReading returns this:
 -- "<are>"
 --	"be" vblex pres"<be>"
 --	"are" n sg
 -- so need some trickery
-showReading :: Reading -> String --[[Tag]] -> String
-showReading [] = []
-showReading ts = showTags (wf++ts)
-  where (wf,ts') = partition isWF ts
-        isWF (WF _) = True
-        isWF _      = False
+showCohort :: [Reading] -> String  --[[Tag]] -> String
+showCohort []       = []
+showCohort (ts:tss) = unlines $ showReading ts : map (unwords . map show) onlyts
+  where onlyts = map (filter (not.isWF)) tss
+
   
-showTags :: [Tag] -> String
-showTags []         = "[]"
-showTags ts@(wf:as) = 
-  case wf of
-    (WF s) -> show wf ++ '\n':'\t':showA as
-    _      -> '\t':showA (wf:as)
-  where showA = unwords . map show
+showReading :: [Tag] -> String
+showReading [] = []
+showReading ts = 
+  case wfs of
+    wf:_ -> show wf ++ '\n':'\t':showA rest
+    []   -> '\t':showA (wfs++rest)
+ where
+  (wfs,rest) = partition isWF ts
+  showA = unwords . map show
 
 
 
