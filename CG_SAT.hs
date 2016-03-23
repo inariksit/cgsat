@@ -1,9 +1,12 @@
 module CG_SAT (
   apply
+, mkTagMap
+, ruleToRule'
+, mkSentence
 )
 where
 
-import CG_base hiding ( Cohort )
+import CG_base hiding ( Cohort, Sentence )
 --import CG_base as CGB
 import SAT ( Solver(..), newSolver, deleteSolver )
 import qualified SAT
@@ -33,12 +36,7 @@ type Sentence = IM.IntMap Cohort
 
 type TrgIS    = IS.IntSet
 type DifIS    = IS.IntSet
-
-
-
-type TrgInds = (TrgIS,DifIS) --,WhoCares = all \ trg. 
-                         -- Would be needed for cautious and onlyTrgLeft.
-                         -- Question: is it better to store it or compute it for each rule?
+type TrgInds = (TrgIS,DifIS)
 type CondInds = (TrgIS,DifIS)
 
 --like CG_base's Condition, but s/TagSet/CondInds/
@@ -89,13 +87,13 @@ apply s sentence rule = do
 
 
   let applyToWord sentence (i,cohort) = do
-       let indsInCohort   = IM.keys cohort
-       let (trgIndsRaw,otherIndsRaw) = partition (IS.member allTrgInds && IS.notMember allDifInds) indsInCohort
+       let indsInCohort   = IM.keysSet cohort
+       let (trgIndsRaw,otherIndsRaw) = IS.partition (\i -> IS.member i allTrgInds && IS.notMember i allDifInds) indsInCohort
        let (trgInds,otherInds) = if isSelect' rule --if Select, flip target and other
                                   then (otherIndsRaw,trgIndsRaw)
                                   else (trgIndsRaw,otherIndsRaw)
 
-       disjConds <- mkConds s indsInCohort sentence i (cnd rule) "apply"
+       disjConds <- mkConds s indsInCohort sentence i (cnd rule)
        case disjConds of
          Nothing -> return sentence --conditions out of scope, no changes in sentence
          Just cs -> do
@@ -116,18 +114,18 @@ apply s sentence rule = do
                                  , cannotApply ] --rule cannot apply 
                | oldTrgLit <- trgPos
                , let newTrgName = show oldTrgLit ++ "'" ]
-           let newsw = foldl changeAna cohort (zip trgIndsList newTrgLits)
-           return $ changeWord sentence i newsw
+           let newcoh = foldl updateReading cohort (zip trgIndsList newTrgLits)
+           return $ updateCohort sentence i newcoh
            
   foldM applyToWord sentence (IM.assocs sentence)
 
  where
 
-  changeAna :: Cohort -> (Reading,Lit) -> Cohort
-  changeAna word (ana,newlit) = IM.adjust (const newlit) ana word
+  updateReading :: Cohort -> (Int,Lit) -> Cohort
+  updateReading word (ana,newlit) = IM.adjust (const newlit) ana word
 
-  changeWord :: Sentence -> Int -> Word -> Sentence
-  changeWord sent i newsw = IM.adjust (const newsw) i sent
+  updateCohort :: Sentence -> Int -> Cohort -> Sentence
+  updateCohort sent i newsw = IM.adjust (const newsw) i sent
 
   lu' xs x = IM.lookup x xs
   lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
@@ -135,7 +133,7 @@ apply s sentence rule = do
 --------------------------------------------------------------------------------  
 
 --OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
-mkConds :: Solver ->  Sentence -> Int -> [[Condition']] -> IO (Maybe Lit)
+mkConds :: Solver -> IS.IntSet -> Sentence -> Int -> [[Condition']] -> IO (Maybe [Lit])
 mkConds s  sentence trgind disjconjconds str = do
   return Nothing
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
@@ -151,15 +149,15 @@ mkConds s  sentence trgind disjconjconds str = do
 
 mkSentence :: Solver -> [Reading] -> [[Reading]] -> IO Sentence
 mkSentence s allrds rdss = do
-  cohorts <- [ IM.fromList `fmap` sequence
+  cohorts <- sequence [ IM.fromList `fmap` sequence
                [ (,) n `fmap` newLit s (show rd) | rd <- rds 
-                                                 , let n = lookup rd readingMap ] -- ::[(Int,Lit)]
+                                                 , let n = fromMaybe (error (show rd)) $ lookup rd rdMap ] -- ::[(Int,Lit)]
                | rds <- rdss ] -- ::[Cohort]
   let sentence = IM.fromList $ zip [1..] cohorts
   return sentence
 
  where
-  readingMap = zip allrds [1..]
+  rdMap = zip allrds [1..]
 
 symbSentence :: Solver -> [Reading] -> Int -> IO Sentence
 symbSentence s allrds w =
