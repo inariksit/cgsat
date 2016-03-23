@@ -8,20 +8,16 @@ module CG_SAT (
 where
 
 import CG_base hiding ( Cohort, Sentence )
---import CG_base as CGB
 import SAT ( Solver(..), newSolver, deleteSolver )
-import qualified SAT
 import SAT.Named
-import AmbiguityClass
 
 import Control.Monad
-import Data.Foldable ( asum )
 import qualified Data.IntSet as IS
 import qualified Data.IntMap as IM
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
-import Debug.Trace
+--import Debug.Trace
 import Text.Regex
 
 
@@ -90,9 +86,12 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
   else do 
 
     let applyToWord sentence (i,cohort) = do
-          let indsInCohort   = IM.keysSet cohort
+          let indsInCohort = IM.keysSet cohort
 
-          let (trgIndsRaw,otherIndsRaw) = IS.partition (\i -> IS.member i allTrgInds && IS.notMember i allDifInds) indsInCohort
+          let (trgIndsRaw,otherIndsRaw) = 
+                IS.partition (\i -> IS.member i allTrgInds && 
+                                    IS.notMember i allDifInds)
+                             indsInCohort
           let (trgInds,otherInds) = if isSelect' rule --if Select, flip target and other
                                       then (otherIndsRaw,trgIndsRaw)
                                       else (trgIndsRaw,otherIndsRaw)
@@ -102,15 +101,14 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
             Nothing -> return sentence --conditions out of scope, no changes in sentence
             Just cs -> do
               let trgIndsList = IS.toList trgInds
-
-              condsHold <- orl' s cs
-              let trgPos   = mapMaybe   (lu' cohort) trgIndsList
+              let trgPos   = mapMaybe (lu' cohort) trgIndsList
               let otherNeg = map (neg . lu cohort) (IS.toList otherInds)
 
+              condsHold     <- orl' s cs
               someTrgIsTrue <- orl' s trgPos 
               noOtherIsTrue <- andl' s otherNeg
-              onlyTrgLeft <- andl' s [ someTrgIsTrue, noOtherIsTrue ]
-              cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
+              onlyTrgLeft   <- andl' s [ someTrgIsTrue, noOtherIsTrue ]
+              cannotApply   <- orl' s [ neg condsHold, onlyTrgLeft ]
 
               newTrgLits <- sequence               --wN<a>' is true if both of the following:
                [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
@@ -149,8 +147,10 @@ mkConds    s         readings   sentence    trgind  disjconjconds = do
                                          IM.filterWithKey (matchCond trgind cond) sentence
                                   , not . null $ absinds ]
                 | conjconds <- disjconjconds ]
-  mapM (mkCond s readings sentence) cs_is
-  return Nothing
+  if all null cs_is 
+    then return Nothing
+    else Just `fmap` mapM (mkCond s readings sentence) cs_is
+
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
   -- * call mkCond with arguments of type (Condition, [SIndex])
 
@@ -214,27 +214,30 @@ matchCond trgind (C' pos (b,cndinds)) absind cohort = inScope && tagsMatch
                     LINK _ child   -> possibleInds child
 
 
--- Rule   has [(trg::IntSet, dif::IntSet)] , disjoint.
--- Cohort is IntMap Lit.
--- In the analysis there must be at least one complete trg-subset,
--- which does NOT include tags from any dif-sublist in its (Trg,Dif) pair.
+{- Cohort has [ (57,casa/casa<n><f><sg>),
+              , (58,casa/casar<vblex><pri><p3><sg>)
+              , (59,casa/casar<vblex><imp><p2><sg>) ]
+Condition has [ (trg=[58,59,60], dif=[15,38,57])
+              , (trg=[foo],      dif=[bar]) 
+              , ...                         ] 
+
+OBS. if "<casa>" had 57-59 from the beginning, it always matches 57-59,
+     no matter if 57 has been negated!
+For now, exclude dif from this function.
+We can always access difs when we make SAT-clauses.
+
+OBS. Rule' can have overlapping trg and dif;
+     that's an internal conflict, and the rule should never apply anywhere.
+Handling that too in the SAT-clauses.
+
+-}
 tagsMatchRule :: [(TrgIS,DifIS)] -> Cohort -> Bool
-tagsMatchRule trg_difs cohort = bothMatch (IM.keys cohort) `any` trg_difs
+tagsMatchRule trg_difs cohort = any (match readings) trg_difs
  where
-  bothMatch rds (trg,dif) = True --pos trg rds && neg dif rds
-
-  --pos :: [WIndex] -> 
-  --pos []       trg = False
-  --pos (rd:rds) trg = if all (\tag -> tag `IS.member` trg) rd
-  --                     then True
-  --                     else pos rds trg
+  readings = IM.keysSet cohort
+  match rds (trg,_) = not $ IS.null $ IS.intersection trg rds
 
 
-  --neg :: [WIndex] -> 
-  --neg []       ta = True
-  --neg (tr:trs) ta = if any (\t -> t `IS.member` ta) tr 
-  --                     then False
-  --                     else neg trs ta
 
 --------------------------------------------------------------------------------  
 
