@@ -165,6 +165,15 @@ mkCond    s         readings      sentence    conjconds_absinds =
            [ orl' s =<< sequence [ go cond absind | absind <- absinds ] 
             | (cond,absinds) <- conjconds_absinds ]
  where 
+
+  --TODO check if this is still valid, I just copypasted it from the old version
+  lookup' :: Bool -> SIndex -> WIndSet -> [Lit]
+  lookup' b ai is = case IM.lookup ai sentence of
+                      Nothing -> if b then error "mkCond: index out of bounds"
+                                  else [true] --if no -100, then `NOT -100 foo' is true
+                      Just wd -> mapMaybe (\i -> IM.lookup i wd) (IS.toList is)
+
+
   go :: Condition' -> Int -> IO Lit
   go Always' _ = return true
   go c@(C' position (positive,yesInds_difInds)) absind = do 
@@ -172,6 +181,8 @@ mkCond    s         readings      sentence    conjconds_absinds =
     let allinds = IM.keysSet sentence
     let yi_ALLINONE = IS.unions $ fst $ unzip yesInds_difInds
     let oi_ALLINONE = allinds IS.\\ yi_ALLINONE
+
+    let lu = lookup' positive absind
 
     case position of
       (Barrier  foo bar btags) 
@@ -184,10 +195,42 @@ mkCond    s         readings      sentence    conjconds_absinds =
               --addClause s [some nice barrier clause] --TODO
               return ()
       _ -> return ()
-    return true
+
+    case (positive, isCareful position) of                  
+      (True, False) -> orl s "" =<< sequence
+                          [ do let yesLits = lu yi
+                               let difLits = lu di
+                               y <- orl  s "" yesLits
+                               n <- andl s "" (map neg difLits)
+                               andl s "" [y,n]
+                            | (yi, di) <- yesInds_difInds ] 
+                            --only case where we may need difInds:
+                            --with rule like A\B OR C\D, we can have
+                            --a)  MUST have one: [a, ac, ad, acd, ae ..] 
+                            --    MAY NOT have:  [b, ab, ..]
+                            --    CAN have:      [d, cd, e, ..]
+
+                            --b)  MUST have one: [c, ac, bc, ace, ce ..] 
+                            --    MAY NOT have:  [d, cd, ...]
+                            --    CAN have:      [b, ab, e, ..]
+
+      (True, True)  -> do let yesLits = lu yi_ALLINONE
+                          let otherLits = lu oi_ALLINONE
+                          y <- orl  s "" yesLits
+                          n <- andl s "" (map neg otherLits)
+                          andl s "" [y,n] 
+
+                       --OBS. "yesInds" mean "noInds" for NOT
+      (False,False) -> do let noLits = lu yi_ALLINONE
+                          --let otherLits = lu oi_ALLINONE
+                          andl s "" (map neg noLits)
+
+      (False, True) -> do let otherLits = lu oi_ALLINONE
+                          orl s "" otherLits
+
 --------------------------------------------------------------------------------  
 
---This function only looks if a certain cohort matches condition.
+--Checks if give cohort matches given condition.
 --If condition has *:  IF (*1 pr)
 -- 1     2      3         4     5      6
 -- the   bear   sleeps    in    the    house
@@ -197,27 +240,32 @@ matchCond _            Always'       _         _    = True
 matchCond trgind (C' pos (b,cndinds)) absind cohort = inScope && tagsMatch
 
  where
-  maxLen = 50 -- arbitrary maximum length of sentence
+  maxLen    = 50 -- arbitrary maximum length of sentence
   inScope   = not b || --NOT -100 foo is always true, if there is no index -100
                 absind `elem` possibleInds pos
   tagsMatch = tagsMatchRule cndinds cohort 
 
---  absIndices :: SIndex -> Position' -> [SIndex]
   possibleInds p = case p of 
-                    Exactly _ i -> (trgind+) <$> [i]
+                    Exactly _ i -> [trgind+i]
                     AtLeast _ i -> let j = if (i<0) then i+1 else i-1
                                    in (trgind+) <$> take maxLen [i,j..]
                                      
-                    --TODO fix barrier case
+                    --TODO fix barrier case!
                     Barrier  _ i _ -> possibleInds (AtLeast False i)
                     CBarrier _ i _ -> possibleInds (AtLeast False i)
                     LINK _ child   -> possibleInds child
 
 
+tagsMatchRule :: [CondInds] -> Cohort -> Bool
+tagsMatchRule trg_difs cohort = any (match readings) trg_difs
+ where
+  readings = IM.keysSet cohort
+  match rds (trg,_) = not $ IS.null $ IS.intersection trg rds
+
 {- Cohort has [ (57,casa/casa<n><f><sg>),
               , (58,casa/casar<vblex><pri><p3><sg>)
               , (59,casa/casar<vblex><imp><p2><sg>) ]
-Condition has [ (trg=[58,59,60], dif=[15,38,57])
+ CondInds has [ (trg=[58,59,60], dif=[15,38,57])
               , (trg=[foo],      dif=[bar]) 
               , ...                         ] 
 
@@ -231,12 +279,6 @@ OBS. Rule' can have overlapping trg and dif;
 Handling that too in the SAT-clauses.
 
 -}
-tagsMatchRule :: [(TrgIS,DifIS)] -> Cohort -> Bool
-tagsMatchRule trg_difs cohort = any (match readings) trg_difs
- where
-  readings = IM.keysSet cohort
-  match rds (trg,_) = not $ IS.null $ IS.intersection trg rds
-
 
 
 --------------------------------------------------------------------------------  
@@ -292,22 +334,5 @@ lookupTag alltags allinds (trg,dif) =
                               --(Rgx r s) -> IS.empty `fromMaybe` lookupRegex t alltags
                               _         -> IS.empty `fromMaybe` M.lookup t alltags
                   in go (IS.intersection acc inds) ts
-                       
---lookupTag :: TagMap -> Cohort -> (Trg,Dif) -> (IS.IntSet,IS.IntSet)
---lookupTag alltags cohort (trg,dif) = 
--- let rdsInCohort = M.keys cohort :: IS.IntSet
---     trgLits = if trg==[[]] then allReadings --this means (*)
---                else concatMap (go rdsInCohort) trg
---     difLits = if dif==[[]] then [] --this means no - operator
---                else concatMap (go rdsInCohort) dif
-
--- in  (trgInds IS.\\ difInds, difInds)
--- where
---  go :: IS.IntSet -> [Tag] -> IS.IntSet -> IS.IntSet
---  go acc []     = acc         --default is empty set, because intersect [] _ == []
---  go acc (t:ts) = let inds = case t of
---                              --(Rgx r s) -> IS.empty `fromMaybe` lookupRegex t alltags
---                              _         -> IS.empty `fromMaybe` M.lookup t alltags
---                  in go (IS.intersection acc inds) ts
 
 
