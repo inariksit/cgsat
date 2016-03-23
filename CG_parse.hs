@@ -80,7 +80,7 @@ parseData s = case pText (Apertium.Par.myLexer s) of
         tagsInAna :: [CGB.Tag] -> CGB.Cohort -> Bool
         tagsInAna tags as = any ((not.null) . intersect tags) as
 
-        sentence s = [bos] ++ s ++ [eos]
+        sentence s = s -- [bos] ++ s ++ [eos]
 
 --------------------------------------------------------------------------------
 --just because it's nice to use them  rules <- readRules foo
@@ -333,7 +333,7 @@ transCond c = case c of
 
 
   where fixPos base []                  res = res
-        fixPos base c@(CGB.C pos tags:cs) res = trace (show c ++ " " ++ show res) $
+        fixPos base c@(CGB.C pos tags:cs) res = --trace (show c ++ " " ++ show res) $
           let newBase = base + getPos pos
               newPos = changePos pos newBase
           in fixPos newBase cs ((CGB.C newPos tags):res)
