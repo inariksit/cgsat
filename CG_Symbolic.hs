@@ -1,6 +1,7 @@
 module CG_Symbolic where 
 
 import CG_base hiding ( Sentence, showSentence )
+--import CG_SAT hiding ( apply, mkSentence )
 import SAT ( Solver(..), newSolver, deleteSolver )
 import qualified SAT
 import SAT.Named
@@ -74,7 +75,6 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
   isSel = isSelect rule
 
   lu = lookupTag tagmap allinds
-  (trgs,difs) = unzip $ toTags $ target rule
 
   -- TODO: will this work for `Det - Zijn OR Foo - Bar'?
   -- unions will just merge everything together and ignore the difInds.
@@ -83,10 +83,12 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
   (trgInds,difInds) = unzip [ lu (trg,dif) | (trg,dif) <- toTags $ target rule ]
   trget = (IS.unions trgInds, IS.empty)
 
-  conds = (map.map) condToCond' (toConds $ cond rule)
+  conds = --trace ("ruleToRule' cnd: " ++ show (toConds $ cond rule)) $
+           (map.map) condToCond' (toConds $ cond rule)
 
   condToCond' (C index (positive, ctags)) = 
-     let yesInds_noInds = map lu (toTags ctags) 
+     let yesInds_noInds = --trace ("condToCond': " ++ (show $ (toTags ctags, map lu (toTags ctags)))) $ 
+                           map lu (toTags ctags) 
      in  C' index (positive, yesInds_noInds)
   condToCond' Always = Always'
           
@@ -157,9 +159,9 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
         clMaybe <- mkConds s tagInds sentence trgSInd (cnd lastrule) "testRule"    
         let cl = case clMaybe of
                     Just x -> x
-                    Nothing -> error $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
-                                        show lastrule ++ "\n, sentence width " ++ show w ++ 
-                                        ", target index " ++ show trgSInd                    
+                    Nothing -> [true] --error $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
+                    --                    show lastrule ++ "\n, sentence width " ++ show w ++ 
+                    --                    ", target index " ++ show trgSInd                    
 
         ach <- orl' s cl -- 3) conditions must hold
 
@@ -214,7 +216,6 @@ testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
                , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i word) ] 
 --------------------------------------------------------------------------------
 
-
 apply :: Solver -> WIndSet -> Sentence -> Rule' -> IO Sentence
 apply s allinds sentence rule = do
   --putStrLn ("apply " ++ show rule)
@@ -263,6 +264,7 @@ apply s allinds sentence rule = do
   lu' xs x = IM.lookup x xs
   lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
 --------------------------------------------------------------------------------
+
 
 --OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
 mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> String -> IO (Maybe [Lit])
@@ -467,13 +469,6 @@ posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
 posToInt (LINK parent child) = --trace (show (posToInt parent) ++ ", " ++ show child) $
                                [ pI + cI | (pI,cI) <- posToInt parent 
                                           `zip` (cycle $ posToInt child) ]
-
-isCareful :: Position -> Bool
-isCareful (Exactly b _) = b
-isCareful (AtLeast b _) = b
-isCareful (Barrier b _ _) = b
-isCareful (CBarrier b _ _) = b
-isCareful (LINK _par child) = isCareful child
 
 getPos :: Condition' -> [Int]
 getPos Always'    = [1]

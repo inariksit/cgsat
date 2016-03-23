@@ -59,6 +59,7 @@ instance Ord Tag where
   Lem l `compare` _      = LT
 
   Tag t `compare` Tag t'  = t `compare` t'
+  Tag t `compare` _       = LT
   BOS   `compare` BOS       = EQ
   BOS   `compare` _         = LT
 --  _     `compare` BOS       = GT
@@ -71,7 +72,7 @@ instance Ord Tag where
                                   EQ -> s `compare` s'
                                   a  -> a
   Subreading _ t `compare` t' = LT
-  t `compare` Subreading _ t' = GT
+  --t `compare` Subreading _ t' = GT
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
@@ -253,6 +254,13 @@ showPosTuple (Barrier  False i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show 
 showPosTuple (CBarrier False i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
 showPosTuple p = (show p, "")
 
+isCareful :: Position -> Bool
+isCareful (Exactly b _) = b
+isCareful (AtLeast b _) = b
+isCareful (Barrier b _ _) = b
+isCareful (CBarrier b _ _) = b
+isCareful (LINK _par child) = isCareful child
+
 -------------------------------------------------------------------------------- 
 -- Rule
 
@@ -289,11 +297,20 @@ hasBoundary rule = case rule of
 -- Readings
 
 -- | Reading is just list of tags: for instance the word form "alusta" would get
--- | [[WF "alusta", Lem "alus", N, Sg, Part], [WF "alusta", Lem "alustaa", V, Sg, Imperative]]
+-- | [WF "alusta", Lem "alus", N, Sg, Part]
+-- | [WF "alusta", Lem "alustaa", V, Sg, Imperative]
 type Reading = [Tag]
+
+-- | Cohort is a list of readings, and Sentence is a list of cohorts.
 type Cohort  = [Reading]
 
---type Sentence = [Cohort]
+type Sentence = [Cohort]
+
+isAmbig :: Cohort -> Bool
+isAmbig []  = error "isAmbig: Cohort should have >=1 reading"
+isAmbig [x] = False
+isAmbig _   = True
+
 
 isWF :: Tag -> Bool
 isWF (WF _) = True
