@@ -3,6 +3,7 @@ module CG_SAT (
 , mkTagMap
 , ruleToRule'
 , mkSentence
+, Rule' (..)
 )
 where
 
@@ -34,6 +35,9 @@ type Sentence = IM.IntMap Cohort
 
 --------------------------------------------------------------------------------
 
+type WIndex   = Int
+type SIndex   = Int
+type WIndSet  = IS.IntSet
 type TrgIS    = IS.IntSet
 type DifIS    = IS.IntSet
 type TrgInds = (TrgIS,DifIS)
@@ -46,10 +50,10 @@ data Rule' = R { trg :: TrgInds
                , cnd :: [[Condition']]
                , isSelect' :: Bool
                , show' :: String
-               } deriving (Eq)
+               } deriving (Eq,Show)
 
-instance Show Rule' where
-  show = show'
+--instance Show Rule' where
+--  show = show'
 
 --We call this once for every rule, lookupTag does some expensive intersections and stuff
 --Also many rules share targets and conditions--can we save the results?
@@ -80,44 +84,43 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
 --------------------------------------------------------------------------------
 
 apply :: Solver -> Sentence -> Rule' -> IO Sentence
-apply s sentence rule = do
+apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
+ if IS.null allTrgInds
+  then return sentence --rule doesn't target anything in the sentence
+  else do 
 
-  --all possible readings that the rule targets
-  let (allTrgInds,allDifInds) = trg rule
+    let applyToWord sentence (i,cohort) = do
+          let indsInCohort   = IM.keysSet cohort
 
+          let (trgIndsRaw,otherIndsRaw) = IS.partition (\i -> IS.member i allTrgInds && IS.notMember i allDifInds) indsInCohort
+          let (trgInds,otherInds) = if isSelect' rule --if Select, flip target and other
+                                      then (otherIndsRaw,trgIndsRaw)
+                                      else (trgIndsRaw,otherIndsRaw)
 
-  let applyToWord sentence (i,cohort) = do
-       let indsInCohort   = IM.keysSet cohort
-       let (trgIndsRaw,otherIndsRaw) = IS.partition (\i -> IS.member i allTrgInds && IS.notMember i allDifInds) indsInCohort
-       let (trgInds,otherInds) = if isSelect' rule --if Select, flip target and other
-                                  then (otherIndsRaw,trgIndsRaw)
-                                  else (trgIndsRaw,otherIndsRaw)
+          disjConds <- mkConds s indsInCohort sentence i (cnd rule)
+          case disjConds of
+            Nothing -> return sentence --conditions out of scope, no changes in sentence
+            Just cs -> do
+              let trgIndsList = IS.toList trgInds
 
-       disjConds <- mkConds s indsInCohort sentence i (cnd rule)
-       case disjConds of
-         Nothing -> return sentence --conditions out of scope, no changes in sentence
-         Just cs -> do
-           let trgIndsList = IS.toList trgInds
+              condsHold <- orl' s cs
+              let trgPos   = mapMaybe   (lu' cohort) trgIndsList
+              let otherNeg = map (neg . lu cohort) (IS.toList otherInds)
 
-           condsHold <- orl' s cs
-           let trgPos   = mapMaybe   (lu' cohort) trgIndsList
-           let otherNeg = map (neg . lu cohort) (IS.toList otherInds)
+              someTrgIsTrue <- orl' s trgPos 
+              noOtherIsTrue <- andl' s otherNeg
+              onlyTrgLeft <- andl' s [ someTrgIsTrue, noOtherIsTrue ]
+              cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
 
-           someTrgIsTrue <- orl' s trgPos 
-           noOtherIsTrue <- andl' s otherNeg
-           onlyTrgLeft <- andl' s [ someTrgIsTrue, noOtherIsTrue ]
-           cannotApply <- orl' s [ neg condsHold, onlyTrgLeft ]
+              newTrgLits <- sequence               --wN<a>' is true if both of the following:
+               [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
+                                   , cannotApply ] --rule cannot apply 
+                  | oldTrgLit <- trgPos
+                  , let newTrgName = show oldTrgLit ++ "'" ]
+              let newcoh = foldl updateReading cohort (zip trgIndsList newTrgLits)
+              return $ updateCohort sentence i newcoh
 
-           newTrgLits <- sequence
-             --wN<a>' is true if both of the following:
-             [ andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
-                                 , cannotApply ] --rule cannot apply 
-               | oldTrgLit <- trgPos
-               , let newTrgName = show oldTrgLit ++ "'" ]
-           let newcoh = foldl updateReading cohort (zip trgIndsList newTrgLits)
-           return $ updateCohort sentence i newcoh
-           
-  foldM applyToWord sentence (IM.assocs sentence)
+    foldM applyToWord sentence (IM.assocs sentence)
 
  where
 
@@ -133,16 +136,107 @@ apply s sentence rule = do
 --------------------------------------------------------------------------------  
 
 --OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
-mkConds :: Solver -> IS.IntSet -> Sentence -> Int -> [[Condition']] -> IO (Maybe [Lit])
-mkConds s  sentence trgind disjconjconds str = do
+-- For non-symbolic case, allinds contains all readings in that sentence.
+-- For symbolic case, allinds has all possible readings in the lexicon/grammar.
+mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
+mkConds    s         readings   sentence    trgind  disjconjconds = do
+
+  --Extracting only indices seems silly for the non-symbolic case.
+  --But testing the match and passing cohorts is silly for symbolic.
+  --Compromise: separate `mkConds' and `symbConds' , both use same mkCond?
+  let cs_is = [ [ (cond, absinds) | cond <- conjconds
+                                  , let absinds = IM.keys $
+                                         IM.filterWithKey (matchCond trgind cond) sentence
+                                  , not . null $ absinds ]
+                | conjconds <- disjconjconds ]
+  mapM (mkCond s readings sentence) cs_is
   return Nothing
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
   -- * call mkCond with arguments of type (Condition, [SIndex])
-  -- * in mkCond, sometimes we can get away with a big orl that contains literals
-  --   from different words, but with cautious or negation, can't do that
 
+
+mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',[SIndex])] -> IO Lit
+mkCond    s         readings      sentence    conjconds_absinds = 
+  case conjconds_absinds of
+    [] -> error "mkCond: no conditions"
+    -- *Every* condition has to be true in *some* index:
+    --  = andl'                             = orl'
+    cs -> andl' s =<< sequence
+           [ orl' s =<< sequence [ go cond absind | absind <- absinds ] 
+            | (cond,absinds) <- conjconds_absinds ]
+ where 
+  go :: Condition' -> Int -> IO Lit
+  go Always' _ = return true
+  go c@(C' position (positive,yesInds_difInds)) absind = do 
+
+    let allinds = IM.keysSet sentence
+    let yi_ALLINONE = IS.unions $ fst $ unzip yesInds_difInds
+    let oi_ALLINONE = allinds IS.\\ yi_ALLINONE
+
+    case position of
+      (Barrier  foo bar btags) 
+        -> do --putStrLn "found a barrier!"
+              --addClause s [some nice barrier clause] --TODO
+              return ()
+                                         
+      (CBarrier foo bar btags)
+        -> do --putStrLn "found a cbarrier!"
+              --addClause s [some nice barrier clause] --TODO
+              return ()
+      _ -> return ()
+    return true
 --------------------------------------------------------------------------------  
 
+--This function only looks if a certain cohort matches condition.
+--If condition has *:  IF (*1 pr)
+-- 1     2      3         4     5      6
+-- the   bear   sleeps    in    the    house
+--       trgi=2           
+matchCond :: SIndex -> Condition' -> SIndex -> Cohort -> Bool
+matchCond _            Always'       _         _    = True
+matchCond trgind (C' pos (b,cndinds)) absind cohort = inScope && tagsMatch
+
+ where
+  maxLen = 50 -- arbitrary maximum length of sentence
+  inScope   = not b || --NOT -100 foo is always true, if there is no index -100
+                absind `elem` possibleInds pos
+  tagsMatch = tagsMatchRule cndinds cohort 
+
+--  absIndices :: SIndex -> Position' -> [SIndex]
+  possibleInds p = case p of 
+                    Exactly _ i -> (trgind+) <$> [i]
+                    AtLeast _ i -> let j = if (i<0) then i+1 else i-1
+                                   in (trgind+) <$> take maxLen [i,j..]
+                                     
+                    --TODO fix barrier case
+                    Barrier  _ i _ -> possibleInds (AtLeast False i)
+                    CBarrier _ i _ -> possibleInds (AtLeast False i)
+                    LINK _ child   -> possibleInds child
+
+
+-- Rule   has [(trg::IntSet, dif::IntSet)] , disjoint.
+-- Cohort is IntMap Lit.
+-- In the analysis there must be at least one complete trg-subset,
+-- which does NOT include tags from any dif-sublist in its (Trg,Dif) pair.
+tagsMatchRule :: [(TrgIS,DifIS)] -> Cohort -> Bool
+tagsMatchRule trg_difs cohort = bothMatch (IM.keys cohort) `any` trg_difs
+ where
+  bothMatch rds (trg,dif) = True --pos trg rds && neg dif rds
+
+  --pos :: [WIndex] -> 
+  --pos []       trg = False
+  --pos (rd:rds) trg = if all (\tag -> tag `IS.member` trg) rd
+  --                     then True
+  --                     else pos rds trg
+
+
+  --neg :: [WIndex] -> 
+  --neg []       ta = True
+  --neg (tr:trs) ta = if any (\t -> t `IS.member` ta) tr 
+  --                     then False
+  --                     else neg trs ta
+
+--------------------------------------------------------------------------------  
 
 --We store only Ints in Sentence, but we have an [(Int,Reading)] handy 
 --when we want to print out our readings.
@@ -150,15 +244,15 @@ mkConds s  sentence trgind disjconjconds str = do
 mkSentence :: Solver -> [Reading] -> [[Reading]] -> IO Sentence
 mkSentence s allrds rdss = do
   cohorts <- sequence [ IM.fromList `fmap` sequence
-               [ (,) n `fmap` newLit s (showRd rd) | rd <- rds 
-                                                 , let n = fromMaybe (error (show rd)) $ lookup rd rdMap ] -- ::[(Int,Lit)]
+               [ (,) n `fmap` newLit s (shRd rd) | rd <- rds 
+                                                 , let Just n = lookup rd rdMap ] -- ::[(Int,Lit)]
                | rds <- rdss ] -- ::[Cohort]
   let sentence = IM.fromList $ zip [1..] cohorts
   return sentence
 
  where
   rdMap = zip allrds [1..]
-  showRd (WF foo:Lem bar:tags) = foo ++ "/" ++ bar ++ concatMap (\t -> '<':show t++">") tags
+  shRd (WF foo:Lem bar:tags) = foo ++ "/" ++ bar ++ concatMap (\t -> '<':show t++">") tags
 
 symbSentence :: Solver -> [Reading] -> Int -> IO Sentence
 symbSentence s allrds w =
