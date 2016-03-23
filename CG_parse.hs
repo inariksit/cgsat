@@ -1,7 +1,9 @@
 module CG_parse ( parseRules
                 , parseData
+                , parseReading
                 , readRules
                 , readData 
+                , readReadings
                 , readRules' ) where
 
 import System.Environment ( getArgs )
@@ -37,6 +39,23 @@ emptyEnv = Env [] []
 --Also we use toTagsLIST only with LISTs so it's completely safe ^___^
 toTagsLIST = concatMap fst . CGB.toTags
 
+parseReading :: String -> CGB.Reading
+parseReading str = maintags ++ concat subtags
+ where
+  (mainr:subrs) = split (=='+') str
+  maintags = map toTag $ filter (not.null) $ split isValid mainr
+  subrs_ns = (map CGB.FromStart [1..]) `zip` map (split isValid) subrs :: [(CGB.Subpos,[String])]
+  subtags = map (\(n, strs) -> map (CGB.Subreading n . toTag) strs) subrs_ns
+  isValid = (=='<') 
+
+
+  toTag ">>>" = CGB.BOS
+  toTag "<<<" = CGB.EOS
+  toTag []    = error "empty tag"
+  toTag str = if last str=='>' then CGB.Tag (init str) 
+                else if last str=='$' then CGB.WF (init str)
+                                      else CGB.Lem str
+
 parseRules :: Bool -> String -> ([CGB.TagSet], [[CGB.Rule]]) -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
@@ -52,25 +71,30 @@ parseRules test s = case pGrammar (CG.Par.myLexer s) of
 parseData :: String -> [CGB.Sentence]
 parseData s = case pText (Apertium.Par.myLexer s) of
             AErr.Bad err  -> error err
-            AErr.Ok text  -> map sentence $ split isSent $ transText text
-  where isSent :: CGB.Analysis -> Bool
-        isSent = tagsInAna [CGB.Tag "sent", CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
+            AErr.Ok text  -> let cohorts = transText text :: [CGB.Cohort]
+                                 sents = split isEOS cohorts
+                             in map sentence sents
+  where isEOS :: CGB.Cohort -> Bool
+        isEOS = tagsInAna [CGB.Tag "sent", CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
 
-        tagsInAna :: [CGB.Tag] -> CGB.Analysis -> Bool
+        tagsInAna :: [CGB.Tag] -> CGB.Cohort -> Bool
         tagsInAna tags as = any ((not.null) . intersect tags) as
 
         sentence s = [bos] ++ s ++ [eos]
 
-
+--------------------------------------------------------------------------------
 --just because it's nice to use them  rules <- readRules foo
-readRules :: String -> IO [[CGB.Rule]]
-readRules fname = readFile fname >>= return . snd . parseRules False
+readReadings :: FilePath -> IO [CGB.Reading]
+readReadings fname = (map parseReading . words) `fmap` readFile fname
 
-readRules' :: String -> IO ([CGB.TagSet], [[CGB.Rule]])
+readRules :: FilePath -> IO [[CGB.Rule]]
+readRules fname = readFile fname >>= return .snd . parseRules False
+
+readRules' :: FilePath -> IO ([CGB.TagSet], [[CGB.Rule]])
 readRules' fname = readFile fname >>= return . parseRules False
 
 
-readData :: String -> IO [CGB.Sentence]
+readData :: FilePath -> IO [CGB.Sentence]
 readData fname = readFile fname >>= return . parseData
 
 main :: IO ()
@@ -85,7 +109,7 @@ main = do args <- getArgs
                                  exitFailure
 
 
----
+--------------------------------------------------------------------------------
 
 parseCGRules :: Grammar -> State Env [[Either String CGB.Rule]]
 parseCGRules (Sections secs) = mapM parseSection secs
@@ -372,13 +396,13 @@ transPosition pos = case pos of
        mainreading position = return (position, Nothing)
 
 --  morpho output parsing
--- type Analysis = [[Tag]]
+-- type Reading = [Tag]
 
-transText :: Text -> [CGB.Analysis]
+transText :: Text -> [CGB.Cohort] --CGB.Sentence
 transText x = case x of
   Lines lines  -> map transLine lines
 
-transLine :: Line -> CGB.Analysis
+transLine :: Line -> CGB.Cohort
 transLine x = case x of
   Line (Iden wform) anas    -> map (transAnalysis 0 wform) anas
   LinePunct (Punct p) anas  -> map (transAnalysis 0 p) anas
@@ -388,7 +412,7 @@ transLine x = case x of
   NoAnalysis (Iden wform) _ -> [[CGB.WF wform]]
 
 
-transAnalysis :: Integer -> String -> Analysis -> [CGB.Tag]
+transAnalysis :: Integer -> String -> Analysis -> CGB.Reading --[CGB.Tag]
 transAnalysis i wf ana = CGB.WF wf:transAna i ana
   where transAna 0 ana = case ana of
           IdenA (Iden id) tags    -> CGB.Lem id:(map transTagA tags)
