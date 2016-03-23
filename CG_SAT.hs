@@ -150,7 +150,7 @@ mkConds s  sentence trgind disjconjconds str = do
 mkSentence :: Solver -> [Reading] -> [[Reading]] -> IO Sentence
 mkSentence s allrds rdss = do
   cohorts <- sequence [ IM.fromList `fmap` sequence
-               [ (,) n `fmap` newLit s (show rd) | rd <- rds 
+               [ (,) n `fmap` newLit s (showRd rd) | rd <- rds 
                                                  , let n = fromMaybe (error (show rd)) $ lookup rd rdMap ] -- ::[(Int,Lit)]
                | rds <- rdss ] -- ::[Cohort]
   let sentence = IM.fromList $ zip [1..] cohorts
@@ -158,6 +158,7 @@ mkSentence s allrds rdss = do
 
  where
   rdMap = zip allrds [1..]
+  showRd (WF foo:Lem bar:tags) = foo ++ "/" ++ bar ++ concatMap (\t -> '<':show t++">") tags
 
 symbSentence :: Solver -> [Reading] -> Int -> IO Sentence
 symbSentence s allrds w =
