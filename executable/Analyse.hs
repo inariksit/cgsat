@@ -10,6 +10,7 @@ import AmbiguityClass
 import Control.Monad
 import Data.List
 import Data.Maybe
+import Debug.Trace
 import qualified Data.Map as M
 import qualified Data.IntSet as IS
 import System.Environment ( getArgs ) 
@@ -84,7 +85,7 @@ main = do
 
     let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
 
-    let subr = if "nosub" `elem` r then ".nosub" else ".withsub"
+    let subr = if "nosub" `elem` r then ".nosub" else ".withPxQst"
     let lhack = if "lemmahack" `elem` r then ".lemmahack" else ""
     let rdsfromgrammar = "undersp" `elem` r || "rdsfromgrammar" `elem` r
  
@@ -92,12 +93,19 @@ main = do
     let grfile  = dirname ++ lang ++ ".rlx"
     let tagfile = dirname ++ lang ++ ".tags"
     let rdsfile = dirname ++ lang ++ ".readings" ++ subr ++ lhack
+    let acfile  = dirname ++ lang ++ ".ambiguity-classes" ++ lhack
+    let frmfile = dirname ++ lang ++ ".formula" ++ lhack
     ambcls <- if "ambcls" `elem` r
-                then do let acfile = dirname ++ lang ++ ".ambiguity-classes" ++ lhack
-                        ambclauses <- readFile acfile
+                then do ambclauses <- readFile acfile
                         let xss  = map read (lines ambclauses) :: [[Int]]
                         return $ formula xss
-                  else return $ formula [[]]
+                else if "formula"  `elem` r
+                       then return $ formula [[]] --read `fmap` readFile frmfile
+                       else return $ formula [[]]
+
+    if "writeambcls" `elem` r
+      then print ambcls
+      else return ()
 
     let from = read fromStr
     let to   = read toStr
@@ -113,9 +121,9 @@ main = do
                         else if "underspl" `elem` r
                           then nub $ filter containsLemmaOrWF $ concatMap toTags' tsets
                           else [] 
-    --print ("readingsInGr length:", length readingsInGr)
+    print ("readingsInGr length:", length readingsInGr)
     readingsInLex <- (map parse . words) `fmap` readFile rdsfile
-    --print ("readingsInLex length:", length readingsInLex)
+    print ("readingsInLex length:", length readingsInLex)
     let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
     let tags = nub $ tagsInLex ++ concat readings
 
@@ -128,7 +136,7 @@ main = do
     let chosenRules = drop from $ take to $ concat (map reverse rls)
     let rulesToTest = splits $ map (ruleToRule' tagmap allinds) chosenRules
 
-    --print rulesToTest
+    --mapM_ print (zip [1..] rulesToTest)
 
 
 -------------------------------------------------------------------------------- 
@@ -212,7 +220,7 @@ main = do
   for = flip fmap
 
   toTags' :: TagSet -> [[Tag]]
-  toTags' = concatMap (nub . (\(a,b) -> if all null b then a else a++b)) . toTags
+  toTags' foo = concatMap (nub . (\(a,b) -> if all null b then a else a++b)) . toTags $ foo 
 
   containsLemmaOrWF :: [Tag] -> Bool
   containsLemmaOrWF []     = False

@@ -76,7 +76,10 @@ disambiguate allrds' rules sentence = do
 
     s <- newSolver
     satSentence <- mkSentence s allrds sentence 
-    print satSentence
+    foo <- foldM (apply s) satSentence rules'
+    --print satSentence
+    mapM_ print foo
+    --mapM_ (\r -> print r >> print (show' r)) rules'
     return sentence
 
 
