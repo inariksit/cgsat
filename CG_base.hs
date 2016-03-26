@@ -327,7 +327,7 @@ showSentence = concatMap showCohort
 -- so need some trickery
 showCohort :: [Reading] -> String  --[[Tag]] -> String
 showCohort []       = []
-showCohort (ts:tss) = unlines $ showReading ts : map (unwords . map show) onlyts
+showCohort (ts:tss) = unlines $ showReading ts : map showReading onlyts
   where onlyts = map (filter (not.isWF)) tss
 
   
@@ -335,11 +335,11 @@ showReading :: [Tag] -> String
 showReading [] = []
 showReading ts = 
   case wfs of
-    wf:_ -> show wf ++ '\n':'\t':showA rest
-    []   -> '\t':showA (wfs++rest)
+    wf:_ -> show wf ++ '\n':showA rest
+    []   -> showA (wfs++rest)
  where
   (wfs,rest) = partition isWF ts
-  showA = unwords . map show
+  showA x = '\t' : ( unwords . map show $ x)
 
 
 
