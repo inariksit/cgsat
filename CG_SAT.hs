@@ -2,12 +2,14 @@ module CG_SAT (
   apply
 , mkTagMap
 , ruleToRule'
-, mkSentence
+, mkSentence'
 , Rule' (..)
+, Sentence' (..)
+, solveAndPrintSentence
 )
 where
 
-import CG_base hiding ( Cohort, Sentence )
+import CG_base
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
@@ -26,8 +28,8 @@ import Text.Regex
 -- vblex |-> [vblex sg p3, vblex pl p1, vblex ]
 type TagMap   = M.Map Tag IS.IntSet
 
-type Cohort   = IM.IntMap Lit
-type Sentence = IM.IntMap Cohort
+type Cohort'   = IM.IntMap Lit
+type Sentence' = IM.IntMap Cohort'
 
 --------------------------------------------------------------------------------
 
@@ -79,24 +81,24 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
 
 --------------------------------------------------------------------------------
 
-apply :: Solver -> Sentence -> Rule' -> IO Sentence
+apply :: Solver -> Sentence' -> Rule' -> IO Sentence'
 apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
  if IS.null allTrgInds
   then return sentence --rule doesn't target anything in the sentence
   else do 
 
     let applyToWord sentence (i,cohort) = do
-          let indsInCohort = IM.keysSet cohort
+          let indsInCohort' = IM.keysSet cohort
 
           let (trgIndsRaw,otherIndsRaw) = 
                 IS.partition (\i -> IS.member i allTrgInds && 
                                     IS.notMember i allDifInds)
-                             indsInCohort
+                             indsInCohort'
           let (trgInds,otherInds) = if isSelect' rule --if Select, flip target and other
                                       then (otherIndsRaw,trgIndsRaw)
                                       else (trgIndsRaw,otherIndsRaw)
 
-          disjConds <- mkConds s indsInCohort sentence i (cnd rule)
+          disjConds <- mkConds s indsInCohort' sentence i (cnd rule)
           case disjConds of
             Nothing -> return sentence --conditions out of scope, no changes in sentence
             Just cs -> do
@@ -116,17 +118,17 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
                   | oldTrgLit <- trgPos
                   , let newTrgName = show oldTrgLit ++ "'" ]
               let newcoh = foldl updateReading cohort (zip trgIndsList newTrgLits)
-              return $ updateCohort sentence i newcoh
+              return $ updateCohort' sentence i newcoh
 
     foldM applyToWord sentence (IM.assocs sentence)
 
  where
 
-  updateReading :: Cohort -> (Int,Lit) -> Cohort
+  updateReading :: Cohort' -> (Int,Lit) -> Cohort'
   updateReading word (ana,newlit) = IM.adjust (const newlit) ana word
 
-  updateCohort :: Sentence -> Int -> Cohort -> Sentence
-  updateCohort sent i newsw = IM.adjust (const newsw) i sent
+  updateCohort' :: Sentence' -> Int -> Cohort' -> Sentence'
+  updateCohort' sent i newsw = IM.adjust (const newsw) i sent
 
   lu' xs x = IM.lookup x xs
   lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
@@ -136,7 +138,7 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
 --OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
 -- For non-symbolic case, allinds contains all readings in that sentence.
 -- For symbolic case, allinds has all possible readings in the lexicon/grammar.
-mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
+mkConds :: Solver -> WIndSet -> Sentence' -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
 mkConds    s         readings   sentence    trgind  disjconjconds = do
 
   --Extracting only indices seems silly for the non-symbolic case.
@@ -155,8 +157,8 @@ mkConds    s         readings   sentence    trgind  disjconjconds = do
   -- * call mkCond with arguments of type (Condition, [SIndex])
 
 
-mkCond :: Solver -> WIndSet -> Sentence -> [(Condition',[SIndex])] -> IO Lit
-mkCond    s         readings      sentence    conjconds_absinds = 
+mkCond :: Solver -> WIndSet -> Sentence' -> [(Condition',[SIndex])] -> IO Lit
+mkCond    s         readings   sentence    conjconds_absinds = 
   case conjconds_absinds of
     [] -> error "mkCond: no conditions"
     -- *Every* condition has to be true in *some* index:
@@ -235,7 +237,7 @@ mkCond    s         readings      sentence    conjconds_absinds =
 -- 1     2      3         4     5      6
 -- the   bear   sleeps    in    the    house
 --       trgi=2           
-matchCond :: SIndex -> Condition' -> SIndex -> Cohort -> Bool
+matchCond :: SIndex -> Condition' -> SIndex -> Cohort' -> Bool
 matchCond _            Always'       _         _    = True
 matchCond trgind (C' pos (b,cndinds)) absind cohort = inScope && tagsMatch
 
@@ -256,13 +258,13 @@ matchCond trgind (C' pos (b,cndinds)) absind cohort = inScope && tagsMatch
                     LINK _ child   -> possibleInds child
 
 
-tagsMatchRule :: [CondInds] -> Cohort -> Bool
+tagsMatchRule :: [CondInds] -> Cohort' -> Bool
 tagsMatchRule trg_difs cohort = any (match readings) trg_difs
  where
   readings = IM.keysSet cohort
   match rds (trg,_) = not $ IS.null $ IS.intersection trg rds
 
-{- Cohort has [ (57,casa/casa<n><f><sg>),
+{- Cohort' has [ (57,casa/casa<n><f><sg>),
               , (58,casa/casar<vblex><pri><p3><sg>)
               , (59,casa/casar<vblex><imp><p2><sg>) ]
  CondInds has [ (trg=[58,59,60], dif=[15,38,57])
@@ -286,12 +288,12 @@ Handling that too in the SAT-clauses.
 --We store only Ints in Sentence, but we have an [(Int,Reading)] handy 
 --when we want to print out our readings.
 
-mkSentence :: Solver -> [Reading] -> [[Reading]] -> IO Sentence
-mkSentence s allrds rdss = do
+mkSentence' :: Solver -> [Reading] -> [[Reading]] -> IO Sentence'
+mkSentence' s allrds rdss = do
   cohorts <- sequence [ IM.fromList `fmap` sequence
                [ (,) n `fmap` newLit s (shRd rd) | rd <- rds 
                                                  , let Just n = lookup rd rdMap ] -- ::[(Int,Lit)]
-               | rds <- rdss ] -- ::[Cohort]
+               | rds <- rdss ] -- ::[Cohort']
   let sentence = IM.fromList $ zip [1..] cohorts
   return sentence
 
@@ -299,7 +301,7 @@ mkSentence s allrds rdss = do
   rdMap = zip allrds [1..]
   shRd (WF foo:Lem bar:tags) = foo ++ "/" ++ bar ++ concatMap (\t -> '<':show t++">") tags
 
-symbSentence :: Solver -> [Reading] -> Int -> IO Sentence
+symbSentence :: Solver -> [Reading] -> Int -> IO Sentence'
 symbSentence s allrds w =
   IM.fromList `fmap` sequence 
      [ ((,) n . IM.fromList) `fmap` sequence 
@@ -335,4 +337,21 @@ lookupTag alltags allinds (trg,dif) =
                               _         -> IS.empty `fromMaybe` M.lookup t alltags
                   in go (IS.intersection acc inds) ts
 
+-------------------------------------------------------------------------------- 
 
+solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence' -> IO ()
+solveAndPrintSentence verbose s ass sent = do
+  b <- solve s ass
+  if b then do
+          when verbose $ print ass
+          vals <- sequence 
+                   [ sequence [ modelValue s lit | lit <- IM.elems word ] 
+                      | (sind,word) <- IM.assocs sent ]
+          let trueAnas =
+               [ "\"w" ++ show sind ++ "\"\n"
+                  ++ unlines [ "\t"++show ana | (ana, True) <- zip (IM.elems word) vs ]
+                 | ((sind,word), vs) <- zip (IM.assocs sent) vals ]
+          mapM_ putStrLn trueAnas
+          putStrLn "----"
+      else do
+        putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
