@@ -8,6 +8,7 @@ import SAT ( Solver(..), newSolver, deleteSolver )
 
 import Control.Monad
 import qualified Data.IntSet as IS
+import qualified Data.IntMap as IM
 import qualified Data.Set as S
 import System.Environment
 
@@ -20,15 +21,13 @@ main = do
     --                 loop False (disambiguate False False rules)
     --["v", "d", f1]  -> do rules <- concat `fmap` readRules f1
     --                      loop True (disambiguate True True rules)
-    (lang:txt:r) -> do
-      let dirname = "data/" ++ lang ++ "/" 
-
-      let grfile  = dirname ++ lang ++ ".rlx"
-      --let tagfile = dirname ++ lang ++ ".tags"
-      let rdsfile = dirname ++ lang ++ ".readings" 
+    (dir:gr:txt:r) -> do
+      let dirname = "data/" ++ dir ++ "/" 
+      let grfile  = dirname ++ gr ++ ".rlx"
+      let rdsfile = dirname ++ dir ++ ".readings"
 
       rules <- readRules grfile
-      text <- readData txt
+      text <- readData $ dirname ++ txt
       allrds <- readReadings rdsfile 
 
                   --let verbose = "v" `elem` o
@@ -75,19 +74,56 @@ disambiguate allrds' rules sentence = do
 
 
     s <- newSolver
-    satSentence <- mkSentence s allrds sentence 
-    foo <- foldM (apply s) satSentence rules'
-    --print satSentence
-    mapM_ print foo
-    --mapM_ (\r -> print r >> print (show' r)) rules'
+    initialSentence <- mkSentence' s allrds sentence
+    finalSentence <- foldM (apply s) initialSentence rules'
+
+    solveAndPrint True s [] initialSentence sentence
+    defaultRules s finalSentence
+    solveAndPrint True s [] finalSentence sentence
+
+--    moreFinalSentence <- foldM (apply s) finalSentence rules'
+--    mostFinalSentence <- foldM (apply s) moreFinalSentence rules'
+
     return sentence
 
 
 
+ where
+  defaultRules s sentence = 
+   sequence_ [ do addClause s lits          --Every word must have >=1 reading
+                  print lits
+               | word <- IM.elems sentence 
+               , let lits = IM.elems word ] 
+
+
+
+solveAndPrint :: Bool -> Solver -> [Lit] -> Sentence' -> Sentence -> IO ()
+solveAndPrint debug s ass satsent origsent = do
+
+  putStrLn $ "Original sentence:\n" ++ showSentence origsent
+  putStrLn "----"
   
+  --let allLits = concat [ [ lit | lit <- IM.elems cohort' ] 
+  --                       | cohort' <- IM.elems satsent ]
+  --countAllLits <- count s allLits
+  --b <- solveMaximize s ass countAllLits
+  b <- solve s ass
+  if b then do
+          vals <- sequence 
+                   [ sequence [ modelValue s lit | lit <- IM.elems word ] 
+                      | word <- IM.elems satsent ]
+          let trueRds = if debug 
+               then
+                [ unlines [ showReading rd  ++ "\n\t" ++ show rd'
+                            | (rd, rd', True) <- zip3 cohort (IM.elems cohort') vs ]
+                  | (cohort, cohort', vs) <- zip3 origsent (IM.elems satsent) vals ]
+               else
+                [ showCohort [ rd | (rd, True) <- zip cohort vs ]
+                  | (cohort, vs) <- zip origsent vals ]
 
-
-
-
+          mapM_ putStrLn trueRds
+          putStrLn "----"
+      else do
+        putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
 --------------------------------------------------------------------------------
 
