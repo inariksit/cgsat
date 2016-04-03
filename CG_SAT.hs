@@ -42,7 +42,7 @@ type TrgInds = (TrgIS,DifIS)
 type CondInds = (TrgIS,DifIS)
 
 --like CG_base's Condition, but s/TagSet/CondInds/
-data Condition' = C' Position (Bool,[CondInds]) | Always' deriving (Show,Eq)
+data Condition' = C' Position (Polarity,[CondInds]) | Always' deriving (Show,Eq)
 
 data Rule' = R { trg :: TrgInds 
                , cnd :: [[Condition']]
@@ -73,10 +73,10 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
   conds = --trace ("ruleToRule' cnd: " ++ show (toConds $ cond rule)) $
            (map.map) condToCond' (toConds $ cond rule)
 
-  condToCond' (C index (positive, ctags)) = 
+  condToCond' (C index (polarity, ctags)) = 
      let yesInds_noInds = --trace ("condToCond': " ++ (show $ (toTags ctags, map lu (toTags ctags)))) $ 
                            map lu (toTags ctags) 
-     in  C' index (positive, yesInds_noInds)
+     in  C' index (polarity, yesInds_noInds)
   condToCond' Always = Always'
 
 --------------------------------------------------------------------------------
@@ -169,22 +169,22 @@ mkCond    s         readings   sentence    conjconds_absinds =
  where 
 
   --TODO check if this is still valid, I just copypasted it from the old version
-  lookup' :: Bool -> SIndex -> WIndSet -> [Lit]
-  lookup' b ai is = case IM.lookup ai sentence of
-                      Nothing -> if b then error "mkCond: index out of bounds"
+  lookup' :: Polarity -> SIndex -> WIndSet -> [Lit]
+  lookup' p ai is = case IM.lookup ai sentence of
+                      Nothing -> if p==Pos then error "mkCond: index out of bounds"
                                   else [true] --if no -100, then `NOT -100 foo' is true
                       Just wd -> mapMaybe (\i -> IM.lookup i wd) (IS.toList is)
 
 
   go :: Condition' -> Int -> IO Lit
   go Always' _ = return true
-  go c@(C' position (positive,yesInds_difInds)) absind = do 
+  go c@(C' position (polarity,yesInds_difInds)) absind = do 
 
     let allinds = IM.keysSet sentence
     let yi_ALLINONE = IS.unions $ fst $ unzip yesInds_difInds
     let oi_ALLINONE = allinds IS.\\ yi_ALLINONE
 
-    let lu = lookup' positive absind
+    let lu = lookup' polarity absind
 
     case position of
       (Barrier  foo bar btags) 
@@ -198,8 +198,8 @@ mkCond    s         readings   sentence    conjconds_absinds =
               return ()
       _ -> return ()
 
-    case (positive, isCareful position) of                  
-      (True, False) -> orl s "" =<< sequence
+    case (polarity, isCareful position) of                  
+      (Pos, False) -> orl s "" =<< sequence
                           [ do let yesLits = lu yi
                                let difLits = lu di
                                y <- orl  s "" yesLits
@@ -216,19 +216,19 @@ mkCond    s         readings   sentence    conjconds_absinds =
                             --    MAY NOT have:  [d, cd, ...]
                             --    CAN have:      [b, ab, e, ..]
 
-      (True, True)  -> do let yesLits = lu yi_ALLINONE
-                          let otherLits = lu oi_ALLINONE
-                          y <- orl  s "" yesLits
-                          n <- andl s "" (map neg otherLits)
-                          andl s "" [y,n] 
+      (Pos, True)  -> do let yesLits = lu yi_ALLINONE
+                         let otherLits = lu oi_ALLINONE
+                         y <- orl  s "" yesLits
+                         n <- andl s "" (map neg otherLits)
+                         andl s "" [y,n] 
 
                        --OBS. "yesInds" mean "noInds" for NOT
-      (False,False) -> do let noLits = lu yi_ALLINONE
+      (Neg,False) -> do let noLits = lu yi_ALLINONE
                           --let otherLits = lu oi_ALLINONE
-                          andl s "" (map neg noLits)
+                        andl s "" (map neg noLits)
 
-      (False, True) -> do let otherLits = lu oi_ALLINONE
-                          orl s "" otherLits
+      (Neg, True) -> do let otherLits = lu oi_ALLINONE
+                        orl s "" otherLits
 
 --------------------------------------------------------------------------------  
 
@@ -239,11 +239,11 @@ mkCond    s         readings   sentence    conjconds_absinds =
 --       trgi=2           
 matchCond :: SIndex -> Condition' -> SIndex -> Cohort' -> Bool
 matchCond _            Always'       _         _    = True
-matchCond trgind (C' pos (b,cndinds)) absind cohort = inScope && tagsMatch
+matchCond trgind (C' pos (pol,cndinds)) absind cohort = inScope && tagsMatch
 
  where
   maxLen    = 50 -- arbitrary maximum length of sentence
-  inScope   = not b || --NOT -100 foo is always true, if there is no index -100
+  inScope   = pol==Neg || --NOT -100 foo is always true, if there is no index -100
                 absind `elem` possibleInds pos
   tagsMatch = tagsMatchRule cndinds cohort 
 

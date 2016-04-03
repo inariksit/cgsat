@@ -308,18 +308,18 @@ transCond c = case c of
   CondPos pos ts          -> do (pos', subr) <- transPosition pos 
                                 ts' <- transTagSet ts
                                 return $ case subr of
-                                  Nothing -> CGB.C pos' (True, ts')
-                                  Just i  -> CGB.C pos' (True, mapSubr i ts')
+                                  Nothing -> CGB.C pos' (CGB.Pos, ts')
+                                  Just i  -> CGB.C pos' (CGB.Pos, mapSubr i ts')
 
   CondNotPos pos ts       -> do (pos', subr) <- transPosition pos 
                                 ts' <- transTagSet ts
                                 return $ case subr of
-                                  Nothing -> CGB.C pos' (False, ts')
-                                  Just i  -> CGB.C pos' (False, mapSubr i ts')
-  CondBarrier pos ts bts  -> barrier pos ts bts True  CGB.Barrier
-  CondNotBar pos ts bts   -> barrier pos ts bts False CGB.Barrier
-  CondCBarrier pos ts bts -> barrier pos ts bts True  CGB.CBarrier
-  CondNotCBar pos ts bts  -> barrier pos ts bts False CGB.CBarrier
+                                  Nothing -> CGB.C pos' (CGB.Neg, ts')
+                                  Just i  -> CGB.C pos' (CGB.Neg, mapSubr i ts')
+  CondBarrier pos ts bts  -> barrier pos ts bts CGB.Pos  CGB.Barrier
+  CondNotBar pos ts bts   -> barrier pos ts bts CGB.Neg CGB.Barrier
+  CondCBarrier pos ts bts -> barrier pos ts bts CGB.Pos  CGB.CBarrier
+  CondNotCBar pos ts bts  -> barrier pos ts bts CGB.Neg CGB.CBarrier
   CondTempl templs        -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
                                 return $ foldr1 CGB.OR cs
 

@@ -86,9 +86,10 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
   conds = --trace ("ruleToRule' cnd: " ++ show (toConds $ cond rule)) $
            (map.map) condToCond' (toConds $ cond rule)
 
-  condToCond' (C index (positive, ctags)) = 
+  condToCond' (C index (polarity, ctags)) = 
      let yesInds_noInds = --trace ("condToCond': " ++ (show $ (toTags ctags, map lu (toTags ctags)))) $ 
                            map lu (toTags ctags) 
+         positive = polarity==Pos
      in  C' index (positive, yesInds_noInds)
   condToCond' Always = Always'
           

@@ -155,15 +155,17 @@ toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
 --   but `C _ (_,[])' is assumed to mean that.
 --   (Bool, TagSet) emulates set negation NOT in CG3.
 --   NOT foo === intersection with foo and the candidate is empty
-data Condition = C Position (Bool, TagSet)
+data Condition = C Position (Polarity, TagSet)
                | Always
                | AND Condition Condition 
                | OR Condition Condition  deriving (Eq)
 
+data Polarity = Pos | Neg deriving (Show,Eq,Ord)
+
 instance Show Condition where
-  show (C pos (True, ts)) = "(" ++ fst (showPosTuple pos) ++ " " ++ show ts ++
+  show (C pos (Pos, ts)) = "(" ++ fst (showPosTuple pos) ++ " " ++ show ts ++
                                    snd (showPosTuple pos) ++ ")"
-  show (C pos (False, ts)) = "(NOT " ++ fst (showPosTuple pos) ++ " " ++ show ts
+  show (C pos (Neg, ts)) = "(NOT " ++ fst (showPosTuple pos) ++ " " ++ show ts
                                      ++ snd (showPosTuple pos) ++ ")"
   show (AND c1 c2) = show c1 ++ " " ++ show c2
   show (OR c1 c2) = "( " ++ show c1 ++ " ORc " ++ show c2 ++ " )"
