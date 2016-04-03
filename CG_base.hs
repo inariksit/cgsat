@@ -13,7 +13,7 @@ import Text.Regex
 -- | An analysis can contain an arbitrary amount of tags.
 -- | Lemma and word form are also in tags.
 data Tag = Tag String | Lem String | WF String | Subreading Subpos Tag |
-           {-Rgx Regex String | -} EOS | BOS 
+           {-Rgx Regex String | -} EOS | BOS deriving (Ord)
 
 data Subpos = FromStart Integer | FromEnd Integer | Wherever
 
@@ -51,7 +51,7 @@ instance Eq Tag where
 
 -- | Wordform should be first element in an analysis.
 ---TODO look into this--may have weirdness in maps
-instance Ord Tag where
+{-instance Ord Tag where
   WF w  `compare` WF w'  = w `compare` w'
   WF _  `compare` _      = LT
   _     `compare` WF w   = GT
@@ -72,7 +72,7 @@ instance Ord Tag where
                                   EQ -> s `compare` s'
                                   a  -> a
   Subreading _ t `compare` t' = LT
-  --t `compare` Subreading _ t' = GT
+  --t `compare` Subreading _ t' = GT -}
 
 -- | Following the conventions of vislcg3
 instance Show Tag where
