@@ -9,7 +9,8 @@ module CG_SAT (
 )
 where
 
-import CG_base
+import CG_base hiding (isCareful)
+import qualified CG_base as CGB
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
@@ -41,8 +42,29 @@ type DifIS    = IS.IntSet
 type TrgInds = (TrgIS,DifIS)
 type CondInds = (TrgIS,DifIS)
 
---like CG_base's Condition, but s/TagSet/CondInds/
-data Condition' = C' Position (Polarity,[CondInds]) | Always' deriving (Show,Eq)
+--Condition' is like CG_base's Condition, but s/TagSet/CondInds/.
+--Storing TrgInds and CondInds instead of [[Tag]] for efficiency.
+--With [[Tag]], every time we check if a rule matches a cohort,
+--we check if any of the [[Tag]] in rule is a sublist of the [Tag] in cohort.
+
+--Each reading is given an index, and a cohort is an IntMap 
+--from an index to a literal which corresponds to that reading.
+--A rule, both in condition and target, has also a set of readings.
+--For example: `REMOVE verb sg p3' becomes `R {trg=fromList [320], ...} 
+--assuming that `verb sg p3' corresponds to index 320.
+--If the reading in rule is underspecified, we include indices of all readings 
+--that contain the underspecified reading. For example:
+--  REMOVE verb sg p3  ====> R {trg=fromList [318,319,320,321,322,333], ...} 
+--This way, we need less lookups.
+data Condition' = C' Position' (Polarity,[CondInds]) | Always' deriving (Show,Eq)
+
+--We need to do the same for Position, because of the TagSets in Barriers.
+data Position' = Exactly' {isCareful::Cautious, ind'::Int}
+               | AtLeast' {isCareful::Cautious, ind'::Int}
+               | Barrier' {isCareful::Cautious, ind'::Int, binds::[CondInds]}
+               | CBarrier' {isCareful::Cautious, ind'::Int, binds::[CondInds]}
+               | LINK' {parent::Position' , self::Position', isCareful::Cautious} deriving (Show,Eq)
+
 
 data Rule' = R { trg :: TrgInds 
                , cnd :: [[Condition']]
@@ -70,14 +92,20 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
   (trgInds,difInds) = unzip [ lu (trg,dif) | (trg,dif) <- toTags $ target rule ]
   trget = (IS.unions trgInds, IS.empty)
 
-  conds = --trace ("ruleToRule' cnd: " ++ show (toConds $ cond rule)) $
-           (map.map) condToCond' (toConds $ cond rule)
+  conds = (map.map) condToCond' (toConds $ cond rule)
 
-  condToCond' (C index (polarity, ctags)) = 
-     let yesInds_noInds = --trace ("condToCond': " ++ (show $ (toTags ctags, map lu (toTags ctags)))) $ 
-                           map lu (toTags ctags) 
-     in  C' index (polarity, yesInds_noInds)
+  condToCond' (C position (polarity, ctags)) = 
+     let ctags'    = map lu (toTags ctags)
+         position' = posToPos' position
+     in  C' position' (polarity, ctags')
   condToCond' Always = Always'
+
+  posToPos' position = case position of
+    Exactly c i -> Exactly' c i
+    AtLeast c i -> AtLeast' c i
+    Barrier c i btags -> Barrier' c i (map lu $ toTags btags)
+    CBarrier c i btags -> CBarrier' c i (map lu $ toTags btags)
+    LINK p1 p2  -> LINK' (posToPos' p1) (posToPos' p2) (CGB.isCareful p2)
 
 --------------------------------------------------------------------------------
 
@@ -98,7 +126,7 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
                                       then (otherIndsRaw,trgIndsRaw)
                                       else (trgIndsRaw,otherIndsRaw)
 
-          disjConds <- mkConds s indsInCohort' sentence i (cnd rule)
+          disjConds <- mkConds s sentence i (cnd rule)
           case disjConds of
             Nothing -> return sentence --conditions out of scope, no changes in sentence
             Just cs -> do
@@ -136,29 +164,33 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
 --------------------------------------------------------------------------------  
 
 --OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
--- For non-symbolic case, allinds contains all readings in that sentence.
--- For symbolic case, allinds has all possible readings in the lexicon/grammar.
-mkConds :: Solver -> WIndSet -> Sentence' -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
-mkConds    s         readings   sentence    trgind  disjconjconds = do
+mkConds :: Solver -> Sentence' -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
+mkConds    s         sentence    trgind  disjconjconds = do
 
   --Extracting only indices seems silly for the non-symbolic case.
   --But testing the match and passing cohorts is silly for symbolic.
   --Compromise: separate `mkConds' and `symbConds' , both use same mkCond?
-  let cs_is = [ [ (cond, absinds) | cond <- conjconds
-                                  , let absinds = IM.keys $
-                                         IM.filterWithKey (matchCond trgind cond) sentence
-                                  , not . null $ absinds ]
+  let cs_is = [ [ (cond, absinds) 
+                    | cond@(C' position _) <- conjconds
+                    , let absinds = IM.keys $
+                           IM.filterWithKey (matchCond trgind cond) sentence
+                    , not . null $ absinds ]
                 | conjconds <- disjconjconds ]
   if all null cs_is 
     then return Nothing
-    else Just `fmap` mapM (mkCond s readings sentence) cs_is
+    else Just `fmap` mapM (mkCond s sentence trgind) cs_is
 
-  -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
+  -- * conds_absinds = all possible (absolute, not relative) SIndices in range
   -- * call mkCond with arguments of type (Condition, [SIndex])
 
-
-mkCond :: Solver -> WIndSet -> Sentence' -> [(Condition',[SIndex])] -> IO Lit
-mkCond    s         readings   sentence    conjconds_absinds = 
+{-Barrier: if a literal found in the absinds is earlier than any found barrier,
+  we don't need to add barriers in the formula, just run `go'.
+  General case (symbolic sentences): if we assume that every index contains also
+  the barrier, we need to add `& ~barrier' to all clauses.
+-} 
+                             --for Barrier
+mkCond :: Solver -> Sentence' -> SIndex -> [(Condition',[SIndex])] -> IO Lit
+mkCond    s         sentence     trgind    conjconds_absinds = 
   case conjconds_absinds of
     [] -> error "mkCond: no conditions"
     -- *Every* condition has to be true in *some* index:
@@ -178,25 +210,42 @@ mkCond    s         readings   sentence    conjconds_absinds =
 
   go :: Condition' -> Int -> IO Lit
   go Always' _ = return true
-  go c@(C' position (polarity,yesInds_difInds)) absind = do 
+  go c@(C' position (polarity,yesinds_difinds)) abscondind = do 
 
     let allinds = IM.keysSet sentence
-    let yi_ALLINONE = IS.unions $ fst $ unzip yesInds_difInds
+    let yi_ALLINONE = IS.unions $ fst $ unzip yesinds_difinds
     let oi_ALLINONE = allinds IS.\\ yi_ALLINONE
 
-    let lu = lookup' polarity absind
+    let lu = lookup' polarity abscondind
 
-    case position of
-      (Barrier  foo bar btags) 
-        -> do --putStrLn "found a barrier!"
-              --addClause s [some nice barrier clause] --TODO
-              return ()
-                                         
-      (CBarrier foo bar btags)
-        -> do --putStrLn "found a cbarrier!"
-              --addClause s [some nice barrier clause] --TODO
-              return ()
-      _ -> return ()
+    --TODO: check this another day, it's probably buggy
+    fuckTheBarriers <- 
+     case position of
+      (Barrier'  _ barind bartags) 
+        -> do let hackedCond = C' (AtLeast' False barind) (Pos,bartags)
+
+              --barind, i.e. the -1 in `if -1* foo BARRIER bar',
+              --is included in hackedCond. 
+              --trgind is the original target index all the way from apply.
+              --abscondind is the current cohort we are looking, 
+              --if we can find some valid conditions in it.
+              --Now, if there is a barrier before abscondind, the only way for
+              --the reading in abscondind to be valid is that the barrier is false.
+              --Hence we need to make literal that says
+              -- "all the potential barriers before abscondind are false"
+              let allCohortsWithBartags = IM.keys $
+                   IM.filterWithKey (matchCond trgind hackedCond) sentence
+              let op = if (barind<0) then (>) else (<)
+              let validCohortsWithBartags = filter (op abscondind) allCohortsWithBartags
+
+              let yesbInds = head [ yes | (yes,dif) <- bartags ] --TODO make this work properly
+              let negBarriersAmongAllCohorts = concatMap (\ai -> map neg $ lookup' Pos ai yesbInds) validCohortsWithBartags
+              andl s "all potential barriers are false" negBarriersAmongAllCohorts
+
+      --(CBarrier' _ barind bartags)     --only difference: s/False/True/
+      --  -> do let hackedCond = C' (AtLeast' True barind) (Pos,bartags)
+
+      _ -> return true
 
     case (polarity, isCareful position) of                  
       (Pos, False) -> orl s "" =<< sequence
@@ -204,8 +253,8 @@ mkCond    s         readings   sentence    conjconds_absinds =
                                let difLits = lu di
                                y <- orl  s "" yesLits
                                n <- andl s "" (map neg difLits)
-                               andl s "" [y,n]
-                            | (yi, di) <- yesInds_difInds ] 
+                               andl s "" [y,n,fuckTheBarriers]
+                            | (yi, di) <- yesinds_difinds ] 
                             --only case where we may need difInds:
                             --with rule like A\B OR C\D, we can have
                             --a)  MUST have one: [a, ac, ad, acd, ae ..] 
@@ -220,15 +269,16 @@ mkCond    s         readings   sentence    conjconds_absinds =
                          let otherLits = lu oi_ALLINONE
                          y <- orl  s "" yesLits
                          n <- andl s "" (map neg otherLits)
-                         andl s "" [y,n] 
+                         andl s "" [y,n,fuckTheBarriers] 
 
                        --OBS. "yesInds" mean "noInds" for NOT
       (Neg,False) -> do let noLits = lu yi_ALLINONE
                           --let otherLits = lu oi_ALLINONE
-                        andl s "" (map neg noLits)
+                        andl s "" $ fuckTheBarriers:(map neg noLits)
 
       (Neg, True) -> do let otherLits = lu oi_ALLINONE
-                        orl s "" otherLits
+                        notCautious <- orl s "" otherLits
+                        andl s "" [fuckTheBarriers,notCautious]
 
 --------------------------------------------------------------------------------  
 
@@ -238,7 +288,7 @@ mkCond    s         readings   sentence    conjconds_absinds =
 -- the   bear   sleeps    in    the    house
 --       trgi=2           
 matchCond :: SIndex -> Condition' -> SIndex -> Cohort' -> Bool
-matchCond _            Always'       _         _    = True
+matchCond _            Always'       _         _      = True
 matchCond trgind (C' pos (pol,cndinds)) absind cohort = inScope && tagsMatch
 
  where
@@ -248,14 +298,14 @@ matchCond trgind (C' pos (pol,cndinds)) absind cohort = inScope && tagsMatch
   tagsMatch = tagsMatchRule cndinds cohort 
 
   possibleInds p = case p of 
-                    Exactly _ i -> [trgind+i]
-                    AtLeast _ i -> let j = if (i<0) then i+1 else i-1
-                                   in (trgind+) <$> take maxLen [i,j..]
+                    Exactly' _ i -> [trgind+i]
+                    AtLeast' _ i -> let j = if (i<0) then i+1 else i-1
+                                    in (trgind+) <$> take maxLen [i,j..]
                                      
-                    --TODO fix barrier case!
-                    Barrier  _ i _ -> possibleInds (AtLeast False i)
-                    CBarrier _ i _ -> possibleInds (AtLeast False i)
-                    LINK _ child   -> possibleInds child
+--Barriers look suspicious, but correct behaviour happens in mkConds.
+                    Barrier'  _ i _ -> possibleInds (AtLeast' False i)
+                    CBarrier' _ i _ -> possibleInds (AtLeast' False i)
+                    LINK' _ child _ -> possibleInds child
 
 
 tagsMatchRule :: [CondInds] -> Cohort' -> Bool
