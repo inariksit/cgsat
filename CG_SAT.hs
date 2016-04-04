@@ -166,16 +166,17 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
 --OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
 mkConds :: Solver -> Sentence' -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
 mkConds    s         sentence    trgind  disjconjconds = do
-
   --Extracting only indices seems silly for the non-symbolic case.
   --But testing the match and passing cohorts is silly for symbolic.
   --Compromise: separate `mkConds' and `symbConds' , both use same mkCond?
-  let cs_is = [ [ (cond, absinds) 
-                    | cond@(C' position _) <- conjconds
-                    , let absinds = IM.keys $
-                           IM.filterWithKey (matchCond trgind cond) sentence
-                    , not . null $ absinds ]
-                | conjconds <- disjconjconds ]
+  let cs_is = [ ci | conjconds <- disjconjconds 
+                   , let ci = [ (c, is) | c <- conjconds
+                                        , let is = IM.keys $
+                                               IM.filterWithKey
+                                                 (matchCond trgind c)
+                                                 sentence
+                                        , not . null $ is ]
+                   , length ci == length conjconds ]
   if all null cs_is 
     then return Nothing
     else Just `fmap` mapM (mkCond s sentence trgind) cs_is
@@ -190,14 +191,14 @@ mkConds    s         sentence    trgind  disjconjconds = do
 -} 
                              --for Barrier
 mkCond :: Solver -> Sentence' -> SIndex -> [(Condition',[SIndex])] -> IO Lit
-mkCond    s         sentence     trgind    conjconds_absinds = 
-  case conjconds_absinds of
+mkCond    s         sentence     abstrgind   conjconds_abscondinds = 
+  case conjconds_abscondinds of
     [] -> error "mkCond: no conditions"
     -- *Every* condition has to be true in *some* index:
     --  = andl'                             = orl'
     cs -> andl' s =<< sequence
-           [ orl' s =<< sequence [ go cond absind | absind <- absinds ] 
-            | (cond,absinds) <- conjconds_absinds ]
+           [ orl' s =<< sequence [ go cond abscondind | abscondind <- abscondinds ] 
+            | (cond,abscondinds) <- conjconds_abscondinds ]
  where 
 
   --TODO check if this is still valid, I just copypasted it from the old version
@@ -206,6 +207,7 @@ mkCond    s         sentence     trgind    conjconds_absinds =
                       Nothing -> if p==Pos then error "mkCond: index out of bounds"
                                   else [true] --if no -100, then `NOT -100 foo' is true
                       Just wd -> mapMaybe (\i -> IM.lookup i wd) (IS.toList is)
+
 
 
   go :: Condition' -> Int -> IO Lit
@@ -220,9 +222,9 @@ mkCond    s         sentence     trgind    conjconds_absinds =
 
     --TODO: check this another day, it's probably buggy
     fuckTheBarriers <- 
-     case position of
-      (Barrier'  _ barind bartags) 
-        -> do let hackedCond = C' (AtLeast' False barind) (Pos,bartags)
+     case position of 
+      (Barrier'  _ relcondind btags) 
+        -> do let hackedCond = C' (AtLeast' False relcondind) (Pos,btags)
 
               --barind, i.e. the -1 in `if -1* foo BARRIER bar',
               --is included in hackedCond. 
@@ -233,16 +235,14 @@ mkCond    s         sentence     trgind    conjconds_absinds =
               --the reading in abscondind to be valid is that the barrier is false.
               --Hence we need to make literal that says
               -- "all the potential barriers before abscondind are false"
-              let allCohortsWithBartags = IM.keys $
-                   IM.filterWithKey (matchCond trgind hackedCond) sentence
-              let op = if (barind<0) then (>) else (<)
-              let validCohortsWithBartags = filter (op abscondind) allCohortsWithBartags
+              let scan = if (relcondind<0) then (>) else (<)
+              let cohortsWithBtags = filter (scan abscondind) $ IM.keys $
+                   IM.filterWithKey (matchCond abstrgind hackedCond) sentence
+              let bInds = IS.unions [ yes | (yes,dif) <- btags ] --TODO make this work properly
+              let bLits = concatMap (\ai -> lookup' Pos ai bInds) cohortsWithBtags
+              andl s "all potential barriers are false" (map neg bLits)
 
-              let yesbInds = head [ yes | (yes,dif) <- bartags ] --TODO make this work properly
-              let negBarriersAmongAllCohorts = concatMap (\ai -> map neg $ lookup' Pos ai yesbInds) validCohortsWithBartags
-              andl s "all potential barriers are false" negBarriersAmongAllCohorts
-
-      --(CBarrier' _ barind bartags)     --only difference: s/False/True/
+      --(CBarrier' _ relcondind btags)     --only difference: s/False/True/
       --  -> do let hackedCond = C' (AtLeast' True barind) (Pos,bartags)
 
       _ -> return true
