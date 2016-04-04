@@ -26,7 +26,7 @@ main = do
       let grfile  = dirname ++ gr ++ ".rlx"
       let rdsfile = dirname ++ dir ++ ".readings"
 
-      rules <- readRules grfile
+      rules <- map reverse `fmap` readRules grfile
       text <- readData $ dirname ++ txt
       allrds <- readReadings rdsfile 
 
@@ -40,7 +40,7 @@ main = do
                   --              else disam (concat rules)
 
 
-
+      print rules
       mapM_ (disambiguate allrds (concat rules)) text
     --("test":_) -> CG_SAT.test
     _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"
@@ -75,9 +75,11 @@ disambiguate allrds' rules sentence = do
 
     s <- newSolver
     initialSentence <- mkSentence' s allrds sentence
+    allStartTrue s initialSentence
+
     finalSentence <- foldM (apply s) initialSentence rules'
 
-    solveAndPrint True s [] initialSentence sentence
+    --solveAndPrint True s [] initialSentence sentence
     defaultRules s finalSentence
     solveAndPrint True s [] finalSentence sentence
 
@@ -89,8 +91,13 @@ disambiguate allrds' rules sentence = do
 
 
  where
+  allStartTrue s sentence = 
+   sequence_ [ addClause s [lit] -- Every reading starts off as True
+               | word <- IM.elems sentence 
+               , lit <- IM.elems word ] 
+
   defaultRules s sentence = 
-   sequence_ [ do addClause s lits          --Every word must have >=1 reading
+   sequence_ [ do addClause s lits --Every word must have >=1 reading
                   print lits
                | word <- IM.elems sentence 
                , let lits = IM.elems word ] 
@@ -102,7 +109,7 @@ solveAndPrint debug s ass satsent origsent = do
 
   putStrLn $ "Original sentence:\n" ++ showSentence origsent
   putStrLn "----"
-  
+
   --let allLits = concat [ [ lit | lit <- IM.elems cohort' ] 
   --                       | cohort' <- IM.elems satsent ]
   --countAllLits <- count s allLits
@@ -112,7 +119,7 @@ solveAndPrint debug s ass satsent origsent = do
           vals <- sequence 
                    [ sequence [ modelValue s lit | lit <- IM.elems word ] 
                       | word <- IM.elems satsent ]
-          let trueRds = if debug 
+          let trueRds = if False --debug 
                then
                 [ unlines [ showReading rd  ++ "\n\t" ++ show rd'
                             | (rd, rd', True) <- zip3 cohort (IM.elems cohort') vs ]
