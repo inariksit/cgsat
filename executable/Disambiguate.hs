@@ -5,6 +5,7 @@ import CG_SAT
 import CG_base -- ( Sentence, showSentence, Rule )
 import SAT.Named
 import SAT ( Solver(..), newSolver, deleteSolver )
+import SAT.Unary ( Unary )
 
 import Control.Monad
 import qualified Data.IntSet as IS
@@ -41,7 +42,7 @@ main = do
 
 
       print rules
-      mapM_ (disambiguate allrds (concat rules)) text
+      mapM_ (disambiguateParallel allrds (concat rules)) text
     --("test":_) -> CG_SAT.test
     _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"
   
@@ -55,6 +56,50 @@ loop debug f = do
 
 
 --------------------------------------------------------------------------------
+
+--so far just terrible copypaste, will fix later
+disambiguateParallel :: [Reading] -> [Rule] -> Sentence -> IO ()
+disambiguateParallel  allrds' rules sentence = do
+  -- Don't bother disambiguating if not ambiguous
+  if (all (not.isAmbig) sentence) then return ()
+   else do
+
+  -- Pre-processing the nice Rule datatype to Rule'.
+  -- Overkill here, but makes a difference with symbolic sentences.
+    let allrds = concat sentence
+    let alltags = S.toList . S.fromList . concat $ allrds
+    let tagmap = mkTagMap alltags allrds
+    let allinds = IS.fromList [1..length allrds]
+    let rules' = map (ruleToRule' tagmap allinds) rules
+
+    s <- newSolver
+    initialSentence <- mkSentence' s allrds sentence
+    defaultRules s initialSentence
+
+    clausesRaw <- mapM (applyParallel s initialSentence) rules'
+    (helperLits, clauses)
+      <- unzip `fmap` sequence 
+          [ do b <- newLit s "" 
+               return (b, neg b:cl) 
+            | cls <- clausesRaw
+            , cl <- cls ]
+
+    b <- do k <- count s helperLits :: IO Unary
+            solveMaximize s [] k
+    if b then do
+      solveAndPrint True s [] initialSentence sentence
+    else do
+      putStrLn "No solution :("
+
+ where
+  defaultRules s sentence = 
+   sequence_ [ do addClause s lits
+                  print lits
+               | word <- IM.elems sentence 
+               , let lits = IM.elems word ] 
+
+
+------------------------------------------------------------
 
 disambiguate :: [Reading] -> [Rule] -> Sentence -> IO Sentence
 disambiguate allrds' rules sentence = do
@@ -75,7 +120,6 @@ disambiguate allrds' rules sentence = do
 
     s <- newSolver
     initialSentence <- mkSentence' s allrds sentence
-    allStartTrue s initialSentence
 
     finalSentence <- foldM (apply s) initialSentence rules'
 
@@ -91,11 +135,6 @@ disambiguate allrds' rules sentence = do
 
 
  where
-  allStartTrue s sentence = 
-   sequence_ [ addClause s [lit] -- Every reading starts off as True
-               | word <- IM.elems sentence 
-               , lit <- IM.elems word ] 
-
   defaultRules s sentence = 
    sequence_ [ do addClause s lits --Every word must have >=1 reading
                   print lits

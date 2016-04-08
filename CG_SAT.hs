@@ -1,5 +1,6 @@
 module CG_SAT (
   apply
+, applyParallel
 , mkTagMap
 , ruleToRule'
 , mkSentence'
@@ -31,6 +32,8 @@ type TagMap   = M.Map Tag IS.IntSet
 
 type Cohort'   = IM.IntMap Lit
 type Sentence' = IM.IntMap Cohort'
+
+type Clause = [Lit]
 
 --------------------------------------------------------------------------------
 
@@ -160,6 +163,34 @@ apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
 
   lu' xs x = IM.lookup x xs
   lu  xs x = IM.findWithDefault false x xs -- neg will be called, so false will turn into true. I imagine that this is faster than call map twice?
+
+--------------------------------------------------------------------------------  
+
+applyParallel :: Solver -> Sentence' -> Rule' -> IO [Clause]
+applyParallel s sentence rule = let (allTrgInds,allDifInds) = trg rule in
+ if IS.null allTrgInds
+  then return [] --rule doesn't target anything in the sentence
+  else do
+    let applyToWord sentence (i,cohort) = do
+          let (trgIndsRaw,otherIndsRaw) = 
+                IS.partition (\i -> IS.member i allTrgInds && 
+                                    IS.notMember i allDifInds)
+                             (IM.keysSet cohort)
+          let (trgInds,otherInds) = if isSelect' rule --if Select, flip target and other
+                                      then (otherIndsRaw,trgIndsRaw)
+                                      else (trgIndsRaw,otherIndsRaw)
+          disjConds <- mkConds s sentence i (cnd rule)
+          case disjConds of
+            Nothing -> return [] --conditions out of scope, no clauses created
+            Just cs -> do 
+              let trgPos = mapMaybe (\x -> IM.lookup x cohort) (IS.toList trgInds)
+              condsHold <- orl' s cs
+              trgNeg <- andl' s (map neg trgPos) --must be and of "all neg", not neg of "and of all pos"
+              return [neg condsHold, trgNeg] --going back to SAT-CG 2015 style
+              --implies s "" condsHold trgNeg
+
+    mapM (applyToWord sentence) (IM.assocs sentence)
+
 
 --------------------------------------------------------------------------------  
 
