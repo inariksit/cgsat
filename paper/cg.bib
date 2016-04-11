@@ -1,8 +1,21 @@
-@article{tapanainen1996,
-  author = "Tapanainen, Pasi",
-  title = {{The Constraint Grammar Parser CG-2}},
-  book = {{No 27, Publications of the Department of General Linguistics, University of Helsinki}},
-  year = "1996" }
+%%%% CG parsers
+
+@inproceedings{karlsson1990cgp,
+ author = {Karlsson, Fred},
+ title = {Constraint Grammar as a Framework for Parsing Running Text},
+ booktitle = {Proceedings of the 13th Conference on Computational Linguistics - Volume 3},
+ series = {COLING '90},
+ year = {1990},
+ isbn = {952-90-2028-7},
+ location = {Helsinki, Finland},
+ pages = {168--173},
+ numpages = {6},
+ url = {http://dx.doi.org/10.3115/991146.991176},
+ doi = {10.3115/991146.991176},
+ acmid = {991176},
+ publisher = {Association for Computational Linguistics},
+ address = {Stroudsburg, PA, USA}
+} 
 
 @book{karlsson1995constraint,
   title={{Constraint Grammar}: a language-independent system for parsing unrestricted text},
@@ -12,42 +25,23 @@
   publisher={Walter de Gruyter}
 }
 
-@inproceedings{lene_trond2011,
- title={{Next to nothing -- a cheap South Saami disambiguator}},
- author={Antonsen, Lene and Trosterud, Trond},
- year={2011},
-  booktitle = {{Proceedings of the Constraint Grammar workshop at NODALIDA}},
- location={{Riga, Latvia}},
- url={https://dspace.utlib.ee/dspace/bitstream/handle/10062/19296/antonsen_trosterud.pdf}
-}
-% booktitle = {Proceedings of the Constraint Grammar workshop at NODALIDA, the 18th Nordic Conference of Computational Linguistics},
-
-
-@inproceedings{lene_trond_linda2010,
-  title = {Reusing grammatical resources for new languages},
-  author={Antonsen, Lene and Wiechetek, Linda and Trosterud, Trond},
-  year = {2010},
-  booktitle = {{Proceedings of the International conference on Language Resources and Evaluation LREC2010}},
-  url = {http://www.lrec-conf.org/proceedings/lrec2010/pdf/254_Paper.pdf}
+@article{tapanainen1996,
+  author = "Tapanainen, Pasi",
+  title = {{The Constraint Grammar Parser CG-2}},
+  book = {{No 27, Publications of the Department of General Linguistics, University of Helsinki}},
+  year = "1996" 
 }
 
-@inproceedings{bick2006spanish,
-  author = "Bick, Eckhard",
-  year = "2006",
-  title = {{A Constraint Grammar Parser for Spanish}},
-  booktitle = {{Proceedings of TIL 2006 - 4th Workshop on Information and Human Language Technology}},
-  url = {http://visl.sdu.dk/~eckhard/pdf/TIL2006.pdf}
+@manual{vislcg3,
+  author = {Tino Didriksen},
+  title = {{Constraint Grammar Manual}},
+  date = {September 14, 2015},
+  year={2014},
+  language = {English},
+  version = {3},
+  url={http://beta.visl.sdu.dk/cg3.html},
+  organization = {{Institute of Language and Communication, University of Southern Denmark}}
 }
-
-@inproceedings{bick2013tuning,
-  author = "Bick, Eckhard",
-  year = "2013", 
-  title = {{ML-Tuned Constraint Grammars}},
-  booktitle = {Proceedings of the 27th Pacific Asia Conference on Language, Information and Computation},
-  location = {Taipei: Department of English, National Chengchi University},
-  url={http://visl.sdu.dk/~eckhard/pdf/PACLIC2013_grammar_tuning2.pdf}
-}
-%  pages = {440--449}
 
 @inproceedings{bick2015,
   author = {Bick, Eckhard and Didriksen, Tino},
@@ -59,6 +53,8 @@
 }
 % booktitle = {{Proceedings of NODALIDA, the 20th Nordic Conference of Computational Linguistics}},
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% FSIG
 @inproceedings{koskenniemi90,
  author = {Koskenniemi, Kimmo},
  title = {Finite-state Parsing and Disambiguation},
@@ -95,19 +91,23 @@
 }
 
 
-@incollection{inducing_cg1996,
-author={Samuelsson, Christer and Tapanainen, Pasi and Voutilainen, Atro},
-title={Inducing constraint grammars},
-year={1996},
-booktitle={Grammatical Interference: Learning Syntax from Sentences},
-volume={1147},
-series={Lecture Notes in Computer Science},
-editor={Miclet, Laurent and de la Higuera, Colin},
-url={http://dx.doi.org/10.1007/BFb0033350},
-publisher={Springer Berlin Heidelberg}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% CG theory
+
+@inproceedings{yli-jyra2001,
+   title={{Structural Correspondence between Finite-State Intersection Grammar and Constraint Satisfaction Problem}},
+   author={{Yli-Jyr{\"{a}}, Anssi}},
+   year={2001},
+   booktitle={TODO CHECK: Proceedings of FSMNLP 2001}
 }
-%pages={146-155},
-%isbn={978-3-540-61778-5},
+
+@phdthesis{tapanainen1999phd,
+  title={Parsing in two frameworks: finite-state and functional dependency grammar},
+  author={Tapanainen, Pasi},
+  year={1999},
+  school={{University of Helsinki}}
+  publisher={{University of Helsinki, Department of General Linguistics}}
+}
 
 
 @InProceedings{nemeskey14,
@@ -121,28 +121,15 @@ publisher={Springer Berlin Heidelberg}
 }
 %  pages     = {772--780},
 
-@inproceedings{bick2011,
-  author = "Eckhard Bick",
-  year = "2011",
-  title = "Constraint grammar applications",
-  booktitle = {{Proceedings of the Constraint Grammar workshop at NODALIDA}},
- location={{Riga, Latvia}}
-}
-% page iv
-%  booktitle = {{Proceedings of the Constraint Grammar workshop at NODALIDA, the 18th Nordic Conference of Computational Linguistics}},
 
-@incollection{een04sat,
-  year={2004},
-  booktitle={Theory and Applications of Satisfiability Testing},
-  volume={2919},
-  series={Lecture Notes in Computer Science},
-  editor={Giunchiglia, Enrico and Tacchella, Armando},
-  title={{An Extensible SAT-solver}},
-  publisher={Springer Berlin Heidelberg},
-  author={E\'{e}n, Niklas and S{\"{o}}rensson, Niklas}
+
+@InProceedings{lager98,
+  author =  {Torbj{\"{o}}rn Lager },
+  booktitle =  { Proceedings of the 11th Nordic Conference on Computational Linguistics},
+  title =  {{Logic for part of speech tagging and shallow parsing}},
+  year =   {1998}
 }
-%pages={502-518},
-%language={English}
+
 
 @inproceedings{lager_nivre01,
   author    = {Torbj{\"{o}}rn Lager and
@@ -154,29 +141,54 @@ publisher={Springer Berlin Heidelberg}
 %  pages     = {212--227}}
 % 4th International Conference, 2001, Le Croisic, France, June 27-29, 2001, Proceedings},
 
-@inproceedings{lager01transformation,
-  title={Transformation-based learning of rules for constraint grammar tagging},
-  author={Lager, Torbj{\"o}rn},
-  booktitle={Proceedings of the 13th Nordic Conference on Computational Linguistics},
-  year={2001}
-}
-%  pages={21--22}}
 
-@InProceedings{lager98,
-  author =	{Torbj{\"{o}}rn Lager },
-  booktitle =	 { Proceedings of the 11th Nordic Conference on Computational Linguistics},
-  title =	 {{Logic for part of speech tagging and shallow parsing}},
-  year =	 {1998}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% CG applications
+
+@inproceedings{lene_trond2011,
+ title={{Next to nothing -- a cheap South Saami disambiguator}},
+ author={Antonsen, Lene and Trosterud, Trond},
+ year={2011},
+  booktitle = {{Proceedings of the Constraint Grammar workshop at NODALIDA}},
+ location={{Riga, Latvia}},
+ url={https://dspace.utlib.ee/dspace/bitstream/handle/10062/19296/antonsen_trosterud.pdf}
+}
+% booktitle = {Proceedings of the Constraint Grammar workshop at NODALIDA, the 18th Nordic Conference of Computational Linguistics},
+
+@inproceedings{bick_barebones,
+  title = {{A Bare-bones Constraint Grammar}},
+  author = {Bick, Eckhard},
+  year = {????},
+  booktitle = {???},
+  url = {????}
 }
 
-@inproceedings{listenmaa_claessen2015,
-  author = {Inari Listenmaa and Koen Claessen},
-  title = {{Constraint Grammar as a SAT problem}},
-  booktitle = {Proceedings of the Constraint Grammar workshop at NODALIDA},
-  year = {2015},
-  location={{Vilnius, Lithuania}}
+@inproceedings{lene_trond_linda2010,
+  title = {Reusing grammatical resources for new languages},
+  author={Antonsen, Lene and Wiechetek, Linda and Trosterud, Trond},
+  year = {2010},
+  booktitle = {{Proceedings of the International conference on Language Resources and Evaluation LREC2010}},
+  url = {http://www.lrec-conf.org/proceedings/lrec2010/pdf/254_Paper.pdf}
 }
-%  booktitle = {Proceedings of the Constraint Grammar workshop at NODALIDA, the 20th Nordic Conference of Computational Linguistics},
+
+@inproceedings{bick2006spanish,
+  author = "Bick, Eckhard",
+  year = "2006",
+  title = {{A Constraint Grammar Parser for Spanish}},
+  booktitle = {{Proceedings of TIL 2006 - 4th Workshop on Information and Human Language Technology}},
+  url = {http://visl.sdu.dk/~eckhard/pdf/TIL2006.pdf}
+}
+
+
+@inproceedings{bick2011,
+  author = "Eckhard Bick",
+  year = "2011",
+  title = "Constraint grammar applications",
+  booktitle = {{Proceedings of the Constraint Grammar workshop at NODALIDA}},
+ location={{Riga, Latvia}}
+}
+% page iv
+%  booktitle = {{Proceedings of the Constraint Grammar workshop at NODALIDA, the 18th Nordic Conference of Computational Linguistics}},
 
 @inproceedings{pirinen2015,
   author = {Tommi Pirinen},
@@ -196,6 +208,34 @@ publisher={Springer Berlin Heidelberg}
 % booktitle = {Proceedings of the Constraint Grammar workshop at NODALIDA, the 20th Nordic Conference of Computational Linguistics},
 
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Learning CG rules 
+
+@incollection{voutilainen2004,
+  author      = {Atro Voutilainen},
+  title       = {Hand Crafted Rules},
+  editor      = {H. {van Halteren}}, 
+  booktitle   = {Syntactic Wordclass Tagging},
+  publisher   = {Kluwer Academic},
+  pages       = {217--246},
+  year        = 2004
+}
+
+@incollection{inducing_cg1996,
+author={Samuelsson, Christer and Tapanainen, Pasi and Voutilainen, Atro},
+title={Inducing constraint grammars},
+year={1996},
+booktitle={Grammatical Interference: Learning Syntax from Sentences},
+volume={1147},
+series={Lecture Notes in Computer Science},
+editor={Miclet, Laurent and de la Higuera, Colin},
+url={http://dx.doi.org/10.1007/BFb0033350},
+publisher={Springer Berlin Heidelberg}
+}
+%pages={146-155},
+%isbn={978-3-540-61778-5},
+
 @incollection{lindberg_eineborg98ilp, 
   year={1998},
   booktitle={Inductive Logic Programming},
@@ -207,6 +247,23 @@ publisher={Springer Berlin Heidelberg}
   author={Eineborg, Martin and Lindberg, Nikolaj},
 }
 %  pages={116-124}}
+
+
+@inproceedings{lager01transformation,
+  title={Transformation-based learning of rules for constraint grammar tagging},
+  author={Lager, Torbj{\"o}rn},
+  booktitle={Proceedings of the 13th Nordic Conference on Computational Linguistics},
+  year={2001}
+}
+%  pages={21--22}}
+
+@MastersThesis{asfrent14,
+    author   = {{Andrei Sfrent}},
+    title    = {{Machine Learning of Rules for Part of Speech Tagging}},
+    school   = {{Imperial College London}},
+    address  = {{United Kingdom}},
+    year     = {2014},
+    }
 
 
 @inproceedings{lindberg_eineborg98coling,
@@ -226,14 +283,36 @@ publisher={Springer Berlin Heidelberg}
 }
 %  pages     = {775--779}}
 
-@MastersThesis{asfrent14,
-    author   = {{Andrei Sfrent}},
-    title    = {{Machine Learning of Rules for Part of Speech Tagging}},
-    school   = {{Imperial College London}},
-    address  = {{United Kingdom}},
-    year     = {2014},
-    }
+@inproceedings{bick2013tuning,
+  author = "Bick, Eckhard",
+  year = "2013", 
+  title = {{ML-Tuned Constraint Grammars}},
+  booktitle = {Proceedings of the 27th Pacific Asia Conference on Language, Information and Computation},
+  location = {Taipei: Department of English, National Chengchi University},
+  url={http://visl.sdu.dk/~eckhard/pdf/PACLIC2013_grammar_tuning2.pdf}
+}
+%  pages = {440--449}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% SAT
+
+@inproceedings{listenmaa_claessen2016,
+  author = {Inari Listenmaa and Koen Claessen},
+  title = {{Analysing Constraint Grammars with a SAT-solver}},
+  booktitle = {Proceedings of the {TODO TODO} {LREC}},
+  year = {2016},
+  location={{PortoSomething?????, Slovenia}}
+}
+
+@inproceedings{listenmaa_claessen2015,
+  author = {Inari Listenmaa and Koen Claessen},
+  title = {{Constraint Grammar as a SAT problem}},
+  booktitle = {Proceedings of the Constraint Grammar workshop at NODALIDA},
+  year = {2015},
+  location={{Vilnius, Lithuania}}
+}
+%  booktitle = {Proceedings of the Constraint Grammar workshop at NODALIDA, the 20th Nordic Conference of Computational Linguistics},
 
 @misc{marques_silva2010,
  author = {Jo{\~{a}}o Marques-Silva},
@@ -246,29 +325,55 @@ the Microsoft Research International Workshop on Tractability, Cambridge, UK, Ju
 
 }
 
-@manual{vislcg3,
-author = {Tino Didriksen},
-title = {Constraint Grammar Manual},
-date = {September 14, 2015},
-year={2014},
-language = {English},
-version = {3},
-url={http://beta.visl.sdu.dk/cg3.html},
-organization = {Institute of Language and Communication, University of Southern Denmark}
-
+@article{claessen2009satpractice,
+author="Claessen, Koen
+and Een, Niklas
+and Sheeran, Mary
+and S{\"o}rensson, Niklas
+and Voronov, Alexey
+and {\AA}kesson, Knut",
+title="SAT-Solving in Practice, with a Tutorial Example from Supervisory Control",
+journal="Discrete Event Dynamic Systems",
+year="2009",
+volume="19",
+number="4",
+pages="495--524",
+issn="1573-7594",
+doi="10.1007/s10626-009-0081-8",
+url="http://dx.doi.org/10.1007/s10626-009-0081-8"
 }
 
-@incollection{voutilainen2004,
-  author      = {Atro Voutilainen},
-  title       = {Hand Crafted Rules},
-  editor      = {H. {van Halteren}}, 
-  booktitle   = {Syntactic Wordclass Tagging},
-  publisher   = {Kluwer Academic},
-  pages       = {217--246},
-  year        = 2004
+@INPROCEEDINGS{marques-silva08practicalapplications,
+    author = {Joao Marques-silva},
+    title = {Practical applications of boolean satisfiability},
+    booktitle = {{In Workshop on Discrete Event Systems (WODES)}},
+    year = {2008},
+    publisher = {IEEE Press}
 }
 
+@incollection{een04sat,
+  year={2004},
+  booktitle={Theory and Applications of Satisfiability Testing},
+  volume={2919},
+  series={Lecture Notes in Computer Science},
+  editor={Giunchiglia, Enrico and Tacchella, Armando},
+  title={{An Extensible SAT-solver}},
+  publisher={Springer Berlin Heidelberg},
+  author={E\'{e}n, Niklas and S{\"{o}}rensson, Niklas}
+}
+%pages={502-518},
+%language={English}
 
+@inproceedings{cook1971complexity,
+  title={{The Complexity of Theorem-proving Procedures}},
+  author={Cook, Stephen A.},
+  booktitle={{Proceedings of the Third Annual Symposium on Theory of Computing}},
+  year={1971}
+}
+%pages={151–-158}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Misc
 @inproceedings{cutting_etal92,
   author    = {Douglas R. Cutting and
                Julian Kupiec and
@@ -289,3 +394,28 @@ organization = {Institute of Language and Communication, University of Southern 
   publisher = {{CSLI Publications}},
   year = {2010}
 }
+
+@techreport{taggit,
+  title={{Automatic Grammatical Tagging of English}},
+  author={Greene, Barbara B. and Rubin, Gerald M.},
+  institution={{Department of Linguistics, Brown University}},
+  location={{Providence, Rhode Island}},
+
+  year={1971}
+}
+
+@inproceedings{barton1986complexityTWOL,
+ author = {Barton, G. Edward},
+ title = {{Computational Complexity in Two-level Morphology}},
+ booktitle = {{Proceedings of the 24th Annual Meeting on Association for Computational Linguistics}},
+ series = {ACL '86},
+ year = {1986},
+ location = {New York},
+ pages = {53--59},
+ numpages = {7},
+ url = {http://dx.doi.org/10.3115/981131.981140},
+ doi = {10.3115/981131.981140},
+ acmid = {981140},
+ publisher = {Association for Computational Linguistics},
+ address = {Stroudsburg, PA, USA},
+} 
