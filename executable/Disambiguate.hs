@@ -6,12 +6,16 @@ import CG_base -- ( Sentence, showSentence, Rule )
 import SAT.Named
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Unary ( Unary )
+import CG_eval
 
 import Control.Monad
 import qualified Data.IntSet as IS
 import qualified Data.IntMap as IM
 import qualified Data.Set as S
 import System.Environment
+
+spa20k = "20k.tagged.ambiguous"
+spa20kgold = "20k.tagged"
 
 
 main :: IO ()
@@ -23,12 +27,19 @@ main = do
     --["v", "d", f1]  -> do rules <- concat `fmap` readRules f1
     --                      loop True (disambiguate True True rules)
     (dir:gr:txt:r) -> do
+      let parallel = "par" `elem` r
+      let test = "test" `elem` r
+
       let dirname = "data/" ++ dir ++ "/" 
       let grfile  = dirname ++ gr ++ ".rlx"
       let rdsfile = dirname ++ dir ++ ".readings"
+      let txtfile = dirname ++ if test then spa20k else txt
+
+
+      let disam = if parallel then disambiguateParallel else disambiguateParallel
 
       rules <- map reverse `fmap` readRules grfile
-      text <- readData $ dirname ++ txt
+      text <- readData txtfile
       allrds <- readReadings rdsfile 
 
                   --let verbose = "v" `elem` o
@@ -41,9 +52,20 @@ main = do
                   --              else disam (concat rules)
 
 
-      print rules
-      mapM_ (disambiguateParallel allrds (concat rules)) text
-    --("test":_) -> CG_SAT.test
+--      print rules
+      resSAT <- mapM (disam allrds (concat rules)) text
+      if test 
+       then do gold <- readData $ dirname ++ spa20kgold
+               resVISL <- vislcg3 grfile txtfile True
+               putStrLn "SAT-CG in comparison to gold standard"
+               let verbose = length text < 1 --change if you want different output
+               prAll "SAT" resSAT gold text verbose
+               putStrLn "\nVISLCG3 in comparison to gold standard"
+               prAll "VISL" resVISL gold text verbose
+               putStrLn ""
+       else do mapM_ (putStrLn . showSentence) resSAT
+
+
     _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"
   
 
@@ -58,55 +80,57 @@ loop debug f = do
 --------------------------------------------------------------------------------
 
 --so far just terrible copypaste, will fix later
-disambiguateParallel :: [Reading] -> [Rule] -> Sentence -> IO ()
+disambiguateParallel :: [Reading] -> [Rule] -> Sentence -> IO Sentence
 disambiguateParallel  allrds' rules sentence = do
-  -- Don't bother disambiguating if not ambiguous
-  if (all (not.isAmbig) sentence) then return ()
-   else do
-
-  -- Pre-processing the nice Rule datatype to Rule'.
-  -- Overkill here, but makes a difference with symbolic sentences.
-    let allrds = concat sentence
-    let alltags = S.toList . S.fromList . concat $ allrds
-    let tagmap = mkTagMap alltags allrds
-    let allinds = IS.fromList [1..length allrds]
-    let rules' = map (ruleToRule' tagmap allinds) rules
-
-    s <- newSolver
-    initialSentence <- mkSentence' s allrds sentence
-    defaultRules s initialSentence
-
-    clausesRaw <- mapM (applyParallel s initialSentence) rules'
-    (helperLits, clauses)
-      <- unzip `fmap` sequence 
-          [ do b <- newLit s "" 
-               return (b, neg b:cl) 
-            | cls <- clausesRaw
-            , cl <- cls ]
-
-    b <- do k <- count s helperLits :: IO Unary
-            solveMaximize s [] k
-    if b then do
-      solveAndPrint True s [] initialSentence sentence
-    else do
-      putStrLn "No solution :("
-
- where
-  defaultRules s sentence = 
-   sequence_ [ do addClause s lits
-                  print lits
-               | word <- IM.elems sentence 
-               , let lits = IM.elems word ] 
-
-
-------------------------------------------------------------
-
-disambiguate :: [Reading] -> [Rule] -> Sentence -> IO Sentence
-disambiguate allrds' rules sentence = do
   -- Don't bother disambiguating if not ambiguous
   if (all (not.isAmbig) sentence) then return sentence
    else do
 
+  -- Pre-processing the nice Rule datatype to Rule'.
+  -- Overkill here, but makes a difference with symbolic sentences.
+    let allrds = concat sentence
+    let alltags = S.toList . S.fromList . concat $ allrds
+    let tagmap = mkTagMap alltags allrds
+    let allinds = IS.fromList [1..length allrds]
+    let rules' = map (ruleToRule' tagmap allinds) rules
+
+    s <- newSolver
+    satSentence <- mkSentence' s allrds sentence
+    defaultRules s satSentence
+
+    clausesRaw <- mapM (applyParallel s satSentence) rules'
+    (helperLits, clauses)
+      <- unzip `fmap` sequence 
+          [ do b <- newLit s "" 
+               addClause s (neg b:cl) --- ?
+               return (b, neg b:cl)
+            | cls <- clausesRaw
+            , cl <- cls ]
+
+    --b <- do k <- count s helperLits :: IO Unary
+    --        solveMaximize s [] k
+    b <- solve s []
+    if b then do
+      newSentence <- toSentence s satSentence sentence
+      --solveAndPrint True s [] satSentence sentence
+      --putStrLn $ showSentence newSentence
+      return newSentence
+    else do
+      putStrLn "No solution :("
+      return sentence
+
+
+
+
+------------------------------------------------------------
+
+--This one starts off as all variables True--ie. no search/decision,
+--just manipulate Boolean expressions. Should behave like VISL CG-3.
+disambiguateNotActuallySAT :: [Reading] -> [Rule] -> Sentence -> IO Sentence
+disambiguateNotActuallySAT allrds' rules sentence = do
+  -- Don't bother disambiguating if not ambiguous
+  if (all (not.isAmbig) sentence) then return sentence
+   else do
 
   -- Pre-processing the nice Rule datatype to Rule'.
   -- Overkill here, but makes a difference with symbolic sentences.
@@ -116,31 +140,44 @@ disambiguate allrds' rules sentence = do
     let allinds = IS.fromList [1..length allrds]
     let rules' = map (ruleToRule' tagmap allinds) rules
 
-
-
     s <- newSolver
     initialSentence <- mkSentence' s allrds sentence
+    allTrue s initialSentence
 
     finalSentence <- foldM (apply s) initialSentence rules'
-
-    --solveAndPrint True s [] initialSentence sentence
     defaultRules s finalSentence
-    solveAndPrint True s [] finalSentence sentence
+    --moreFinalSentence <- foldM (apply s) finalSentence rules'
+    --mostFinalSentence <- foldM (apply s) moreFinalSentence rules'
 
---    moreFinalSentence <- foldM (apply s) finalSentence rules'
---    mostFinalSentence <- foldM (apply s) moreFinalSentence rules'
+    newSentence <- toSentence s finalSentence sentence
 
-    return sentence
-
-
-
+    return newSentence
  where
-  defaultRules s sentence = 
+  allTrue :: Solver -> Sentence' -> IO ()
+  allTrue s sentence = 
+    sequence_ [ do mapM (\x -> addClause s [x]) lits 
+                | word <- IM.elems sentence 
+                , let lits = IM.elems word ] 
+
+---------------------------------------------------------------
+
+defaultRules :: Solver -> Sentence' -> IO ()
+defaultRules s sentence = 
    sequence_ [ do addClause s lits --Every word must have >=1 reading
-                  print lits
+                  --print lits
                | word <- IM.elems sentence 
                , let lits = IM.elems word ] 
 
+toSentence :: Solver -> Sentence' -> Sentence -> IO Sentence
+toSentence s satsent origsent = do
+  --b <- solve s ass
+  --if b then do
+  vals <- sequence 
+               [ sequence [ modelValue s lit | lit <- IM.elems word ] 
+                 | word <- IM.elems satsent ]
+  return $ [ [ rd | (rd, True) <- zip cohort vs ]
+                  | (cohort, vs) <- zip origsent vals ]
+  --else return origsent
 
 
 solveAndPrint :: Bool -> Solver -> [Lit] -> Sentence' -> Sentence -> IO ()
