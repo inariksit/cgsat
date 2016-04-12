@@ -36,7 +36,7 @@ main = do
       let txtfile = dirname ++ if test then spa20k else txt
 
 
-      let disam = if parallel then disambiguateParallel else disambiguateParallel
+      let disam = if parallel then disambiguateParallel else disambiguateNotActuallySAT
 
       rules <- map reverse `fmap` readRules grfile
       text <- readData txtfile
@@ -54,6 +54,7 @@ main = do
 
 --      print rules
       resSAT <- mapM (disam allrds (concat rules)) text
+      print resSAT
       if test 
        then do gold <- readData $ dirname ++ spa20kgold
                resVISL <- vislcg3 grfile txtfile True
@@ -98,18 +99,17 @@ disambiguateParallel  allrds' rules sentence = do
     satSentence <- mkSentence' s allrds sentence
     defaultRules s satSentence
 
-    clausesRaw <- mapM (applyParallel s satSentence) rules'
-    (helperLits, clauses)
-      <- unzip `fmap` sequence 
-          [ do b <- newLit s "" 
-               addClause s (neg b:cl) --- ?
-               return (b, neg b:cl)
-            | cls <- clausesRaw
-            , cl <- cls ]
+    clauses <- mapM (applyParallel s satSentence) rules'
+    as <- sequence 
+           [ do a <- newLit s "" 
+                addClause s (neg a:cl)
+                return a
+             | cls <- clauses
+             , cl <- cls ]
 
-    --b <- do k <- count s helperLits :: IO Unary
-    --        solveMaximize s [] k
-    b <- solve s []
+    b <- do k <- count s as :: IO Unary
+            solveMaximize s [] k
+    --b <- solve s []
     if b then do
       newSentence <- toSentence s satSentence sentence
       --solveAndPrint True s [] satSentence sentence
@@ -148,10 +148,15 @@ disambiguateNotActuallySAT allrds' rules sentence = do
     defaultRules s finalSentence
     --moreFinalSentence <- foldM (apply s) finalSentence rules'
     --mostFinalSentence <- foldM (apply s) moreFinalSentence rules'
+    
+    b <- solve s []
+    if b then do
+      newSentence <- toSentence s finalSentence sentence
 
-    newSentence <- toSentence s finalSentence sentence
-
-    return newSentence
+      return newSentence
+     else do
+      putStrLn "No solution"
+      return sentence
  where
   allTrue :: Solver -> Sentence' -> IO ()
   allTrue s sentence = 
