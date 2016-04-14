@@ -12,6 +12,7 @@ import Control.Monad
 import qualified Data.IntSet as IS
 import qualified Data.IntMap as IM
 import qualified Data.Set as S
+import Data.List ( sortBy )
 import System.Environment
 
 spa20k = "20k.tagged.ambiguous"
@@ -29,6 +30,7 @@ main = do
     (dir:gr:txt:r) -> do
       let parallel = "par" `elem` r
       let test = "test" `elem` r
+      let verbose = "v" `elem` r
 
       let dirname = "data/" ++ dir ++ "/" 
       let grfile  = dirname ++ gr ++ ".rlx"
@@ -36,11 +38,24 @@ main = do
       let txtfile = dirname ++ if test then spa20k else txt
 
 
-      let disam = if parallel then disambiguateParallel else disambiguateNotActuallySAT
 
-      rules <- map reverse `fmap` readRules grfile
+--      let disam = if parallel then disambiguateParallel else disambiguateNotActuallySAT
+      let disam = disambiguateParallel
+
+      rules <- concat `fmap` map reverse `fmap` readRules grfile
       text <- readData txtfile
+
+      --let sortedText = sortBy (\a b -> length a `compare` length b) text
+      --mapM_ (\x -> putStr $ (show (length x) ++ "\n\t" ++ show x++ "\n")) (reverse $ sortedText)
+
       allrds <- readReadings rdsfile 
+      --let allrds = concat $ concat text
+
+      --let alltags = S.toList . S.fromList . concat $ allrds
+      --let tagmap = mkTagMap alltags allrds
+      --let allinds = IS.fromList [1..length allrds]
+      --let rules' = map (ruleToRule' tagmap allinds) (concat rules)
+
 
                   --let verbose = "v" `elem` o
                   --    debug = "d" `elem` o
@@ -52,20 +67,20 @@ main = do
                   --              else disam (concat rules)
 
 
---      print rules
-      resSAT <- mapM (disam allrds (concat rules)) text
-      print resSAT
+      resSAT <- mapM (disam allrds rules) text
+      --print resSAT
       if test 
        then do gold <- readData $ dirname ++ spa20kgold
                resVISL <- vislcg3 grfile txtfile True
                putStrLn "SAT-CG in comparison to gold standard"
-               let verbose = length text < 1 --change if you want different output
+               let verbose = length text < 10 --change if you want different output
                prAll "SAT" resSAT gold text verbose
                putStrLn "\nVISLCG3 in comparison to gold standard"
                prAll "VISL" resVISL gold text verbose
                putStrLn ""
-       else do mapM_ (putStrLn . showSentence) resSAT
-
+       else do when verbose $ mapM_ (putStrLn . showSentence) resSAT
+               putStrLn "end"
+--}
 
     _          -> putStrLn "usage: ./Main (<rules> <data> | test) [v]"
   
@@ -81,8 +96,11 @@ loop debug f = do
 --------------------------------------------------------------------------------
 
 --so far just terrible copypaste, will fix later
+--disambiguateParallel :: [Reading] -> [Rule] -> Sentence -> IO Sentence
+--disambiguateParallel  allrds' rules sentence = do
+
 disambiguateParallel :: [Reading] -> [Rule] -> Sentence -> IO Sentence
-disambiguateParallel  allrds' rules sentence = do
+disambiguateParallel allrds' rules sentence = do
   -- Don't bother disambiguating if not ambiguous
   if (all (not.isAmbig) sentence) then return sentence
    else do
@@ -90,10 +108,13 @@ disambiguateParallel  allrds' rules sentence = do
   -- Pre-processing the nice Rule datatype to Rule'.
   -- Overkill here, but makes a difference with symbolic sentences.
     let allrds = concat sentence
+
+
     let alltags = S.toList . S.fromList . concat $ allrds
     let tagmap = mkTagMap alltags allrds
     let allinds = IS.fromList [1..length allrds]
     let rules' = map (ruleToRule' tagmap allinds) rules
+
 
     s <- newSolver
     satSentence <- mkSentence' s allrds sentence

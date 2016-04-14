@@ -3,7 +3,7 @@ module Main where
 import CG_base
 import CG_parse
 import CG_SAT_old
-import CG_eval ( prAll )
+import CG_eval ( prAll, vislcg3 )
 import Control.Monad
 import Data.List
 import Data.Maybe
@@ -46,21 +46,21 @@ main = do
     [r,"reverse"]   -> rev r spa20k spa20kgold spaPre
     ["enreverse"]   -> rev engr entext engold enpre
     ["opticomp",n]  -> optiComp spaSmall spa20k (read n)
-    ["gold","orig"] -> gold spaFull spa20k spa20kgold
+    ("gold":"orig":o) -> gold' ("par" `elem` o) spaFull spa20k spa20kgold
     ["gold","opti"] -> opti spaSmall spa20k 
     ["gold","obs"]  -> optiBySz spaSmall spa20k
     ["gold"]        -> gold spaSmall spa20k spa20kgold
     ["goldrus"]     -> gold rusgr rustext undefined
     ["engold"]      -> gold engr entext engold
     ["nldgold"]     -> gold nldgr nldtext nldgold
-    [r,"gold"]      -> gold r spa20k spa20kgold --specify grammar
+    (r:"gold":o)    -> gold' ("par" `elem` o) r spa20k spa20kgold --specify grammar
 
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
-                      disam = if "noord" `elem` o 
+                      disam = if "par" `elem` o 
                                 then disambiguateUnordered verbose debug
                                 else disambiguate verbose debug
                       disec = if "sec" `elem` o
@@ -72,18 +72,24 @@ main = do
                   putStrLn ""
     _          -> putStrLn "usage: ./test <rules> <data> (or something else, check the source code test/Test.hs >__>)"
 
-gold rl dt g = do rules <- readRules rl
-                  text <- readData dt
-                  gold <- readData g
 
-                  resSAT <- mapM (disamSection (disambiguate False False) rules) text
-                  resVISL <- vislcg3 rl dt True
-                  putStrLn "SAT-CG in comparison to gold standard"
-                  let verbose = length text < 10 --change if you want different output
-                  prAll "SAT" resSAT gold text verbose
-                  putStrLn "\nVISLCG3 in comparison to gold standard"
-                  prAll "VISL" resVISL gold text verbose
-                  putStrLn ""
+goldPar rl dt g = gold' True rl dt g
+gold rl dt g = gold' False rl dt g
+
+gold' p rl dt g = do rules <- readRules rl
+                     text <- readData dt
+                     gold <- readData g
+                     let disam = if p 
+                                then disambiguateUnordered False False
+                                else disambiguate False False
+                     resSAT <- mapM (disamSection disam rules) text
+                     resVISL <- vislcg3 rl dt True
+                     putStrLn "SAT-CG in comparison to gold standard"
+                     let verbose = length text < 10 --change if you want different output
+                     prAll "SAT" resSAT gold text verbose
+                     putStrLn "\nVISLCG3 in comparison to gold standard"
+                     prAll "VISL" resVISL gold text verbose
+                     putStrLn ""
 
 
 
@@ -91,71 +97,7 @@ snd4 (_,b,_,_) = b
 trd4 (_,_,c,_) = c
 fth4 (_,_,_,d) = d
 
-prAll' :: String -> [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO [Float]
-prAll' str s v tx verbose = undefined 
-{-do
 
-  let sentsSameLen = [ (s', v', orig) | (s', v', orig) <- zip3 s v tx
-                                      , length s' == length v' ]
-      -- take only sentences that have same number of cohorts
-   
-      precRec = [ (orig, prec, rec, univ) 
-                    | (test, goldst, orig) <- sentsSameLen
-                    , let prec = precision test goldst
-                    , let rec = recall test goldst 
-                    , let univ = [ 1.0 / anas 
-                                    | (tw, gw) <- zip test goldst
-                                    , (not.null) (tw `intersect` gw)
-                                    , let anas = fromIntegral $ length tw ]
-                ]
-
-      diffwordsPrec = concatMap snd4 precRec :: [(Reading,Reading)]
-      diffwordsRec = concatMap trd4 precRec :: [(Reading,Reading)]
-
-      universaldiff = sum $ concatMap fth4 precRec
-
-  when verbose $ mapM_ prDiff precRec
-
-  let origwlen = length $ concatMap (\(a,_,_) -> a) sentsSameLen
-      origslen = length sentsSameLen
-      diffwlenPrec = length diffwordsPrec
-      diffwlenRec = length diffwordsRec
-
-      moreD = length $ filter (\(t,g) -> length t < length g) diffwordsPrec
-      lessD = length $ filter (\(t,g) -> length t > length g) diffwordsPrec
-      diffD = length $ filter (\(t,g) -> null $ intersect t g) diffwordsPrec
-
-      prec = 100 * (fromIntegral origwlen - fromIntegral diffwlenPrec) / fromIntegral origwlen
-      rec  = 100 * (fromIntegral origwlen - fromIntegral diffwlenRec) / fromIntegral origwlen
-      univ = 100 * (universaldiff / fromIntegral origwlen)
-      fscore = 2 * ( (prec*rec) / (prec+rec) )
-
-  putStrLn $ "Original: " ++ show origslen ++ " sentences, " 
-                          ++ show origwlen ++ " words"
-  putStrLn $ "Different words from original: " ++ show diffwlenPrec
-  printf "Precision %.2f, " (prec :: Float)
-  printf "recall %.2f \n" (rec :: Float)
-  
-  putStr str
-  printf " General diff %.2f \n" (univ :: Float)
-
-  printf " F-score %.2f \n" (fscore :: Float)
-  
-  putStr "Disambiguates (more,less,disjoint,all): "
-  print (moreD, lessD, diffD, diffwlenPrec)
-  putStrLn ""
-  return [prec,rec,univ]
-
-  where prDiff (s,as,_,_) = do putStrLn "---------------\n"
-                               putStrLn "Original sentence:"
-                               putStrLn $ showSentence s
-                               mapM_ prAnas as
-        prAnas (a1,a2) = do putStrLn "\nDisambiguation by SAT-CG"
-                            putStrLn $ showReading a1
-                            putStrLn "\nDisambiguation by VISL CG-3" 
-                            putStrLn $ showReading a2
-
---}
 --precision :: Sentence -> Sentence -> [(Reading,Reading)]
 precision s1 s2 = [ (r1, r2) | (r1, r2) <- zip s1 s2
                               , sort r1 /= sort r2 ]
@@ -164,33 +106,6 @@ precision s1 s2 = [ (r1, r2) | (r1, r2) <- zip s1 s2
 recall cand gold = [ (r1, r2) | (r1, r2) <- zip cand gold
                               , null $ r1 `intersect` r2 ]
 
-vislcg3 :: FilePath -> FilePath -> Bool -> IO [Sentence]
-vislcg3 rls dt isCG2 = do
-  let cg2 = if isCG2 then "-2" else ""
-  (_, Just out1, _, _) <-
-      createProcess (proc "cat" [dt]){std_out=CreatePipe}
-  (_, Just out2, _, _) <- 
-      createProcess (proc "cg-conv" ["-a"]){std_in=UseHandle out1
-                                          , std_out=CreatePipe}
-  (_, Just out3, _, _) <- 
-      createProcess (proc "vislcg3" [cg2, "-g", rls]){std_in=UseHandle out2
-                                                     , std_out=CreatePipe}
-  (_, Just out4, _, _) <- 
-      createProcess (proc "cg-conv" ["-A"]){std_in=UseHandle out3
-                                          , std_out=CreatePipe}
-
-  result <- hGetContents' out4
-  mapM_ hClose [out1,out2,out3,out4]
-  return $ map (filter (not.null)) $ parseData result
-
-
--- Strict hGetContents
-hGetContents' :: Handle -> IO String
-hGetContents' hdl = do e <- hIsEOF hdl
-                       if e then return []
-                            else do c <- hGetChar hdl
-                                    cs <- hGetContents' hdl
-                                    return (c:cs)
 
 --wordCount :: [Sentence] -> Int
 wordCount s = length $ map (filter (\x -> null $ [BOS,EOS] `intersect` x)) $ concat s
