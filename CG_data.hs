@@ -1,6 +1,7 @@
 module CG_data where
 
 import CG_base
+import CG_parse
 
 -- Analyses
 the = ("the",[[WF "the", Lem "the", Tag "det"]])
@@ -66,3 +67,40 @@ ex2 = [ snd both_
       , snd sleep ]
 
 exs = [ex2, ex1, ex0]
+
+----------------------------------------------------------------------
+
+ex_abc1 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1 (c)) ; " ++
+       "REMOVE:l  (a) IF (-1C  (c)) ; ")
+
+ex_abc2 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1 (*) - (b)) ;" ++
+       "REMOVE:r2 (b) IF ( 1 (a)) ;" ++
+       "REMOVE:r3 (a) IF (-1 (b)) ;" ++
+       "REMOVE:l  (a) IF (-1 (c)) ;" )
+
+ex_tricky1 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1C (b)) ;" ++
+       "REMOVE:r2 (b) IF ( 1 (a)) ;" ++    --should not remove
+       "REMOVE:l  (a) IF (-1 (b)) ;" )
+
+ex_tricky2 = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (-1C (b)) ;" ++
+       "SELECT:r2 (b) IF ( 1 (a)) ;" ++    --should select
+       "REMOVE:l  (a) IF (-1 (b)) ;" )
+
+ex_not = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (NOT -1 (c)) ;" ++
+       "REMOVE:r2 (a) IF (-1 (a)) ;" ++
+       "REMOVE:l  (b) IF (-1 (c)) ;" )
+
+kimmo_explicit = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF (0 (b)) (-1 (c)) ;" ++
+       "REMOVE:r2 (b) IF (0 (a)) (-1 (c)) ;" ) -- ++
+   --    "REMOVE:l  (c) IF (-1 (c)) ;" )
+
+kimmo_implicit = concat $ snd $ parseRules False
+     ( "REMOVE:r1 (a) IF  (-1 (c)) ;" ++
+       "REMOVE:r2 (b) IF  (-1 (c)) ;" ) 
+--       "REMOVE:l  (c) IF (-1 (c)) ;" )
