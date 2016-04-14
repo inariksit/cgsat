@@ -1,56 +1,42 @@
 module Main where
 
 import CG_base hiding ( Sentence, showSentence )
+import CG_data ( kimmo_implicit, kimmo_explicit )
 import CG_parse
-import CG_Symbolic
+--import CG_Symbolic
+import CG_SAT
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 import AmbiguityClass
 
 import Control.Monad
+import Data.Foldable ( asum )
 import Data.List
 import Data.Maybe
 import Debug.Trace
 import qualified Data.Map as M
 import qualified Data.IntSet as IS
+import qualified Data.IntMap as IM
 import System.Environment ( getArgs ) 
 
-ex_abc1 = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (-1 (c)) ; " ++
-       "REMOVE:l  (a) IF (-1C  (c)) ; ")
-
-ex_abc2 = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (-1 (*) - (b)) ;" ++
-       "REMOVE:r2 (b) IF ( 1 (a)) ;" ++
-       "REMOVE:r3 (a) IF (-1 (b)) ;" ++
-       "REMOVE:l  (a) IF (-1 (c)) ;" )
-
-ex_tricky1 = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (-1C (b)) ;" ++
-       "REMOVE:r2 (b) IF ( 1 (a)) ;" ++    --should not remove
-       "REMOVE:l  (a) IF (-1 (b)) ;" )
-
-ex_tricky2 = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (-1C (b)) ;" ++
-       "SELECT:r2 (b) IF ( 1 (a)) ;" ++    --should select
-       "REMOVE:l  (a) IF (-1 (b)) ;" )
-
-ex_not = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (NOT -1 (c)) ;" ++
-       "REMOVE:r2 (a) IF (-1 (a)) ;" ++
-       "REMOVE:l  (b) IF (-1 (c)) ;" )
-
-kimmo_explicit = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF (0 (b)) (-1 (c)) ;" ++
-       "REMOVE:r2 (b) IF (0 (a)) (-1 (c)) ;" ) -- ++
-   --    "REMOVE:l  (c) IF (-1 (c)) ;" )
-
-kimmo_implicit = concat $ snd $ parseRules False
-     ( "REMOVE:r1 (a) IF  (-1 (c)) ;" ++
-       "REMOVE:r2 (b) IF  (-1 (c)) ;" ) 
---       "REMOVE:l  (c) IF (-1 (c)) ;" )
 
 
+--------------------------------------------------------------------------------
+
+data Conflict = NoConf | Internal | With [Rule'] deriving (Show,Eq)
+
+--sometimes we just want to know if there is conflict, not what kind
+confToBool :: Conflict -> Bool
+confToBool NoConf = False
+confToBool _      = True
+
+confToMaybe :: Conflict -> Maybe Conflict
+confToMaybe NoConf = Just NoConf
+confToMaybe _      = Nothing
+
+--------------------------------------------------------------------------------
+
+main :: IO ()
 main = do
   args <- getArgs
 
@@ -85,7 +71,7 @@ main = do
 
     let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
 
-    let subr = if "nosub" `elem` r then ".nosub" else ".withPxQst"
+    let subr = if "nosub" `elem` r then ".nosub" else ".withsub"
     let lhack = if "lemmahack" `elem` r then ".lemmahack" else ""
     let rdsfromgrammar = "undersp" `elem` r || "rdsfromgrammar" `elem` r
  
@@ -113,7 +99,7 @@ main = do
              
 --------------------------------------------------------------------------------                           
 
-    tagsInLex <- (concat . map parse . filter (not.null) . words) 
+    tagsInLex <- (concat . map parseReading . filter (not.null) . words) 
                    `fmap` readFile tagfile
     (tsets, rls) <- readRules' grfile
     let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
@@ -122,7 +108,7 @@ main = do
                           then nub $ filter containsLemmaOrWF $ concatMap toTags' tsets
                           else [] 
     print ("readingsInGr length:", length readingsInGr)
-    readingsInLex <- (map parse . words) `fmap` readFile rdsfile
+    readingsInLex <- (map parseReading . words) `fmap` readFile rdsfile
     print ("readingsInLex length:", length readingsInLex)
     let readings = nub $ readingsInGr ++ readingsInLex  :: [[Tag]]
     let tags = nub $ tagsInLex ++ concat readings
@@ -158,18 +144,20 @@ main = do
          putStrLn $ "\n-> " ++ show r ++ " <-"
          case rs of
                [r] -> putStrLn $ "\t" ++ show r
-               _  -> do -- This is not going to work outside small grammars
+               _  -> do -- Going to be massively slow for >200-rule grammars
+
+                        --find first conflicting rule
                         let allinits = (,) r `map` filter (not.null) (inits rs)
-                        brs <- searchInits (testRule verbose ambcls readings) allinits
-                        let minimalConflict = brs --fromMaybe rs brs
-                        --let moreMinimalConflict = []
-                        let alltails = (,) r `map` tails minimalConflict
-                        moreMinimalConflict <- searchTails (testRule verbose ambcls readings) alltails
-                        mapM_ (\s -> putStrLn $ "\t" ++ show s) moreMinimalConflict
+                        conflictsFromStart <- searchInits (testRule verbose ambcls readings) allinits
+
+                        --find last conflicting rule
+                        let alltails = (,) r `map` tails conflictsFromStart
+                        conflictsFromEnd <- searchTails (testRule verbose ambcls readings) alltails
+                        mapM_ (\s -> putStrLn $ "\t" ++ show s) conflictsFromEnd
 
     when (not $ null interactionConf) $ do
       putStrLn "\nThe following rules conflict with other rule(s):"
-      mapM_ (shrink . fst) interactionConf
+      mapM_ ({-shrink .-}print . fst . fst) interactionConf
 
     when (null rs_cs) $ putStrLn "no conflicts, hurra!"
 
@@ -231,4 +219,149 @@ main = do
                                 _ y -> containsLemmaOrWF (y:xs)
                               _     -> containsLemmaOrWF xs    
 
+--------------------------------------------------------------------------------
 
+testRule :: (Bool,Bool) -> Form -> [[Tag]] -> (Rule', [Rule']) -> IO Conflict
+testRule (verbose,debug) form rds (lastrule,rules) = do
+
+  let allwidths@((firstW,firstTrg):otherwidths) = width $ cnd lastrule
+  --print allwidths
+  
+  --if the shortest reading conflicts, we want to keep that result
+  resFst <- testRule' debug form rds (lastrule,rules) (firstW,firstTrg)
+
+  --if any of the other lengths is fine, we keep that
+  --if all the longer lengths conflict, we just return the first
+  when debug $ putStrLn ("first result for " ++ show lastrule ++ ": " ++ show resFst)
+  case (resFst,otherwidths) of
+    (NoConf,_) -> return resFst
+    (_,    []) -> return resFst
+    (_,     _) -> do when debug $ do
+                        putStrLn $ "rule with *, trying many combinations"
+                     someLengthWorks <- asum `fmap` sequence 
+                       [ confToMaybe `fmap` testRule' debug form rds (lastrule,rules) w
+                        | w <- nub otherwidths ]
+                     return $ fromMaybe resFst someLengthWorks   
+
+
+
+testRule' :: Bool -> Form -> [[Tag]] -> (Rule', [Rule']) 
+          -> (Int,SIndex) -> IO Conflict
+testRule' debug form readings (lastrule,rules) (w,trgSInd) = do
+  --print (w,trgSInd)
+
+  let allInds = IS.fromList [1..length readings]
+
+  s <- newSolver
+  initialSentence <- symbSentence s readings w
+  defaultRules s initialSentence
+
+  afterRules <- foldM (apply s) initialSentence rules
+
+--  defaultRules s afterRules
+
+  let shouldTriggerLast s sentence = do
+        let trgSWord = fromMaybe (error "shouldTriggerLast: no trg index found") (IM.lookup trgSInd sentence)
+        let (trgIndsRaw,_difIndsRaw) = trg lastrule -- :: IntSet
+                                                    -- we don't care about difs here anymore.
+                                                    -- mkCond needs to still have access to difInds,
+                                                    -- that's why the type includes it.
+        let otherIndsRaw   = allInds IS.\\ trgIndsRaw
+
+        let (trgInds,otherInds) = if isSelect' lastrule
+                                   then (otherIndsRaw,trgIndsRaw)
+                                   else (trgIndsRaw,otherIndsRaw)
+
+        let trgLits   = map (trgSWord IM.!) (IS.toList trgInds)
+        let otherLits = map (trgSWord IM.!) (IS.toList otherInds)
+
+        mht <- orl' s trgLits -- 1) must have ≥1 targetLits
+        mho <- orl' s otherLits -- 2) must have ≥1 otherLits 
+
+        let alternative = error $ "shouldTriggerLast: no cnd index found for rule\n\t" ++ 
+                                   show lastrule ++ "\n, sentence width " ++ show w ++ 
+                                   ", target index " ++ show trgSInd
+        --let alternative = [true]
+
+        --TODO: investigate
+        --symbConds doesn't give Nothing, but claims almost every rule has internal conflict.
+        --mkConds doesn't claim that, but sometimes gives Nothing for totally reasonable rules.
+        cl <- fromMaybe alternative `fmap` symbConds s sentence trgSInd (cnd lastrule)    
+
+        ach <- orl' s cl -- 3) conditions must hold
+
+        return (mht, mho, ach)
+
+
+  (mustHaveTrg, mustHaveOther, allCondsHold) <- shouldTriggerLast s afterRules
+
+  b <- solve s [mustHaveTrg, mustHaveOther, allCondsHold]
+  if b 
+    then do 
+      when debug $ do
+        putStrLn $ "Following triggers last rule WITH PREVIOUS: " ++ show lastrule
+        solveAndPrintSentence False s [mustHaveTrg, mustHaveOther, allCondsHold] afterRules
+      deleteSolver s
+      return NoConf
+
+    else do
+      when debug $ do 
+      --when False $ do 
+        putStrLn "-------"
+        putStrLn $ "Rule " ++ show lastrule ++":"
+        putStrLn "could not solve with previous, trying to loosen requirements:"
+        putStr "a) "
+        solveAndPrintSentence False s [mustHaveTrg, mustHaveOther] afterRules
+        putStr "b) "
+        solveAndPrintSentence False s [mustHaveTrg, allCondsHold] afterRules
+        putStr "c) "
+        solveAndPrintSentence False s [mustHaveOther, allCondsHold] afterRules
+        
+        putStrLn "...and now trying to solve the same rule with a fresh sentence:"
+
+      s' <- newSolver
+      initialSentence' <- symbSentence s' readings w
+      defaultRules s' initialSentence'
+      (mustHaveTrg', mustHaveOther', allCondsHold') <- shouldTriggerLast s' initialSentence'
+      b' <- solve s' [mustHaveTrg', mustHaveOther', allCondsHold']
+      when (debug && b') $ do
+        putStrLn $ "Following triggers last rule ALONE: " ++ show lastrule
+        solveAndPrintSentence False s' [mustHaveTrg', mustHaveOther', allCondsHold'] initialSentence'
+      deleteSolver s'
+      deleteSolver s
+      if b' then return $ With rules
+              else return Internal
+              
+
+ where
+  defaultRules s sentence = 
+   sequence_ [ do addClause s lits          --Every word must have >=1 reading
+                  constraints s mp [] form  --Constraints based on lexicon
+               | word <- IM.elems sentence 
+               , let lits = IM.elems word 
+               , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i word) ] 
+
+--------------------------------------------------------------------------------
+
+width :: [[Condition']] -> [(Int,SIndex)]
+width []   = [(1,1)]
+width [[]] = [(1,1)]
+width cs   = [ (len, tind) | (mi,ma) <- mins_maxs 
+                           , let len = length [mi..ma]
+                           , let tind = maybe 99999 (1+) (elemIndex 0 [mi..ma]) ]
+ where
+  mins_maxs = [ (0 `min` minimum pos, 0 `max` maximum pos) | pos <- poss ]
+  poss = sequence $ map getPos (concat cs)
+
+  posToInts :: Position' -> [Int]
+  posToInts (Exactly' _ i) = [i]
+  posToInts (AtLeast' _ i) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
+  posToInts (Barrier' _ _ i _)  = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
+  --TODO fix the LINK case
+  posToInts (LINK' parent child _) = --trace (show (posToInts parent) ++ ", " ++ show child) $
+                               [ pI + cI | (pI,cI) <- posToInts parent 
+                                          `zip` (cycle $ posToInts child) ]
+
+  getPos :: Condition' -> [Int]
+  getPos Always'    = [1]
+  getPos (C' pos _) = posToInts pos

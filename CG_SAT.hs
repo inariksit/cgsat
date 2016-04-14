@@ -3,8 +3,14 @@ module CG_SAT (
 , applyParallel
 , mkTagMap
 , ruleToRule'
+, mkConds
+, symbConds
 , mkSentence'
+, symbSentence
+, SIndex
 , Rule' (..)
+, Condition' (..)
+, Position' (..)
 , Sentence' (..)
 , solveAndPrintSentence
 )
@@ -57,7 +63,7 @@ type CondInds = (TrgIS,DifIS)
 --assuming that `verb sg p3' corresponds to index 320.
 --If the reading in rule is underspecified, we include indices of all readings 
 --that contain the underspecified reading. For example:
---  REMOVE verb sg p3  ====> R {trg=fromList [318,319,320,321,322,333], ...} 
+--  REMOVE verb sg  ====> R {trg=fromList [318,319,320,321,322,333], ...} 
 --This way, we need less lookups.
 data Condition' = C' Position' (Polarity,[CondInds]) | Always' deriving (Show,Eq)
 
@@ -65,18 +71,18 @@ data Condition' = C' Position' (Polarity,[CondInds]) | Always' deriving (Show,Eq
 data Position' = Exactly' {isCareful::Cautious, ind'::Int}
                | AtLeast' {isCareful::Cautious, ind'::Int}
                | Barrier' {isCareful::Cautious, barrierIsCareful::Cautious, ind'::Int, binds::[CondInds]}
---               | CBarrier' {isCareful::Cautious, ind'::Int, binds::[CondInds]}
                | LINK' {parent::Position' , self::Position', isCareful::Cautious} deriving (Show,Eq)
 
+--------------------------------------------------------------------------------
 
 data Rule' = R { trg :: TrgInds 
                , cnd :: [[Condition']]
                , isSelect' :: Bool
                , show' :: String
-               } deriving (Eq,Show)
+               } deriving (Eq) --,Show)
 
---instance Show Rule' where
---  show = show'
+instance Show Rule' where
+  show = show'
 
 --We call this once for every rule, lookupTag does some expensive intersections and stuff
 --Also many rules share targets and conditions--can we save the results?
@@ -107,10 +113,11 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
     Exactly c i -> Exactly' c i
     AtLeast c i -> AtLeast' c i
     Barrier c bc i btags -> Barrier' c bc i (map lu $ toTags btags)
---    CBarrier c i btags -> CBarrier' c i (map lu $ toTags btags)
     LINK p1 p2  -> LINK' (posToPos' p1) (posToPos' p2) (CGB.getCautious p2)
 
 --------------------------------------------------------------------------------
+
+
 
 apply :: Solver -> Sentence' -> Rule' -> IO Sentence'
 apply s sentence rule = let (allTrgInds,allDifInds) = trg rule in
@@ -215,6 +222,26 @@ mkConds    s         sentence    trgind  disjconjconds = do
   -- * conds_absinds = all possible (absolute, not relative) SIndices in range
   -- * call mkCond with arguments of type (Condition, [SIndex])
 
+
+symbConds :: Solver -> Sentence' -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
+symbConds    s         sentence    trgind     disjconjconds  = do
+  let cs_is = 
+       [ ci | conjconds <- disjconjconds 
+           , let ci = [ (c, is) | c <- conjconds
+                                , let is = filter (inScope c)
+                                                  (IM.keys sentence)
+                                , not . null $ is ]
+           , length ci == length conjconds ]
+  if all null cs_is 
+    then return Nothing
+    else Just `fmap` mapM (mkCond s sentence trgind) cs_is
+
+  where inScope c@(C' pos (pol,_)) ind =
+         pol==Neg || ind `elem` possibleInds 50 trgind pos
+         --NOT -100 foo is always true, if there is no index -100
+
+
+
 {-Barrier: if a literal found in the absinds is earlier than any found barrier,
   we don't need to add barriers in the formula, just run `go'.
   General case (symbolic sentences): if we assume that every index contains also
@@ -273,7 +300,7 @@ mkCond    s         sentence     abstrgind   conjconds_abscondinds =
                let bInds = IS.unions [ yes | (yes,dif) <- btags ] --TODO make this work properly
                let bLits = concatMap (\ai -> lookup' Pos ai bInds) cohortsWithBtags
                andl s "all potential barriers are false" (map neg bLits)
-
+--}
         _ -> return true
 
 
@@ -328,17 +355,18 @@ matchCond trgind (C' pos (pol,cndinds)) absind cohort = inScope && tagsMatch
  where
   maxLen    = 50 -- arbitrary maximum length of sentence
   inScope   = pol==Neg || --NOT -100 foo is always true, if there is no index -100
-                absind `elem` possibleInds pos
+                absind `elem` possibleInds maxLen trgind pos
   tagsMatch = tagsMatchRule cndinds cohort 
 
-  possibleInds p = case p of 
-                    Exactly' c i -> [trgind+i]
-                    AtLeast' c i -> let j = if (i<0) then i+1 else i-1
-                                    in (trgind+) <$> take maxLen [i,j..]
+possibleInds :: Int ->  SIndex -> Position' -> [SIndex]
+possibleInds maxLen trgind p = case p of 
+  Exactly' c i -> [trgind+i]
+  AtLeast' c i -> let j = if (i<0) then i+1 else i-1
+                  in (trgind+) <$> take maxLen [i,j..]
                                      
---Barriers look suspicious, but correct behaviour happens in mkConds.
-                    Barrier' c bc i _ -> possibleInds (AtLeast' c i)
-                    LINK' _ child _ -> possibleInds child
+--Barrier looks suspicious, but correct behaviour happens in mkConds.
+  Barrier' c bc i _ -> possibleInds maxLen trgind (AtLeast' c i)
+  LINK' _ child _ -> possibleInds maxLen trgind child
 
 
 tagsMatchRule :: [CondInds] -> Cohort' -> Bool

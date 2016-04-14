@@ -138,24 +138,22 @@ SECTION
 # Example: 
 # |sentences that trigger 1st rule| > |sentences that trigger 2nd rule|
 
-#REMOVE:negtest1  N IF (-1 A) ;
-#REMOVE:negtest2a N IF (-1 A + (mf)); # (-1 (mf)) ;
-# REMOVE:negtest2b N IF (-1 A) (NOT -1 PP) ;
-# REMOVE:negtest1  N IF (-1 A) ;
 
 SET Como = ("como") OR ("Como") ;
 
-REMOVE:poder_podar_1 Podar (0 Podar) (1C Inf OR Enc) ;
-REMOVE:sentir_sentar_1 Sentar (0 Sentar) (1C Inf OR Enc) ;
-REMOVE:poder_podar_1b Podar (0 Podar) (1 Adv) (2C Inf OR Enc) ;
-REMOVE:poder_podar_2 Podar (0 Podar) (1C ("que")) ;
-REMOVE:soler_salar_1 Salar (0 Salar) (1C Inf OR Enc) ;
-REMOVE:soler_salar_1b Salar (0 Salar) (1 Adv) (2C Inf OR Enc) ;
-REMOVE:soler_salar_2 Salar (0 Salar) (1C ("que")) ;
+REMOVE:r_salvo_1 Vblex (0 ("salvo") OR ("Salvo")) (*-1 Vblex BARRIER Cnj_Rel) ;  # no funciona sempre
+REMOVE:r_salvo_2 Vblex (0 ("salvo") OR ("Salvo")) (*1 Vblex BARRIER Cnj_Rel) ;
+REMOVE:r_salvo_2 Vblex (0 ("salvo") OR ("Salvo")) ;
+
+#TODO: test with these four rules! why is it internal conflict O_o
+SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 Barrera_Final_Estrict_SN) ;
+SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 CM OR CnjCoo) (1 Barrera_Final_Estrict_SN) ;
+SELECT:media_1 N IF (-3C Num) (-2 N) (-1 CnjCoo) (0 ("media")) ;
+SELECT:pr_cnjadv_3 CnjAdv (0 ("después_de") OR ("Después_de") OR ("antes_de") OR ("Antes_de") OR ("tras") OR ("Tras")) (1C Inf OR Enc) ;
 
 
 
-SELECT:r_bajo_0 A (0 ("bajo") OR ("Bajo")) (-1C PreAdv) ;
+#SELECT:r_bajo_0 A (0 ("bajo") OR ("Bajo")) (-1C PreAdv) ;
 
 # Actual rules start here!
 
@@ -179,7 +177,7 @@ SELECT:este_1 Det IF (0 ("Este") + $$MascSg) (-1 >>>) (1 N + $$MascSg) ;
 #SELECT:n_mf_2 Masc IF (0C N LINK NOT 0 Defensa) (-1C Num) (-2C Vblex OR Prep OR ("como")) (NOT -2 PP) (1 <<< OR Prep) ;
 	## cogieron tres rehenes.
 
-# se referirán,_desde entonces, a los indígenas_del Magreb como pueblos líbicos, aunque
+# se referirán, desde entonces, a los indígenas_del Magreb como pueblos líbicos, aunque
 REMOVE:r_verb_1 Vblex (0 Vblex + Pers) (*1C Vblex + Pers BARRIER Cnj_Rel) ;
 # SELECT:r_verb_2 Vblex (0 Vblex + Pers) (-1C Pro) ; No: podría recurrir a ellas para hacer
 
@@ -396,8 +394,8 @@ SELECT:s_na_1_ms N IF (-1 Det + $$MascSg) (0 Noun_Adj_PP + $$MascSg LINK NOT 0 N
 SELECT:s_na_1_fs N IF (-1 Det + $$FemSg) (0 Noun_Adj_PP + $$FemSg LINK NOT 0 NP) (1 <<< OR Prep OR Det) ;
 SELECT:s_na_1_mp N IF (-1 Det + $$MascPl) (0 Noun_Adj_PP + $$MascPl LINK NOT 0 NP) (1 <<< OR Prep OR Det) ;
 SELECT:s_na_1_fp N IF (-1 Det + $$FemPl) (0 Noun_Adj_PP + $$FemPl LINK NOT 0 NP) (1 <<< OR Prep OR Det) ;
-	# la ofensiva_de pascua
-	# la política_del gobierno (per error, es veu Det i no Prep)
+	# la ofensiva de pascua
+	# la política del gobierno (per error, es veu Det i no Prep)
 
 SELECT:n_a_eos_1 N IF (0 Noun_Adj_PP LINK NOT 0 Adv OR PP OR Ger OR Inf OR NP OR ("ser") OR ("sino")) (-1C Vblex) (NOT -1 PP OR ("hablar") OR VPred) (1 Barrera_Final_Estrict_SN) ;
 	#_detonar explosivos.
