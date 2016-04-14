@@ -279,11 +279,12 @@ go s isSelect trgs_diffs (conds:cs) allToks = do
     let nomatchlits = (nub $ map getLit $ concat
                       [ filter (sameInd tok) allToks | tok <- toks ]) \\ matchlits
 
+{-
     putStr $ "help" ++ show i ++ ": matchlits="
     print matchlits
     putStr "nomatchlits="
     print nomatchlits
-
+-}
                     --IF (1C Foo OR Bar), you get both foos and bars at 1C
     clauses <- case (any isPositive toks, any isCautious toks) of
                                           --if it was neg r1:map neg matchlits:r, then
@@ -297,7 +298,7 @@ go s isSelect trgs_diffs (conds:cs) allToks = do
                                       else [ neg r':nomatchlits++[r] ]
                                         -- ++ [neg r:map neg nomatchlits]
                                         -- ++ [neg r':matchlits]
-    mapM_ (addClause s >> print) clauses
+    mapM_ (addClause s) clauses
     let helpers' = case (any isPositive toks, any isCautious toks) of
                      (True, True)   -> r':r:helpers
                      (False, False) -> r':r:helpers
@@ -522,8 +523,8 @@ disambiguate' withOrder verbose debug rules sentence = do
                             putStrLn $ showSentence (dechunk alltoks)
 
             
-            putStrLn "helper lits after solving:"
-            safePrValues (helps++litsForClauses) s
+            --putStrLn "helper lits after solving:"
+            --safePrValues (helps++litsForClauses) s
 
             return (dechunk truetoks)
         else
