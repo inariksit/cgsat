@@ -2,7 +2,8 @@ module Main where
 
 import CG_base
 import CG_parse
-import CG_SAT
+import CG_SAT_old
+import CG_eval ( prAll )
 import Control.Monad
 import Data.List
 import Data.Maybe
@@ -15,7 +16,7 @@ import Text.Printf
 
 spa20k = "data/spa/20k.tagged.ambiguous"
 spa20kgold = "data/spa/20k.tagged"
-spaFull = "data/spa/apertium-spa.spa.rlx"
+spaFull = "data/spa/spa.rlx"
 spaSmall = "data/spa/spa_smallset.rlx"
 spaPre = "data/spa/spa_pre.rlx"
 
@@ -90,12 +91,13 @@ snd4 (_,b,_,_) = b
 trd4 (_,_,c,_) = c
 fth4 (_,_,_,d) = d
 
-prAll :: String -> [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO [Float]
-prAll str s v tx verbose = do
+prAll' :: String -> [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO [Float]
+prAll' str s v tx verbose = undefined 
+{-do
 
   let sentsSameLen = [ (s', v', orig) | (s', v', orig) <- zip3 s v tx
                                       , length s' == length v' ]
-      -- take only sentences that have same number of analyses
+      -- take only sentences that have same number of cohorts
    
       precRec = [ (orig, prec, rec, univ) 
                     | (test, goldst, orig) <- sentsSameLen
@@ -107,8 +109,8 @@ prAll str s v tx verbose = do
                                     , let anas = fromIntegral $ length tw ]
                 ]
 
-      diffwordsPrec = concatMap snd4 precRec :: [(Analysis,Analysis)]
-      diffwordsRec = concatMap trd4 precRec :: [(Analysis,Analysis)]
+      diffwordsPrec = concatMap snd4 precRec :: [(Reading,Reading)]
+      diffwordsRec = concatMap trd4 precRec :: [(Reading,Reading)]
 
       universaldiff = sum $ concatMap fth4 precRec
 
@@ -148,19 +150,19 @@ prAll str s v tx verbose = do
                                putStrLn "Original sentence:"
                                putStrLn $ showSentence s
                                mapM_ prAnas as
-        prAnas (a1,a2) = do putStrLn "\nDisambiguation by satcg"
-                            putStrLn $ showAnalysis a1
-                            putStrLn "\nDisambiguation by vislcg3" 
-                            putStrLn $ showAnalysis a2
+        prAnas (a1,a2) = do putStrLn "\nDisambiguation by SAT-CG"
+                            putStrLn $ showReading a1
+                            putStrLn "\nDisambiguation by VISL CG-3" 
+                            putStrLn $ showReading a2
 
+--}
+--precision :: Sentence -> Sentence -> [(Reading,Reading)]
+precision s1 s2 = [ (r1, r2) | (r1, r2) <- zip s1 s2
+                              , sort r1 /= sort r2 ]
 
-precision :: Sentence -> Sentence -> [(Analysis,Analysis)]
-precision s1 s2 = [ (a1, a2) | (a1, a2) <- zip s1 s2
-                              , sort a1 /= sort a2 ]
-
-recall :: Sentence -> Sentence -> [(Analysis,Analysis)]
-recall cand gold = [ (a1, a2) | (a1, a2) <- zip cand gold
-                              , null $ a1 `intersect` a2 ]
+--recall :: Sentence -> Sentence -> [(Reading,Reading)]
+recall cand gold = [ (r1, r2) | (r1, r2) <- zip cand gold
+                              , null $ r1 `intersect` r2 ]
 
 vislcg3 :: FilePath -> FilePath -> Bool -> IO [Sentence]
 vislcg3 rls dt isCG2 = do
@@ -276,4 +278,4 @@ loop (r:rs) t g scores = do
       difbw = fromIntegral $ length (concat diff)
       perc = 100 * ((orig-difbw) / orig) :: Float
   when ((length scores) `mod` 100 == 0) $ print (length scores) 
-  loop rs t g ((perc,r):scores)
+  loop rs t g ((perc,r):scores) 
