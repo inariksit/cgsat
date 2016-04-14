@@ -104,11 +104,26 @@ SET Limite_Barrera_Inicial_SN = ("ser") OR ("Ser") OR ("estar") OR ("Estar") OR 
 #
 SECTION
 
+####### Inari 2016 ad hoc
+# ella busca
+REMOVE N IF (0 Vblex) (-1 Prn) ;
+
+
+
+REMOVE:r_bajo_1 Vblex (0 ("bajo") OR ("Bajo")) (*-1 Vblex BARRIER Cnj_Rel) ;  # no funciona sempre
+REMOVE:r_bajo_2 Vblex (0 ("bajo") OR ("Bajo")) (*1 Vblex BARRIER Cnj_Rel) ;
+#SELECT:bajo_3 Prep (0 ("bajo") OR ("Bajo")) (1 Det) ;
+#SELECT:bajo_4 Prep (0 ("bajo") OR ("Bajo")) (-1 Copula) ;
+#SELECT:bajo_5 Prep (0 ("bajo") OR ("Bajo")) (-1C N) (1C N) ;
+
+
+
+
 
 ############## 
 # Pronom / Det
 
-#SELECT:i01_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
+SELECT:i01_s_det Det IF (NOT 1C VerbFin) ;  # TOP 1
     # la casa (en que vivo)
 SELECT:i08_s_pro PrnIndep IF (1C VerbFin) ; # TOP 8
     # (el novio) la casa
@@ -189,6 +204,8 @@ REMOVE:i05_r_vfin_prep VerbFin IF (0 Prep) (1 Inf) ; # TOP 5
 
 # de entre
 REMOVE:i11_r_vfin_prep VerbFin IF (-1C Prep) ; # TOP 11
+
+
 
 
 
