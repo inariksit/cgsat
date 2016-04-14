@@ -319,26 +319,27 @@ getContext ana allToks (cond@(C position ts@(positive,ctags)):cs) = --trace ("ge
  where 
   result = case head $ toTags ctags of
     ([[]],[[]]) -> [dummyTok] 
-    (x:xs,_) -> matchPosition position ana
+    (x:xs,_) -> matchPosition 0 position ana
 
 
     other -> error $ "getContext: " ++ show other
 
-  matchPosition :: Position -> Token -> [Token]
-  matchPosition position ana = case position of
-     Exactly False 0 -> [ f t | t <- exactly 0 ana, match t]
+  matchPosition :: Int -> Position -> Token -> [Token]
+  matchPosition parInd position ana = 
+    case position of
+     Exactly NotCareful 0 -> [ f t | t <- exactly (0+parInd) ana, match t]
 
-     Exactly True 0 -> if match ana then [ f $ mkCautious ana ]
-                        else [ fc t | t <- exactly 0 ana, match t] 
+     Exactly Careful 0 -> if match ana then [ f $ mkCautious ana ]
+                        else [ fc t | t <- exactly (0+parInd) ana, match t] 
 
-     Exactly True n -> [ fc t | t <- exactly n ana, match t ]
-     AtLeast True n -> [ fc t | t <- atleast n ana, match t ]
+     Exactly Careful n -> [ fc t | t <- exactly (n+parInd) ana, match t ]
+     AtLeast Careful n -> [ fc t | t <- atleast (n+parInd) ana, match t ]
 
-     Exactly _ n -> [ f t | t <- exactly n ana, match t ]
-     AtLeast _ n -> [ f t | t <- atleast n ana, match t ]
-     Barrier  _ n bs -> map f $ barrier n bs ana
-     CBarrier _ n bs -> map f $ cbarrier n bs ana
-     LINK _par child -> matchPosition child ana
+     Exactly _ n -> [ f t | t <- exactly (n+parInd) ana, match t ]
+     AtLeast _ n -> [ f t | t <- atleast (n+parInd) ana, match t ]
+     Barrier _ NotCareful n bs -> map f $ barrier (n+parInd) bs ana
+     Barrier _ Careful    n bs -> map f $ cbarrier (n+parInd) bs ana
+     LINK par child  -> matchPosition (posToInt par) child ana
 
   f :: Token -> Token
   f = if positive==Pos then id else mkNegative

@@ -303,7 +303,7 @@ mkConds s allinds sentence trgind disjconjconds str = do
   
  where
   absIndices :: SIndex -> Condition' -> [SIndex]
-  absIndices i (C' pos (b,tags)) = let possibleInds = (i+) <$> posToInt pos
+  absIndices i (C' pos (b,tags)) = let possibleInds = (i+) <$> posToInts pos
                                        member = flip IM.member
                                    in filter (member sentence) possibleInds
   absIndices i Always'           = [i]
@@ -341,13 +341,8 @@ mkCond s allinds sentence str conjconds_absinds = do
     let lu = lookup' positive absind
 
     case position of
-      (Barrier  foo bar btags) 
+      (Barrier caut bcaut pos btags) 
         -> do --putStrLn "found a barrier!"
-              --addClause s [some nice barrier clause] --TODO
-              return ()
-                                         
-      (CBarrier foo bar btags)
-        -> do --putStrLn "found a cbarrier!"
               --addClause s [some nice barrier clause] --TODO
               return ()
       _ -> return ()
@@ -461,19 +456,18 @@ width cs   = [ (len, tind) | (mi,ma) <- mins_maxs
   poss = sequence $ map getPos (concat cs)
 
 --for (C)BARRIER, count an extra place to place the barrier tag
-posToInt :: Position -> [Int]
-posToInt (Exactly _ i) = [i]
-posToInt (AtLeast _ i) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
-posToInt (Barrier _ i _)  = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
-posToInt (CBarrier _ i _) = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
+posToInts :: Position -> [Int]
+posToInts (Exactly _ i) = [i]
+posToInts (AtLeast _ i) = if i<0 then [i,i-1,i-2,i-3] else [i,i+1,i+2,i+3]
+posToInts (Barrier _ _ i _)  = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
 --TODO fix the LINK case
-posToInt (LINK parent child) = --trace (show (posToInt parent) ++ ", " ++ show child) $
-                               [ pI + cI | (pI,cI) <- posToInt parent 
-                                          `zip` (cycle $ posToInt child) ]
+posToInts (LINK parent child) = --trace (show (posToInts parent) ++ ", " ++ show child) $
+                               [ pI + cI | (pI,cI) <- posToInts parent 
+                                          `zip` (cycle $ posToInts child) ]
 
 getPos :: Condition' -> [Int]
 getPos Always'    = [1]
-getPos (C' pos _) = posToInt pos
+getPos (C' pos _) = posToInts pos
 --getPos
 
 

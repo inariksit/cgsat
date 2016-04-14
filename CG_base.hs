@@ -232,35 +232,33 @@ toCond condss = foldl1 OR [ foldl1 AND conds | conds <- condss ]
 -------------------------------------------------------------------------------- 
 -- Positions
 
-type Cautious = Bool
+data Cautious = Careful | NotCareful deriving (Show,Eq)
 
-data Position = Exactly Cautious Int 
-              | AtLeast Cautious Int
-              | Barrier Cautious Int TagSet 
-              | CBarrier Cautious Int TagSet 
+data Position = Exactly {getCautious::Cautious, posToInt::Int}
+              | AtLeast {getCautious::Cautious, posToInt::Int}
+              | Barrier {getCautious::Cautious, barrierCautious::Cautious, posToInt::Int, getBtags::TagSet}
               | LINK {parent::Position , self::Position} deriving (Eq)
 
 
 instance Show Position where
-  show (Exactly True i) = show i ++ "C"
-  show (AtLeast True i) = "*" ++ show i ++ "C"
-  show (Exactly False i) = show i
-  show (AtLeast False i) = "*" ++ show i
+  show (Exactly Careful i) = show i ++ "C"
+  show (AtLeast Careful i) = "*" ++ show i ++ "C"
+  show (Exactly NotCareful i) = show i
+  show (AtLeast NotCareful i) = "*" ++ show i
   show (LINK pos1 linkedpos) = show pos1 ++ " LINK " ++ show linkedpos
   show p                 = let (a,b) = showPosTuple p in a++b
 
 showPosTuple :: Position -> (String, String)
-showPosTuple (Barrier  True i ts) = ("*" ++ show i ++ "C ", " BARRIER " ++ show ts)
-showPosTuple (CBarrier True i ts) = ("*" ++ show i ++ "C ", " CBARRIER " ++ show ts)
-showPosTuple (Barrier  False i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show ts)
-showPosTuple (CBarrier False i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
+showPosTuple (Barrier Careful  NotCareful i ts) = ("*" ++ show i ++ "C ", " BARRIER " ++ show ts)
+showPosTuple (Barrier Careful  Careful  i ts) = ("*" ++ show i ++ "C ", " CBARRIER " ++ show ts)
+showPosTuple (Barrier NotCareful NotCareful i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show ts)
+showPosTuple (Barrier NotCareful Careful  i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
 showPosTuple p = (show p, "")
 
 isCareful :: Position -> Bool
-isCareful (Exactly b _) = b
-isCareful (AtLeast b _) = b
-isCareful (Barrier b _ _) = b
-isCareful (CBarrier b _ _) = b
+isCareful (Exactly b _) = b==Careful
+isCareful (AtLeast b _) = b==Careful
+isCareful (Barrier b _ _ _) = b==Careful
 isCareful (LINK _par child) = isCareful child
 
 -------------------------------------------------------------------------------- 

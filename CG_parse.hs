@@ -80,7 +80,7 @@ parseData s = case pText (Apertium.Par.myLexer s) of
         tagsInAna :: [CGB.Tag] -> CGB.Cohort -> Bool
         tagsInAna tags as = any ((not.null) . intersect tags) as
 
-        sentence s = s -- [bos] ++ s ++ [eos]
+        sentence s = s --[bos] ++ s ++ [fullstop] ++ [eos]
 
 --------------------------------------------------------------------------------
 --just because it's nice to use them  rules <- readRules foo
@@ -147,6 +147,7 @@ split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))
 
 bos = [[CGB.BOS]]
 eos = [[CGB.EOS]]
+fullstop = [[CGB.WF ".", CGB.Lem ".", CGB.Tag "sent"]]
 
 strip :: Int -> String -> String
 strip n = drop n . reverse . drop n . reverse
@@ -316,10 +317,10 @@ transCond c = case c of
                                 return $ case subr of
                                   Nothing -> CGB.C pos' (CGB.Neg, ts')
                                   Just i  -> CGB.C pos' (CGB.Neg, mapSubr i ts')
-  CondBarrier pos ts bts  -> barrier pos ts bts CGB.Pos  CGB.Barrier
-  CondNotBar pos ts bts   -> barrier pos ts bts CGB.Neg CGB.Barrier
-  CondCBarrier pos ts bts -> barrier pos ts bts CGB.Pos  CGB.CBarrier
-  CondNotCBar pos ts bts  -> barrier pos ts bts CGB.Neg CGB.CBarrier
+  CondBarrier pos ts bts  -> barrier pos ts bts CGB.Pos CGB.NotCareful
+  CondNotBar pos ts bts   -> barrier pos ts bts CGB.Neg CGB.NotCareful
+  CondCBarrier pos ts bts -> barrier pos ts bts CGB.Pos CGB.Careful
+  CondNotCBar pos ts bts  -> barrier pos ts bts CGB.Neg CGB.Careful
   CondTempl templs        -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
                                 return $ foldr1 CGB.OR cs
 
@@ -342,17 +343,15 @@ transCond c = case c of
           case pos of
             CGB.Exactly _ i -> i 
             CGB.AtLeast _ i -> i
-            CGB.Barrier  _ i _ -> i 
-            CGB.CBarrier _ i _ -> i 
+            CGB.Barrier _ _ i _ -> i 
 
         changePos pos newI = 
           case pos of
-            CGB.Exactly b i -> CGB.Exactly b newI 
-            CGB.AtLeast b i -> CGB.AtLeast b newI
-            CGB.Barrier b i ts -> CGB.Barrier b newI ts 
-            CGB.CBarrier b i ts -> CGB.CBarrier b newI ts 
+            CGB.Exactly c i -> CGB.Exactly c newI 
+            CGB.AtLeast c i -> CGB.AtLeast c newI
+            CGB.Barrier c bc i ts -> CGB.Barrier c bc newI ts 
 
-        barrier pos ts bts isPositive bcons =
+        barrier pos ts bts isPositive bcaut =
           do pos' <- transPosition pos
              let (caut,int) = case fst pos' of 
                           CGB.Exactly b i -> (b,i)
@@ -360,7 +359,7 @@ transCond c = case c of
              btags <- transTagSet bts  --there is no `BARRIER NOT ts' option,
                                        --you just write `BARRIER (*)-ts'
              ctags <- transTagSet ts
-             return $ CGB.C (bcons caut int btags) (isPositive,ctags)
+             return $ CGB.C (CGB.Barrier caut bcaut int btags) (isPositive,ctags)
 
         mapSubr i (CGB.TS ts) = CGB.TS $ (map.map) (CGB.Subreading i) ts
         mapSubr i (CGB.Diff ts1 ts2) = CGB.Diff (mapSubr i ts1) (mapSubr i ts2)
@@ -372,27 +371,27 @@ transCond c = case c of
 transPosition :: Position -> State Env (CGB.Position, Maybe CGB.Subpos)
 transPosition pos = case pos of
   Exactly (Signed num)  
-               -> mainreading $ CGB.Exactly False $ read num
+               -> mainreading $ CGB.Exactly CGB.NotCareful $ read num
   AtLeastPre (Signed num)  
-               -> mainreading $ CGB.AtLeast False $ read num
+               -> mainreading $ CGB.AtLeast CGB.NotCareful $ read num
   AtLeastPost (Signed num) 
-               -> mainreading $ CGB.AtLeast False $ read num
+               -> mainreading $ CGB.AtLeast CGB.NotCareful $ read num
   AtLPostCaut1 (Signed num)
-               -> mainreading $ CGB.AtLeast True $ read num
+               -> mainreading $ CGB.AtLeast CGB.Careful $ read num
   AtLPostCaut2 (Signed num) 
-              -> mainreading $ CGB.AtLeast True $ read num
+              -> mainreading $ CGB.AtLeast CGB.Careful $ read num
   Subreading (Signed num1) (Signed num2)
-              -> return $ (CGB.Exactly False $ read num1
+              -> return $ (CGB.Exactly CGB.NotCareful $ read num1
                           , Just $ if (read num2 < 0) 
                                     then CGB.FromEnd (read num2)
                                     else CGB.FromStart (read num2))
 
   SubreadingStar (Signed num) 
-              -> return $ (CGB.Exactly False $ read num, Just CGB.Wherever)
+              -> return $ (CGB.Exactly CGB.NotCareful $ read num, Just CGB.Wherever)
   Cautious position  
               -> cautious `fmap` transPosition position
- where cautious (CGB.Exactly _b num, subr) = (CGB.Exactly True num, subr)
-       cautious (CGB.AtLeast _b num, subr) = (CGB.AtLeast True num, subr)
+ where cautious (CGB.Exactly _b num, subr) = (CGB.Exactly CGB.Careful num, subr)
+       cautious (CGB.AtLeast _b num, subr) = (CGB.AtLeast CGB.Careful num, subr)
        mainreading position = return (position, Nothing)
 
 --  morpho output parsing

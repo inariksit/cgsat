@@ -64,8 +64,8 @@ data Condition' = C' Position' (Polarity,[CondInds]) | Always' deriving (Show,Eq
 --We need to do the same for Position, because of the TagSets in Barriers.
 data Position' = Exactly' {isCareful::Cautious, ind'::Int}
                | AtLeast' {isCareful::Cautious, ind'::Int}
-               | Barrier' {isCareful::Cautious, ind'::Int, binds::[CondInds]}
-               | CBarrier' {isCareful::Cautious, ind'::Int, binds::[CondInds]}
+               | Barrier' {isCareful::Cautious, barrierIsCareful::Cautious, ind'::Int, binds::[CondInds]}
+--               | CBarrier' {isCareful::Cautious, ind'::Int, binds::[CondInds]}
                | LINK' {parent::Position' , self::Position', isCareful::Cautious} deriving (Show,Eq)
 
 
@@ -106,9 +106,9 @@ ruleToRule' tagmap allinds rule = R trget conds isSel nm
   posToPos' position = case position of
     Exactly c i -> Exactly' c i
     AtLeast c i -> AtLeast' c i
-    Barrier c i btags -> Barrier' c i (map lu $ toTags btags)
-    CBarrier c i btags -> CBarrier' c i (map lu $ toTags btags)
-    LINK p1 p2  -> LINK' (posToPos' p1) (posToPos' p2) (CGB.isCareful p2)
+    Barrier c bc i btags -> Barrier' c bc i (map lu $ toTags btags)
+--    CBarrier c i btags -> CBarrier' c i (map lu $ toTags btags)
+    LINK p1 p2  -> LINK' (posToPos' p1) (posToPos' p2) (CGB.getCautious p2)
 
 --------------------------------------------------------------------------------
 
@@ -252,40 +252,42 @@ mkCond    s         sentence     abstrgind   conjconds_abscondinds =
     let lu = lookup' polarity abscondind
 
     --TODO: check this another day, it's probably buggy
-    fuckTheBarriers <- 
-     case position of 
-      (Barrier'  _ relcondind btags) 
-        -> do let hackedCond = C' (AtLeast' False relcondind) (Pos,btags)
+    fuckTheBarriers <- do
+      case position of 
+        (Barrier' c bc relcondind btags) 
+         -> do let hackedCond = (C' (AtLeast' bc relcondind) (Pos,btags))
+        
+      --barind, i.e. the -1 in `if -1* foo BARRIER bar', is included in hackedCond. 
+      --trgind is the original target index all the way from apply.
+      --abscondind is the current cohort we are looking, 
+      --if we can find some valid conditions in it.
+      --Now, if there is a barrier before abscondind, the only way for
+      --the reading in abscondind to be valid is that the barrier is false.
+      --Hence we need to make literal that says
+      -- "all the potential barriers before abscondind are false"
 
-              --barind, i.e. the -1 in `if -1* foo BARRIER bar',
-              --is included in hackedCond. 
-              --trgind is the original target index all the way from apply.
-              --abscondind is the current cohort we are looking, 
-              --if we can find some valid conditions in it.
-              --Now, if there is a barrier before abscondind, the only way for
-              --the reading in abscondind to be valid is that the barrier is false.
-              --Hence we need to make literal that says
-              -- "all the potential barriers before abscondind are false"
-              let scan = if (relcondind<0) then (>) else (<)
-              let cohortsWithBtags = filter (scan abscondind) $ IM.keys $
-                   IM.filterWithKey (matchCond abstrgind hackedCond) sentence
-              let bInds = IS.unions [ yes | (yes,dif) <- btags ] --TODO make this work properly
-              let bLits = concatMap (\ai -> lookup' Pos ai bInds) cohortsWithBtags
-              andl s "all potential barriers are false" (map neg bLits)
 
-      --(CBarrier' _ relcondind btags)     --only difference: s/False/True/
-      --  -> do let hackedCond = C' (AtLeast' True barind) (Pos,bartags)
+               let scan = if (relcondind < 0) then (>) else (<)
+               let cohortsWithBtags = filter (scan abscondind) $ IM.keys $
+                    IM.filterWithKey (matchCond abstrgind hackedCond) sentence
+               let bInds = IS.unions [ yes | (yes,dif) <- btags ] --TODO make this work properly
+               let bLits = concatMap (\ai -> lookup' Pos ai bInds) cohortsWithBtags
+               andl s "all potential barriers are false" (map neg bLits)
 
-      _ -> return true
+        _ -> return true
+
+
+
 
     case (polarity, isCareful position) of                  
-      (Pos, False) -> orl s "" =<< sequence
-                          [ do let yesLits = lu yi
-                               let difLits = lu di
-                               y <- orl  s "" yesLits
-                               n <- andl s "" (map neg difLits)
-                               andl s "" [y,n,fuckTheBarriers]
-                            | (yi, di) <- yesinds_difinds ] 
+      (Pos, NotCareful) 
+        -> orl s "" =<< sequence
+            [ do let yesLits = lu yi
+                 let difLits = lu di
+                 y <- orl  s "" yesLits
+                 n <- andl s "" (map neg difLits)
+                 andl s "" [y,n,fuckTheBarriers]
+              | (yi, di) <- yesinds_difinds ] 
                             --only case where we may need difInds:
                             --with rule like A\B OR C\D, we can have
                             --a)  MUST have one: [a, ac, ad, acd, ae ..] 
@@ -296,20 +298,21 @@ mkCond    s         sentence     abstrgind   conjconds_abscondinds =
                             --    MAY NOT have:  [d, cd, ...]
                             --    CAN have:      [b, ab, e, ..]
 
-      (Pos, True)  -> do let yesLits = lu yi_ALLINONE
-                         let otherLits = lu oi_ALLINONE
-                         y <- orl  s "" yesLits
-                         n <- andl s "" (map neg otherLits)
-                         andl s "" [y,n,fuckTheBarriers] 
+      (Pos, Careful) 
+        -> do let yesLits = lu yi_ALLINONE
+              let otherLits = lu oi_ALLINONE
+              y <- orl  s "" yesLits
+              n <- andl s "" (map neg otherLits)
+              andl s "" [y,n,fuckTheBarriers] 
 
                        --OBS. "yesInds" mean "noInds" for NOT
-      (Neg,False) -> do let noLits = lu yi_ALLINONE
+      (Neg,NotCareful) -> do let noLits = lu yi_ALLINONE
                           --let otherLits = lu oi_ALLINONE
-                        andl s "" $ fuckTheBarriers:(map neg noLits)
+                             andl s "" $ fuckTheBarriers:(map neg noLits)
 
-      (Neg, True) -> do let otherLits = lu oi_ALLINONE
-                        notCautious <- orl s "" otherLits
-                        andl s "" [fuckTheBarriers,notCautious]
+      (Neg,Careful) -> do let otherLits = lu oi_ALLINONE
+                          notCautious <- orl s "" otherLits
+                          andl s "" [fuckTheBarriers,notCautious]
 
 --------------------------------------------------------------------------------  
 
@@ -329,13 +332,12 @@ matchCond trgind (C' pos (pol,cndinds)) absind cohort = inScope && tagsMatch
   tagsMatch = tagsMatchRule cndinds cohort 
 
   possibleInds p = case p of 
-                    Exactly' _ i -> [trgind+i]
-                    AtLeast' _ i -> let j = if (i<0) then i+1 else i-1
+                    Exactly' c i -> [trgind+i]
+                    AtLeast' c i -> let j = if (i<0) then i+1 else i-1
                                     in (trgind+) <$> take maxLen [i,j..]
                                      
 --Barriers look suspicious, but correct behaviour happens in mkConds.
-                    Barrier'  _ i _ -> possibleInds (AtLeast' False i)
-                    CBarrier' _ i _ -> possibleInds (AtLeast' False i)
+                    Barrier' c bc i _ -> possibleInds (AtLeast' c i)
                     LINK' _ child _ -> possibleInds child
 
 
