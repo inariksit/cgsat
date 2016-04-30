@@ -27,7 +27,7 @@ import Control.Monad ( liftM, liftM2, when )
 import SAT.Named -- Added name for variables, for nicer looking output
 import SAT (Solver,newSolver,conflict,modelValueMaybe)
 import qualified SAT
-import SAT.Unary ( Unary )
+import SAT.Unary ( Unary, add )
 import Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -459,13 +459,23 @@ disambiguate' withOrder verbose debug rules sentence = do
       -- to force True for all literals that are not to be removed/selected by any rule
       let targetlits = let safeLastLit = (\x -> if null x then true else last x) 
                        in map safeLastLit applied
-      let nonAffectedLits = litsForAnas  \\ (map neg targetlits)
+      let nonTargetedLits = litsForAnas  \\ (map neg targetlits)
 
+      let safeTail x = if null x then [true] else tail x
+      let posIfNeg lit = if pos lit then lit else neg lit
+      let nonAffectedLits = litsForAnas  \\ (map posIfNeg (concat applied))
+
+
+      --We can maximise over these; softer way than forcing all non-targets to be true!
+      let litsForContexts = concatMap (map posIfNeg . init) applied
+      --mapM_ print nonTargetedLits
+      --mapM_ print nonAffectedLits
 
       (litsForClauses,
         rls_cls) <- unzip `fmap` sequence 
                       [ do b <- newLit s (show rl)
                            return (b, (rl, neg b:cl))
+                           --return (b, (rl, cl))
                         | (rl, cls, _) <- rls_applied_helps , cl <- cls ] :: IO ([Lit], [(Rule, Clause)])
                                                       
       when debug $ do
@@ -473,7 +483,8 @@ disambiguate' withOrder verbose debug rules sentence = do
         mapM_ print toks
 
       sequence_ [ addClause s cl | cl <- anchor toks ]
-      sequence_ [ addClause s [l] | l <- nonAffectedLits ]
+--      sequence_ [ addClause s [l] | l <- nonAffectedLits ]
+--      sequence_ [ addClause s [l] | l <- nonTargetedLits ]
       sequence_ [ addClause s cl >> when debug (print cl) | (_, cl) <- rls_cls ]
       --- up to here identical
       
@@ -482,24 +493,35 @@ disambiguate' withOrder verbose debug rules sentence = do
        if withOrder 
          then 
           do let clsByRule = (map.map) snd $ groupBy fstEq rls_cls
-             bs_ls <- sequence [ do k <- SAT.Named.count s insts :: IO Unary
-                                    b <- solveMaximize s [] k
-                                    is <- sequence [ modelValue s x | x <- insts ] 
-                                    sequence_ [ addClause s [lit]
-                                       | (True, lit) <- zip is insts ]
-                                    let ls = [ lit | (True, lit) <- zip is insts ]
-                                    return (b,ls)
-                              | cls <- clsByRule
-                              , let insts = map (neg . head) cls ]
-             let (bs,ls) = unzip bs_ls
-             --n <- count s litsForAnas
-             b' <- return True -- solveMaximize s (concat ls) n
-             return $ (and bs && not (null bs)) && b'
+
+             --bs_ls <- sequence [ do k <- SAT.Named.count s insts :: IO Unary
+             --                       b <- solveMaximize s [] k
+             --                       is <- sequence [ modelValue s x | x <- insts ] 
+             --                       sequence_ [ addClause s [lit]
+             --                          | (True, lit) <- zip is insts ]
+             --                       let ls = [ lit | (True, lit) <- zip is insts ]
+             --                       return (b,ls)
+             --                   | cls <- clsByRule
+             --                   , let insts = map (neg . head) cls ]
+             --let (bs,ls) = unzip bs_ls
+             ----n <- count s litsForAnas
+             --b' <- return True -- solveMaximize s (concat ls) n
+             --return $ (and bs && not (null bs)) && b'
+
+             sequence_[ sequence_ [ do b <- solve s [helperLitPos]
+                                       when b $ addClause s [helperLitPos]
+                                    | (helperLit:_) <- cls 
+                                    , let helperLitPos = neg helperLit ]
+                          | cls <- clsByRule ]
+             solve s []
+
 
         else
-         do print "No order!"
+         do --print "No order!"
             lc <- count s litsForClauses
-            solveMaximize s [] lc
+            lco <- count s litsForContexts
+            llco <- add s lc lco
+            solveMaximize s [] llco --TODO investigate further!!!
 
 
       --- from here identical again, just output

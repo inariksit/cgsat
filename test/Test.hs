@@ -50,6 +50,7 @@ main = do
     ["gold","opti"] -> opti spaSmall spa20k 
     ["gold","obs"]  -> optiBySz spaSmall spa20k
     ["gold"]        -> gold spaSmall spa20k spa20kgold
+    ["gold","par"]  -> goldPar spaSmall spa20k spa20kgold
     ["goldrus"]     -> gold rusgr rustext undefined
     ["engold"]      -> gold engr entext engold
     ["nldgold"]     -> gold nldgr nldtext nldgold
@@ -60,6 +61,7 @@ main = do
                   let is2 = "2" `elem` o
                       verbose = "v" `elem` o
                       debug = "d" `elem` o
+                      justRun = "run" `elem` o
                       disam = if "par" `elem` o 
                                 then disambiguateUnordered verbose debug
                                 else disambiguate verbose debug
@@ -67,9 +69,12 @@ main = do
                                 then disamSection disam rules
                                 else disam (concat rules)
                   resSAT <- mapM disec text -- :: [Sentence]
-                  resVISL <- vislcg3 r d is2  -- :: [Sentence] 
-                  prAll "" resSAT resVISL text verbose
-                  putStrLn ""
+                  if justRun then return ()
+                   else do
+                    resVISL <- vislcg3 r d is2  -- :: [Sentence] 
+                    prAll "" resSAT resVISL text verbose
+                    putStrLn ""
+
     _          -> putStrLn "usage: ./test <rules> <data> (or something else, check the source code test/Test.hs >__>)"
 
 
