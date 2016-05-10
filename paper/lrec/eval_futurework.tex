@@ -406,13 +406,13 @@ only use SAT-clauses to restrict which lexical form can go with which morphologi
 
 \paragraph{Full expressivity of CG-3}
 As for longer-term goals, we want to handle the full expressivity of CG-3,
-with \textsc{map}, \textsc{add},  \textsc{addreading} and
+with \textsc{map}, \textsc{add},  \textsc{append} and
 \textsc{substitute} rules, as well as dependency structure. 
 This also means finding different kinds of conflicts.
 In order to implement rules that may add new readings, or new tags to
 existing readings, we need to modify our approach in the SAT-encoding.
 Even if the lexicon gives all readings that exist in the lexicon, the
-user might give a nonexistent reading, or in the case of MAP, a
+user might give a nonexistent reading, or in the case of {\sc map}, a
 syntactic tag, which is (by definition) not in the lexicon. We may need to move
 to a more scalable solution.
 
