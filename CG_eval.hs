@@ -32,16 +32,20 @@ trd4 (_,_,c,_) = c
 fth4 (_,_,_,d) = d
 
 prAll :: String -> [Sentence] -> [Sentence] -> [Sentence] -> Bool -> IO [Float]
-prAll str s v tx verbose = do
+prAll nm cand gold tx verbose = do
 
-  let sentsSameLen = [ (s', v', orig) | (s', v', orig) <- zip3 s v tx
-                                      , length s' == length v' ]
+  let sentsSameLen = [ cgo | cgo@(c, g, orig) <- zip3 cand gold tx
+                           , length c == length g ]
       -- take only sentences that have same number of cohorts
    
       precRec = [ (orig, prec, rec, univ) 
                     | (test, goldst, orig) <- sentsSameLen
                     , let prec = precision test goldst
                     , let rec = recall test goldst 
+                    --TODO: something strange in the univ measurement
+                    {- Precision 100.00, recall 100.00 
+                        General diff 78.46 
+                        F-score 100.00 -}
                     , let univ = [ 1.0 / anas 
                                     | (tw, gw) <- zip test goldst
                                     , (not.null) (tw `intersect` gw)
@@ -75,7 +79,7 @@ prAll str s v tx verbose = do
   printf "Precision %.2f, " (prec :: Float)
   printf "recall %.2f \n" (rec :: Float)
   
-  putStr str
+  putStr nm
   printf " General diff %.2f \n" (univ :: Float)
 
   printf " F-score %.2f \n" (fscore :: Float)
@@ -89,15 +93,16 @@ prAll str s v tx verbose = do
                                putStrLn "Original sentence:"
                                putStrLn $ showSentence s
                                mapM_ prAnas as
-        prAnas (a1,a2) = do putStrLn "\nDisambiguation by SAT-CG"
+        prAnas (a1,a2) = do putStrLn $ "\nDisambiguation by candidate " ++ nm 
                             putStrLn $ showCohort a1
-                            putStrLn "\nDisambiguation by VISL CG-3" 
+                            putStrLn "\nGold" --Disambiguation by VISL CG-3" 
                             putStrLn $ showCohort a2
 
-
+--We zip the sentences, so it doesn't matter that
+--SAT-CG sentences are missing sentence boundary!
 precision :: Sentence -> Sentence -> [(Cohort,Cohort)]
-precision s1 s2 = [ (r1, r2) | (r1, r2) <- zip s1 s2
-                              , sort r1 /= sort r2 ]
+precision cand gold = [ (r1, r2) | (r1, r2) <- zip cand gold
+                                 , sort r1 /= sort r2 ]
 
 recall :: Sentence -> Sentence -> [(Cohort,Cohort)]
 recall cand gold = [ (r1, r2) | (r1, r2) <- zip cand gold
