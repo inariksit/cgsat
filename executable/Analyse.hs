@@ -163,7 +163,7 @@ main = do
 
 --}
 
-   _ -> print "usage: cabal analyse <3-letter language name> [v,d]"
+   _ -> print "usage: cabal run analyse <3-letter language name> startNumber endNumber [v,d]"
 
 
 
