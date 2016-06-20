@@ -17,79 +17,76 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, CG_eval, CG_Symbolic, AmbiguityClass, CG_SAT_old
+  exposed-modules:     CG_base, CG_SAT, CG_data, CG_parse, CG_eval, AmbiguityClass, CG_SAT_old, CG_Symbolic
   other-modules:       CG.ErrM, Apertium.ErrM,
                        Apertium.Abs, Apertium.Lex, Apertium.Par,
-                       CG.Abs, CG.Lex, CG.Par, CG.Print
---  other-extensions:    
-  build-depends:       base,
+                       CG.Abs, CG.Lex, CG.Par, CG.Print   
+  build-depends:       array,
+                       base,
                        containers,
                        minisat,
-                       satplus,
-                       mtl,
-                       array,
-                       regex-compat,
-                       process
+                       mtl,                       
+                       process,
+                       regex-compat
 
-  -- hs-source-dirs:      
+  hs-source-dirs:      ., satplus
   ghc-options:         -O2
   build-tools:         alex, happy
   default-language:    Haskell2010
 
-executable profiling
-  main-is:             AnalyseProf.hs
-  ghc-options:         -O2
-                       -fprof-auto
-                       -caf-all
-                       -prof
-                       "-with-rtsopts=-p -s -h -i0.1"
-  build-depends:       base,
-                       cgsat,
-                       mtl,
-                       minisat,
-                       satplus,
-                       array,
-                       data-ordlist,
-                       regex-compat,
-                       containers
+--executable profiling
+--  main-is:             AnalyseProf.hs
+--  ghc-options:         -O2
+--                       -fprof-auto
+--                       -caf-all
+--                       -prof
+--                       "-with-rtsopts=-p -s -h -i0.1"
+--  build-depends:       array,
+--                       base,
+--                       containers,
+--                       minisat,
+--                       mtl,                       
+--                       process,
+--                       regex-compat
+--                       data-ordlist,
+--                       regex-compat
+
 executable disam
-  hs-source-dirs:      executable
+  hs-source-dirs:      executable, satplus, .
   main-is:             Disambiguate.hs
-  build-depends:       base,
-                       cgsat,
-                       mtl,
+  build-depends:       array,
+                       base,
+                       containers,
                        minisat,
-                       satplus,
-                       array,
-                       containers
+                       mtl,                       
+                       process,
+                       regex-compat
   default-language:    Haskell2010
 
 executable analyse
-  hs-source-dirs:      executable
+  hs-source-dirs:      executable, satplus, .
   main-is:             Analyse.hs
-  build-depends:       base,
-                       cgsat,
-                       mtl,
-                       minisat,
-                       satplus,
-                       array,
+  build-depends:       array,
+                       base,
                        containers,
+                       minisat,
+                       mtl,                       
+                       process,
                        regex-compat
   default-language:    Haskell2010
 
 executable test-cgsat
-  hs-source-dirs:      test
+  hs-source-dirs:      test, satplus, .
   main-is:             Test.hs
-  build-depends:       base,
-                       cgsat,
-                       mtl,
-                       minisat,
-                       satplus,
-                       random,
-                       random-shuffle,
-                       array,
+  build-depends:       array,
+                       base,
                        containers,
-                       process
+                       minisat,
+                       mtl,                       
+                       process,
+                       regex-compat,
+                       random,
+                       random-shuffle
 
   default-language:    Haskell2010
 
