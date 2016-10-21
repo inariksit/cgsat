@@ -1,25 +1,26 @@
-module QCTest where
+module Main where
 
 import CG_base
-import CG_SAT (getContext,Token(..))
 import MiniSat
 import SAT
 import Control.Monad
+--import Data.Set (Set,fromList)
 import Test.QuickCheck
 
-main' :: IO ()
-main' = do --verboseCheck checkRule
-           quickCheck checkGetContext
-           quickCheck checkToLists
+main :: IO ()
+main = do verboseCheck checkRule
+          verboseCheck checkToConds
 
 
 --check that getContext gives as many contexts as it is given conditions
-checkGetContext :: Token -> [Token] -> [Condition] -> Bool
-checkGetContext lit allLits conds = length (getContext lit allLits conds) == length conds
+--checkGetContext :: Token -> [Token] -> [Condition] -> Bool
+--checkGetContext lit allLits conds = length (getContext lit allLits conds) == length conds
 
---conditions glued together with AND form a list as long as there were original conditions
-checkToLists :: (Condition, Int) -> Bool
-checkToLists (cond, num) = length (toConds cond) == num
+--roundtrip from Condition to [[Condition]] to Condition
+--TODO some less silly test.
+checkToConds :: Condition -> Bool
+checkToConds cond = conds == toConds (toCond conds)
+  where conds = toConds cond
 
 --just for fun, to see automatically generated CG rules
 checkRule :: Rule -> Bool
@@ -30,7 +31,7 @@ checkRule rule = True
 arbCondList :: Gen (Condition, Int)
 arbCondList = 
   do num <- choose (2,10)
-     cond <- arbitrary :: Gen Condition
+     cond <- arbSingleCond :: Gen Condition
      let numConds = replicate num cond
      return (foldr1 AND numConds, num)
 
@@ -42,23 +43,33 @@ instance Arbitrary Tag where
   arbitrary = elements allTags
 
 instance Arbitrary TagSet where
-  arbitrary = do tags <- listOf arbitrary
+  arbitrary = do tags <- listOf arbitrary `suchThat` (\as -> length as < 7 && not (null as))
                  return $ TS [tags]
 
 instance Arbitrary SAT.Lit where
   arbitrary = elements [SAT.Lit (MiniSat.MkLit n) | n <- [1..50]]
 
+
 instance Arbitrary Position where
-  arbitrary = elements $ [Exactly n | n <- [-5..5]] ++
-                         [AtLeast n | n <- [-5..5]] ++
-                         [Barrier n (TS [[t]]) | n <- [-5..5],
-                                                 t <- allTags]
+  arbitrary = elements $ [Exactly c n | n <- [-5..5], c <- cautious] ++
+                         [AtLeast c n | n <- [-5..5], c <- cautious] ++
+                         [Barrier c bc n (TS [[t]]) | n <- [-5..5]
+                                               , c <- cautious
+                                               , bc <- cautious
+                                               , t <- allTags ]
+    where cautious = [Careful,NotCareful]
 
 instance Arbitrary Condition where
-  arbitrary = do pos <- arbitrary
-                 bool <- arbitrary
-                 tags <- arbitrary
-                 return $ C pos (bool, tags)
+  arbitrary = frequency $ [ (3, return Always)
+                          , (50, arbSingleCond)
+                          , (20, liftM2 AND arbitrary arbitrary)
+                          , (1, liftM2 AND arbitrary arbitrary) ]
+
+arbSingleCond :: Gen Condition
+arbSingleCond = do pos <- arbitrary
+                   pol <- elements [Pos,Neg]
+                   tags <- arbitrary
+                   return $ C pos (pol, tags)
 
 
 instance Arbitrary Rule where
