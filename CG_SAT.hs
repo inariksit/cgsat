@@ -219,8 +219,8 @@ mkConds    s         sentence    trgind  disjconjconds = do
     then return Nothing
     else Just `fmap` mapM (mkCond s sentence trgind) cs_is
 
-  -- * conds_absinds = all possible (absolute, not relative) SIndices in range
-  -- * call mkCond with arguments of type (Condition, [SIndex])
+  --  conds_absinds = all possible (absolute, not relative) SIndices in range
+  -- call mkCond with arguments of type (Condition, [SIndex])
 
 
 symbConds :: Solver -> Sentence' -> SIndex -> [[Condition']] -> IO (Maybe [Lit])
@@ -252,7 +252,7 @@ mkCond :: Solver -> Sentence' -> SIndex -> [(Condition',[SIndex])] -> IO Lit
 mkCond    s         sentence     abstrgind   conjconds_abscondinds = 
   case conjconds_abscondinds of
     [] -> error "mkCond: no conditions"
-    -- *Every* condition has to be true in *some* index:
+    -- /Every/ condition has to be true in /some/ index:
     --  = andl'                             = orl'
     cs -> andl' s =<< sequence
            [ orl' s =<< sequence [ go cond abscondind | abscondind <- abscondinds ] 

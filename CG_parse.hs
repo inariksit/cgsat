@@ -44,7 +44,7 @@ parseReading str = maintags ++ concat subtags
  where
   (mainr:subrs) = split (=='+') str
   maintags = map toTag $ filter (not.null) $ split isValid mainr
-  subrs_ns = (map CGB.FromStart [1..]) `zip` map (split isValid) subrs :: [(CGB.Subpos,[String])]
+  subrs_ns = map CGB.FromStart [1..] `zip` map (split isValid) subrs :: [(CGB.Subpos,[String])]
   subtags = map (\(n, strs) -> map (CGB.Subreading n . toTag) strs) subrs_ns
   isValid = (=='<') 
 
@@ -52,17 +52,16 @@ parseReading str = maintags ++ concat subtags
   toTag ">>>" = CGB.BOS
   toTag "<<<" = CGB.EOS
   toTag []    = error "empty tag"
-  toTag str = if last str=='>' then CGB.Tag (init str) 
-                else if last str=='$' then CGB.WF (init str)
-                                      else CGB.Lem str
+  toTag str | last str == '>' = CGB.Tag (init str)
+            | last str == '$' = CGB.WF (init str)
+            | otherwise       = CGB.Lem str
 
 parseRules :: Bool -> String -> ([CGB.TagSet], [[CGB.Rule]]) -- sections
 parseRules test s = case pGrammar (CG.Par.myLexer s) of
             CGErr.Bad err  -> error err
             CGErr.Ok  tree -> let (rules,tags) = runState (parseCGRules tree) emptyEnv
-                              in trace (if test then unwords $ pr rules else "") $
-                                 ((map snd (named tags)
-                                    ++ unnamed tags)
+                              in trace (if test then unwords $ pr rules else "") 
+                                 ( map snd (named tags) ++ unnamed tags
                                  , map rights rules )
   where pr = concatMap $ map pr'
         pr' (Right rule)  = show rule
@@ -78,29 +77,29 @@ parseData s = case pText (Apertium.Par.myLexer s) of
         isEOS = tagsInAna [CGB.Tag "sent", CGB.Lem ".", CGB.Lem "!", CGB.Lem "?"]
 
         tagsInAna :: [CGB.Tag] -> CGB.Cohort -> Bool
-        tagsInAna tags as = any ((not.null) . intersect tags) as
+        tagsInAna tags = any ((not.null) . intersect tags)
 
         sentence s = s --[bos] ++ s ++ [fullstop] ++ [eos]
 
 --------------------------------------------------------------------------------
 --just because it's nice to use them  rules <- readRules foo
 readReadings :: FilePath -> IO [CGB.Reading]
-readReadings fname = (map parseReading . words) `fmap` readFile fname
+readReadings fname = fmap (map parseReading . words) (readFile fname)
 
 readRules :: FilePath -> IO [[CGB.Rule]]
-readRules fname = readFile fname >>= return .snd . parseRules False
+readRules fname = fmap (snd . parseRules False) (readFile fname)
 
 readRules' :: FilePath -> IO ([CGB.TagSet], [[CGB.Rule]])
-readRules' fname = readFile fname >>= return . parseRules False
+readRules' fname = fmap (parseRules False) (readFile fname)
 
 
 readData :: FilePath -> IO [CGB.Sentence]
-readData fname = readFile fname >>= return . parseData
+readData fname = fmap parseData (readFile fname)
 
 main :: IO ()
 main = do args <- getArgs
           case args of
-             [file1,file2] -> do foo1 <- readFile file1 >>= return . parseRules True --verbose
+             [file1,file2] -> do foo1 <- fmap (parseRules True) (readFile file1) --verbose
                                  foo2 <- parseData `fmap` readFile file2 
                                  print foo1
                                  print foo2
@@ -116,7 +115,7 @@ parseCGRules (Sections secs) = mapM parseSection secs
 
 parseSection :: Section -> State Env [Either String CGB.Rule]
 parseSection (Defs defs) =
- do mapM updateEnv defs 
+ do mapM_ updateEnv defs 
     --in case the grammar doesn't specify boundaries 
     modify $ \env -> env { named = (">>>", CGB.TS bos) : named env }
     modify $ \env -> env { named = ("<<<", CGB.TS eos) : named env }
@@ -177,16 +176,17 @@ transSetDecl (List setname tags) =
       tl <- mapM transTag tags
       let tl' = concatMap toTagsLIST tl
       return (name, CGB.TS tl')
-    (SetMeta (UIdent name)) -> do 
-      tl <- mapM transTag tags
-      let tl' = concatMap toTagsLIST tl
-      return (name, CGB.TS tl')
-    (SetSynt (UIdent name)) -> do 
-      tl <- mapM transTag tags
-      let tl' = concatMap toTagsLIST tl
-      return (name, CGB.TS tl')
+    (SetMeta nm) -> transSetDecl $ List (SetName nm) tags
+    (SetSynt nm) -> transSetDecl $ List (SetName nm) tags
 
-                                      
+    --(SetMeta (UIdent name)) 
+    --  tl <- mapM transTag tags
+    --  let tl' = concatMap toTagsLIST tl
+    --  return (name, CGB.TS tl')
+    --(SetSynt (UIdent name)) -> do 
+    --  tl <- mapM transTag tags
+    --  let tl' = concatMap toTagsLIST tl
+    --  return (name, CGB.TS tl')            
 
 transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
@@ -196,12 +196,7 @@ transTag tag = case tag of
                                 _           -> CGB.TS [[CGB.Lem s]]
                       modify $ \env -> env { unnamed = ts : unnamed env }
                       return ts
-  LemmaCI (Str s) -> do let ts = case s of
-                                  ('"':'<':_) -> CGB.TS [[CGB.WF (strip 2 s)]]
-                                  ('"':    _) -> CGB.TS [[CGB.Lem (strip 1 s)]]
-                                  _           -> CGB.TS [[CGB.Lem s]]
-                        modify $ \env -> env { unnamed = ts : unnamed env }
-                        return ts
+  LemmaCI str   -> transTag (Lemma str) 
   --Regex (Str s) -> do let ts = CGB.TS [[CGB.Rgx (mkRegex s) s]]
   --                    modify $ \env -> env { unnamed = ts : unnamed env }
   --                    return ts
@@ -236,7 +231,7 @@ transTagSet :: TagSet -> State Env CGB.TagSet
 transTagSet ts = case ts of
   TagSet tagset  -> transTagSet tagset
   NilT tag       -> transTag tag
-  All            -> return $ CGB.All
+  All            -> return CGB.All
   OR tag _or tagset  -> do tags1 <- transTag tag
                            tags2 <- transTagSet tagset
                            let ts' = CGB.Or tags1 tags2
@@ -337,7 +332,7 @@ transCond c = case c of
         fixPos base c@(CGB.C pos tags:cs) res = --trace (show c ++ " " ++ show res) $
           let newBase = base + getPos pos
               newPos = changePos pos newBase
-          in fixPos newBase cs ((CGB.C newPos tags):res)
+          in fixPos newBase cs (CGB.C newPos tags:res)
 
         getPos pos =
           case pos of
@@ -381,13 +376,13 @@ transPosition pos = case pos of
   AtLPostCaut2 (Signed num) 
               -> mainreading $ CGB.AtLeast CGB.Careful $ read num
   Subreading (Signed num1) (Signed num2)
-              -> return $ (CGB.Exactly CGB.NotCareful $ read num1
-                          , Just $ if (read num2 < 0) 
-                                    then CGB.FromEnd (read num2)
-                                    else CGB.FromStart (read num2))
+              -> return (CGB.Exactly CGB.NotCareful $ read num1
+                        , Just $ if read num2 < 0
+                                  then CGB.FromEnd (read num2)
+                                  else CGB.FromStart (read num2))
 
   SubreadingStar (Signed num) 
-              -> return $ (CGB.Exactly CGB.NotCareful $ read num, Just CGB.Wherever)
+              -> return (CGB.Exactly CGB.NotCareful $ read num, Just CGB.Wherever)
   Cautious position  
               -> cautious `fmap` transPosition position
  where cautious (CGB.Exactly _b num, subr) = (CGB.Exactly CGB.Careful num, subr)
@@ -414,9 +409,9 @@ transLine x = case x of
 transAnalysis :: Integer -> String -> Analysis -> CGB.Reading --[CGB.Tag]
 transAnalysis i wf ana = CGB.WF wf:transAna i ana
   where transAna 0 ana = case ana of
-          IdenA (Iden id) tags    -> CGB.Lem id:(map transTagA tags)
-          PunctA (Punct ".") tags -> CGB.Lem ".":CGB.EOS:(map transTagA tags)
-          PunctA (Punct id) tags -> CGB.Lem id:(map transTagA tags)
+          IdenA (Iden id) tags    -> CGB.Lem id:map transTagA tags
+          PunctA (Punct ".") tags -> CGB.Lem ".":CGB.EOS:map transTagA tags
+          PunctA (Punct id) tags -> CGB.Lem id:map transTagA tags
           SubrA ana1 ana2        -> transAna i ana1 ++ transAna (i+1) ana2
           MweA ana1 ana2        -> transAna i ana1 ++ transAna i ana2 --no subreadings for MWEs
         transAna n (SubrA ana1 ana2) --ana1 is IdenA, ana2 can be another SubrA 

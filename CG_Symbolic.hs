@@ -109,8 +109,8 @@ testRule (verbose,debug) form rds (lastrule,rules) = do
   case (resFst,otherwidths) of
     (NoConf,_) -> return resFst
     (_,    []) -> return resFst
-    (_,     _) -> do when debug $ do
-                        putStrLn $ "rule with *, trying many combinations"
+    (_,     _) -> do when debug $ 
+                        putStrLn "rule with *, trying many combinations"
                      someLengthWorks <- asum `fmap` sequence 
                        [ confToMaybe `fmap` testRule' debug form rds (lastrule,rules) w
                         | w <- nub otherwidths ]
@@ -270,10 +270,10 @@ apply s allinds sentence rule = do
 --OBS. it's also perfectly fine to have an empty condition, ie. remove/select always!
 mkConds :: Solver -> WIndSet -> Sentence -> SIndex -> [[Condition']] -> String -> IO (Maybe [Lit])
 mkConds s allinds sentence trgind disjconjconds str = do
-  -- * conds_absinds = all possible (absolute, not relative) SIndices in range 
-  -- * call mkCond with arguments of type (Condition, [SIndex])
-  -- * in mkCond, sometimes we can get away with a big orl that contains literals
-  --    from different symbolic words, but with cautious or negation, can't do that
+  -- ● conds_absinds = all possible (absolute, not relative) SIndices in range 
+  -- ● call mkCond with arguments of type (Condition, [SIndex])
+  -- ● in mkCond, sometimes we can get away with a big orl that contains literals
+  --  from different symbolic words, but with cautious or negation, can't do that
   let debug = False --str=="testRule" 
 
 
@@ -317,7 +317,7 @@ mkConds s allinds sentence trgind disjconjconds str = do
 mkCond :: Solver -> WIndSet -> Sentence -> String 
        -> [(Condition',[SIndex])] --[(one condition, all possible indices where it can happen)]
        -> IO Lit                  -- needs to happen in only one ind; that's the orl' 2 lines down!
-mkCond s allinds sentence str conjconds_absinds = do 
+mkCond s allinds sentence str conjconds_absinds = 
   andl' s =<< sequence [ orl' s  =<< sequence
                          [ go cond absind | absind <- absinds ] 
                           | (cond,absinds) <- conjconds_absinds ]
@@ -326,7 +326,7 @@ mkCond s allinds sentence str conjconds_absinds = do
   lookup' b ai is = case IM.lookup ai sentence of
                       Nothing -> if b then error "mkCond: index out of bounds"
                                   else [true] --if no -100, then `NOT -100 foo' is true
-                      Just wd -> mapMaybe (\i -> IM.lookup i wd) (IS.toList is)
+                      Just wd -> mapMaybe (`IM.lookup` wd) (IS.toList is)
 
   go :: Condition' -> SIndex -> IO Lit 
   go Always' _  = return true
@@ -392,7 +392,7 @@ mkSentence s w tcs = IM.fromList `fmap` sequence
                             | n <- [1..w] ] 
  where
   showReading [l] _ m = show l ++ "_" ++ show m
-  showReading ts i m  = "w" ++ show i ++ (concatMap (\t -> '<':show t++">") ts)
+  showReading ts i m  = "w" ++ show i ++ concatMap (\t -> '<':show t++">") ts
 
 mkTagMap :: [Tag] -> [[Tag]] -> TagMap
 mkTagMap ts tcs = M.fromList $
@@ -428,9 +428,7 @@ lookupTag alltags allinds (trg,dif) =
 lookupLit :: Sentence -> SIndex -> WIndex -> Lit
 lookupLit sentence si wi = 
   case IM.lookup si sentence of
-    Just ts -> case IM.lookup wi ts of
-                 Just tag -> tag
-                 Nothing  -> error "lookupLit: reading not found"
+    Just ts -> fromMaybe (error "lookupLit: reading not found") (IM.lookup wi ts)
     Nothing -> true --If index is out of bounds, we are sent here by negated rule.
                     --If there is no -100, then `NOT -100 foo' is true.
 
@@ -453,7 +451,7 @@ width cs   = [ (len, tind) | (mi,ma) <- mins_maxs
                            , let tind = maybe 99999 (1+) (elemIndex 0 [mi..ma]) ]
  where
   mins_maxs = [ (0 `min` minimum pos, 0 `max` maximum pos) | pos <- poss ]
-  poss = sequence $ map getPos (concat cs)
+  poss = mapM getPos (concat cs)
 
 --for (C)BARRIER, count an extra place to place the barrier tag
 posToInts :: Position -> [Int]
@@ -463,7 +461,7 @@ posToInts (Barrier _ _ i _)  = if i<0 then [i,i-1,i-2] else [i,i+1,i+2]
 --TODO fix the LINK case
 posToInts (LINK parent child) = --trace (show (posToInts parent) ++ ", " ++ show child) $
                                [ pI + cI | (pI,cI) <- posToInts parent 
-                                          `zip` (cycle $ posToInts child) ]
+                                          `zip` cycle (posToInts child) ]
 
 getPos :: Condition' -> [Int]
 getPos Always'    = [1]
@@ -485,7 +483,7 @@ parse str = maintags ++ concat subtags
  where
   (mainr:subrs) = split (=='+') str
   maintags = map toTag $ filter (not.null) $ split isValid mainr
-  subrs_ns = (map FromStart [1..]) `zip` map (split isValid) subrs :: [(Subpos,[String])]
+  subrs_ns = map FromStart [1..] `zip` map (split isValid) subrs :: [(Subpos,[String])]
   subtags = map (\(n, strs) -> map (Subreading n . toTag) strs) subrs_ns
   isValid = (=='<') 
 
@@ -493,9 +491,9 @@ parse str = maintags ++ concat subtags
   toTag ">>>" = BOS
   toTag "<<<" = EOS
   toTag []    = error "empty tag"
-  toTag str = if last str=='>' then Tag (init str) 
-                else if last str=='$' then WF (init str)
-                                      else Lem str
+  toTag str | last str=='>' = Tag (init str) 
+            | last str=='$' = WF (init str)
+            | otherwise     = Lem str
 
 split :: (a -> Bool) -> [a] -> [[a]]
 split p [] = []
