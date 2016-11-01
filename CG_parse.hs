@@ -316,7 +316,7 @@ transCond c = case c of
   CondNotBar pos ts bts   -> barrier pos ts bts CGB.Neg CGB.NotCareful
   CondCBarrier pos ts bts -> barrier pos ts bts CGB.Pos CGB.Careful
   CondNotCBar pos ts bts  -> barrier pos ts bts CGB.Neg CGB.Careful
-  CondTempl templs        -> do cs <- mapM (transCond . (\(Templ c) -> c)) templs
+  CondTemplInl templs     -> do cs <- mapM (transCond . (\(TemplDef c) -> c)) templs
                                 return $ foldr1 CGB.OR cs
 
   --TODO 

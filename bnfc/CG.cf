@@ -89,7 +89,7 @@ CondCBarrier. Cond1 ::= Position TagSet "CBARRIER" TagSet ;
 CondNotBar.   Cond1 ::= "NOT" Position TagSet "BARRIER" TagSet ;
 CondNotCBar.  Cond1 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
 CondLinked.   Cond  ::= [Cond1] ;
-CondTempl.    Cond  ::= [Template] ;
+CondTemplInl. Cond  ::= [Template] ;
 _.            Cond ::= "(" Cond ")" ; 
 
 
@@ -98,7 +98,7 @@ separator nonempty Cond "" ;
 
 -- Template: REMOVE V-FIN IF (0 Inf) ((1C* V-FIN) OR (-1C* V-FIN));
 -- OR separates here conditions, not tagsets.
-Templ.    Template ::= "(" Cond1 ")" ;
+TemplDef.    Template ::= "(" Cond1 ")" ;
 separator nonempty Template "OR" ;
 
 TagSet.  TagSet  ::= TagSet1 ;
