@@ -144,7 +144,7 @@ toTags ts = case ts of
 toTags' (TS tags) = tags
 toTags' (Or ts1 ts2) = toTags' ts1 ++ toTags' ts2
 toTags' (Diff ts1 ts2) = toTags' ts1 \\ toTags' ts2 
-toTags' (Cart ts1 ts2) = map concat $ sequence [(toTags' ts1), (toTags' ts2)]
+toTags' (Cart ts1 ts2) = map concat $ sequence [toTags' ts1, toTags' ts2]
 toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
 
 
@@ -158,7 +158,7 @@ toTags' All = [[]] --matches all: from CG_SAT.tagsMatchRule
 data Condition = C Position (Polarity, TagSet)
                | Always
                | AND Condition Condition 
-               | OR Condition Condition  deriving (Eq)
+               | OR Condition Condition  deriving (Eq,Ord)
 
 data Polarity = Pos | Neg deriving (Show,Eq,Ord)
 
@@ -206,14 +206,14 @@ ie. AND (OR C1 C2) (C3) ---> OR (AND C1 C3) (AND C2 C3)
 toConds cond = case cond of
     C   _pos       _tags -> [[cond]]
     Always               -> [[Always]]
-    AND Always c2        -> [[Always]]
-    AND c1 Always        -> [[Always]]
+    AND Always c2        -> toConds c2 --Always is just empty condition; 
+    AND c1 Always        -> toConds c1 --if paired with another, it's meaningless
     OR Always c2         -> toConds c2
     OR c1 Always         -> toConds c1
     AND c1@(C _ _) c2    -> map (c1:) (toConds c2)
-    OR  c1@(C _ _) c2    -> [c1]:(toConds c2)
+    OR  c1@(C _ _) c2    -> [c1]:toConds c2
     AND c2  c1@(C _ _)   -> map (c1:) (toConds c2)
-    OR  c2  c1@(C _ _)   -> [c1]:(toConds c2)
+    OR  c2  c1@(C _ _)   -> [c1]:toConds c2
     AND (AND c1 c2) (OR  c3 c4) -> toConds $ OR (AND c1 (AND c2 c3))
                                                 (AND c1 (AND c2 c4))
     AND (OR  c3 c4) (AND c1 c2) -> toConds $ OR (AND c1 (AND c2 c3))
@@ -232,12 +232,12 @@ toCond condss = foldl1 OR [ foldl1 AND conds | conds <- condss ]
 -------------------------------------------------------------------------------- 
 -- Positions
 
-data Cautious = Careful | NotCareful deriving (Show,Eq)
+data Cautious = Careful | NotCareful deriving (Show,Eq,Ord)
 
 data Position = Exactly {getCautious::Cautious, posToInt::Int}
               | AtLeast {getCautious::Cautious, posToInt::Int}
               | Barrier {getCautious::Cautious, barrierCautious::Cautious, posToInt::Int, getBtags::TagSet}
-              | LINK {parent::Position , self::Position} deriving (Eq)
+              | LINK {parent::Position , self::Position} deriving (Eq,Ord)
 
 
 instance Show Position where
@@ -282,8 +282,8 @@ instance Show Rule where
   show (Select  NoName   tags cond) = "SELECT " ++ show tags ++ " IF " ++ show cond 
 
 isSelect :: Rule -> Bool 
-isSelect (Select _ _ _ ) = True
-isSelect _               = False
+isSelect Select{} = True
+isSelect _        = False
 
 
 hasBoundary :: Rule -> Bool
