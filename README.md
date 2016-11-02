@@ -5,14 +5,24 @@ Implementing Constraint Grammar using SAT solver.
 
 ### Download:
 
-`git clone --recursive https://github.com/inariksit/cgsat`
+`git clone https://github.com/inariksit/cgsat`
 
-It's using [SAT+](https://github.com/koengit/satplus) by [Koen Claessen](https://github.com/koengit/), more precisely, [my fork](https://github.com/inariksit/satplus). But here's all kinds of git submodule black magic happening, everything should work just with `git clone --recursive`.
+It's using [SAT+](https://github.com/koengit/satplus) by [Koen Claessen](https://github.com/koengit/), more precisely, [my fork](https://github.com/inariksit/satplus). This should be included by the stack.yaml file. 
 
-### Install: 
 
-Just type `make`.
-It will first compile the BNFC files and then just do cabal configure && cabal build.
+### Install:
+
+I should update the makefile and the .cabal file and all kinds of stuffs, so don't trust the documentation. As of 2 Nov 2016, it will sort of work if you type:
+
+```
+> make grammars
+.... (stuff will happen or not)
+> stack build
+```
+
+and then you can run a test: `stack exec analyse kimmo`. This should output some weird stuff about implicit and explicit kimmos (thanks to Kimmo Koskenniemi for the example).
+I'll fix this properly hopefully this year.
+
 
 -----------------------
 
