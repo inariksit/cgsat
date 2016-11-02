@@ -45,8 +45,8 @@ main = do
       rules <- concat `fmap` map reverse `fmap` readRules grfile
       text <- readData txtfile
 
-      --let sortedText = sortBy (\a b -> length a `compare` length b) text
-      --mapM_ (\x -> putStr $ (show (length x) ++ "\n\t" ++ show x++ "\n")) (reverse $ sortedText)
+      let sortedText = sortBy (\a b -> length a `compare` length b) text
+      mapM_ (\x -> putStr $ (show (length x) ++ "\n\t" ++ show x++ "\n")) (take 5 $ reverse $ sortedText)
 
       allrds <- readReadings rdsfile 
       --let allrds = concat $ concat text

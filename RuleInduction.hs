@@ -1,6 +1,6 @@
 module Main where
 
-import Prelude hiding ( nub )
+import Prelude hiding ( nub, Word )
 import Data.Char
 import Data.List hiding ( nub )
 import qualified Data.Set as S
@@ -10,8 +10,8 @@ import Data.Map( Map )
 import System.IO
 
 file, gold :: FilePath
-file = "data/es.tagged.ambiguous"
-gold = "data/es.tagged"
+file = "data/spa/20k.tagged.ambiguous"
+gold = "data/spa/20k.tagged"
 
 evens (x:y:xs) = x : evens xs
 evens xs       = xs

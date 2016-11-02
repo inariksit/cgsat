@@ -46,15 +46,15 @@ main = do
     [r,"reverse"]   -> rev r spa20k spa20kgold spaPre
     ["enreverse"]   -> rev engr entext engold enpre
     ["opticomp",n]  -> optiComp spaSmall spa20k (read n)
-    ("gold":"orig":o) -> gold' ("par" `elem` o) spaFull spa20k spa20kgold
+    ("gold":"orig":o) -> gold' ("max" `elem` o) spaFull spa20k spa20kgold
     ["gold","opti"] -> opti spaSmall spa20k 
     ["gold","obs"]  -> optiBySz spaSmall spa20k
     ["gold"]        -> gold spaSmall spa20k spa20kgold
-    ["gold","par"]  -> goldPar spaSmall spa20k spa20kgold
+    ["gold","max"]  -> goldPar spaSmall spa20k spa20kgold
     ["goldrus"]     -> gold rusgr rustext undefined
     ["engold"]      -> gold engr entext engold
     ["nldgold"]     -> gold nldgr nldtext nldgold
-    (r:"gold":o)    -> gold' ("par" `elem` o) r spa20k spa20kgold --specify grammar
+    (r:"gold":o)    -> gold' ("max" `elem` o) r spa20k spa20kgold --specify grammar
 
     (r:d:o) -> do rules <- readRules r
                   text <- readData d
@@ -75,7 +75,8 @@ main = do
                     prAll "" resSAT resVISL text verbose
                     putStrLn ""
 
-    _          -> putStrLn "usage: ./test <rules> <data> (or something else, check the source code test/Test.hs >__>)"
+    _          -> do putStrLn "usage: one of the following"
+                     mapM_ putStrLn ["<rules> [gold | <data>] [par run sec]"]
 
 
 goldPar rl dt g = gold' True rl dt g

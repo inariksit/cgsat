@@ -78,24 +78,6 @@ SECTION
 
 # Playground area 
 
-# unsafe
-
-SELECT DetPos - Zijn IF (1 Noun) (0 "zijn");
-SELECT DetPos IF (-1 (vblex pres p3 sg)) (0 ("zijn"i)) (1 Noun);
-
-
-
-
-# is zijn zus
-#SELECT DetPos + Zijn IF (-1 (vblex pres p3 sg)) (1 Noun);
-
-
-#SELECT DetPos IF  (0 ("zijn"i)) (1 Noun);
-
-
-REMOVE Pr IF (1 Adj) ;
-REMOVE Pr IF (1* Adj) ;
-
 
 # real grammar starts !
 
@@ -120,7 +102,7 @@ REMOVE HaarN IF (1 Noun);
 SELECT DetPosNotZijn IF (1 Noun);
 
 REMOVE Noun IF (-1 PrnNotPers) (NOT -1 DetHet);
-# REMOVE:r_n_prNotPersNotDetHet Noun IF (-1 PrnNotPers - DetHet);
+
 
 SELECT Noun IF (-1 DetPos) (1 EOS);
 

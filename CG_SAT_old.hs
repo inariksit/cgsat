@@ -151,9 +151,9 @@ applyRule :: Solver
           -> [Token]      -- ^ Text to disambiguate
           -> Rule         -- ^ Rule to apply 
                           -- returns a list of triples:
-          -> IO [(Rule,   -- ^ * the rule with the clauses it has generated
-                [Clause], -- ^ * list of clauses
-                [Lit])]   -- ^ * debug help output; helper variables created for conditions
+          -> IO [(Rule,   -- the rule with the clauses it has generated
+                [Clause], --  list of clauses
+                [Lit])]   --  debug help output; helper variables created for conditions
 applyRule s toks rule = do
   case rule of 
     (Remove _name target conds) 

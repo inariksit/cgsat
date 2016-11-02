@@ -10,27 +10,27 @@ import SAT.Named
 --------------------------------------------------------------------------------
 -- example use
 
--- main :: IO ()
--- main =
---   do s <- readFile "spa-ambiguity-classes"
---      let ls   = lines s
---          xss  = map read ls :: [[Int]]
---          univ = S.toList . S.fromList . concat $ xss
+ --main :: IO ()
+ --main =
+ --  do s <- readFile "spa-ambiguity-classes"
+ --     let ls   = lines s
+ --         xss  = map read ls :: [[Int]]
+ --         univ = S.toList . S.fromList . concat $ xss
      
---      -- compute the formula once
---      putStrLn "Computing formula..."
---      let p = formula xss
---      (p == p) `seq` putStrLn "Done."
+ --     -- compute the formula once
+ --     putStrLn "Computing formula..."
+ --     let p = formula xss
+ --     (p == p) `seq` putStrLn "Done."
 
---      -- reuse it many times
---      putStrLn "Generating constraints..."
---      s  <- newSolver
---      qs <- sequence [ newLit s | y <- univ ]
---      let tab  = M.fromList (univ `zip` qs)
---          mp y = fromJust (M.lookup y tab)
---      constraints s mp [] p
---      deleteSolver s
---      putStrLn "Done.
+ --     -- reuse it many times
+ --     putStrLn "Generating constraints..."
+ --     s  <- newSolver
+ --     qs <- sequence [ newLit s | y <- univ ]
+ --     let tab  = M.fromList (univ `zip` qs)
+ --         mp y = fromJust (M.lookup y tab)
+ --     constraints s mp [] p
+ --     deleteSolver s
+ --     putStrLn "Done."
 
 test :: IO ()
 test =
