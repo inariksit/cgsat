@@ -1,0 +1,4 @@
+*.ambiguous*
+*.readings*
+*.expanded*
+*.ambiguity-classes*
