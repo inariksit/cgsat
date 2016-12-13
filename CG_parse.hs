@@ -29,9 +29,10 @@ import Text.Regex ( mkRegex )
 import qualified CG_base as CGB
 
 data Env = Env { named :: [(String, CGB.TagSet)]
-               , unnamed :: [CGB.TagSet] }
+               , unnamed :: [CGB.TagSet] 
+               , templates :: [(String,CGB.Condition)] }
 
-emptyEnv = Env [] []
+emptyEnv = Env [] [] []
 
 --toTags from CGB returns (target::[[Tag]], diff::[[Tag]]).
 --This is needed only for the set operation Diff.
@@ -130,15 +131,18 @@ parseSection (Defs defs) =
                                      parseAndModify e' defs (strOrRl:acc)
   
   updateEnv :: Def -> State Env ()
-  updateEnv (RuleDef r) = return ()
-  updateEnv (SetDef s) = do nameTags <- transSetDecl s
-                            modify $ \env -> env { named = nameTags : named env }
+  updateEnv (RuleDef r)  = return ()
+  updateEnv (SetDef s)   = do names <- transSetDecl s
+                              modify $ \env -> env { named = names : named env }
+  updateEnv (TemplDef t) = do templs <- transTemplDecl t
+                              modify $ \env -> env { templates = templs : templates env }
+
 
   parseRules' :: Env -> Def -> (Env, Either String CGB.Rule)
-  parseRules' e (SetDef  s) = (e, Left $ CG.Print.printTree s)
-  parseRules' e (RuleDef r) = let (r', e') = runState (transRule r) e
-                              in (e', Right r')
-
+  parseRules' e (RuleDef  r) = let (r', e') = runState (transRule r) e
+                               in (e', Right r')
+  parseRules' e (SetDef   s) = (e, Left $ CG.Print.printTree s)
+  parseRules' e (TemplDef t) = (e, Left $ CG.Print.printTree t)
 
 split :: (a -> Bool) -> [a] -> [[a]]
 split p [] = []
@@ -186,7 +190,12 @@ transSetDecl (List setname tags) =
     --(SetSynt (UIdent name)) -> do 
     --  tl <- mapM transTag tags
     --  let tl' = concatMap toTagsLIST tl
-    --  return (name, CGB.TS tl')            
+    --  return (name, CGB.TS tl')      
+
+transTemplDecl :: TemplDecl -> State Env (String, CGB.Condition)
+transTemplDecl templ = case templ of
+  SingleTempl name cond  -> undefined
+  ListTempl   name conds -> undefined
 
 transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
@@ -316,7 +325,11 @@ transCond c = case c of
   CondNotBar pos ts bts   -> barrier pos ts bts CGB.Neg CGB.NotCareful
   CondCBarrier pos ts bts -> barrier pos ts bts CGB.Pos CGB.Careful
   CondNotCBar pos ts bts  -> barrier pos ts bts CGB.Neg CGB.Careful
-  CondTemplInl templs     -> do cs <- mapM (transCond . (\(TemplDef c) -> c)) templs
+  CondTemplate (SetName (UIdent templName))
+                          -> do templs <- gets templates 
+                                let Just cond = lookup templName templs
+                                return cond
+  CondTemplInl templs     -> do cs <- mapM (transCond . (\(Template c) -> c)) templs
                                 return $ foldr1 CGB.OR cs
 
   --TODO 
