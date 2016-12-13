@@ -37,6 +37,16 @@ SetDef. Def  ::= SetDecl ;
 Set.  SetDecl ::= "SET" SetName "=" TagSet ";" ;
 List. SetDecl ::= "LIST" SetName "=" [Tag] ";" ;
 
+
+-- Templates are contextual tests identified by a name. 
+-- They are referred to as T:name in rules.
+
+TemplDef. Def  ::= TemplDecl ;
+
+ListTempl.   TemplDecl ::= "TEMPLATE" SetName "=" [Template] ";" ; --This allows Template to contain T:templ, which is intended behaviour.
+SingleTempl. TemplDecl ::= "TEMPLATE" SetName "=" Cond1 ";" ;
+
+
 -- Set names start with uppercase letter or number 
 SetName.  SetName ::= UIdent ;
 SetMeta.  SetName ::= "<" UIdent ">" ;
@@ -82,24 +92,34 @@ SubrTarget.      Subr ::= "SUB" ":" Signed ;
 SubrTargetStar.  Subr ::= "SUB:*" ;
 SubrEmpty.       Subr ::= ;
 
-CondNotPos.   Cond1 ::= "NOT" Position TagSet ;
-CondPos.      Cond1 ::= Position TagSet ;
-CondBarrier.  Cond1 ::= Position TagSet "BARRIER" TagSet ;
-CondCBarrier. Cond1 ::= Position TagSet "CBARRIER" TagSet ;
-CondNotBar.   Cond1 ::= "NOT" Position TagSet "BARRIER" TagSet ;
-CondNotCBar.  Cond1 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
-CondLinked.   Cond  ::= [Cond1] ;
-CondTemplInl. Cond  ::= [Template] ;
-_.            Cond ::= "(" Cond ")" ; 
+CondNotPos.   Cond2 ::= "NOT" Position TagSet ;
+CondPos.      Cond2 ::= Position TagSet ;
+CondBarrier.  Cond2 ::= Position TagSet "BARRIER" TagSet ;
+CondCBarrier. Cond2 ::= Position TagSet "CBARRIER" TagSet ;
+CondNotBar.   Cond2 ::= "NOT" Position TagSet "BARRIER" TagSet ;
+CondNotCBar.  Cond2 ::= "NOT" Position TagSet "CBARRIER" TagSet ;
+CondTemplate. Cond2 ::= "T:" SetName ; --Can be linked: SELECT (tag) IF (1 foo LINK T:tmpl LINK 1* bar) ;
+
+CondLinked.   Cond1  ::= [Cond2] ; 
+CondTemplInl. Cond1  ::= "(" [Template] ")" ; -- I think VISL CG-3 accepts it without parentheses.
+											  -- Whatever, this is a terribly easy preprocessing step,
+											  -- and saves me one shift/reduce conflict.
+
+_.            Cond ::= "(" Cond1 ")" ;
 
 
-separator nonempty Cond1 "LINK" ;
+separator nonempty Cond2 "LINK" ;
+separator nonempty Cond1 "" ;
 separator nonempty Cond "" ;
 
 -- Template: REMOVE V-FIN IF (0 Inf) ((1C* V-FIN) OR (-1C* V-FIN));
 -- OR separates here conditions, not tagsets.
-TemplDef.    Template ::= "(" Cond1 ")" ;
+Template. Template ::= "(" Cond1 ")" ;
 separator nonempty Template "OR" ;
+
+-- Adds 2 shift/reduce conflicts :(
+--TemplateDef.  Template ::= Cond ;
+--separator nonempty Template "OR" ;
 
 TagSet.  TagSet  ::= TagSet1 ;
 
