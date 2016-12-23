@@ -17,19 +17,14 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_SAT.hs
---  other-modules:       
-
+  exposed-modules:     CG_SAT
   build-depends:       array
                      , base
                      , cghs
                      , minisat
                      , satplus
-                     --, containers
-                     --, mtl                     
-                     --, process
 
-  hs-source-dirs:      src, satplus
+  hs-source-dirs:      src
   ghc-options:         -O2
   build-tools:         alex, happy
   default-language:    Haskell2010
@@ -37,7 +32,7 @@ library
 
 executable disam
   hs-source-dirs:      app
-  main-is:             Disambiguate.hs
+  main-is:             Disambiguate
   build-depends:       array
                      , base
                      , cghs
@@ -47,7 +42,7 @@ executable disam
 
 executable analyse
   hs-source-dirs:      app
-  main-is:             Analyse.hs
+  main-is:             Analyse
   build-depends:       array
                      , base
                      , cghs
@@ -60,11 +55,11 @@ executable analyse
 Test-Suite spec
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  main-is:             Spec.hs
+  main-is:             Spec
   build-depends:       base
                      , cghs
                      , minisat
                      , satplus
-                       QuickCheck
+                     , QuickCheck
   default-language:    Haskell2010
 
