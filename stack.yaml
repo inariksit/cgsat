@@ -43,6 +43,9 @@ packages:
 - location:
    git: https://github.com/inariksit/satplus.git
    commit: b3a77d3361823bfd57ea059115c8d23f5336237d
+- location:
+   git: https://github.com/inariksit/cghs.git
+   commit: b5ae7b96caa4e933de21e32d5458e298c6ff24d5
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
