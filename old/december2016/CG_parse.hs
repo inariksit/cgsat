@@ -23,6 +23,7 @@ import Control.Applicative
 import Control.Monad.State.Lazy
 import Data.Either
 import Data.List
+import Data.Maybe
 import Debug.Trace
 import Text.Regex ( mkRegex )
 
@@ -160,42 +161,37 @@ strip n = drop n . reverse . drop n . reverse
 transSetDecl :: SetDecl -> State Env (String, CGB.TagSet)
 transSetDecl (Set setname tagset) = 
   case setname of
-    BOS          -> return (">>>", CGB.TS bos)
-    EOS          -> return ("<<<", CGB.TS eos)
-    (SetName (UIdent name)) -> do 
-      ts <- transTagSet tagset
-      return (name, ts)
-    (SetMeta (UIdent name)) -> do 
-      ts <- transTagSet tagset
-      return ("<" ++ name ++ ">", ts)
-    (SetSynt (UIdent name)) -> do 
-      ts <- transTagSet tagset
-      return ("@" ++ name, ts)
+    BOS -> return (transSetName BOS, CGB.TS bos)
+    EOS -> return (transSetName EOS, CGB.TS eos)
+    nm  -> (,) (transSetName nm) `fmap` transTagSet tagset
 
 transSetDecl (List setname tags) = 
   case setname of
-    BOS          -> return (">>>", CGB.TS bos)
-    EOS          -> return ("<<<", CGB.TS eos)
-    (SetName (UIdent name)) -> do 
-      tl <- mapM transTag tags
-      let tl' = concatMap toTagsLIST tl
-      return (name, CGB.TS tl')
-    (SetMeta nm) -> transSetDecl $ List (SetName nm) tags
-    (SetSynt nm) -> transSetDecl $ List (SetName nm) tags
+    BOS -> return (transSetName BOS, CGB.TS bos)
+    EOS -> return (transSetName EOS, CGB.TS eos)
+    nm  -> do taglist <- mapM transTag tags
+              let tl' = concatMap toTagsLIST taglist
+              return (transSetName nm, CGB.TS tl')
 
-    --(SetMeta (UIdent name)) 
-    --  tl <- mapM transTag tags
-    --  let tl' = concatMap toTagsLIST tl
-    --  return (name, CGB.TS tl')
-    --(SetSynt (UIdent name)) -> do 
-    --  tl <- mapM transTag tags
-    --  let tl' = concatMap toTagsLIST tl
-    --  return (name, CGB.TS tl')      
+transSetName :: SetName -> String
+transSetName setname =
+  case setname of
+    BOS                   -> ">>>"
+    EOS                   -> "<<<"
+    SetName (UIdent name) -> name
+    SetMeta (UIdent name) -> "<" ++ name ++ ">"
+    SetSynt (UIdent name) -> "@" ++ name
 
 transTemplDecl :: TemplDecl -> State Env (String, CGB.Condition)
 transTemplDecl templ = case templ of
-  SingleTempl name cond  -> undefined
-  ListTempl   name conds -> undefined
+  SingleTempl nm cond  -> (,) (transSetName nm) `fmap` transCond cond
+  ListTempl   nm conds -> (,) (transSetName nm) `fmap` transTempls conds
+   where 
+    fromTemplate (Template cond) = cond
+    transTempls = transCondSet . map fromTemplate
+
+
+
 
 transTag :: Tag -> State Env CGB.TagSet
 transTag tag = case tag of
@@ -325,23 +321,29 @@ transCond c = case c of
   CondNotBar pos ts bts   -> barrier pos ts bts CGB.Neg CGB.NotCareful
   CondCBarrier pos ts bts -> barrier pos ts bts CGB.Pos CGB.Careful
   CondNotCBar pos ts bts  -> barrier pos ts bts CGB.Neg CGB.Careful
-  CondTemplate (SetName (UIdent templName))
-                          -> do templs <- gets templates 
-                                let Just cond = lookup templName templs
+  CondTemplate setname    -> do templs <- gets templates 
+                                let templName = transSetName setname
+                                --TODO: some actual error handling
+                                let cond = CGB.Always `fromMaybe` lookup templName templs
                                 return cond
   CondTemplInl templs     -> do cs <- mapM (transCond . (\(Template c) -> c)) templs
                                 return $ foldr1 CGB.OR cs
 
   --TODO 
-  CondLinked (c1:c2:cs)   -> do parent@(CGB.C posParent _tags) <- transCond c1
-                                firstChild@(CGB.C posBase _tags) <- transCond c2
-                                let base = getPos posBase
-                                otherChildren <- mapM transCond cs
-                                let fixedConds = map (addParent posParent) (firstChild:fixPos base otherChildren [])
-                                return $ foldr CGB.AND parent fixedConds
 
-
-  where fixPos base []                  res = res
+  CondLinked (par:cs)   -> do parent@(CGB.C posParent _tags) <- transCond par
+                              let base = getPos posParent
+                              children <- mapM transCond cs
+                              let fixedConds = map (addParent posParent) (fixPos base children [])
+                              return $ foldr CGB.AND parent fixedConds
+  --CondLinked (c1:c2:cs)   -> do parent@(CGB.C posParent _tags) <- transCond c1
+  --                              firstChild@(CGB.C posBase _tags) <- transCond c2
+  --                              let base = getPos posBase
+  --                              otherChildren <- mapM transCond cs
+  --                              let fixedConds = map (addParent posParent) (firstChild:fixPos base otherChildren [])
+  --                              return $ foldr CGB.AND parent fixedConds
+  x  -> error $ show x
+  where fixPos base []                    res = res
         fixPos base c@(CGB.C pos tags:cs) res = --trace (show c ++ " " ++ show res) $
           let newBase = base + getPos pos
               newPos = changePos pos newBase

@@ -117,9 +117,6 @@ separator nonempty Cond "" ;
 Template. Template ::= "(" Cond1 ")" ;
 separator nonempty Template "OR" ;
 
--- Adds 2 shift/reduce conflicts :(
---TemplateDef.  Template ::= Cond ;
---separator nonempty Template "OR" ;
 
 TagSet.  TagSet  ::= TagSet1 ;
 

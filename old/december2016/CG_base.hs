@@ -97,16 +97,16 @@ data TagSet =
   deriving (Eq,Ord)
 
 instance Show TagSet where
-  show (TS tags) = showReadinget tags
+  show (TS tags) = showReadings tags
   show (Or ts1 ts2) = show ts1 ++ "|" ++ show ts2
   show (Diff ts1 ts2) = show ts1 ++ " - " ++ show ts2 
 --  show (Cart ts1 ts2) = show $ map concat $ sequence [(toTags' ts1), (toTags' ts2)] 
   show (Cart ts1 ts2) = show ts1 ++ " + " ++ show ts2
   show All = "(*)"
 
-showReadinget :: [[Tag]] -> String
-showReadinget [[x]] = show x 
-showReadinget xs    = intercalate "|" $ map show' xs
+showReadings :: [[Tag]] -> String
+showReadings [[x]] = show x 
+showReadings xs    = intercalate "|" $ map show' xs
   where show' [y] = show y 
         show' ys  = "(" ++ unwords (map show ys) ++ ")"
 
@@ -245,21 +245,25 @@ instance Show Position where
   show (AtLeast Careful i) = "*" ++ show i ++ "C"
   show (Exactly NotCareful i) = show i
   show (AtLeast NotCareful i) = "*" ++ show i
-  show (LINK pos1 linkedpos) = show pos1 ++ " LINK " ++ show linkedpos
-  show p                 = let (a,b) = showPosTuple p in a++b
+  show (LINK pos1 linkedpos)  = show pos1 ++ " LINK " ++ show linkedpos
+  show p = let (a,b) = showPosTuple p in a++b
 
 showPosTuple :: Position -> (String, String)
-showPosTuple (Barrier Careful  NotCareful i ts) = ("*" ++ show i ++ "C ", " BARRIER " ++ show ts)
-showPosTuple (Barrier Careful  Careful  i ts) = ("*" ++ show i ++ "C ", " CBARRIER " ++ show ts)
-showPosTuple (Barrier NotCareful NotCareful i ts) = ("*" ++ show i ++ " ", " BARRIER " ++ show ts)
-showPosTuple (Barrier NotCareful Careful  i ts) = ("*" ++ show i ++ " ", " CBARRIER " ++ show ts)
+showPosTuple (Barrier Careful    NotCareful i ts) = ( "*" ++ show i ++ "C " 
+                                                    , " BARRIER " ++ show ts)
+showPosTuple (Barrier Careful    Careful  i ts)   = ( "*" ++ show i ++ "C "
+                                                    , " CBARRIER " ++ show ts)
+showPosTuple (Barrier NotCareful NotCareful i ts) = ( "*" ++ show i ++ " "
+                                                    , " BARRIER " ++ show ts)
+showPosTuple (Barrier NotCareful Careful  i ts)   = ( "*" ++ show i ++ " "
+                                                    , " CBARRIER " ++ show ts)
 showPosTuple p = (show p, "")
 
 isCareful :: Position -> Bool
 isCareful (Exactly b _) = b==Careful
 isCareful (AtLeast b _) = b==Careful
 isCareful (Barrier b _ _ _) = b==Careful
-isCareful (LINK _par child) = isCareful child
+isCareful (LINK _par child) = isCareful child --TODO
 
 -------------------------------------------------------------------------------- 
 -- Rule
