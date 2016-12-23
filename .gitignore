@@ -4,4 +4,13 @@
 *.ambiguity-classes*
 .DS_Store
 *~
-data/*
+*.aux
+*.bbl
+*.bib
+*.blg
+*.bst
+*.out
+*.sty
+*.bak
+.stack-work/
+data*/
