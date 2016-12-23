@@ -4,3 +4,4 @@
 *.ambiguity-classes*
 .DS_Store
 *~
+data/*
