@@ -2,3 +2,5 @@
 *.readings*
 *.expanded*
 *.ambiguity-classes*
+.DS_Store
+*~
