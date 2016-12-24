@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_SAT
+  exposed-modules:     CG_SAT, AmbiguityClass
   build-depends:       array
                      , base
                      , cghs
@@ -32,20 +32,22 @@ library
 
 executable disam
   hs-source-dirs:      app
-  main-is:             Disambiguate
+  main-is:             Disambiguate.hs
   build-depends:       array
                      , base
                      , cghs
+                     , cgsat
                      , minisat
                      , satplus
   default-language:    Haskell2010
 
 executable analyse
   hs-source-dirs:      app
-  main-is:             Analyse
+  main-is:             Analyse.hs
   build-depends:       array
                      , base
                      , cghs
+                     , cgsat
                      , minisat
                      , satplus
   default-language:    Haskell2010
@@ -55,7 +57,7 @@ executable analyse
 Test-Suite spec
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  main-is:             Spec
+  main-is:             Spec.hs
   build-depends:       base
                      , cghs
                      , minisat
