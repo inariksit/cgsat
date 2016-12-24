@@ -7,51 +7,35 @@ Implementing Constraint Grammar using SAT solver.
 
 `git clone https://github.com/inariksit/cgsat`
 
-It's using [SAT+](https://github.com/koengit/satplus) by [Koen Claessen](https://github.com/koengit/), more precisely, [my fork](https://github.com/inariksit/satplus). This should be included by the stack.yaml file. 
-
+It's using [SAT+](https://github.com/koengit/satplus) by [Koen Claessen](https://github.com/koengit/), more precisely, [my fork](https://github.com/inariksit/satplus). As of December 2016, I've moved the actual Haskell format and the BNFC parser into another repository,  [cghs](https://github.com/inariksit/cghs). All of this should be included in `stack.yaml`.
 
 ### Install:
 
-I should update the makefile and the .cabal file and all kinds of stuffs, so don't trust the documentation. As of 2 Nov 2016, it will sort of work if you type:
-
-```
-> make grammars
-.... (stuff will happen or not)
-> stack build
-```
-
-and then you can run a test: `stack exec analyse kimmo`. This should output some weird stuff about implicit and explicit kimmos (thanks to Kimmo Koskenniemi for the example).
-I'll fix this properly hopefully this year.
+Type `stack build`. It should fetch stuff from my two other git repositories. You should also have `bnfc`, `happy` and `alex` as executables. 
 
 
------------------------
+### Structure of the repository:
 
-bnfc
-  - BNFC grammars for parsing CG rules and Apertium input format.
+`app`
+  - Disambiguate: Use SAT-based implementation as a disambiguator, just like VISL CG-3 or any other CG engine out there.
+  - Analyse: Detect conflicts in a grammar.
 
-data
-  - Spanish, English, Hungarian and Finnish CG rules and morpho analysed data to use as examples
+`data`
+  - Spanish, English, Hungarian and Finnish CG rules and morpho analysed data to use as examples.
 
-executable
-  - Main: just to test disambiguate functions quickly, no comparison to any other
-  - Symbolic: preliminary work on conflict detection, using SAT solver to generate input
+`doc`
+  - Papers on this project: 2015 CG workshop at NoDaLiDa, and 2016 LREC. (See [cgexp](https://github.com/inariksit/cgexp) for another experiment, hopefully becoming a paper at 2017 CG workshop.)
+  - (cg.bib)[https://github.com/inariksit/cgsat/blob/master/doc/cg.bib] for all things CG-related.
 
-test
-  - Test: comparison with VISL CG-3 with or without gold standard + some other small stuff
-  - QCTest: some QuickCheck tests (mostly because it's fun to random generate rules)
+`graveyard`
+  - All the various versions between December 2014 - December 2016. Not in any particular order, definitely doesn't compile.
 
+`src`
+  - CG_SAT: Takes the CG format in [cghs](https://github.com/inariksit/cghs), turns it into a SAT-problem. TODO rewrite this to work with the new format.
+  - AmbiguityClass: Extra feature of ambiguity classes. Needs a representative lexicon in order to work properly. Written by [Koen Claessen](https://github.com/koengit/), to be modified to my new format.
 
-
-------------------------
-
-Links to some papers about CG
-
-
-http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.50.1197 -- CG rules from annotated corpora (1996)  
-http://link.springer.com/chapter/10.1007/BFb0027315             -- Inductive logic programming (1998)  
-http://swarm.cs.pub.ro/~asfrent/msc/thesis.pdf                  -- Inductive logic programming (2014, MSc thesis)  
-http://stp.lingfil.uu.se/nodalida01/pdf/lager.pdf               -- CG rules from Brill tagger learning rules (2000)  
-http://www.ling.gu.se/~lager/Mutbl/Papers/lager_nivre.pdf       -- POS tagging from logical point of view, comparison of 4 different methods (2001)  
+`test`
+  - Spec: TODO write some tests. Tests for the format and parser are in [cghs](https://github.com/inariksit/cghs).
         
 
 
