@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module CG_SAT where
 
 import Rule
@@ -72,13 +74,13 @@ tagsMatchRule = undefined
               , (trg=[foo],      dif=[bar]) 
               , ...                         ] 
 
-OBS. if "<casa>" had 57-59 from the beginning, it always matches 57-59,
-     no matter if 57 has been negated!
-For now, exclude dif from this function.
-We can always access difs when we make SAT-clauses.
+--------------------------------------------------------------------------------
+-- General-purpose helper data types
 
-OBS. Rule' can have overlapping trg and dif;
-     that's an internal conflict, and the rule should never apply anywhere.
-Handling that too in the SAT-clauses.
+-- Different from AndList and OrList, Seq is meant for things that follow 
+-- each other. Unlike contextual tests in a rule, or tags in a tag set,
+-- things that need to be in Seq are e.g. indices in a pattern.
+newtype Seq a = Seq { getSeq :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
 
--}
+instance (Show a) => Show (Seq a) where
+  show = intercalate "->" . map show . getSeq
