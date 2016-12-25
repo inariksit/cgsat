@@ -20,6 +20,7 @@ library
   exposed-modules:     CG_SAT, AmbiguityClass
   build-depends:       array
                      , base
+                     , containers
                      , cghs
                      , minisat
                      , satplus
