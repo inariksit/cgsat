@@ -23,7 +23,9 @@ library
                      , containers
                      , cghs
                      , minisat
+                     , mtl
                      , satplus
+                     , transformers
 
   hs-source-dirs:      src
   ghc-options:         -O2
