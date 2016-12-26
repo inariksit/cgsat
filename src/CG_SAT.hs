@@ -24,10 +24,14 @@ import Control.Monad.Trans.Reader
 
 type CGMonad = ReaderT Env (StateT CgState IO)
 
-{-  tagMap ‾`v
+{-  tagMap 
+           ‾‾`v
+
          vblex |-> [321,         322,         323      ...]
                      |            |            |
-                    vblex sg p1  vblex sg p2  vblex sg ...  <-- rdMap
+                    vblex sg p1  vblex sg p2  vblex sg ...  
+                ___,^
+           rdMap 
 -}
 data Env = Env { tagMap :: M.Map Tag IntSet 
                , rdMap :: IntMap Reading } 
@@ -43,102 +47,98 @@ type Sentence = IntMap Cohort
 type Cohort = IntMap Lit
 
 
-data Pattern = Pat { indices :: OrList (Seq CtxInd)
-                   , trgdifs :: OrList (Seq TD) } deriving (Show,Eq)
-
-type TrgInd = Int
-type CtxInd = Int
+data Pattern = Pat { indices :: OrList (Seq Int)
+                   , trgdifs :: OrList (Seq TD) } 
+             | PatAlways deriving (Show,Eq,Ord)
 
 type TD = (Trg,Dif)
 
-data Trg = Trg (OrList IntSet) | AllTags deriving (Show,Eq)
-data Dif = Dif (OrList IntSet) | Complement deriving (Show,Eq)
+data Trg = Trg { getTrg :: OrList IntSet } | AllTags deriving (Show,Eq,Ord)
+data Dif = Dif { getDif :: AndList IntSet } | Complement deriving (Show,Eq,Ord)
 
---prop. test: ensure that [TD]-list is as long as [CtxInd]-lists in patterns
---unit tests: all the test cases I've written down -- generalise to properties?
+
+--------------------------------------------------------------------------------
+
 ctx2Pattern :: Int  -- ^ Sentence length
             -> Int  -- ^ Absolute index of the target in the sentence
             -> Context -- ^ Context to be transformed
-            -> OrList Pattern -- ^ List of patterns. Length >1 only if the context is template.
-ctx2Pattern senlen trgind ctx = undefined
-{- tdFooBar = Or[ Seq [(Trg Foo, Dif mempty), (Trg Bar, Dif mempty)] ]
+            -> CGMonad (OrList Pattern) -- ^ List of patterns. Length >1 only if the context is template.
+ctx2Pattern senlen trgind ctx = case ctx of
+  Always -> return $ Or [PatAlways]
+  Ctx posn polr tgst 
+    -> do tds <- tagset2TDs tgst polr
+          return undefined
+  Link ctxs 
+    -> undefined
+  Template ctxs
+    -> undefined
+  Negate ctx -> undefined
 
-            6 4 (-1  Foo LINK 1  Bar) = Or [ ( Or [[3,4]]
-                                             , td_FooBar ) 
-                                           ]
-            6 4 (-1* Foo LINK 1  Bar) = Or [ ( Or [[1,2],[2,3][3,4]]
-                                             , td_FooBar )
-                                           ]
-            6 4 (-1  Foo LINK 1* Bar) = Or [ ( Or [[3,4],[3,5],[3,6]]
-                                             , td_FooBar )
-                                           ]
-            6 4 (-1* Foo LINK 1* Bar) = Or [ ( Or [ [1,2],[1,3],[1,4],[1,5],[1,6]
-                                                  , [2,3],[2,4],[2,5],[2,6]
-                                                  , [3,4],[3,5],[3,6] ]
-                                              , td_FooBar )
-                                           ]
-            6 4 (1 (F - B) OR (B - F)) = Or [ ( Or [[5]],
-                                              , td_F-B_B-F ) 
-                                            ]
-            td_F-B_B-F = Or [ Seq [()]
-                            , Seq [()] 
-                            ]
-
-            6 4 (-1* Foo) OR (1C Bar) = Or [ ( Or [[1],[2],[3]]
-                                             , (Trg Foo, Dif mempty) )
-                                           , ( Or [[5]]
-                                             , (Trg Bar, Complement) )
-                                           ]
-            6 4 (-1 NOT Foo)          = Or [ ( Or [[3]]
-                                             , (Trg AllTags, Dif Foo )]
-
--}
+ where 
+  singleCtx2Pattern (Ctx posn polr tgst) = undefined
 
 tagset2TDs :: TagSet -- ^ TagSet to be transformed
+           -> Polarity -- ^ Polarity: whether the tags are
            -> CGMonad (OrList TD) -- ^ OrList of TrgDifs with indices.
                                   -- The list is >1 if there is a Union in TagSet.
                                   -- This is in order to represent disjoint Diffs.
-tagset2TDs tagset = case tagset of
-  All       -> return $ Or [(AllTags, Dif mempty)]
+tagset2TDs tagset polr = case tagset of
+  All -> return $ Or [(AllTags, Dif mempty)]
 
-  {- For example: List (Or [And [vblex, sg], And [n, pl]])
-     This becomes one item in the OrList TD.
-     Inside the TD, two IntSets in the Trg, and none in the Dif:
-       ( Trg (Or [ IS(321,322,323) `intersect` IS(1,2,3,...,321,323) 
-               , IS(2,3,50,450) `intersect` IS(4,5,6,50,1908) ])
-       , Dif mempty )
-  -}
-  List orts -> do tagmap <- asks tagMap
-                  let intsets = 
-                       [ foldl1 intersection $ catMaybes [ M.lookup t tagmap  | t <- getAndList andts ]
-                         | andts <- getOrList orts ]
-                  return (Or [(Trg (Or intsets), Dif mempty)])
+  List l {- For example: List (Or [And [vblex, sg], And [n, pl]])
+            This becomes one TD in the OrList.
+            Inside the TD, two IntSets in the Trg, and none in the Dif:
+            ( Trg (Or [ IS(321,322,323) `intersect` IS(1,2,3,...,321,323) 
+                      , IS(2,3,50,450) `intersect` IS(4,5,6,50,1908) ])
+            , Dif mempty )
+          -}
+    -> do tagmap <- asks tagMap
+          let intsets = 
+               [ foldl1 intersection $ 
+                        catMaybes [ M.lookup t tagmap | t <- getAndList ts ]
+                    | ts <- getOrList l ]
+          --TODO: check if this works properly !!!
+          {- (NOT 1 Foo) ==> Foo translates to (Trg (89,130,..), Dif mempty)
+                             Not makes it into (AllTags, Dif (89,130,..)) -}
+          let (trg,dif) = case polr of 
+                            Yes -> (Trg (Or intsets), Dif mempty)
+                            Not -> (AllTags,   Dif (And intsets))
+          return $ Or [(trg,dif)]
 
-  {- For example: Union (List (Or [And [vblex])
-                        (Diff (List (Or [And [vbser]) (List (Or [And [aux]]))
-     This becomes two items in the OrList TD.
-     Inside the first TD, there's one IntSet in Trg, none in Dif.
-     Inside the second TD, one IntSet in Trg, one in Dif.
-     In order to match this OrList of TDs, a cohort has to match either of the TDs.
 
-  -}
-  Union ts ts' -> do td  <- tagset2TDs ts
-                     td' <- tagset2TDs ts'
-                     return (td `mappend` td')
+  Union t t' {- For example: Union (List (Or [And [vblex])
+                                   (Diff (List (Or [And [vbser]) 
+                                         (List (Or [And [aux]]) )
+                This becomes two TD in the OrList: 
+                Or [(Trg vblex, Dif mempty), (Trg vbser, Dif aux)].
+                To match this OrList of TDs, a cohort has to match either. -}
+    -> do td  <- tagset2TDs t polr
+          td' <- tagset2TDs t' polr
+          -- can also normalise if both td's are single Ctx
+          return (td `mappend` td')
 
-  Diff ts ts' -> undefined
-  Cart ts ts' -> undefined
+  Diff ts ts' 
+    -> undefined -- maybe something like below:
+    -- (foo | bar) - (baz | quux) === normalises to tag lists
+    -- ( Adv - (AdA - "very")) === Trg (lookup tagmap Adv), = some of these must be true 
+    --                             Dif (lookup tagmap AdA `difference` 
+    --                                  lookup tagmap "very") = all of these must be neg
+    --                           Not putting "very" in explicitly, it's just given a pass and not negated.
+    -- ((Adv - AdA) | ("very"))  -  (("ver.*"r) - ("verikoe"))
+    --  === Or [ (Trg (lookup tagmap Adv), Dif (lookup tagmap AdA `difference` (lu tm ver.* `diff` lu tm "verikoe") ))
+    --         , (Trg (lu tm "very"), Dif ... same as above) ]
+  Cart ts ts' 
+    -> undefined
 
 {-
-
 Make this only once, at the beginning:
-readingMap -- [1 |-> vblex sg p3
-               2 |-> noun sg mf
+rdMap --  1 |-> vblex sg p3
+          2 |-> noun sg mf
                ...
-            9023 |-> "aurrera" adv]
+       9023 |-> "aurrera" adv
 
 Make this only once, at the beginning:
-tagMap    -- [vblex |-> IS(1,30,31,32,..,490)
+tagMap    --  vblex |-> IS(1,30,31,32,..,490)
               sg    |-> IS(1,2,3,120,1800)
               mf    |-> IS(2,20,210)
               adv   |-> IS()
