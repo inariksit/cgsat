@@ -8,11 +8,12 @@ import SAT.Named
 
 import Data.IntMap ( IntMap, (!) )
 import qualified Data.IntMap as IM
-import Data.IntSet ( IntSet, intersection, unions )
+import Data.IntSet ( IntSet, intersection, unions, difference )
 import qualified Data.Map as M
 import Data.List ( intercalate )
 import Data.Maybe ( catMaybes )
 
+import Control.Monad ( liftM2 )
 import Control.Monad.Trans
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
@@ -33,7 +34,8 @@ type CgState = IntMap () --TODO
            rdMap 
 -}
 data Env = Env { tagMap :: M.Map Tag IntSet 
-               , rdMap :: IntMap Reading } 
+               , rdMap :: IntMap Reading 
+               , allTags :: IntSet } 
                deriving (Show,Eq)
 
 
@@ -88,7 +90,7 @@ normaliseAbs tagset = case tagset of
                       , IS(2,3,50,450) `intersect` IS(4,5,6,50,1908) ])
             , Dif mempty )
           -}
-    -> do Just `fmap` lu s `fmap` asks tagMap
+    -> Just `fmap` lu s `fmap` asks tagMap
 
 
   Union t t' {- For example: Union (List (Or [And [vblex])
@@ -97,15 +99,24 @@ normaliseAbs tagset = case tagset of
                 This becomes two TD in the OrList: 
                 Or [(Trg vblex, Dif mempty), (Trg vbser, Dif aux)].
                 To match this OrList of TDs, a cohort has to match either. -}
-    -> do td  <- normaliseAbs t
-          td' <- normaliseAbs t'
+    -> do is  <- normaliseAbs t
+          is' <- normaliseAbs t'
           return undefined
   Inters t t'
-    -> do td  <- normaliseAbs t
-          td' <- normaliseAbs t'
-          return undefined
+    -> do is  <- normaliseAbs t
+          is' <- normaliseAbs t'
+          return $ liftM2 intersection is is'
+
+-- Intended behaviour:
+--   adv adV (ada "very") `diff` ada == adv adV
+--   adv adV ada `diff` (ada "very") == adv adV (ada xxx) (ada yyy) ... 
+-- This will work automatically now: normaliseAbs returns intsets,
+-- and `lookup ada tagmap` returns all: (ada xxx), (ada yyy), (ada "very")
+-- Then, the difference with t' will only match (ada "very").
   Diff t t' 
-    -> undefined
+    -> do is  <- normaliseAbs t
+          is' <- normaliseAbs t'
+          return $ liftM2 difference is is'
 
       
   Cart ts ts' 
