@@ -2,7 +2,7 @@
 
 module CG_SAT where
 
-import Rule hiding ( Not )
+import Rule hiding ( Not, Negate )
 import qualified Rule as R
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
@@ -55,6 +55,7 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
            | NotCau IntSet -- Cohort contains (not only) tags in IntSet:
                             -- either of Not and Mix are valid.
            | AllTags -- Cohort matches all tags
+           | Negate Match -- Negate goes beyond set negation and C
            deriving (Show,Eq,Ord)
 
 
@@ -74,11 +75,12 @@ ctx2Pattern senlen origin ctx = case ctx of
     -> undefined
   Template ctxs
     -> undefined
-  Negate ctx -> undefined
+  R.Negate ctx -> do (ps,m) <- singleCtx2Pat ctx
+                     return $ Or [ Pat (fmap (\x -> Seq [x]) ps) (Seq [Negate m]) ]
 
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
-    do tagset <- normaliseAbs tgst
+    do tagset <- normaliseAbs tgst `fmap` asks tagMap
        let allPositions = pos2inds posn senlen origin
        let match = maybe AllTags (getMatch posn polr) tagset
        return (allPositions,match) 
@@ -105,41 +107,30 @@ getMatch (Pos _ C _)  R.Not = NotCau
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations
 -- relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
-normaliseAbs :: TagSet -> CGMonad (Maybe IntSet)
-normaliseAbs tagset = case tagset of
-  All   -> return Nothing
-
-  Set s -> Just `fmap` lu s `fmap` asks tagMap
-
-  Union t t' 
-        -> do is  <- normaliseAbs t
-              is' <- normaliseAbs t'
-              return $ liftM2 union is is'
-  Inters t t'
-    -> do is  <- normaliseAbs t
-          is' <- normaliseAbs t'
-          return $ liftM2 intersection is is'
+normaliseAbs :: TagSet -> M.Map Tag IntSet -> Maybe IntSet
+normaliseAbs tagset tagmap = 
+  let norm = \x -> normaliseAbs x tagmap 
+  in case tagset of
+      All -> Nothing
+      Set s -> Just (lu s tagmap)
+      Union t t' -> liftM2 union (norm t) (norm t')
+      Inters t t' -> liftM2 intersection (norm t) (norm t')
 
 -- Intended behaviour:
 --   adv adV (ada "very") `diff` ada == adv adV
 --   adv adV ada `diff` (ada "very") == adv adV (ada xxx) (ada yyy) ... 
--- This works properly now: normaliseAbs returns IntSets, 
--- and `normaliseAbs (ada)` returns all of (ada xxx), (ada yyy), (ada "very"), ...
--- Then, the difference with `normaliseAbs (adv adV (ada "very")) will only exclude (ada "very").
-  Diff t t' 
-    -> do is  <- normaliseAbs t
-          is' <- normaliseAbs t'
-          return $ liftM2 difference is is'
+-- This works properly now: norm returns IntSets, 
+-- and `norm (ada)` returns all of (ada xxx), (ada yyy), (ada "very"), ...
+-- Then, the difference with `norm (adv adV (ada "very")) will only exclude (ada "very").
+      Diff t t' -> liftM2 difference (norm t) (norm t')
 
 -- say t=[n,adj] and t'=[m,f,mf]
 -- is  = specified readings that match t: (n foo), (n bar), (n mf), ... , (adj foo), (adj bar), (adj f), ..
 -- is' = specified readings that match t': (n m), (n f), (vblex sg p3 mf), (adj f), ..
 -- intersection of the specified readings returns those that match 
 -- sequence [[n,adj],[m,f,mf]]: (n m), (n f), ..., (adj f), (adj mf)
-  Cart t t' 
-    -> do is  <- normaliseAbs t
-          is' <- normaliseAbs t'
-          return $ liftM2 intersection is is'
+      Cart t t' -> liftM2 intersection (norm t) (norm t')
+
 
 
  where
