@@ -7,7 +7,7 @@ import qualified Rule as R
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
-import Data.IntMap ( IntMap, (!) )
+import Data.IntMap ( IntMap, (!), elems )
 import qualified Data.IntMap as IM
 import Data.IntSet ( IntSet, unions, union, intersection, difference )
 import Data.List ( intercalate )
@@ -16,6 +16,8 @@ import Data.Maybe ( catMaybes )
 
 import Control.Monad ( liftM2 )
 import Control.Monad.Trans
+import Control.Monad.IO.Class ( liftIO )
+
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
 
@@ -45,9 +47,12 @@ type Sentence = IntMap Cohort
 type Cohort = IntMap Lit
 
 
-data Pattern = Pat { positions :: OrList (Seq Int)
-                   , contexts :: Seq Match } 
-             | PatAlways deriving (Show,Eq,Ord)
+data Pattern = Pat { positions :: OrList (SeqList Int)
+                   , contexts :: SeqList Match } 
+             | PatAlways 
+             | Negate Pattern -- Negate goes beyond set negation and C
+             deriving (Show,Eq,Ord)
+
 
 data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
            | Cau IntSet -- Cohort contains only tags in IntSet
@@ -55,11 +60,46 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
            | NotCau IntSet -- Cohort contains (not only) tags in IntSet:
                             -- either of Not and Mix are valid.
            | AllTags -- Cohort matches all tags
-           | Negate Match -- Negate goes beyond set negation and C
            deriving (Show,Eq,Ord)
 
 
 --------------------------------------------------------------------------------
+
+matchCond :: Solver 
+          -> Sentence -- Sentence to apply to
+          -> Int -- Index of the target cohort
+          -> Pattern -- Conditions to turn into literals
+          -> CGMonad (OrList Lit)
+matchCond s sent origin pat = undefined
+
+
+makeCondLits :: Solver -> Cohort -> Match -> CGMonad Lit
+makeCondLits s coh mat = liftIO $ case mat of
+    Mix is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [orl' s (elems inmap), orl' s (elems outmap)]
+
+                -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
+    Cau is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [orl' s (elems inmap), neg `fmap` orl' s (elems outmap)]
+
+    Not is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [neg `fmap` orl' s (elems inmap), orl' s (elems outmap)]
+
+    -- NOT 1C foo means: "either there's no foo, or the foo is not unique."
+    -- Either way, having at least one true non-foo lit fulfils the condition,
+    -- because the cohort may not be empty.
+    NotCau is -> do let (_,outmap) = partitionIM is coh
+                    orl' s (elems outmap) 
+
+    AllTags   -> return true
+
+ where
+  partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
+  partitionIM is im = (inmap,outmap)
+   where
+    onlykeys = IM.fromSet (const true) is --Intersection is based on keys
+    inmap = IM.intersection im onlykeys 
+    outmap = IM.difference im onlykeys
 
 ctx2Pattern :: Int  -- ^ Sentence length
             -> Int  -- ^ Absolute position of the target in the sentence
@@ -75,8 +115,8 @@ ctx2Pattern senlen origin ctx = case ctx of
     -> undefined
   Template ctxs
     -> undefined
-  R.Negate ctx -> do (ps,m) <- singleCtx2Pat ctx
-                     return $ Or [ Pat (fmap (\x -> Seq [x]) ps) (Seq [Negate m]) ]
+  R.Negate ctx -> do (Or cs) <- ctx2Pattern senlen origin ctx
+                     return $ Or (Negate `fmap` cs)
 
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
@@ -163,7 +203,7 @@ many times per rule --- once for each tagset.
 -- Different from AndList and OrList, Seq is meant for things that follow 
 -- each other. Unlike contextual tests in a rule, or tags in a tag set,
 -- Seq models the behaviour of positions and matches in a pattern.
-newtype Seq a = Seq { getSeq :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
+newtype SeqList a = Seq { getSeq :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
 
-instance (Show a) => Show (Seq a) where
+instance (Show a) => Show (SeqList a) where
   show = intercalate "," . map show . getSeq
