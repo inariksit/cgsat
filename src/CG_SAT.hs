@@ -7,6 +7,7 @@ import qualified Rule as R
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
+import Data.Foldable ( fold )
 import Data.IntMap ( IntMap, (!), elems )
 import qualified Data.IntMap as IM
 import Data.IntSet ( IntSet, unions, union, intersection, difference )
@@ -15,7 +16,7 @@ import qualified Data.Map as M
 import Data.Maybe ( catMaybes )
 
 import Control.Monad ( liftM2 )
-import Control.Monad.Trans
+--import Control.Monad.Trans
 import Control.Monad.IO.Class ( liftIO )
 
 import Control.Monad.Trans.State
@@ -66,32 +67,32 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
 --------------------------------------------------------------------------------
 
 matchCond :: Solver 
-          -> Sentence -- Sentence to apply to
-          -> Int -- Index of the target cohort
+          -> Sentence -- Sentence to match the condition(s)
+          -> Int -- Position of the target cohort in the sentence
           -> Pattern -- Conditions to turn into literals
-          -> CGMonad (OrList Lit)
+          -> CGMonad (OrList Lit) -- All possible ways to satisfy the conditions
 matchCond s sent origin pat = undefined
 
 
-makeCondLits :: Solver -> Cohort -> Match -> CGMonad Lit
-makeCondLits s coh mat = liftIO $ case mat of
-    Mix is -> do let (inmap,outmap) = partitionIM is coh
-                 andl' s =<< sequence [orl' s (elems inmap), orl' s (elems outmap)]
+makeCondLit :: Solver -> Cohort -> Match -> CGMonad Lit
+makeCondLit s coh mat = liftIO $ case mat of
+  Mix is -> do let (inmap,outmap) = partitionIM is coh
+               andl' s =<< sequence [orl' s (elems inmap), orl' s (elems outmap)]
 
-                -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
-    Cau is -> do let (inmap,outmap) = partitionIM is coh
-                 andl' s =<< sequence [orl' s (elems inmap), neg `fmap` orl' s (elems outmap)]
+              -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
+  Cau is -> do let (inmap,outmap) = partitionIM is coh
+               andl' s =<< sequence [orl' s (elems inmap), neg `fmap` orl' s (elems outmap)]
 
-    Not is -> do let (inmap,outmap) = partitionIM is coh
-                 andl' s =<< sequence [neg `fmap` orl' s (elems inmap), orl' s (elems outmap)]
+  Not is -> do let (inmap,outmap) = partitionIM is coh
+               andl' s =<< sequence [neg `fmap` orl' s (elems inmap), orl' s (elems outmap)]
 
-    -- NOT 1C foo means: "either there's no foo, or the foo is not unique."
-    -- Either way, having at least one true non-foo lit fulfils the condition,
-    -- because the cohort may not be empty.
-    NotCau is -> do let (_,outmap) = partitionIM is coh
-                    orl' s (elems outmap) 
+  -- `NOT 1C foo' means: "either there's no foo, or the foo is not unique."
+  -- Either way, having at least one true non-foo lit fulfils the condition,
+  -- because the cohort may not be empty.
+  NotCau is -> do let (_,outmap) = partitionIM is coh
+                  orl' s (elems outmap) 
 
-    AllTags   -> return true
+  AllTags   -> return true
 
  where
   partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
@@ -106,41 +107,50 @@ ctx2Pattern :: Int  -- ^ Sentence length
             -> Context -- ^ Context to be transformed
             -> CGMonad (OrList Pattern) -- ^ List of patterns. Length >1 only if the context is template.
 ctx2Pattern senlen origin ctx = case ctx of
-  Always -> return $ Or [PatAlways]
+  Always -> return (Or [PatAlways])
   c@(Ctx posn polr tgst)
     -> do (ps,m) <- singleCtx2Pat c
-          return $ Or [ Pat (fmap (\x -> Seq [x]) ps) (Seq [m]) ]
+          return (Or [Pat ps m])
           
   Link ctxs 
-    -> undefined
+    -> do (ps,cs) <- unzip `fmap` mapM singleCtx2Pat (getAndList ctxs)
+          return (Or [Pat (fold ps) (fold cs)])
+    -- To support linked templates (which don't make sense), do like below. 
+    -- pats <- And `fmap` (ctx2Pattern senlen origin `mapM` getAndList ctxs) 
+    -- :t pats :: AndList (OrList Pattern)
+
   Template ctxs
-    -> undefined
-  R.Negate ctx -> do (Or cs) <- ctx2Pattern senlen origin ctx
-                     return $ Or (Negate `fmap` cs)
+    -> do pats <- ctx2Pattern senlen origin `mapM` ctxs --  :: OrList Pattern
+          return (fold pats)
+
+  R.Negate ctx 
+    -> do pat <- ctx2Pattern senlen origin ctx -- :: OrList Pattern
+          return (fmap Negate pat)
 
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
     do tagset <- normaliseAbs tgst `fmap` asks tagMap
        let allPositions = pos2inds posn senlen origin
        let match = maybe AllTags (getMatch posn polr) tagset
-       return (allPositions,match) 
+       return (fmap (\x -> Seq [x]) allPositions, Seq [match] ) 
 
 pos2inds :: Position -> Int -> Int -> OrList Int
-pos2inds posn senlen origin = 
-  case scan posn of 
-    Exactly -> Or [origin + relInd]
-    _       -> Or absInds
+pos2inds posn senlen origin = case scan posn of 
+  Exactly -> Or [origin + relInd]
+  _       -> Or absInds
  where
   relInd = R.pos posn
   absInds = if relInd<0 then [1 .. origin+relInd]
                 else [origin+relInd .. senlen]
 
 getMatch :: Position -> Polarity -> (IntSet -> Match)
-getMatch (Pos _ NC _) Yes = Mix
+getMatch (Pos _ NC _) Yes   = Mix
 getMatch (Pos _ NC _) R.Not = Not
-getMatch (Pos _ C _)  Yes = Cau
+getMatch (Pos _ C _)  Yes   = Cau
 getMatch (Pos _ C _)  R.Not = NotCau
 
+
+--------------------------------------------------------------------------------
 
 -- | Takes a tagset, with OrLists of underspecified readings,
 -- and returns corresponding IntSets of fully specified readings.
