@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleContexts #-}
 
 module CG_SAT where
 
@@ -6,6 +6,7 @@ import Rule hiding ( Not, Negate )
 import qualified Rule as R
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
+
 
 import Data.Foldable ( fold )
 import Data.IntMap ( IntMap, (!), elems )
@@ -15,18 +16,18 @@ import Data.List ( intercalate )
 import qualified Data.Map as M
 import Data.Maybe ( catMaybes )
 
-import Control.Monad ( liftM2 )
---import Control.Monad.Trans
-import Control.Monad.IO.Class ( liftIO )
-
-import Control.Monad.Trans.State
-import Control.Monad.Trans.Reader
+import Control.Monad ( liftM2, zipWithM )
+import Control.Monad.Trans
+import Control.Monad.IO.Class ( MonadIO(..), liftIO )
+import Control.Monad.State.Class
+import Control.Monad.Reader.Class
+import Control.Monad.Trans.State ( StateT(..) )
+import Control.Monad.Trans.Reader ( ReaderT(..) )
 
 --------------------------------------------------------------------------------
 
-type CGMonad = ReaderT Env (StateT CgState IO)
-
-type CgState = IntMap () --TODO
+newtype CGMonad a = CGMonad (ReaderT Env (StateT Sentence IO) a)
+  deriving (Functor, Applicative, Monad, MonadState Sentence, MonadReader Env, MonadIO)
 
 {-  tagMap 
            ‾‾`v
@@ -67,13 +68,19 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
 --------------------------------------------------------------------------------
 
 matchCond :: Solver 
-          -> Sentence -- Sentence to match the condition(s)
           -> Int -- Position of the target cohort in the sentence
           -> Pattern -- Conditions to turn into literals
           -> CGMonad (OrList Lit) -- All possible ways to satisfy the conditions
-matchCond s sent origin pat = undefined
-
-
+matchCond s origin pat = 
+  do sentence <-  get
+     --TODO 
+     lits <- concat `fmap` sequence
+       [ zipWithM (makeCondLit s) cohorts (contexts pat) 
+          | inds <- getOrList $ positions pat  -- inds :: SeqList Int
+          , let cohorts = catMaybes $ fmap (`IM.lookup` sentence) inds
+       ] 
+     return undefined
+ 
 makeCondLit :: Solver -> Cohort -> Match -> CGMonad Lit
 makeCondLit s coh mat = liftIO $ case mat of
   Mix is -> do let (inmap,outmap) = partitionIM is coh
@@ -96,11 +103,10 @@ makeCondLit s coh mat = liftIO $ case mat of
 
  where
   partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
-  partitionIM is im = (inmap,outmap)
-   where
-    onlykeys = IM.fromSet (const true) is --Intersection is based on keys
-    inmap = IM.intersection im onlykeys 
-    outmap = IM.difference im onlykeys
+  partitionIM is im = let onlykeys = IM.fromSet (const true) is --Intersection is based on keys
+                          inmap = IM.intersection im onlykeys 
+                          outmap = IM.difference im onlykeys
+                      in (inmap,outmap)
 
 ctx2Pattern :: Int  -- ^ Sentence length
             -> Int  -- ^ Absolute position of the target in the sentence
@@ -132,7 +138,7 @@ ctx2Pattern senlen origin ctx = case ctx of
     do tagset <- normaliseAbs tgst `fmap` asks tagMap
        let allPositions = pos2inds posn senlen origin
        let match = maybe AllTags (getMatch posn polr) tagset
-       return (fmap (\x -> Seq [x]) allPositions, Seq [match] ) 
+       return (fmap (:[]) allPositions, [match] ) 
 
 pos2inds :: Position -> Int -> Int -> OrList Int
 pos2inds posn senlen origin = case scan posn of 
@@ -213,7 +219,9 @@ many times per rule --- once for each tagset.
 -- Different from AndList and OrList, Seq is meant for things that follow 
 -- each other. Unlike contextual tests in a rule, or tags in a tag set,
 -- Seq models the behaviour of positions and matches in a pattern.
-newtype SeqList a = Seq { getSeq :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
 
-instance (Show a) => Show (SeqList a) where
-  show = intercalate "," . map show . getSeq
+type SeqList a = [a]
+--newtype SeqList a = Seq { getSeq :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
+
+--instance (Show a) => Show (SeqList a) where
+--  show = intercalate "," . map show . getSeq
