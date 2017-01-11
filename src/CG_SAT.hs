@@ -24,6 +24,7 @@ import Control.Monad.Reader.Class
 import Control.Monad.Trans.State ( StateT(..) )
 import Control.Monad.Trans.Reader ( ReaderT(..) )
 
+
 --------------------------------------------------------------------------------
 
 newtype CGMonad a = CGMonad (ReaderT Env (StateT Sentence IO) a)
@@ -61,26 +62,31 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
            | Not IntSet -- Cohort contains no tags in IntSet
            | NotCau IntSet -- Cohort contains (not only) tags in IntSet:
                             -- either of Not and Mix are valid.
-           | AllTags -- Cohort matches all tags
+           | AllTags -- Cohort may contain any tag
            deriving (Show,Eq,Ord)
 
 
 --------------------------------------------------------------------------------
 
-matchCond :: Solver 
-          -> Int -- Position of the target cohort in the sentence
-          -> Pattern -- Conditions to turn into literals
-          -> CGMonad (OrList Lit) -- All possible ways to satisfy the conditions
-matchCond s origin pat = 
-  do sentence <-  get
-     --TODO 
-     lits <- concat `fmap` sequence
-       [ zipWithM (makeCondLit s) cohorts (contexts pat) 
-          | inds <- getOrList $ positions pat  -- inds :: SeqList Int
+pattern2Lits :: Solver 
+             -> Int -- ^ Position of the target cohort in the sentence
+             -> Pattern -- ^ Conditions to turn into literals
+             -> CGMonad (OrList Lit) -- ^ All possible ways to satisfy the conditions
+pattern2Lits s origin pat = 
+  do sentence <- get
+     Or `fmap` sequence
+        -- OBS. potential for sharing: if cohorts are e.g. [1,2],[1,3],[1,4],
+        -- we can keep result of 1 somewhere and not compute it all over many times.
+       [ do lits <- zipWithM (makeCondLit s) cohorts matches :: CGMonad [Lit]
+            liftIO $ andl' s lits
+          | inds <- getOrList $ positions pat  -- inds :: [Int]
           , let cohorts = catMaybes $ fmap (`IM.lookup` sentence) inds
+          , let matches = contexts pat
+          , length cohorts == length matches
        ] 
-     return undefined
- 
+
+-- OBS. Try adding some short-term cache; add something in the state,
+-- and before computing the literal, see if it's there
 makeCondLit :: Solver -> Cohort -> Match -> CGMonad Lit
 makeCondLit s coh mat = liftIO $ case mat of
   Mix is -> do let (inmap,outmap) = partitionIM is coh
