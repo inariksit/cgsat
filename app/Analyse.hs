@@ -9,6 +9,12 @@ import SAT.Named
 
 import System.Environment ( getArgs )
 
+--------------------------------------------------------------------------------
+
+data Conflict = TODO
+
+--------------------------------------------------------------------------------
+
 main :: IO ()
 main = do 
   args <- getArgs
@@ -31,20 +37,33 @@ main = do
     tagsInLex <- (map toTag . filter (not.null) . words) 
                    `fmap` readFile tagfile
     readingsInLex <- (map parseReading . words) `fmap` readFile rdsfile
-    rules <- (snd . parse) `fmap` readFile grfile
+    rules <- (concat . snd . parse) `fmap` readFile grfile
     --let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
     --                    then nub $ concatMap toTags' tsets
     --                    else []
 
     print tagsInLex
     print readingsInLex
-    print rules
+    print (take 5 rules)
+
+    putStrLn "---------"
+    testRule (rules !! 10) (take 10 rules)
+    putStrLn "---------"
+
+
 
    _ -> print "give me a 3-letter code for a language" 
 
-apply :: Solver -> Sentence -> Rule -> IO Sentence
-apply s sent rule = undefined
 
+----------------------------------------------------------------------------
+-- Functions that apply only for analysis, not disambiguation
+
+
+testRule :: Rule -> [Rule] -> IO Conflict --CGMonad Conflict
+testRule rule prevRules = do print rule
+                             print rulewidths
+                             return TODO
+ where rulewidths = fmap width (context rule)
 
 
 ----------------------------------------------------------------------------
