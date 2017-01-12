@@ -4,15 +4,17 @@ module CG_SAT where
 
 import Rule hiding ( Not, Negate )
 import qualified Rule as R
-import SAT ( Solver(..), newSolver, deleteSolver )
+import SAT ( Solver(..) )
 import SAT.Named
 
 
 import Data.Foldable ( fold )
 import Data.IntMap ( IntMap, (!), elems )
 import qualified Data.IntMap as IM
-import Data.IntSet ( IntSet, unions, union, intersection, difference )
-import Data.List ( intercalate )
+import Data.IntSet ( IntSet )
+import qualified Data.IntSet as IS 
+import Data.List ( intercalate, findIndices )
+import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Maybe ( catMaybes )
 
@@ -39,7 +41,7 @@ newtype CGMonad a = CGMonad (ReaderT Env (StateT Sentence IO) a)
                 ___,^
            rdMap 
 -}
-data Env = Env { tagMap :: M.Map Tag IntSet 
+data Env = Env { tagMap :: Map Tag IntSet 
                , rdMap :: IntMap Reading 
                , allTags :: IntSet 
                , solver :: Solver } 
@@ -50,6 +52,7 @@ data Env = Env { tagMap :: M.Map Tag IntSet
 type Sentence = IntMap Cohort
 type Cohort = IntMap Lit
 
+type SeqList a = [a] -- List of things that follow each other in sequence
 
 data Pattern = Pat { positions :: OrList (SeqList Int)
                    , contexts :: SeqList Match } 
@@ -68,10 +71,7 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
 
 
 --------------------------------------------------------------------------------
-
-
-
---------------------------------------------------------------------------------
+-- Interaction with SAT-solver, non-pure functions
 
 pattern2Lits :: Int -- ^ Position of the target cohort in the sentence
              -> Pattern -- ^ Conditions to turn into literals
@@ -117,7 +117,6 @@ makeCondLit coh mat = do
                     orl' s (elems outmap) 
 
     AllTags   -> return true
-    _ -> undefined
 
  where
   partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
@@ -125,6 +124,10 @@ makeCondLit coh mat = do
                           inmap = IM.intersection im onlykeys 
                           outmap = IM.difference im onlykeys
                       in (inmap,outmap)
+
+
+
+--------------------------------------------------------------------------------
 
 ctx2Pattern :: Int  -- ^ Sentence length
             -> Int  -- ^ Absolute position of the target in the sentence
@@ -175,69 +178,57 @@ getMatch (Pos _ C _)  R.Not = NotCau
 
 
 --------------------------------------------------------------------------------
+-- From here on, only pure helper functions
 
--- | Takes a tagset, with OrLists of underspecified readings,
--- and returns corresponding IntSets of fully specified readings.
--- Compare to normaliseRel in cghs/Rule: it only does the set operations
--- relative to the underspecified readings, not with absolute IntSets.
+
+{- rdMap --  1 |-> vblex sg p3
+             2 |-> noun sg mf
+               ...
+          9023 |-> "aurrera" adv -}
+mkRdMap :: [Reading] -> IntMap Reading
+mkRdMap = IM.fromDistinctAscList . zip [1..]
+
+{- tagMap    --  vblex |-> IS(1,30,31,32,..,490)
+                 sg    |-> IS(1,2,3,120,1800)
+                 mf    |-> IS(2,20,210)
+                 adv   |-> IS() -}
+mkTagMap :: [Tag] -> [Reading] -> Map Tag IntSet 
+mkTagMap ts rds = M.fromList $
+  ts `for` \t -> let getInds = IS.fromList . map (1+) . findIndices (elem t)
+                 in (t, getInds rdLists) 
+ where 
+  for = flip fmap 
+  rdLists = map getAndList rds
+  -- maybe write this more readably later? --getInds :: Tag -> [Reading] -> IntSet
+
+--------------------------------------------------------------------------------
+
+-- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
+-- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
-normaliseAbs :: TagSet -> M.Map Tag IntSet -> Maybe IntSet
+normaliseAbs :: TagSet -> Map Tag IntSet -> Maybe IntSet
 normaliseAbs tagset tagmap = case tagset of
   All -> Nothing
   Set s -> Just (lu s tagmap)
-  Union t t' -> liftM2 union (norm t) (norm t')
-  Inters t t' -> liftM2 intersection (norm t) (norm t')
+  Union t t' -> liftM2 IS.union (norm t) (norm t')
+  Inters t t' -> liftM2 IS.intersection (norm t) (norm t')
 
--- Intended behaviour:
---   adv adV (ada "very") `diff` ada == adv adV
---   adv adV ada `diff` (ada "very") == adv adV (ada xxx) (ada yyy) ... 
--- This works properly now: norm returns IntSets, 
--- and `norm (ada)` returns all of (ada xxx), (ada yyy), (ada "very"), ...
--- Then, the difference with `norm (adv adV (ada "very")) will only exclude (ada "very").
-  Diff t t' -> liftM2 difference (norm t) (norm t')
+{- Intended behaviour:
+     adv adV (ada "very") `diff` ada == adv adV
+     adv adV ada `diff` (ada "very") == adv adV (ada ((*) -"very")) -}
+  Diff t t' -> liftM2 IS.difference (norm t) (norm t')
 
--- say t=[n,adj] and t'=[m,f,mf]
--- is  = specified readings that match t: (n foo), (n bar), (n mf), ... , (adj foo), (adj bar), (adj f), ..
--- is' = specified readings that match t': (n m), (n f), (vblex sg p3 mf), (adj f), ..
--- intersection of the specified readings returns those that match 
--- sequence [[n,adj],[m,f,mf]]: (n m), (n f), ..., (adj f), (adj mf)
-  Cart t t' -> liftM2 intersection (norm t) (norm t')
+{- say t=[n,adj] and t'=[m,f,mf]
+   is  = specified readings that match t: (n foo), (n bar), (n mf), ... , (adj foo), (adj bar), (adj f), ..
+   is' = specified readings that match t': (n m), (n f), (vblex sg p3 mf), (adj f), ..
+   intersection of the specified readings returns those that match 
+   sequence [[n,adj],[m,f,mf]]: (n m), (n f), ..., (adj f), (adj mf) -}
+  Cart t t' -> liftM2 IS.intersection (norm t) (norm t')
 
  where
   norm = (`normaliseAbs` tagmap)
 
   lu :: OrList Reading -> M.Map Tag IntSet -> IntSet
-  lu s m = unions [ foldl1 intersection $ 
-                     catMaybes [ M.lookup t m | t <- getAndList ts ]
-                      | ts <- getOrList s ]
-
-{-
-Make this only once, at the beginning:
-rdMap --  1 |-> vblex sg p3
-          2 |-> noun sg mf
-               ...
-       9023 |-> "aurrera" adv
-
-Make this only once, at the beginning:
-tagMap    --  vblex |-> IS(1,30,31,32,..,490)
-              sg    |-> IS(1,2,3,120,1800)
-              mf    |-> IS(2,20,210)
-              adv   |-> IS()
-
-Lookup from tagMap, and perform intersections with results,
-many times per rule --- once for each tagset.
-
--}
-
---------------------------------------------------------------------------------
--- General-purpose helper data types
-
--- Different from AndList and OrList, Seq is meant for things that follow 
--- each other. Unlike contextual tests in a rule, or tags in a tag set,
--- Seq models the behaviour of positions and matches in a pattern.
-
-type SeqList a = [a]
---newtype SeqList a = Seq { getSeq :: [a] } deriving (Eq,Ord,Functor,Foldable,Monoid)
-
---instance (Show a) => Show (SeqList a) where
---  show = intercalate "," . map show . getSeq
+  lu s m = IS.unions [ foldl1 IS.intersection $ 
+                        catMaybes [ M.lookup t m | t <- getAndList ts ]
+                        | ts <- getOrList s ]
