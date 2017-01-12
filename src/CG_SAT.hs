@@ -16,7 +16,7 @@ import Data.List ( intercalate )
 import qualified Data.Map as M
 import Data.Maybe ( catMaybes )
 
-import Control.Monad ( liftM2, zipWithM )
+import Control.Monad ( liftM2, mapAndUnzipM, zipWithM )
 import Control.Monad.Trans
 import Control.Monad.IO.Class ( MonadIO(..), liftIO )
 import Control.Monad.State.Class
@@ -41,8 +41,9 @@ newtype CGMonad a = CGMonad (ReaderT Env (StateT Sentence IO) a)
 -}
 data Env = Env { tagMap :: M.Map Tag IntSet 
                , rdMap :: IntMap Reading 
-               , allTags :: IntSet } 
-               deriving (Show,Eq)
+               , allTags :: IntSet 
+               , solver :: Solver } 
+           --    deriving (Show,Eq)
 
 
 
@@ -68,44 +69,55 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
 
 --------------------------------------------------------------------------------
 
-pattern2Lits :: Solver 
-             -> Int -- ^ Position of the target cohort in the sentence
+
+
+--------------------------------------------------------------------------------
+
+pattern2Lits :: Int -- ^ Position of the target cohort in the sentence
              -> Pattern -- ^ Conditions to turn into literals
              -> CGMonad (OrList Lit) -- ^ All possible ways to satisfy the conditions
-pattern2Lits s origin pat = 
-  do sentence <- get
-     Or `fmap` sequence
+pattern2Lits origin pat = do 
+  s <- asks solver
+  sentence <- get
+  Or `fmap` sequence
         -- OBS. potential for sharing: if cohorts are e.g. [1,2],[1,3],[1,4],
         -- we can keep result of 1 somewhere and not compute it all over many times.
-       [ do lits <- zipWithM (makeCondLit s) cohorts matches :: CGMonad [Lit]
-            liftIO $ andl' s lits
+       [ do lits <- zipWithM makeCondLit cohorts matches :: CGMonad [Lit]            
+            if length cohorts == length matches
+              then liftIO $ andl' s lits
+              else error "pattern2Lits: contextual test(s) out of scope"
           | inds <- getOrList $ positions pat  -- inds :: [Int]
           , let cohorts = catMaybes $ fmap (`IM.lookup` sentence) inds
           , let matches = contexts pat
-          , length cohorts == length matches
        ] 
 
 -- OBS. Try adding some short-term cache; add something in the state,
 -- and before computing the literal, see if it's there
-makeCondLit :: Solver -> Cohort -> Match -> CGMonad Lit
-makeCondLit s coh mat = liftIO $ case mat of
-  Mix is -> do let (inmap,outmap) = partitionIM is coh
-               andl' s =<< sequence [orl' s (elems inmap), orl' s (elems outmap)]
+makeCondLit :: Cohort -> Match -> CGMonad Lit
+makeCondLit coh mat = do 
+  s <- asks solver
+  liftIO $ case mat of
+    Mix is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [ orl' s (elems inmap)
+                                      , orl' s (elems outmap) ]
 
               -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
-  Cau is -> do let (inmap,outmap) = partitionIM is coh
-               andl' s =<< sequence [orl' s (elems inmap), neg `fmap` orl' s (elems outmap)]
+    Cau is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [ orl' s (elems inmap)
+                                      , neg `fmap` orl' s (elems outmap) ]
 
-  Not is -> do let (inmap,outmap) = partitionIM is coh
-               andl' s =<< sequence [neg `fmap` orl' s (elems inmap), orl' s (elems outmap)]
+    Not is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [ neg `fmap` orl' s (elems inmap)
+                                      , orl' s (elems outmap) ]
 
   -- `NOT 1C foo' means: "either there's no foo, or the foo is not unique."
   -- Either way, having at least one true non-foo lit fulfils the condition,
   -- because the cohort may not be empty.
-  NotCau is -> do let (_,outmap) = partitionIM is coh
-                  orl' s (elems outmap) 
+    NotCau is -> do let (_,outmap) = partitionIM is coh
+                    orl' s (elems outmap) 
 
-  AllTags   -> return true
+    AllTags   -> return true
+    _ -> undefined
 
  where
   partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
@@ -125,7 +137,7 @@ ctx2Pattern senlen origin ctx = case ctx of
           return (Or [Pat ps m])
           
   Link ctxs 
-    -> do (ps,cs) <- unzip `fmap` mapM singleCtx2Pat (getAndList ctxs)
+    -> do (ps,cs) <- mapAndUnzipM singleCtx2Pat (getAndList ctxs)
           return (Or [Pat (fold ps) (fold cs)])
     -- To support linked templates (which don't make sense), do like below. 
     -- pats <- And `fmap` (ctx2Pattern senlen origin `mapM` getAndList ctxs) 
@@ -170,13 +182,11 @@ getMatch (Pos _ C _)  R.Not = NotCau
 -- relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
 normaliseAbs :: TagSet -> M.Map Tag IntSet -> Maybe IntSet
-normaliseAbs tagset tagmap = 
-  let norm = \x -> normaliseAbs x tagmap 
-  in case tagset of
-      All -> Nothing
-      Set s -> Just (lu s tagmap)
-      Union t t' -> liftM2 union (norm t) (norm t')
-      Inters t t' -> liftM2 intersection (norm t) (norm t')
+normaliseAbs tagset tagmap = case tagset of
+  All -> Nothing
+  Set s -> Just (lu s tagmap)
+  Union t t' -> liftM2 union (norm t) (norm t')
+  Inters t t' -> liftM2 intersection (norm t) (norm t')
 
 -- Intended behaviour:
 --   adv adV (ada "very") `diff` ada == adv adV
@@ -184,18 +194,18 @@ normaliseAbs tagset tagmap =
 -- This works properly now: norm returns IntSets, 
 -- and `norm (ada)` returns all of (ada xxx), (ada yyy), (ada "very"), ...
 -- Then, the difference with `norm (adv adV (ada "very")) will only exclude (ada "very").
-      Diff t t' -> liftM2 difference (norm t) (norm t')
+  Diff t t' -> liftM2 difference (norm t) (norm t')
 
 -- say t=[n,adj] and t'=[m,f,mf]
 -- is  = specified readings that match t: (n foo), (n bar), (n mf), ... , (adj foo), (adj bar), (adj f), ..
 -- is' = specified readings that match t': (n m), (n f), (vblex sg p3 mf), (adj f), ..
 -- intersection of the specified readings returns those that match 
 -- sequence [[n,adj],[m,f,mf]]: (n m), (n f), ..., (adj f), (adj mf)
-      Cart t t' -> liftM2 intersection (norm t) (norm t')
-
-
+  Cart t t' -> liftM2 intersection (norm t) (norm t')
 
  where
+  norm = (`normaliseAbs` tagmap)
+
   lu :: OrList Reading -> M.Map Tag IntSet -> IntSet
   lu s m = unions [ foldl1 intersection $ 
                      catMaybes [ M.lookup t m | t <- getAndList ts ]
