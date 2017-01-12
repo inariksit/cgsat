@@ -45,8 +45,6 @@ data Env = Env { tagMap :: Map Tag IntSet
                , rdMap :: IntMap Reading 
                , allTags :: IntSet 
                , solver :: Solver } 
-           --    deriving (Show,Eq)
-
 
 
 type Sentence = IntMap Cohort
@@ -98,8 +96,9 @@ makeCondLit coh mat = do
   s <- asks solver
   liftIO $ case mat of
     Mix is -> do let (inmap,outmap) = partitionIM is coh
-                 andl' s =<< sequence [ orl' s (elems inmap)
-                                      , orl' s (elems outmap) ]
+                 lits <- sequence [ orl' s (elems inmap)
+                                  , orl' s (elems outmap) ]
+                 andl' s lits
 
               -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
     Cau is -> do let (inmap,outmap) = partitionIM is coh
@@ -128,6 +127,7 @@ makeCondLit coh mat = do
 
 
 --------------------------------------------------------------------------------
+-- Transform the contextual test(s) of one rule into a Pattern.
 
 ctx2Pattern :: Int  -- ^ Sentence length
             -> Int  -- ^ Absolute position of the target in the sentence
