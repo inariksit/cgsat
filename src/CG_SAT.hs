@@ -30,8 +30,10 @@ import Control.Monad.Trans.Reader ( ReaderT(..) )
 
 --------------------------------------------------------------------------------
 
-newtype CGMonad a = CGMonad (ReaderT Env (StateT Sentence IO) a)
+newtype RSIO a = RSIO { runRSIO :: ReaderT Env (StateT Sentence IO) a }
   deriving (Functor, Applicative, Monad, MonadState Sentence, MonadReader Env, MonadIO)
+
+
 
 {-  tagMap 
            ‾‾`v
@@ -44,12 +46,12 @@ newtype CGMonad a = CGMonad (ReaderT Env (StateT Sentence IO) a)
 -}
 data Env = Env { tagMap :: Map Tag IntSet 
                , rdMap :: IntMap Reading 
-               , allTags :: IntSet 
                , solver :: Solver } 
 
 
 type Sentence = IntMap Cohort
 type Cohort = IntMap Lit
+emptySent = IM.empty
 
 type SeqList a = [a] -- List of things that follow each other in sequence
 
@@ -74,14 +76,14 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
 
 pattern2Lits :: Int -- ^ Position of the target cohort in the sentence
              -> Pattern -- ^ Conditions to turn into literals
-             -> CGMonad (OrList Lit) -- ^ All possible ways to satisfy the conditions
+             -> RSIO (OrList Lit) -- ^ All possible ways to satisfy the conditions
 pattern2Lits origin pat = do 
   s <- asks solver
   sentence <- get
   Or `fmap` sequence
         -- OBS. potential for sharing: if cohorts are e.g. [1,2],[1,3],[1,4],
         -- we can keep result of 1 somewhere and not compute it all over many times.
-       [ do lits <- zipWithM makeCondLit cohorts matches :: CGMonad [Lit]            
+       [ do lits <- zipWithM makeCondLit cohorts matches
             if length cohorts == length matches
               then liftIO $ andl' s lits
               else error "pattern2Lits: contextual test(s) out of scope"
@@ -92,7 +94,7 @@ pattern2Lits origin pat = do
 
 -- OBS. Try adding some short-term cache; add something in the state,
 -- and before computing the literal, see if it's there
-makeCondLit :: Cohort -> Match -> CGMonad Lit
+makeCondLit :: Cohort -> Match -> RSIO Lit
 makeCondLit coh mat = do 
   s <- asks solver
   liftIO $ case mat of
@@ -133,7 +135,7 @@ makeCondLit coh mat = do
 ctx2Pattern :: Int  -- ^ Sentence length
             -> Int  -- ^ Absolute position of the target in the sentence
             -> Context -- ^ Context to be transformed
-            -> CGMonad (OrList Pattern) -- ^ List of patterns. Length >1 only if the context is template.
+            -> RSIO (OrList Pattern) -- ^ List of patterns. Length >1 only if the context is template.
 ctx2Pattern senlen origin ctx = case ctx of
   Always -> return (Or [PatAlways])
   c@(Ctx posn polr tgst)
@@ -172,6 +174,8 @@ getMatch (Pos _ C _)  R.Not = NotCau
 --------------------------------------------------------------------------------
 -- From here on, only pure helper functions
 
+mkEnv :: Solver -> [Reading] -> [Tag] -> Env
+mkEnv s rds tags = Env (mkTagMap tags rds) (mkRdMap rds) s 
 
 {- rdMap --  1 |-> vblex sg p3
              2 |-> noun sg mf
@@ -192,6 +196,21 @@ mkTagMap ts rds = M.fromList $
   for = flip fmap 
   rdLists = map getAndList rds
   -- maybe write this more readably later? --getInds :: Tag -> [Reading] -> IntSet
+
+
+mkSentence :: Int -> RSIO Sentence
+mkSentence width = do
+  s <- asks solver
+  rds <- asks rdMap
+  liftIO $ IM.fromList `fmap` sequence 
+    [ (,) n `fmap` sequence (IM.mapWithKey (mkLit s n) rds)
+        | n <- [1..width] ] 
+ where
+  mkLit :: Solver -> Int -> Int -> Reading -> IO Lit
+  mkLit s n m rd = newLit s (showReading rd n m)
+
+  showReading (And [l]) _ m = show l ++ "_" ++ show m
+  showReading (And ts)  i m = "w" ++ show i ++ concatMap (\t -> '<':show t++">") ts
 
 --------------------------------------------------------------------------------
 

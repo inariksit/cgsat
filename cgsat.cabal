@@ -52,7 +52,9 @@ executable analyse
                      , cghs
                      , cgsat
                      , minisat
+                     , mtl
                      , satplus
+                     , transformers
   default-language:    Haskell2010
 
 
