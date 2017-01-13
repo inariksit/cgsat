@@ -95,8 +95,6 @@ width rule = length [minw..maxw]
   flatScopes = fold (getAndList ctxScopes) :: OrList Int -- Or [1,1,2,3,-2,-1]
   (minw,maxw) = (0 `min` minimum flatScopes, 0 `max` maximum flatScopes)
 
-
-
 ----------------------------------------------------------------------------
 -- Helper functions, TODO move these to someplace more general
 

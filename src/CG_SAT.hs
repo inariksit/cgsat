@@ -184,6 +184,7 @@ mkEnv s rds tags = Env (mkTagMap tags rds) (mkRdMap rds) s
 mkRdMap :: [Reading] -> IntMap Reading
 mkRdMap = IM.fromDistinctAscList . zip [1..]
 
+
 {- tagMap    --  vblex |-> IS(1,30,31,32,..,490)
                  sg    |-> IS(1,2,3,120,1800)
                  mf    |-> IS(2,20,210)
