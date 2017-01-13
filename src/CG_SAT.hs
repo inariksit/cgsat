@@ -17,7 +17,7 @@ import qualified Data.IntSet as IS
 import Data.List ( intercalate, findIndices )
 import Data.Map ( Map )
 import qualified Data.Map as M
-import Data.Maybe ( catMaybes )
+import Data.Maybe ( catMaybes, fromMaybe )
 
 import Control.Monad ( liftM2, mapAndUnzipM, zipWithM )
 import Control.Monad.Trans
@@ -67,6 +67,7 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
            | Not IntSet -- Cohort contains no tags in IntSet
            | NotCau IntSet -- Cohort contains (not only) tags in IntSet:
                             -- either of Not and Mix are valid.
+           | Bar Int IntSet Match -- TODO
            | AllTags -- Cohort may contain any tag
            deriving (Show,Eq,Ord)
 
@@ -160,15 +161,26 @@ ctx2Pattern senlen origin ctx = case ctx of
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
     do tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
+       btags <- normaliseTagsetAbs (getBTags $ scan posn) `fmap` asks tagMap --TODO ugly
+       let bs = fromMaybe IS.empty btags
+
        let allPositions = normalisePosition posn senlen origin
-       let match = maybe AllTags (getMatch posn polr) tagset
+       let match = maybe AllTags (getMatch bs posn polr) tagset --still ugly
        return (fmap (:[]) allPositions, [match] ) 
 
-getMatch :: Position -> Polarity -> (IntSet -> Match)
-getMatch (Pos _ NC _) Yes   = Mix
-getMatch (Pos _ NC _) R.Not = Not
-getMatch (Pos _ C _)  Yes   = Cau
-getMatch (Pos _ C _)  R.Not = NotCau
+  --ugly hack, TODO improve
+  getBTags (Barrier ts) = ts
+  getBTags (CBarrier ts) = ts
+  getBTags _             = Set (Or [And []])
+
+
+getMatch :: IntSet -> Position -> Polarity -> (IntSet -> Match)
+getMatch bs (Pos (Barrier ts) c n) pol = Bar n bs . (getMatch bs (Pos AtLeast c n) pol) 
+                                           
+getMatch _ (Pos _ NC _) Yes   = Mix
+getMatch _ (Pos _ NC _) R.Not = Not
+getMatch _ (Pos _ C _)  Yes   = Cau
+getMatch _ (Pos _ C _)  R.Not = NotCau
 
 
 --------------------------------------------------------------------------------
