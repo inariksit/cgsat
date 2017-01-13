@@ -4,6 +4,7 @@ module CG_SAT where
 
 import Rule hiding ( Not, Negate )
 import qualified Rule as R
+import Utils
 import SAT ( Solver(..) )
 import SAT.Named
 
@@ -156,19 +157,10 @@ ctx2Pattern senlen origin ctx = case ctx of
 
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
-    do tagset <- normaliseAbs tgst `fmap` asks tagMap
-       let allPositions = pos2inds posn senlen origin
+    do tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
+       let allPositions = normalisePosition posn senlen origin
        let match = maybe AllTags (getMatch posn polr) tagset
        return (fmap (:[]) allPositions, [match] ) 
-
-pos2inds :: Position -> Int -> Int -> OrList Int
-pos2inds posn senlen origin = case scan posn of 
-  Exactly -> Or [origin + relInd]
-  _       -> Or absInds
- where
-  relInd = R.pos posn
-  absInds = if relInd<0 then [1 .. origin+relInd]
-                else [origin+relInd .. senlen]
 
 getMatch :: Position -> Polarity -> (IntSet -> Match)
 getMatch (Pos _ NC _) Yes   = Mix
@@ -209,8 +201,8 @@ mkTagMap ts rds = M.fromList $
 -- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
-normaliseAbs :: TagSet -> Map Tag IntSet -> Maybe IntSet
-normaliseAbs tagset tagmap = case tagset of
+normaliseTagsetAbs :: TagSet -> Map Tag IntSet -> Maybe IntSet
+normaliseTagsetAbs tagset tagmap = case tagset of
   All -> Nothing
   Set s -> Just (lu s tagmap)
   Union t t' -> liftM2 IS.union (norm t) (norm t')
@@ -229,7 +221,7 @@ normaliseAbs tagset tagmap = case tagset of
   Cart t t' -> liftM2 IS.intersection (norm t) (norm t')
 
  where
-  norm = (`normaliseAbs` tagmap)
+  norm = (`normaliseTagsetAbs` tagmap)
 
   lu :: OrList Reading -> M.Map Tag IntSet -> IntSet
   lu s m = IS.unions [ foldl1 IS.intersection $ 
