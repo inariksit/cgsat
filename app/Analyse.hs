@@ -1,13 +1,18 @@
 module Main where
 
+
+import CG_SAT
 import Rule
 import Parse ( parse )
-import CG_SAT
+import Utils
 
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
+import Data.Foldable ( fold )
+import Debug.Trace ( trace )
 import System.Environment ( getArgs )
+
 
 --------------------------------------------------------------------------------
 
@@ -47,7 +52,7 @@ main = do
     print (take 5 rules)
 
     putStrLn "---------"
-    testRule (rules !! 10) (take 10 rules)
+    mapM_ (\x -> testRule x []) (take 50 rules)
     putStrLn "---------"
 
 
@@ -61,9 +66,20 @@ main = do
 
 testRule :: Rule -> [Rule] -> IO Conflict --CGMonad Conflict
 testRule rule prevRules = do print rule
-                             print rulewidths
+                             print (width rule)
                              return TODO
- where rulewidths = fmap width (context rule)
+ where 
+  rulewidth = width rule
+
+width :: Rule -> Int
+width rule = --trace (show ctxScopes ++ "<- ctxScopes \n flatScopes ->" ++ show flatScopes) $
+              length [minw..maxw]
+ where                                   
+  ctxScopes = fmap scopes (context rule) :: AndList (OrList Int) -- And [Or [1], Or [1,2,3], Or [-2,-1]]
+  flatScopes = fold (getAndList ctxScopes) :: OrList Int -- Or [1,1,2,3,-2,-1]
+
+  (minw,maxw) = (0 `min` minimum flatScopes, 0 `max` maximum flatScopes)
+
 
 
 ----------------------------------------------------------------------------
