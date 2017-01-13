@@ -75,6 +75,41 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
 --------------------------------------------------------------------------------
 -- Interaction with SAT-solver, non-pure functions
 
+
+-- | Using the readings and the solver in environment, create a sentence.
+-- (should I also put it in the env???)
+mkSentence :: Int -> RSIO Sentence
+mkSentence width = do
+  s <- asks solver
+  rds <- asks rdMap
+  liftIO $ IM.fromList `fmap` sequence 
+    [ (,) n `fmap` sequence (IM.mapWithKey (mkLit s n) rds)
+        | n <- [1..width] ] 
+ where
+  mkLit :: Solver -> Int -> Int -> Reading -> IO Lit
+  mkLit s n m rd = newLit s (showReading rd n m)
+
+  showReading :: Reading -> Int -> Int -> String
+  showReading (And ts)  wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '<':show t++">") ts
+
+
+updateSentence :: RSIO ()
+updateSentence = do 
+  oldSent <- get
+  put $ doStuff oldSent
+
+ where
+  doStuff x = undefined
+
+  changeReading :: Cohort -> (Int,Lit) -> Cohort
+  changeReading coh (i,newrd) = IM.adjust (const newrd) i coh
+
+  changeCohort :: Sentence -> Int-> Cohort -> Sentence
+  changeCohort sent i newcoh = IM.adjust (const newcoh) i sent
+
+--------------------------------------------------------------------------------
+-- 
+
 pattern2Lits :: Int -- ^ Position of the target cohort in the sentence
              -> Pattern -- ^ Conditions to turn into literals
              -> RSIO (OrList Lit) -- ^ All possible ways to satisfy the conditions
@@ -209,21 +244,6 @@ mkTagMap ts rds = M.fromList $
   for = flip fmap 
   rdLists = map getAndList rds
   -- maybe write this more readably later? --getInds :: Tag -> [Reading] -> IntSet
-
-
-mkSentence :: Int -> RSIO Sentence
-mkSentence width = do
-  s <- asks solver
-  rds <- asks rdMap
-  liftIO $ IM.fromList `fmap` sequence 
-    [ (,) n `fmap` sequence (IM.mapWithKey (mkLit s n) rds)
-        | n <- [1..width] ] 
- where
-  mkLit :: Solver -> Int -> Int -> Reading -> IO Lit
-  mkLit s n m rd = newLit s (showReading rd n m)
-
-  showReading (And [l]) _ m = show l ++ "_" ++ show m
-  showReading (And ts)  i m = "w" ++ show i ++ concatMap (\t -> '<':show t++">") ts
 
 --------------------------------------------------------------------------------
 
