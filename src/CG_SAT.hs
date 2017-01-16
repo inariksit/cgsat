@@ -67,7 +67,7 @@ data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
            | Not IntSet -- Cohort contains no tags in IntSet
            | NotCau IntSet -- Cohort contains (not only) tags in IntSet:
                             -- either of Not and Mix are valid.
-           | Bar Int IntSet Match -- TODO
+           | Bar (Int,Match) Match 
            | AllTags -- Cohort may contain any tag
            deriving (Show,Eq,Ord)
 
@@ -154,6 +154,7 @@ makeCondLit coh mat = do
     NotCau is -> do let (_,outmap) = partitionIM is coh
                     orl' s (elems outmap) 
 
+    Bar (i,m) is -> undefined 
     AllTags   -> return true
 
  where
@@ -196,26 +197,29 @@ ctx2Pattern senlen origin ctx = case ctx of
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
     do tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
-       btags <- normaliseTagsetAbs (getBTags $ scan posn) `fmap` asks tagMap --TODO ugly
-       let bs = fromMaybe IS.empty btags
-
-       let allPositions = normalisePosition posn senlen origin
-       let match = maybe AllTags (getMatch bs posn polr) tagset --still ugly
+       matchOp <- getMatch posn polr
+       let match = maybe (error "ctx2Pattern: invalid tagset") matchOp tagset
+       let allPositions = normalisePosition posn senlen origin :: OrList Int -- 1* -> e.g. [2,3,4]
        return (fmap (:[]) allPositions, [match] ) 
 
-  --ugly hack, TODO improve
-  getBTags (Barrier ts) = ts
-  getBTags (CBarrier ts) = ts
-  getBTags _             = Set (Or [And []])
 
 
-getMatch :: IntSet -> Position -> Polarity -> (IntSet -> Match)
-getMatch bs (Pos (Barrier ts) c n) pol = Bar n bs . (getMatch bs (Pos AtLeast c n) pol) 
-                                           
-getMatch _ (Pos _ NC _) Yes   = Mix
-getMatch _ (Pos _ NC _) R.Not = Not
-getMatch _ (Pos _ C _)  Yes   = Cau
-getMatch _ (Pos _ C _)  R.Not = NotCau
+getMatch :: Position -> Polarity -> RSIO (IntSet -> Match)
+getMatch pos pol = case (pos,pol) of
+  (Pos (Barrier ts) c n, _) -> do
+    tsMatch <- getMatch (Pos AtLeast c n) pol
+    bts <- normaliseTagsetAbs ts `fmap` asks tagMap
+    let btMatch = maybe AllTags Mix bts
+    return $ Bar (n,btMatch) . tsMatch
+  (Pos (CBarrier ts) c n, _) -> do 
+    tsMatch <- getMatch (Pos AtLeast c n) pol
+    bts <- normaliseTagsetAbs ts `fmap` asks tagMap
+    let btMatch = maybe AllTags Cau bts
+    return $ Bar (n,btMatch) . tsMatch                                      
+  (Pos _ NC _, Yes)   -> return Mix
+  (Pos _ NC _, R.Not) -> return Not
+  (Pos _ C _,  Yes)   -> return Cau
+  (Pos _ C _,  R.Not) -> return NotCau
 
 
 --------------------------------------------------------------------------------
