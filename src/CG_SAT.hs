@@ -151,15 +151,15 @@ makeCondLit (Bar (bi,bm) mat) (i,coh) = do
   -- cohorts between the condition and target do NOT contain the specified readings
   barLits <- mapM (makeCondLit negBM) barCohorts 
 
-  liftIO $ andl' s (matchLit:barLits)
+  liftIO $ andl s "<barrier literal>" (matchLit:barLits)
 
 makeCondLit mat (i,coh) = do 
   s <- asks solver
   liftIO $ case mat of
     Mix is -> do let (inmap,outmap) = partitionIM is coh
-                 lits <- sequence [ orl' s (elems inmap)
-                                  , orl' s (elems outmap) ]
-                 andl' s lits
+                 lits <- sequence [ orl s "" (elems inmap)
+                                  , orl s "" (elems outmap) ]
+                 andl s "" lits
 
               -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
     Cau is -> do let (inmap,outmap) = partitionIM is coh

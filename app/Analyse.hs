@@ -10,6 +10,7 @@ import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
 import Data.Foldable ( fold )
+import Data.List ( nub )
 import Debug.Trace ( trace )
 import System.Environment ( getArgs )
 
@@ -36,7 +37,7 @@ main = do
 
     let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
     let subr = if "nosub" `elem` r then ".nosub" else ".withsub"
-    let rdsfromgrammar = "undersp" `elem` r || "rdsfromgrammar" `elem` r
+    let rdsfromgrammar = True --"undersp" `elem` r || "rdsfromgrammar" `elem` r
  
     let dirname = "data/" ++ lang ++ "/" 
     let grfile  = dirname ++ lang ++ ".rlx"
@@ -50,10 +51,11 @@ main = do
     tagsInLex <- (map toTag . filter (not.null) . words) 
                    `fmap` readFile tagfile
     readingsInLex <- (map parseReading . words) `fmap` readFile rdsfile
-    rules <- (concat . snd . parse) `fmap` readFile grfile
-    --let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
-    --                    then nub $ concatMap toTags' tsets
-    --                    else []
+    (tsets,ruless) <- parse `fmap` readFile grfile
+    let rules = concat ruless
+    let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
+                        then concatMap tagSet2Readings tsets
+                        else []
 
     print tagsInLex
     print readingsInLex
@@ -61,8 +63,8 @@ main = do
 
     putStrLn "---------"
 
-    let env = mkEnv s readingsInLex tagsInLex
-    evalStateT (runReaderT (runRSIO (testRule (head rules) [])) 
+    let env = mkEnv s (readingsInLex++readingsInGr) tagsInLex
+    evalStateT (runReaderT (runRSIO (testRule (rules !! 10) [])) 
                            env) 
                emptySent
     putStrLn "---------"
@@ -76,15 +78,22 @@ main = do
 -- Functions that apply only for analysis, not disambiguation
 
 
-testRule :: Rule -> [Rule] -> RSIO Conflict -- ReaderT Env (StateT Sentence IO) Conflict
+testRule :: Rule -> [Rule] -> RSIO Conflict
 testRule rule prevRules = do 
+  let w = width rule
   liftIO $ print rule
-  liftIO $ print (width rule)
-  sent <- mkSentence (width rule)
+  liftIO $ print w
+  sent <- mkSentence w
   put sent
   tm <- asks tagMap 
-  liftIO $ print sent
+--  liftIO $ print sent
   liftIO $ print tm 
+  liftIO $  print (context rule)
+  pats <- mapM (ctx2Pattern w w) (context rule)
+  lits <- mapM (pattern2Lits 1) (getOrList $ fold $ getAndList pats) --TODO
+  liftIO $ print pats
+  liftIO $ putStrLn "-------"
+  liftIO $ print lits
   return TODO
 
 
@@ -107,6 +116,13 @@ parseReading str = And $ maintags ++ concat subtags
   subrs_ns = map FromStart [1..] `zip` map (split isValid) subrs :: [(Subpos,[String])]
   subtags = map (\(n, strs) -> map (Subreading n . toTag) strs) subrs_ns
   isValid = (=='<') 
+
+tagSet2Readings :: TagSet -> [Reading]
+tagSet2Readings ts = case normaliseTagsetRel ts of
+  Set rds    -> getOrList rds
+  All        -> [] --TODO ??
+  Diff rs ts -> tagSet2Readings rs ++ tagSet2Readings ts -- TODO
+
 
 
 toTag ">>>" = BOS
