@@ -119,19 +119,41 @@ pattern2Lits origin pat = do
   Or `fmap` sequence
         -- OBS. potential for sharing: if cohorts are e.g. [1,2],[1,3],[1,4],
         -- we can keep result of 1 somewhere and not compute it all over many times.
-       [ do lits <- zipWithM makeCondLit cohorts matches
+       [ do lits <- zipWithM makeCondLit matches cohorts
             if length cohorts == length matches
               then liftIO $ andl' s lits
               else error "pattern2Lits: contextual test(s) out of scope"
           | inds <- getOrList $ positions pat  -- inds :: [Int]
-          , let cohorts = catMaybes $ fmap (`IM.lookup` sentence) inds
+          , let cohorts = [ (i,c) | (i,c) <- IM.assocs sentence 
+                                  , i `elem` inds ]
           , let matches = contexts pat
        ] 
 
 -- OBS. Try adding some short-term cache; add something in the state,
 -- and before computing the literal, see if it's there
-makeCondLit :: Cohort -> Match -> RSIO Lit
-makeCondLit coh mat = do 
+makeCondLit :: Match -> (Int,Cohort) -> RSIO Lit
+makeCondLit (Bar (bi,bm) mat) (i,coh) = do
+  s <- asks solver
+  sentence <- get
+  matchLit <- makeCondLit mat (i,coh)
+
+  let barInds | bi <= i   = [bi..i]
+              | otherwise = [i..bi]
+
+  let barCohorts = [ (i,c) | (i,c) <- IM.assocs sentence 
+                           , i `elem` barInds ]
+
+  let negBM = case bm of
+                Mix is -> Not is
+                Cau is -> NotCau is
+                _      -> error "makeCondLit: invalid condition for BARRIER"
+
+  -- cohorts between the condition and target do NOT contain the specified readings
+  barLits <- mapM (makeCondLit negBM) barCohorts 
+
+  liftIO $ andl' s (matchLit:barLits)
+
+makeCondLit mat (i,coh) = do 
   s <- asks solver
   liftIO $ case mat of
     Mix is -> do let (inmap,outmap) = partitionIM is coh
@@ -154,8 +176,9 @@ makeCondLit coh mat = do
     NotCau is -> do let (_,outmap) = partitionIM is coh
                     orl' s (elems outmap) 
 
-    Bar (i,m) is -> undefined 
     AllTags   -> return true
+
+    _ -> error "makeCondLit: :("
 
  where
   partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
@@ -197,25 +220,29 @@ ctx2Pattern senlen origin ctx = case ctx of
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
     do tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
-       matchOp <- getMatch posn polr
+       matchOp <- getMatch origin posn polr
        let match = maybe (error "ctx2Pattern: invalid tagset") matchOp tagset
        let allPositions = normalisePosition posn senlen origin :: OrList Int -- 1* -> e.g. [2,3,4]
        return (fmap (:[]) allPositions, [match] ) 
 
 
 
-getMatch :: Position -> Polarity -> RSIO (IntSet -> Match)
-getMatch pos pol = case (pos,pol) of
+getMatch :: Int -> Position -> Polarity -> RSIO (IntSet -> Match)
+getMatch origin pos pol = case (pos,pol) of
   (Pos (Barrier ts) c n, _) -> do
-    tsMatch <- getMatch (Pos AtLeast c n) pol
-    bts <- normaliseTagsetAbs ts `fmap` asks tagMap
-    let btMatch = maybe AllTags Mix bts
-    return $ Bar (n,btMatch) . tsMatch
+    tsMatch <- getMatch origin (Pos AtLeast c n) pol
+    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
+    let barMatch = maybe AllTags Mix barTags
+    let barInd = origin + n 
+    return $ Bar (barInd,barMatch) . tsMatch
+
   (Pos (CBarrier ts) c n, _) -> do 
-    tsMatch <- getMatch (Pos AtLeast c n) pol
-    bts <- normaliseTagsetAbs ts `fmap` asks tagMap
-    let btMatch = maybe AllTags Cau bts
-    return $ Bar (n,btMatch) . tsMatch                                      
+    tsMatch <- getMatch origin (Pos AtLeast c n) pol
+    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
+    let barMatch = maybe AllTags Cau barTags
+    let barInd = origin + n 
+    return $ Bar (barInd,barMatch) . tsMatch
+
   (Pos _ NC _, Yes)   -> return Mix
   (Pos _ NC _, R.Not) -> return Not
   (Pos _ C _,  Yes)   -> return Cau
