@@ -11,6 +11,7 @@ import SAT.Named
 
 import Data.Foldable ( fold )
 import Data.List ( nub )
+import Data.Maybe ( catMaybes )
 import Debug.Trace ( trace )
 import System.Environment ( getArgs )
 
@@ -60,7 +61,7 @@ main = do
     print tagsInLex
     print readingsInLex
     print readingsInGr
-    mapM_ print (take 5 rules)
+    mapM_ print (take 15 rules)
 
     putStrLn "---------"
 
@@ -86,22 +87,28 @@ testRule rule prevRules = do
   s <- asks solver
   tm <- asks tagMap 
 
-  liftIO $ defaultRules s sent --TODO: will this stay in the RSIO monad?
+  liftIO $ defaultRules s sent
   put (Conf sent w)
 
   liftIO $ print rule
   liftIO $ print w
-----  liftIO $ print sent
---  liftIO $ print tm 
---  liftIO $  print (context rule)
 
-  maybeLits <- mapM (condLits rule) [1..w]
-  --pats <- mapM (ctx2Pattern w w) (context rule)
-  --lits <- mapM (pattern2Lits 1) (getOrList $ fold $ getAndList pats) --TODO
 
---  liftIO $ print pats
+  maybeCondLitsPerTrg <- sequence 
+    [ (,) i `fmap` condLits rule i | i <- [1..w] ]  -- may be out of scope
+
+  let condLitsPerTrg = 
+       [ (i,lits) | x@(i,Just lits) <- maybeCondLitsPerTrg ] -- keep only those in scope
+
+
+
+  let flatCondLits = flattenCondLits condLitsPerTrg
+  -- flatCondLits contains tuples of (target,condition literals for target).
+  -- If snd is empty, then the condition was out of scope.
+
+
   liftIO $ putStrLn "--------"
-  liftIO $ print maybeLits
+  liftIO $ print flatCondLits
   return TODO
 
 

@@ -117,7 +117,7 @@ updateSentence = do
 condLits :: Rule -- ^ Rule, whose conditions to turn into literals
          -> Int  -- ^ Absolute position of the target in the sentence
          -> RSIO (Maybe -- Each condition must hold; but each of them may
-              (AndList (OrList Lit))) -- be fulfilled in various ways.          
+              (AndList (OrList (OrList Lit)))) -- be fulfilled in various ways.          
 condLits rule origin = do
   slen <- gets senlength
   --liftIO $ print (origin, slen) --DEBUG
@@ -125,8 +125,8 @@ condLits rule origin = do
   if any (all patNull) pats -- any OrList whose *all* positions are empty
    then return Nothing -- Some of the conditions is out of scope, doesn't apply
    else do
-    --lits <- undefined
-    return $ Just (And [Or [true]])
+    lits <- mapM (mapM (pattern2Lits origin)) pats :: RSIO (AndList (OrList (OrList Lit)))
+    return $ Just lits
 
  where
   patNull = null . positions
@@ -274,6 +274,31 @@ match2CondLit mat (i,coh) = do
 
 
 --------------------------------------------------------------------------------
+  -- For future use, we may want to do some fine-grained inspection,
+  -- ie. which parts of the conditions may block some rule.
+  -- For now, we just flatten them. But here's the structure of the 3 nested lists.
+  {- For future reference:
+    condLitsPerTrg :: [AndList (OrList (OrList Lit))] 
+    condLitsPerCond :: AndList (OrList (OrList Lit)) 
+      -- each individual condition, e.g. IF (-1 foo) (1 bar) (2* baz LINK 1 quux)
+    condTempl :: OrList (OrList Lit)
+      -- if the individual condition is a template, e.g. IF ( (-1 foo) OR (1 bar) )
+    allIndsLinkedCond :: OrList Lit
+      -- if the condition is scanning, all the indices that match.
+      -- if it's linked, the lits come from ANDing several indices.
+      -- e.g. IF (-1* foo LINK 1 bar) --> lit@[2,3] OR lit@[3,4] OR lit@[4,5].
+  -}
+flattenCondLits :: [(Int, AndList (OrList (OrList Lit)))] -> [(Int,[[Lit]])] --TODO appropriate AndList and OrList
+flattenCondLits litsPerTrg = 
+  [ (,) iTrg $ concat 
+    [ [ getOrList allIndsLinkedCond  -- 3) finally, just the individual (possibly linked) conditions, e.g. [2,3]
+       | allIndsLinkedCond <- getOrList condTempl -- 2) second level is linked (or single) condition in different indices:
+      ]                               -- IF (1* foo LINK 1 bar) -> 
+      | condTempl <- getAndList litsPerCond  -- 1) the first level of OrList is template: 
+    ]                                        -- e.g. 
+    | (iTrg,litsPerCond) <- litsPerTrg 
+  ]
+
 
 --TODO move somewhere else/merge into something?
 defaultRules :: Solver -> Sentence -> IO ()
