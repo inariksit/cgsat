@@ -62,12 +62,15 @@ data Pattern = Pat { positions :: OrList (SeqList Int)
              deriving (Show,Eq,Ord)
 
 
-data Match = Mix IntSet -- Cohort contains tags in IntSet and tags not in IntSet
-           | Cau IntSet -- Cohort contains only tags in IntSet
-           | Not IntSet -- Cohort contains no tags in IntSet
-           | NotCau IntSet -- Cohort contains (not only) tags in IntSet:
+data Match = Mix IntSet -- ^ Cohort contains tags in IntSet, and 
+                        -- for condition, it may contain tags not in IntSet.
+                        -- OBS. for target, it *must* contain tags not in IntSet.
+           | Cau IntSet -- ^ Cohort contains only tags in IntSet.
+           | Not IntSet -- ^ Cohort contains no tags in IntSet.
+           | NotCau IntSet -- ^ Cohort contains (not only) tags in IntSet:
                             -- either of Not and Mix are valid.
-           | Bar (Int,Match) Match 
+           | Bar (Int,Match) Match -- ^ Cohort matches the second Match, and requires that 
+                                   -- there is no match to the first Match, up to the Int.
            | AllTags -- Cohort may contain any tag
            deriving (Show,Eq,Ord)
 
@@ -156,10 +159,10 @@ makeCondLit (Bar (bi,bm) mat) (i,coh) = do
 makeCondLit mat (i,coh) = do 
   s <- asks solver
   liftIO $ case mat of
-    Mix is -> do let (inmap,outmap) = partitionIM is coh
-                 lits <- sequence [ orl s "" (elems inmap)
-                                  , orl s "" (elems outmap) ]
-                 andl s "" lits
+    -- if Mix is for condition, then it doesn't matter whether some tag not
+    -- in the tagset is True. Only for *targets* there must be something else.
+    Mix is -> do let (inmap,_) = partitionIM is coh
+                 orl' s (elems inmap)
 
               -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
     Cau is -> do let (inmap,outmap) = partitionIM is coh
@@ -167,7 +170,7 @@ makeCondLit mat (i,coh) = do
                                       , neg `fmap` orl' s (elems outmap) ]
 
     Not is -> do let (inmap,outmap) = partitionIM is coh
-                 andl' s =<< sequence [ neg `fmap` orl' s (elems inmap)
+                 andl' s =<< sequence [ andl' s (neg `fmap` elems inmap)
                                       , orl' s (elems outmap) ]
 
   -- `NOT 1C foo' means: "either there's no foo, or the foo is not unique."
