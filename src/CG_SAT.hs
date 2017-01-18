@@ -27,11 +27,10 @@ import Control.Monad.Reader.Class
 import Control.Monad.Trans.State ( StateT(..) )
 import Control.Monad.Trans.Reader ( ReaderT(..) )
 
-
 --------------------------------------------------------------------------------
 
-newtype RSIO a = RSIO { runRSIO :: ReaderT Env (StateT Sentence IO) a }
-  deriving (Functor, Applicative, Monad, MonadState Sentence, MonadReader Env, MonadIO)
+newtype RSIO a = RSIO { runRSIO :: ReaderT Env (StateT Conf IO) a }
+  deriving (Functor, Applicative, Monad, MonadState Conf, MonadReader Env, MonadIO)
 
 
 
@@ -48,10 +47,13 @@ data Env = Env { tagMap :: Map Tag IntSet
                , rdMap :: IntMap Reading 
                , solver :: Solver } 
 
+data Conf = Conf { sentence :: Sentence 
+                 , senlength :: Int }
 
 type Sentence = IntMap Cohort
 type Cohort = IntMap Lit
-emptySent = IM.empty
+
+emptyConf = Conf IM.empty 0
 
 type SeqList a = [a] -- List of things that follow each other in sequence
 
@@ -60,7 +62,6 @@ data Pattern = Pat { positions :: OrList (SeqList Int)
              | PatAlways 
              | Negate Pattern -- Negate goes beyond set negation and C
              deriving (Show,Eq,Ord)
-
 
 data Match = Mix IntSet -- ^ Cohort contains tags in IntSet, and 
                         -- for condition, it may contain tags not in IntSet.
@@ -113,84 +114,22 @@ updateSentence = do
 --------------------------------------------------------------------------------
 -- 
 
-pattern2Lits :: Int -- ^ Position of the target cohort in the sentence
-             -> Pattern -- ^ Conditions to turn into literals
-             -> RSIO (OrList Lit) -- ^ All possible ways to satisfy the conditions
-pattern2Lits origin pat = do 
-  s <- asks solver
-  sentence <- get
-  Or `fmap` sequence
-        -- OBS. potential for sharing: if cohorts are e.g. [1,2],[1,3],[1,4],
-        -- we can keep result of 1 somewhere and not compute it all over many times.
-       [ do lits <- zipWithM makeCondLit matches cohorts
-            if length cohorts == length matches
-              then liftIO $ andl' s lits
-              else error "pattern2Lits: contextual test(s) out of scope"
-          | inds <- getOrList $ positions pat  -- inds :: [Int]
-          , let cohorts = [ (i,c) | (i,c) <- IM.assocs sentence 
-                                  , i `elem` inds ]
-          , let matches = contexts pat
-       ] 
-
--- OBS. Try adding some short-term cache; add something in the state,
--- and before computing the literal, see if it's there
-makeCondLit :: Match -> (Int,Cohort) -> RSIO Lit
-makeCondLit (Bar (bi,bm) mat) (i,coh) = do
-  s <- asks solver
-  sentence <- get
-  matchLit <- makeCondLit mat (i,coh)
-
-  let barInds | bi <= i   = [bi..i]
-              | otherwise = [i..bi]
-
-  let barCohorts = [ (i,c) | (i,c) <- IM.assocs sentence 
-                           , i `elem` barInds ]
-
-  let negBM = case bm of
-                Mix is -> Not is
-                Cau is -> NotCau is
-                _      -> error "makeCondLit: invalid condition for BARRIER"
-
-  -- cohorts between the condition and target do NOT contain the specified readings
-  barLits <- mapM (makeCondLit negBM) barCohorts 
-
-  liftIO $ andl s "<barrier literal>" (matchLit:barLits)
-
-makeCondLit mat (i,coh) = do 
-  s <- asks solver
-  liftIO $ case mat of
-    -- if Mix is for condition, then it doesn't matter whether some tag not
-    -- in the tagset is True. Only for *targets* there must be something else.
-    Mix is -> do let (inmap,_) = partitionIM is coh
-                 orl' s (elems inmap)
-
-              -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
-    Cau is -> do let (inmap,outmap) = partitionIM is coh
-                 andl' s =<< sequence [ orl' s (elems inmap)
-                                      , neg `fmap` orl' s (elems outmap) ]
-
-    Not is -> do let (inmap,outmap) = partitionIM is coh
-                 andl' s =<< sequence [ andl' s (neg `fmap` elems inmap)
-                                      , orl' s (elems outmap) ]
-
-  -- `NOT 1C foo' means: "either there's no foo, or the foo is not unique."
-  -- Either way, having at least one true non-foo lit fulfils the condition,
-  -- because the cohort may not be empty.
-    NotCau is -> do let (_,outmap) = partitionIM is coh
-                    orl' s (elems outmap) 
-
-    AllTags   -> return true
-
-    _ -> error "makeCondLit: :("
+condLits :: Rule -- ^ Rule, whose conditions to turn into literals
+         -> Int  -- ^ Absolute position of the target in the sentence
+         -> RSIO (Maybe -- Each condition must hold; but each of them may
+              (AndList (OrList Lit))) -- be fulfilled in various ways.          
+condLits rule origin = do
+  slen <- gets senlength
+  --liftIO $ print (origin, slen) --DEBUG
+  pats <- ctx2Pattern slen origin `mapM` context rule -- :: AndList (OrList Pattern)
+  if any (all patNull) pats -- any OrList whose *all* positions are empty
+   then return Nothing -- Some of the conditions is out of scope, doesn't apply
+   else do
+    --lits <- undefined
+    return $ Just (And [Or [true]])
 
  where
-  partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
-  partitionIM is im = let onlykeys = IM.fromSet (const true) is --Intersection is based on keys
-                          inmap = IM.intersection im onlykeys 
-                          outmap = IM.difference im onlykeys
-                      in (inmap,outmap)
-
-
+  patNull = null . positions
 
 --------------------------------------------------------------------------------
 -- Transform the contextual test(s) of one rule into a Pattern.
@@ -226,6 +165,7 @@ ctx2Pattern senlen origin ctx = case ctx of
        matchOp <- getMatch origin posn polr
        let match = maybe (error "ctx2Pattern: invalid tagset") matchOp tagset
        let allPositions = normalisePosition posn senlen origin :: OrList Int -- 1* -> e.g. [2,3,4]
+       --liftIO $ putStrLn ("allPositions " ++ show allPositions) --DEBUG
        return (fmap (:[]) allPositions, [match] ) 
 
 
@@ -251,6 +191,98 @@ getMatch origin pos pol = case (pos,pol) of
   (Pos _ C _,  Yes)   -> return Cau
   (Pos _ C _,  R.Not) -> return NotCau
 
+--------------------------------------------------------------------------------
+-- Transform the pattern into a disjunction of literals
+
+pattern2Lits :: Int -- ^ Position of the target cohort in the sentence
+             -> Pattern -- ^ Conditions to turn into literals
+             -> RSIO (OrList Lit) -- ^ All possible ways to satisfy the conditions
+pattern2Lits origin pat = do 
+  s <- asks solver
+  sent <- gets sentence
+  Or `fmap` sequence
+        -- OBS. potential for sharing: if cohorts are e.g. [1,2],[1,3],[1,4],
+        -- we can keep result of 1 somewhere and not compute it all over many times.
+       [ do lits <- zipWithM match2CondLit matches cohorts
+            if length cohorts == length matches
+              then liftIO $ andl' s lits
+              else error "pattern2Lits: contextual test(s) out of scope"
+          | inds <- getOrList $ positions pat  -- inds :: [Int]
+          , let cohorts = [ (i,c) | (i,c) <- IM.assocs sent
+                                  , i `elem` inds ]
+          , let matches = contexts pat
+       ] 
+
+-- OBS. Try adding some short-term cache; add something in the state,
+-- and before computing the literal, see if it's there
+match2CondLit :: Match -> (Int,Cohort) -> RSIO Lit
+match2CondLit (Bar (bi,bm) mat) (i,coh) = do
+  s <- asks solver
+  sent <- gets sentence
+  matchLit <- match2CondLit mat (i,coh)
+
+  let barInds | bi <= i   = [bi..i]
+              | otherwise = [i..bi]
+
+  let barCohorts = [ (i,c) | (i,c) <- IM.assocs sent
+                           , i `elem` barInds ]
+
+  let negBM = case bm of
+                Mix is -> Not is
+                Cau is -> NotCau is
+                _      -> error "match2CondLit: invalid condition for BARRIER"
+
+  -- cohorts between the condition and target do NOT contain the specified readings
+  barLits <- mapM (match2CondLit negBM) barCohorts 
+
+  liftIO $ andl' s (matchLit:barLits)
+
+match2CondLit mat (i,coh) = do 
+  s <- asks solver
+  liftIO $ case mat of
+    -- if Mix is for condition, then it doesn't matter whether some tag not
+    -- in the tagset is True. Only for *targets* there must be something else.
+    Mix is -> do let (inmap,_) = partitionIM is coh
+                 orl' s (elems inmap)
+
+              -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
+    Cau is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [ orl' s (elems inmap)
+                                      , neg `fmap` orl' s (elems outmap) ]
+
+    Not is -> do let (inmap,outmap) = partitionIM is coh
+                 andl' s =<< sequence [ andl' s (neg `fmap` elems inmap)
+                                      , orl' s (elems outmap) ]
+
+  -- `NOT 1C foo' means: "either there's no foo, or the foo is not unique."
+  -- Either way, having at least one true non-foo lit fulfils the condition,
+  -- because the cohort may not be empty.
+    NotCau is -> do let (_,outmap) = partitionIM is coh
+                    orl' s (elems outmap) 
+
+    AllTags   -> return true
+
+    _ -> error "match2CondLit: :("
+
+ where
+  partitionIM :: IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
+  partitionIM is im = let onlykeys = IM.fromSet (const true) is --Intersection is based on keys
+                          inmap = IM.intersection im onlykeys 
+                          outmap = IM.difference im onlykeys
+                      in (inmap,outmap)
+
+
+
+--------------------------------------------------------------------------------
+
+--TODO move somewhere else/merge into something?
+defaultRules :: Solver -> Sentence -> IO ()
+defaultRules s sentence = 
+   sequence_ [ do addClause s lits          --Every word must have >=1 reading
+                --  constraints s mp [] form  --Constraints based on lexicon --TODO AmbiguityClasses.hs
+               | coh <- IM.elems sentence 
+               , let lits = IM.elems coh 
+               , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i coh) ] 
 
 --------------------------------------------------------------------------------
 -- From here on, only pure helper functions
@@ -281,8 +313,6 @@ mkTagMap ts rds = M.fromList $
 
 --------------------------------------------------------------------------------
 
-
---------------------------------------------------------------------------------
 
 -- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.

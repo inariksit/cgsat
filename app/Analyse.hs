@@ -59,6 +59,7 @@ main = do
 
     print tagsInLex
     print readingsInLex
+    print readingsInGr
     mapM_ print (take 5 rules)
 
     putStrLn "---------"
@@ -66,7 +67,7 @@ main = do
     let env = mkEnv s (readingsInLex++readingsInGr) tagsInLex
     evalStateT (runReaderT (runRSIO (testRule (rules !! 10) [])) 
                            env) 
-               emptySent
+               emptyConf
     putStrLn "---------"
 
 
@@ -81,20 +82,28 @@ main = do
 testRule :: Rule -> [Rule] -> RSIO Conflict
 testRule rule prevRules = do 
   let w = width rule
+  sent <- mkSentence w
+  s <- asks solver
+  tm <- asks tagMap 
+
+  liftIO $ defaultRules s sent --TODO: will this stay in the RSIO monad?
+  put (Conf sent w)
+
   liftIO $ print rule
   liftIO $ print w
-  sent <- mkSentence w
-  put sent
-  tm <- asks tagMap 
---  liftIO $ print sent
-  liftIO $ print tm 
-  liftIO $  print (context rule)
-  pats <- mapM (ctx2Pattern w w) (context rule)
-  lits <- mapM (pattern2Lits 1) (getOrList $ fold $ getAndList pats) --TODO
-  liftIO $ print pats
-  liftIO $ putStrLn "-------"
-  liftIO $ print lits
+----  liftIO $ print sent
+--  liftIO $ print tm 
+--  liftIO $  print (context rule)
+
+  maybeLits <- mapM (condLits rule) [1..w]
+  --pats <- mapM (ctx2Pattern w w) (context rule)
+  --lits <- mapM (pattern2Lits 1) (getOrList $ fold $ getAndList pats) --TODO
+
+--  liftIO $ print pats
+  liftIO $ putStrLn "--------"
+  liftIO $ print maybeLits
   return TODO
+
 
 
 width :: Rule -> Int
