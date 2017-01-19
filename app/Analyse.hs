@@ -49,7 +49,7 @@ main = do
     
     ----------------------------------------------------------------------------
 
-    tagsInLex <- (map toTag . filter (not.null) . words) 
+    tagsInLex <- (map readTag . filter (not.null) . words) 
                    `fmap` readFile tagfile
     readingsInLex <- (map parseReading . words) `fmap` readFile rdsfile
     (tsets,ruless) <- parse `fmap` readFile grfile
@@ -128,9 +128,9 @@ parseReading :: String -> Reading
 parseReading str = And $ maintags ++ concat subtags
  where
   (mainr:subrs) = split (=='+') str
-  maintags = map toTag $ filter (not.null) $ split isValid mainr
+  maintags = map readTag $ filter (not.null) $ split isValid mainr
   subrs_ns = map FromStart [1..] `zip` map (split isValid) subrs :: [(Subpos,[String])]
-  subtags = map (\(n, strs) -> map (Subreading n . toTag) strs) subrs_ns
+  subtags = map (\(n, strs) -> map (Subreading n . readTag) strs) subrs_ns
   isValid = (=='<') 
 
 tagSet2Readings :: TagSet -> [Reading]
@@ -140,11 +140,13 @@ tagSet2Readings ts = case normaliseTagsetRel ts of
   Diff rs ts -> tagSet2Readings rs ++ tagSet2Readings ts -- TODO
 
 
-
-toTag ">>>" = BOS
-toTag "<<<" = EOS
-toTag []    = error "empty tag"
-toTag str | last str == '>' = Tag (init str)
+-- reading Apertium format, not same as in cghs/Parse
+readTag :: String -> Tag
+readTag ">>>" = BOS
+readTag "<<<" = EOS
+readTag []    = error "empty tag"
+readTag str | head str == '@' = Synt (init str)
+          | last str == '>' = Tag (init str)
           | last str == '$' = WF (init str)
           | otherwise       = Lem str
 

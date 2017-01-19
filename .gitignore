@@ -13,4 +13,4 @@
 *.sty
 *.bak
 .stack-work/
-data*/
+data/*
