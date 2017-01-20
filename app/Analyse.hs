@@ -10,14 +10,15 @@ import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
 
 import Data.Foldable ( fold )
-import Data.List ( nub )
-import Data.Maybe ( catMaybes )
+import qualified Data.IntMap as IM
+import Data.List ( nub, elemIndex )
+import Data.Maybe ( catMaybes, fromMaybe )
 import Debug.Trace ( trace )
 import System.Environment ( getArgs )
 
 --maybe remove these (and things that need them) to CG_SAT?
 import Control.Monad.Trans ( liftIO )
-import Control.Monad.State.Class ( put )
+import Control.Monad.State.Class ( put, gets )
 import Control.Monad.Reader.Class ( asks )
 import Control.Monad.Trans.State ( evalStateT )
 import Control.Monad.Trans.Reader ( runReaderT )
@@ -37,36 +38,49 @@ main = do
    (lang:r)-> do 
 
     let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
-    let subr = if "nosub" `elem` r then ".nosub" else ".withsub"
+    let subr = if "withsub" `elem` r then ".withsub" else ".nosub"
     let rdsfromgrammar = True --"undersp" `elem` r || "rdsfromgrammar" `elem` r
+    let parseReading = if "withsub" `elem` r 
+                        then Utils.parseReadingApeSubr
+                        else Utils.parseReadingApe
  
     let dirname = "data/" ++ lang ++ "/" 
     let grfile  = dirname ++ lang ++ ".rlx"
     let tagfile = dirname ++ lang ++ ".tags"
-    let rdsfile = dirname ++ lang ++ ".readings" ++ subr
+    let lemfile = dirname ++ lang ++ ".lem"
+    let rdsfile = dirname ++ lang ++ ".readings" --  ++ subr
     --let acfile  = dirname ++ lang ++ ".ambiguity-classes"
     --let frmfile = dirname ++ lang ++ ".formula"
     
     ----------------------------------------------------------------------------
 
-    tagsInLex <- (map readTag . filter (not.null) . words) 
+    tagsInLex <- (map Utils.readTag . filter (not.null) . words) 
                    `fmap` readFile tagfile
-    readingsInLex <- (map parseReading . words) `fmap` readFile rdsfile
+    lemInLex <- (map readTag . filter (not.null) . words) `fmap` readFile lemfile
+    readingsInLex <- (map parseReading . words) --Apertium format
+                       `fmap` readFile rdsfile 
     (tsets,ruless) <- parse `fmap` readFile grfile
     let rules = concat ruless
     let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
-                        then concatMap tagSet2Readings tsets
+                        then concatMap Utils.tagSet2Readings tsets
                         else []
 
-    print tagsInLex
-    print readingsInLex
-    print readingsInGr
+    print $ (length tagsInLex, take 50 tagsInLex)
+    print $ (length lemInLex, take 50 lemInLex)
+    putStrLn "---------"
+
+    print $ (length readingsInLex, take 50 readingsInLex)
+
+    print $ (length readingsInGr, take 50 readingsInGr)
+    putStrLn "---------"
+
     mapM_ print (take 15 rules)
 
     putStrLn "---------"
 
-    let env = mkEnv s (readingsInLex++readingsInGr) tagsInLex
-    evalStateT (runReaderT (runRSIO (testRule (rules !! 10) [])) 
+    let env = mkEnv s (readingsInLex++readingsInGr) (tagsInLex++lemInLex)
+--    evalStateT (runReaderT ( runRSIO $ testRule (rules !! 13) (take 12 rules) ) 
+    evalStateT (runReaderT ( runRSIO $ testRule (last rules) rules ) 
                            env) 
                emptyConf
     putStrLn "---------"
@@ -82,74 +96,60 @@ main = do
 
 testRule :: Rule -> [Rule] -> RSIO Conflict
 testRule rule prevRules = do 
-  let w = width rule
-  sent <- mkSentence w
+  let (w,trgCohInd) = width rule
+  initSent <- mkSentence w
   s <- asks solver
   tm <- asks tagMap 
 
-  liftIO $ defaultRules s sent
-  put (Conf sent w)
+  liftIO $ defaultRules s initSent
+  put (Conf initSent w)
 
   liftIO $ print rule
   liftIO $ print w
 
+  ps "--------"
 
-  maybeCondLitsPerTrg <- sequence 
-    [ (,) i `fmap` condLits rule i | i <- [1..w] ]  -- may be out of scope
+  mapM_ apply prevRules
 
-  let condLitsPerTrg = 
-       [ (i,lits) | x@(i,Just lits) <- maybeCondLitsPerTrg ] -- keep only those in scope
+  newSent <- gets sentence
+  --liftIO $ print newSent
 
+ --TODO: less copypaste, merge some of this with CG_SAT.apply
+  let shouldTriggerLast sent conds = do
+        let trgCoh = fromMaybe (error "shouldTriggerLast: no trg index found") 
+                               (IM.lookup trgCohInd sent)
+        let trgIS = fromMaybe (error "shouldTriggerLast: no trg tagset found")
+                              (normaliseTagsetAbs (target rule) tm)
+        let (inmap,outmap) = partitionCohort trgIS trgCoh
+        let (trg,oth) = case oper rule of
+                               SELECT -> (outmap,inmap)
+                               REMOVE -> (inmap,outmap)
+                               _   -> (inmap,outmap) --TODO other operations
 
+        mht <- orl' s (IM.elems trg) -- 1) must have ≥1 target lits
+        mho <- orl' s (IM.elems oth) -- 2) must have ≥1 other lits                              
+        ach <- andl' s (getAndList conds) -- 3) all conditions must hold
+        return (mht, mho, ach)
 
-  let flatCondLits = flattenCondLits condLitsPerTrg
-  -- flatCondLits contains tuples of (target,condition literals for target).
-  -- If snd is empty, then the condition was out of scope.
+  condlits <- fromMaybe (error "testRule: conditions not applicable") 
+                 `fmap` condLits rule trgCohInd
 
+  (mustHaveTrg, mustHaveOther, allCondsHold) <- liftIO $ shouldTriggerLast newSent condlits
 
-  liftIO $ putStrLn "--------"
-  liftIO $ print flatCondLits
+  b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
+  liftIO $ print b
+
   return TODO
 
 
+ where
+  ps = liftIO . putStrLn
 
-width :: Rule -> Int
-width rule = length [minw..maxw]
+
+width :: Rule -> (Int,Int)
+width rule = (length [minw..maxw], maybe 9999 (1+) (elemIndex 0 [minw..maxw]))
  where                                   
   ctxScopes = fmap scopes (context rule) :: AndList (OrList Int) -- And [Or [1], Or [1,2,3], Or [-2,-1]]
   flatScopes = fold (getAndList ctxScopes) :: OrList Int -- Or [1,1,2,3,-2,-1]
   (minw,maxw) = (0 `min` minimum flatScopes, 0 `max` maximum flatScopes)
 
-----------------------------------------------------------------------------
--- Helper functions, TODO move these to someplace more general
-
--- This is for Apertium format, TODO find out what the basque grammar uses
-parseReading :: String -> Reading
-parseReading str = And $ maintags ++ concat subtags
- where
-  (mainr:subrs) = split (=='+') str
-  maintags = map readTag $ filter (not.null) $ split isValid mainr
-  subrs_ns = map FromStart [1..] `zip` map (split isValid) subrs :: [(Subpos,[String])]
-  subtags = map (\(n, strs) -> map (Subreading n . readTag) strs) subrs_ns
-  isValid = (=='<') 
-
-tagSet2Readings :: TagSet -> [Reading]
-tagSet2Readings ts = case normaliseTagsetRel ts of
-  Set rds    -> getOrList rds
-  All        -> [] --TODO ??
-  Diff rs ts -> tagSet2Readings rs ++ tagSet2Readings ts -- TODO
-
-
--- reading Apertium format, not same as in cghs/Parse
-readTag :: String -> Tag
-readTag ">>>" = BOS
-readTag "<<<" = EOS
-readTag []    = error "empty tag"
-readTag str | head str == '@' = Synt (init str)
-          | last str == '>' = Tag (init str)
-          | last str == '$' = WF (init str)
-          | otherwise       = Lem str
-
-split :: (a -> Bool) -> [a] -> [[a]]
-split p [] = []
-split p xs = takeWhile (not . p) xs : split p (drop 1 (dropWhile (not . p) xs))

@@ -51,6 +51,7 @@ executable analyse
                      , base
                      , cghs
                      , cgsat
+                     , containers
                      , minisat
                      , mtl
                      , satplus
