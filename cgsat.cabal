@@ -25,7 +25,6 @@ library
                      , minisat
                      , mtl
                      , satplus
-                     , transformers
 
   hs-source-dirs:      src
   ghc-options:         -O2
@@ -55,7 +54,6 @@ executable analyse
                      , minisat
                      , mtl
                      , satplus
-                     , transformers
   default-language:    Haskell2010
 
 
