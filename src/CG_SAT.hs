@@ -134,61 +134,42 @@ mkSentence width = do
 -- 
 
 -- | Apply the rule to all applicable cohorts in the sentence
-apply :: Rule -> RSIO Sentence
+apply :: Rule -> RWSE ()
 apply rule = do 
   s <- asks solver
   w <- gets senlength
 
-  targetTagSet <- normaliseTagsetAbs (target rule) `fmap` asks tagMap
+  ----------- The seitan of the function ------------
+  let applyToCohort sent i = do
 
-  maybeCondLitsPerTrg <- sequence 
-       [ (,) i `fmap` condLits rule i | i <- [1..w] ] -- may be out of scope
+      --Trigger throwErrors NoReadingsLeft if the rule tries to remove all;
+      -- as per VISL CG-3 behaviour, remove nothing.
+       (someTrgIsTrue, someOtherIsTrue, allCondsHold, trgCoh, trgRds) 
+         <- trigger rule i `catchError` \e -> return (true,true,true,IM.empty,IM.empty)
 
-  let condLitsPerTrg = 
-       [ (i,lits) | (i,Just lits) <- maybeCondLitsPerTrg ] -- keep only those in scope
+       if IM.null trgCoh
 
+        then return sent
 
-
-  case targetTagSet of
-    Nothing -> do sent <- gets sentence
-                  return sent --Tried to remove all; as per VISL CG-3 behaviour, remove nothing.
-
-    Just is -> do
-      let applyToCohort sent (i,condLits) = do
-              let coh = sent ! i
-              let (inmap,outmap) = partitionCohort is coh
-              let (trg,oth) = case oper rule of
-                               SELECT -> (outmap,inmap)
-                               REMOVE -> (inmap,outmap)
-                               _   -> (inmap,outmap) --TODO other operations
+        else do onlyTrgLeft <- liftIO $ andl' s [ someTrgIsTrue, neg someOtherIsTrue ]
+                cannotApply <- liftIO $ orl' s [ neg allCondsHold, onlyTrgLeft ]
  
-              ----------- The seitan of the function ------------
-              allCondsHold  <- andl' s (getAndList condLits)
-              -- =<< sequence 
-              --                            [ orl' s $ getOrList litsPerCond 
-              --                              | litsPerCond <- getAndList condLits ]
-              someTrgIsTrue <- orl' s (elems trg)
-              noOtherIsTrue <- andl' s (neg `fmap` elems oth)
-              onlyTrgLeft   <- andl' s [ someTrgIsTrue, noOtherIsTrue ]
-              cannotApply   <- orl' s [ neg allCondsHold, onlyTrgLeft ]
- 
-              newTrgLits <- sequence               
-                  [ (,) i `fmap`        --wN<a>' is true if both of the following:
-                     andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
-                                       , cannotApply ] --rule cannot apply 
-                     | (i,oldTrgLit) <- assocs trg
-                     , let newTrgName = show oldTrgLit ++ "'" ]
-              ----------------------------------------------------
+                newTrgLits <- liftIO $ sequence               
+                      [ (,) j `fmap`        --wN<a>' is true if both of the following:
+                         andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
+                                           , cannotApply ] --rule cannot apply 
+                         | (j,oldTrgLit) <- assocs trgRds
+                         , let newTrgName = show oldTrgLit ++ "'" ]
 
-              let newcoh = foldl changeReading coh newTrgLits
-              let newsent = changeCohort sent i newcoh
-              return newsent
+                let newcoh = foldl changeReading trgCoh newTrgLits
+                let newsent = changeCohort sent i newcoh
+                return newsent
 
-      --let flatCondLits = flattenCondLits condLitsPerTrg :: AndList (Int, AndList (OrList Lit))
-      sent <- gets sentence
-      newSent <- liftIO $ foldM applyToCohort sent condLitsPerTrg
-      put (Conf newSent w)
-      return newSent
+  ----------------------------------------------------
+   
+  sent <- gets sentence
+  newSent <- foldM applyToCohort sent [1..w]
+  put (Config newSent w)
 
  where
   changeReading :: Cohort -> (Int,Lit) -> Cohort
@@ -367,17 +348,9 @@ match2CondLit mat ind = do
 
     _ -> error "match2CondLit: :("
 
-
-partitionCohort :: IntSet -> Cohort -> (IntMap Lit,IntMap Lit)
-partitionCohort is coh = let onlykeys = IM.fromSet (const true) is --Intersection is based on keys
-                             inmap = IM.intersection coh onlykeys 
-                             outmap = IM.difference coh onlykeys
-                         in (inmap,outmap)
-
-
-
 --------------------------------------------------------------------------------
 --TODO move somewhere else/merge into something?
+
 defaultRules :: Solver -> Sentence -> IO ()
 defaultRules s sentence = 
    sequence_ [ do addClause s lits          --Every word must have >=1 reading
