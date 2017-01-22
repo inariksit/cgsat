@@ -186,7 +186,7 @@ trigger rule origin = do
   s <- asks solver
   conds <- condLits rule origin
   trgCoh <- flip fromMaybe (IM.lookup origin sent)
-             `fmap` (throwError $ OutOfScope origin "trigger")
+             `fmap` throwError (OutOfScope origin "trigger")
                              
   trgIS <- liftM3 either (throwError NoReadingsLeft) (return id)
                          (return $ normaliseTagsetAbs (target rule) tm)
@@ -237,7 +237,7 @@ ctx2Pattern senlen origin ctx = case ctx of
           return undefined --(fold pats)
 
   R.Negate ctx 
-    -> do Negate `fmap` ctx2Pattern senlen origin ctx
+    -> Negate `fmap` ctx2Pattern senlen origin ctx
 
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
@@ -321,7 +321,7 @@ match2CondLit mat ind = do
   s <- asks solver
   sent <- gets sentence
   coh <- flip fromMaybe (IM.lookup ind sent)
-          `fmap` (throwError $ OutOfScope ind "match2CondLit") 
+          `fmap` throwError (OutOfScope ind "match2CondLit") 
                       
   liftIO $ case mat of
     -- if Mix is for condition, then it doesn't matter whether some tag not
