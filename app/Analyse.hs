@@ -17,15 +17,14 @@ import Debug.Trace ( trace )
 import System.Environment ( getArgs )
 
 --maybe remove these (and things that need them) to CG_SAT?
-import Control.Monad.Trans ( liftIO )
-import Control.Monad.State.Class ( put, gets )
-import Control.Monad.Reader.Class ( asks )
-import Control.Monad.Trans.State ( evalStateT )
-import Control.Monad.Trans.Reader ( runReaderT )
+import Control.Monad.IO.Class ( liftIO )
+import Control.Monad.Except ( runExceptT )
+import Control.Monad.RWS ( runRWST, gets, put, asks, local )
 
 --------------------------------------------------------------------------------
 
-data Conflict = TODO
+data Conflict = NoConf | Internal | Interaction  -- [Rule]
+  deriving (Show,Eq)
 
 --------------------------------------------------------------------------------
 
@@ -79,10 +78,15 @@ main = do
     putStrLn "---------"
 
     let env = mkEnv s (readingsInLex++readingsInGr) (tagsInLex++lemInLex)
---    evalStateT (runReaderT ( runRSIO $ testRule (rules !! 13) (take 12 rules) ) 
-    evalStateT (runReaderT ( runRSIO $ testRule (last rules) rules ) 
-                           env) 
-               emptyConf
+
+    --resOrErr <- runExceptT $ 
+    --              runRWST env emptyConfig $
+    --                (runRWSE $ testRule (last rules) rules)
+    (resOrErr,_,log_) <- rwse env emptyConfig $ testRule (last rules) rules
+
+    print resOrErr
+    print log_
+
     putStrLn "---------"
 
 
@@ -94,7 +98,7 @@ main = do
 -- Functions that apply only for analysis, not disambiguation
 
 
-testRule :: Rule -> [Rule] -> RSIO Conflict
+testRule :: Rule -> [Rule] -> RWSE Conflict
 testRule rule prevRules = do 
   let (w,trgCohInd) = width rule
   initSent <- mkSentence w
@@ -102,7 +106,7 @@ testRule rule prevRules = do
   tm <- asks tagMap 
 
   liftIO $ defaultRules s initSent
-  put (Conf initSent w)
+  put (Config initSent w)
 
   liftIO $ print rule
   liftIO $ print w

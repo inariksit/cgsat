@@ -10,28 +10,39 @@ import SAT.Named
 
 
 import Data.Foldable ( fold )
-import Data.IntMap ( IntMap, (!), elems, assocs )
+import Data.IntMap ( IntMap, (!), assocs, elems )
 import qualified Data.IntMap as IM
 import Data.IntSet ( IntSet )
 import qualified Data.IntSet as IS 
-import Data.List ( intercalate, findIndices, nub )
+import Data.List ( findIndices, intercalate, nub )
 import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
-import Control.Monad ( foldM, liftM2, mapAndUnzipM, zipWithM )
-import Control.Monad.Trans
-import Control.Monad.IO.Class ( MonadIO(..), liftIO )
-import Control.Monad.State.Class
-import Control.Monad.Reader.Class
-import Control.Monad.Trans.State ( StateT(..) )
-import Control.Monad.Trans.Reader ( ReaderT(..) )
+import Control.Monad ( foldM, liftM2, liftM3, mapAndUnzipM )
+import Control.Monad.Except ( MonadError, ExceptT, runExceptT
+                            , throwError, catchError )
+import Control.Monad.RWS ( RWST, MonadState, MonadReader, MonadWriter
+                         , runRWST, asks, gets, put, tell )
+import Control.Monad.IO.Class ( MonadIO, liftIO )
+
+import Control.Exception ( Exception ) 
+
 
 --------------------------------------------------------------------------------
 
-newtype RSIO a = RSIO { runRSIO :: ReaderT Env (StateT Conf IO) a }
-  deriving (Functor, Applicative, Monad, MonadState Conf, MonadReader Env, MonadIO)
+newtype RWSE a = RWSE { runRWSE :: ExceptT CGException (RWST Env Log Config IO) a }
+  deriving ( Functor, Applicative, Monad, MonadIO, MonadWriter Log
+           , MonadState Config, MonadReader Env, MonadError CGException )
 
+--runExceptT :: ExceptT e m a -> m (Either e a)       -- RWST Env Log Config IO (Either CGException a)
+
+--runRWST :: RWST r w s m a -> r -> s -> m (a, s, w)  -- IO ( )
+
+rwse :: Env -> Config 
+     -> RWSE a
+     -> IO ( Either CGException a, Config, Log )
+rwse env conf (RWSE m) = runRWST (runExceptT m) env conf
 
 
 {-  tagMap 
@@ -75,14 +86,22 @@ data Match = Mix IntSet -- ^ Cohort contains tags in IntSet, and
            | AllTags -- Cohort may contain any tag
            deriving (Show,Eq,Ord)
 
+nullMatch :: Match -> Bool
+nullMatch m = case m of
+  AllTags -> False
+  Mix is -> IS.null is
+  Cau is -> IS.null is
+  Not is -> IS.null is
+  NotCau is -> IS.null is
+  Bar _ m -> nullMatch m
 
 --------------------------------------------------------------------------------
 -- Interaction with SAT-solver, non-pure functions
 
 
 -- | Using the readings and the solver in environment, create a sentence.
--- (should I also put it in the env???)
-mkSentence :: Int -> RSIO Sentence
+-- (should I also put it in the config???)
+mkSentence :: Int -> RWSE Sentence
 mkSentence width = do
   s <- asks solver
   rds <- asks rdMap
@@ -163,23 +182,38 @@ apply rule = do
 
   changeCohort :: Sentence -> Int-> Cohort -> Sentence
   changeCohort sent i newcoh = IM.adjust (const newcoh) i sent
+
+
+trigger :: Rule -> Int -> RWSE (Lit,Lit,Lit,Cohort,IntMap Lit)
+trigger rule origin = do
+  sent <- gets sentence
+  tm <- asks tagMap
+  s <- asks solver
+  conds <- condLits rule origin
+  trgCoh <- flip fromMaybe (IM.lookup origin sent)
+             `fmap` (throwError $ OutOfScope origin "trigger")
+                             
+  trgIS <- liftM3 either (throwError NoReadingsLeft) (return id)
+                         (return $ normaliseTagsetAbs (target rule) tm)
+  let (trg,oth) = partitionTarget (oper rule) trgIS trgCoh
+
+  mht <- liftIO $ orl' s (IM.elems trg) -- 1) must have ≥1 target lits
+  mho <- liftIO $ orl' s (IM.elems oth) -- 2) must have ≥1 other lits                              
+  ach <- liftIO $ andl' s (getAndList conds) -- 3) all conditions must hold
+  return (mht, mho, ach, trgCoh, trg)
+
+
 --------------------------------------------------------------------------------
 -- Create new literals from contextual tests of a rule
 
 condLits :: Rule -- ^ Rule, whose conditions to turn into literals
          -> Int  -- ^ Absolute position of the target in the sentence
-         -> RSIO (Maybe -- If some condition(s) are out of scope, return Nothing.
-                (AndList Lit)) -- Otherwise return literal for each condition.
+         -> RWSE (AndList Lit) -- If all condition(s) are in scope, return literal for each condition.
+                 -- Otherwise, ctx2Pattern or pattern2Lit returns OutOfScope.
 condLits rule origin = do
   slen <- gets senlength
-  --liftIO $ print (origin, slen) --DEBUG
   pats <- ctx2Pattern slen origin `mapM` context rule -- :: AndList (Maybe Pattern)
-  if any isNothing (getAndList pats)
-   then do liftIO $ putStrLn $ "condLits: pattern fails in index " ++ show origin ++ " with rule " ++ show rule
-           return Nothing -- Some of the conditions is out of scope, doesn't apply
-   else do
-    lits <- mapM pattern2Lit (fmap (\(Just x) -> x) pats) :: RSIO (AndList Lit)
-    return $ Just lits
+  mapM pattern2Lit pats :: RWSE (AndList Lit)
 
 
 --------------------------------------------------------------------------------
@@ -188,22 +222,18 @@ condLits rule origin = do
 ctx2Pattern :: Int  -- ^ Sentence length
             -> Int  -- ^ Absolute position of the target in the sentence
             -> Context -- ^ Context to be transformed
-            -> RSIO (Maybe Pattern)
+            -> RWSE Pattern
 ctx2Pattern senlen origin ctx = case ctx of
-  Always -> return $ Just PatAlways
+  Always -> return PatAlways
+
   c@(Ctx posn polr tgst)
-    -> do psm <- singleCtx2Pat c
-          case psm of
-            Nothing -> return Nothing
-            Just (ps,m) -> return $ Just (Pat $ Or [(ps,m)])
+    -> do (ps,m) <- singleCtx2Pat c
+          return $ Pat (Or [(ps,m)])
           
   Link ctxs 
-    -> do psms <- mapM singleCtx2Pat (getAndList ctxs)
-          case any isNothing psms of
-            True -> return Nothing
-            False -> do let (ps,ms) = unzip (catMaybes psms)
-                        liftIO $ print ("ctx2Pattern",take 10 ps, take 10 ms) -- DEBUG
-                        return $ Just (Pat $ Or [(fold ps, fold ms)])
+    -> do (ps,ms) <- mapAndUnzipM singleCtx2Pat (getAndList ctxs)
+          --liftIO $ print ("ctx2Pattern",take 10 ps, take 10 ms) -- DEBUG
+          return $ Pat (Or [(fold ps, fold ms)])
     -- This wouldn't support linked templates, 
     -- but I don't think any sane CG engine supports them either.
 
@@ -212,44 +242,39 @@ ctx2Pattern senlen origin ctx = case ctx of
           return undefined --(fold pats)
 
   R.Negate ctx 
-    -> do pat <- ctx2Pattern senlen origin ctx
-          return $ case pat of
-            Nothing -> Nothing
-            Just x  -> Just (Negate x)
+    -> do Negate `fmap` ctx2Pattern senlen origin ctx
 
  where 
   singleCtx2Pat (Ctx posn polr tgst) = 
-    do tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
-       let allPositions = normalisePosition posn senlen origin :: OrList Int -- 1* -> e.g. [2,3,4]
-       case null (getOrList allPositions) of
-        True  -> do liftIO $ putStrLn "singleCtx2Pat: condition out of scope"
-                    return Nothing -- Pattern fails because condition(s) are not in scope. 
-                                -- This is to be expected, because we try to apply every rule to every cohort.
-        False -> case tagset of
-                  Nothing -> return $ Just ( fmap (:[]) allPositions, [AllTags] ) -- if normaliseTagsetAbs returns Nothing, it was (*).
-                  Just is -> case IS.null is of
-                              True  -> do liftIO $ putStrLn $ "singleCtx2Pat: tagset " ++ show tgst ++ " not found, rule cannot apply"
-                                          return Nothing -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
-                                                      -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
-                              False -> do matchOp <- getMatch origin posn polr
-                                          let match = matchOp is
-                                          return $ Just (fmap (:[]) allPositions, [match] ) 
+    do let allPositions = normalisePosition posn senlen origin :: OrList Int -- 1* -> e.g. [2,3,4]
+       if null (getOrList allPositions) 
+        then throwError $ OutOfScope origin "ctx2Pattern" -- Pattern fails because condition(s) are not in scope. 
+                -- This is to be expected, because we try to apply every rule to every cohort.
+        else do 
+          tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
+          mop <- getMatch origin posn polr
+          let match = either id mop tagset
+          if nullMatch match 
+            then do tell ["singleCtx2Pat: tagset " ++ show tgst ++ " not found, rule cannot apply"]
+                    throwError TagsetNotFound -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
+                                                     -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
+            else return (fmap (:[]) allPositions, [match] ) 
 
 
 
-getMatch :: Int -> Position -> Polarity -> RSIO (IntSet -> Match)
+getMatch :: Int -> Position -> Polarity -> RWSE (IntSet -> Match)
 getMatch origin pos pol = case (pos,pol) of
   (Pos (Barrier ts) c n, _) -> do
     tsMatch <- getMatch origin (Pos AtLeast c n) pol
     barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
-    let barMatch = maybe AllTags Mix barTags
+    let barMatch = either id Mix barTags
     let barInd = origin + n 
     return $ Bar (barInd,barMatch) . tsMatch
 
   (Pos (CBarrier ts) c n, _) -> do 
     tsMatch <- getMatch origin (Pos AtLeast c n) pol
     barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
-    let barMatch = maybe AllTags Cau barTags
+    let barMatch = either id Cau barTags
     let barInd = origin + n 
     return $ Bar (barInd,barMatch) . tsMatch
 
@@ -259,10 +284,10 @@ getMatch origin pos pol = case (pos,pol) of
   (Pos _ C _,  R.Not) -> return NotCau
 
 --------------------------------------------------------------------------------
--- Transform the pattern into a disjunction of literals
+-- Transform the pattern into a literal. Fails if any other step before has failed.
 
-pattern2Lit :: Pattern -- ^ Conditions to turn into literals
-            -> RSIO Lit -- ^ All possible ways to satisfy the conditions
+pattern2Lit :: Pattern 
+            -> RWSE Lit
 pattern2Lit pat = do 
   s <- asks solver
   sent <- gets sentence
@@ -277,7 +302,7 @@ pattern2Lit pat = do
                     liftIO $ orl' s lits
 
 
-match2CondLit :: Match -> Int -> RSIO Lit
+match2CondLit :: Match -> Int -> RWSE Lit
 match2CondLit (Bar (bi,bm) mat) ind = do
   s <- asks solver
   sent <- gets sentence
@@ -300,7 +325,9 @@ match2CondLit (Bar (bi,bm) mat) ind = do
 match2CondLit mat ind = do 
   s <- asks solver
   sent <- gets sentence
-  let coh = fromMaybe (error "match2CondLit: condition out of scope") (IM.lookup ind sent)
+  coh <- flip fromMaybe (IM.lookup ind sent)
+          `fmap` (throwError $ OutOfScope ind "match2CondLit") 
+                      
   liftIO $ case mat of
     -- if Mix is for condition, then it doesn't matter whether some tag not
     -- in the tagset is True. Only for *targets* there must be something else.
@@ -372,16 +399,32 @@ mkTagMap ts rds = M.fromList $
   rdLists = map getAndList rds
   -- maybe write this more readably later? --getInds :: Tag -> [Reading] -> IntSet
 
+
+partitionCohort :: IntSet -> Cohort -> (IntMap Lit,IntMap Lit)
+partitionCohort is coh = let onlykeys = IM.fromSet (const true) is --Intersection is based on keys
+                             inmap = IM.intersection coh onlykeys 
+                             outmap = IM.difference coh onlykeys
+                         in (inmap,outmap)
+
+
+partitionTarget :: Oper -> IntSet -> Cohort -> (IntMap Lit,IntMap Lit)
+partitionTarget op is coh = case op of
+  SELECT -> (outmap,inmap)
+  REMOVE -> (inmap,outmap)
+  _   -> (inmap,outmap) --TODO other operations
+ where
+  (inmap,outmap) = partitionCohort is coh
+
 --------------------------------------------------------------------------------
 
 
 -- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
-normaliseTagsetAbs :: TagSet -> Map Tag IntSet -> Maybe IntSet
+normaliseTagsetAbs :: TagSet -> Map Tag IntSet -> Either Match IntSet 
 normaliseTagsetAbs tagset tagmap = case tagset of
-  All -> Nothing
-  Set s -> Just (lu s tagmap)
+  All -> Left AllTags
+  Set s -> Right (lu s tagmap)
   Union t t' -> liftM2 IS.union (norm t) (norm t')
   Inters t t' -> liftM2 IS.intersection (norm t) (norm t')
 
