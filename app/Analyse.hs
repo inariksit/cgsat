@@ -118,32 +118,31 @@ testRule rule prevRules = do
   newSent <- gets sentence
   --liftIO $ print newSent
 
- --TODO: less copypaste, merge some of this with CG_SAT.apply
-  let shouldTriggerLast sent conds = do
-        let trgCoh = fromMaybe (error "shouldTriggerLast: no trg index found") 
-                               (IM.lookup trgCohInd sent)
-        let trgIS = fromMaybe (error "shouldTriggerLast: no trg tagset found")
-                              (normaliseTagsetAbs (target rule) tm)
-        let (inmap,outmap) = partitionCohort trgIS trgCoh
-        let (trg,oth) = case oper rule of
-                               SELECT -> (outmap,inmap)
-                               REMOVE -> (inmap,outmap)
-                               _   -> (inmap,outmap) --TODO other operations
-
-        mht <- orl' s (IM.elems trg) -- 1) must have ≥1 target lits
-        mho <- orl' s (IM.elems oth) -- 2) must have ≥1 other lits                              
-        ach <- andl' s (getAndList conds) -- 3) all conditions must hold
-        return (mht, mho, ach)
-
-  condlits <- fromMaybe (error "testRule: conditions not applicable") 
-                 `fmap` condLits rule trgCohInd
-
-  (mustHaveTrg, mustHaveOther, allCondsHold) <- liftIO $ shouldTriggerLast newSent condlits
+  (mustHaveTrg, mustHaveOther, allCondsHold,_,_) <- trigger rule trgCohInd 
+   --`catchError` \e -> case e of 
+   --               OutOfScope _ _ -> undefined
+   --               NoReadingsLeft -> undefined
+   --               UnknownError _ -> undefined 
 
   b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
   liftIO $ print b
 
-  return TODO
+  if b then do liftIO $ deleteSolver s
+               return NoConf
+    else
+     do s' <- liftIO newSolver
+        c <- local (withNewSolver s') $ do sent' <- mkSentence w
+                                           put (Config sent' w)
+                                           apply rule
+                                           (x,y,z,_,_) <- trigger rule trgCohInd
+                                           b <- liftIO $ solve s' [x,y,z]
+                                           if b then return Internal
+                                           else return (Interaction )
+        liftIO $ deleteSolver s
+        liftIO $ deleteSolver s'
+        return c
+
+
 
 
  where

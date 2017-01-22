@@ -58,13 +58,27 @@ data Env = Env { tagMap :: Map Tag IntSet
                , rdMap :: IntMap Reading 
                , solver :: Solver } 
 
-data Conf = Conf { sentence :: Sentence 
-                 , senlength :: Int }
+withNewSolver :: Solver -> Env -> Env
+withNewSolver s (Env tm rm _) = Env tm rm s
+
+data Config = Config { sentence :: Sentence 
+                     , senlength :: Int } deriving (Show)
+
+type Log = [String]
+
+data CGException = TagsetNotFound | OutOfScope Int String | NoReadingsLeft 
+                 | UnknownError String deriving ( Show )
+
+instance Exception CGException
+
 
 type Sentence = IntMap Cohort
 type Cohort = IntMap Lit
 
-emptyConf = Conf IM.empty 0
+emptyConfig = Config IM.empty 0
+
+
+--------------------------------------------------------------------------------
 
 type SeqList a = [a] -- List of things that follow each other in sequence
 
