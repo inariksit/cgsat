@@ -17,6 +17,7 @@ import Debug.Trace ( trace )
 import System.Environment ( getArgs )
 
 --maybe remove these (and things that need them) to CG_SAT?
+import Control.Monad ( forM )
 import Control.Monad.IO.Class ( liftIO )
 import Control.Monad.Except ( runExceptT )
 import Control.Monad.RWS ( runRWST, gets, put, asks, local )
@@ -59,13 +60,13 @@ main = do
     readingsInLex <- (map parseReading . words) --Apertium format
                        `fmap` readFile rdsfile 
     (tsets,ruless) <- parse `fmap` readFile grfile
-    let rules = concat ruless
+    let rules = splits $ concat ruless
     let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
                         then concatMap Utils.tagSet2Readings tsets
                         else []
 
-    print $ (length tagsInLex, take 50 tagsInLex)
-    print $ (length lemInLex, take 50 lemInLex)
+--    print $ (length tagsInLex, take 50 tagsInLex)
+--    print $ (length lemInLex, take 50 lemInLex)
     putStrLn "---------"
 
     print $ (length readingsInLex, take 50 readingsInLex)
@@ -73,19 +74,19 @@ main = do
     print $ (length readingsInGr, take 50 readingsInGr)
     putStrLn "---------"
 
-    mapM_ print (take 15 rules)
+    --mapM_ print (take 15 rules)
+    putStrLn $ show (length rules) ++ " rules"
 
     putStrLn "---------"
 
     let env = mkEnv s (readingsInLex++readingsInGr) (tagsInLex++lemInLex)
 
-    --resOrErr <- runExceptT $ 
-    --              runRWST env emptyConfig $
-    --                (runRWSE $ testRule (last rules) rules)
-    (resOrErr,_,log_) <- rwse env emptyConfig $ testRule (last rules) rules
 
-    print resOrErr
-    print log_
+    rules `forM`
+      \(r,rs) -> do (resOrErr,_,log_) <- rwse env emptyConfig $ testRule r rs
+
+                    print resOrErr
+                    print log_
 
     putStrLn "---------"
 
@@ -93,6 +94,11 @@ main = do
 
    _ -> print "give me a 3-letter code for a language" 
 
+splits :: (Eq a) => [a] -> [(a,[a])]
+splits xs = xs `for` \x -> let Just ind = elemIndex x xs
+                           in  (x, take ind xs)
+ 
+for = flip fmap
 
 ----------------------------------------------------------------------------
 -- Functions that apply only for analysis, not disambiguation
@@ -108,8 +114,7 @@ testRule rule prevRules = do
   liftIO $ defaultRules s initSent
   put (Config initSent w)
 
-  liftIO $ print rule
-  liftIO $ print w
+  liftIO $ print (rule,"width of rule: " ++ show w, "target ind: " ++ show trgCohInd)
 
   ps "--------"
 
@@ -127,9 +132,10 @@ testRule rule prevRules = do
   b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
   liftIO $ print b
 
-  if b then do liftIO $ deleteSolver s
+  if b then do --liftIO $ deleteSolver s
                return NoConf
     else
+     
      do s' <- liftIO newSolver
         c <- local (withNewSolver s') $ do sent' <- mkSentence w
                                            put (Config sent' w)
@@ -138,7 +144,6 @@ testRule rule prevRules = do
                                            b <- liftIO $ solve s' [x,y,z]
                                            if b then return Internal
                                            else return (Interaction )
-        liftIO $ deleteSolver s
         liftIO $ deleteSolver s'
         return c
 

@@ -23,7 +23,7 @@ import Control.Monad ( foldM, liftM2, liftM3, mapAndUnzipM )
 import Control.Monad.Except ( MonadError, ExceptT, runExceptT
                             , throwError, catchError )
 import Control.Monad.RWS ( RWST, MonadState, MonadReader, MonadWriter
-                         , runRWST, asks, gets, put, tell )
+                         , runRWST, asks, get, gets, put, tell )
 import Control.Monad.IO.Class ( MonadIO, liftIO )
 
 import Control.Exception ( Exception ) 
@@ -140,7 +140,7 @@ apply rule = do
   w <- gets senlength
 
   ----------- The seitan of the function ------------
-  let applyToCohort sent i = do
+  let applyToCohort sen i = do
 
       --Trigger throwErrors NoReadingsLeft if the rule tries to remove all;
       -- as per VISL CG-3 behaviour, remove nothing.
@@ -149,7 +149,7 @@ apply rule = do
 
        if IM.null trgCoh
 
-        then return sent
+        then return sen
 
         else do onlyTrgLeft <- liftIO $ andl' s [ someTrgIsTrue, neg someOtherIsTrue ]
                 cannotApply <- liftIO $ orl' s [ neg allCondsHold, onlyTrgLeft ]
@@ -162,39 +162,44 @@ apply rule = do
                          , let newTrgName = show oldTrgLit ++ "'" ]
 
                 let newcoh = foldl changeReading trgCoh newTrgLits
-                let newsent = changeCohort sent i newcoh
-                return newsent
+                let newsen = changeCohort sen i newcoh
+                return newsen
 
   ----------------------------------------------------
    
-  sent <- gets sentence
-  newSent <- foldM applyToCohort sent [1..w]
-  put (Config newSent w)
+  sen <- gets sentence
+  newSen <- foldM applyToCohort sen [1..w]
+  put (Config newSen w)
 
  where
   changeReading :: Cohort -> (Int,Lit) -> Cohort
   changeReading coh (i,newrd) = IM.adjust (const newrd) i coh
 
   changeCohort :: Sentence -> Int-> Cohort -> Sentence
-  changeCohort sent i newcoh = IM.adjust (const newcoh) i sent
+  changeCohort sen i newcoh = IM.adjust (const newcoh) i sen
 
 
 trigger :: Rule -> Int -> RWSE (Lit,Lit,Lit,Cohort,IntMap Lit)
 trigger rule origin = do
-  sent <- gets sentence
+  (Config sen len) <- get
   tm <- asks tagMap
   s <- asks solver
   conds <- condLits rule origin
-  trgCoh <- flip fromMaybe (IM.lookup origin sent)
-             `fmap` throwError (OutOfScope origin "trigger")
-                             
-  trgIS <- liftM3 either (throwError NoReadingsLeft) (return id)
-                         (return $ normaliseTagsetAbs (target rule) tm)
+  trgCoh <- case IM.lookup origin sen of
+              Nothing -> do tell [ "trigger: target position " ++ show origin ++ 
+                                   " out of scope, sentence length " ++ show len ]
+                            throwError (OutOfScope origin "trigger")
+              Just ch -> return ch
+  trgIS <- case normaliseTagsetAbs (target rule) tm of
+             Left AllTags -> do tell [ "trigger: rule " ++ show rule ++ 
+                                       " tries to remove or select all readings" ]
+                                throwError NoReadingsLeft
+             Right intset -> return intset
   let (trg,oth) = partitionTarget (oper rule) trgIS trgCoh
 
-  mht <- liftIO $ orl' s (IM.elems trg) -- 1) must have ≥1 target lits
-  mho <- liftIO $ orl' s (IM.elems oth) -- 2) must have ≥1 other lits                              
-  ach <- liftIO $ andl' s (getAndList conds) -- 3) all conditions must hold
+  mht <- liftIO $ orl' s (IM.elems trg) -- 1) Cohort has ≥1 target lits
+  mho <- liftIO $ orl' s (IM.elems oth) -- 2) Cohort has ≥1 other lits                              
+  ach <- liftIO $ andl' s (getAndList conds) -- 3) All conditions hold
   return (mht, mho, ach, trgCoh, trg)
 
 
@@ -243,7 +248,8 @@ ctx2Pattern senlen origin ctx = case ctx of
   singleCtx2Pat (Ctx posn polr tgst) = 
     do let allPositions = normalisePosition posn senlen origin :: OrList Int -- 1* -> e.g. [2,3,4]
        if null (getOrList allPositions) 
-        then throwError $ OutOfScope origin "ctx2Pattern" -- Pattern fails because condition(s) are not in scope. 
+        then do --tell ["ctx2Pattern: position " ++ show posn ++ " not in scope"]
+                throwError $ OutOfScope origin "ctx2Pattern" -- Pattern fails because condition(s) are not in scope. 
                 -- This is to be expected, because we try to apply every rule to every cohort.
         else do 
           tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
@@ -285,7 +291,7 @@ pattern2Lit :: Pattern
             -> RWSE Lit
 pattern2Lit pat = do 
   s <- asks solver
-  sent <- gets sentence
+  sen <- gets sentence
   case pat of
     PatAlways -> return true
     Negate p  -> neg `fmap` pattern2Lit p
@@ -300,7 +306,7 @@ pattern2Lit pat = do
 match2CondLit :: Match -> Int -> RWSE Lit
 match2CondLit (Bar (bi,bm) mat) ind = do
   s <- asks solver
-  sent <- gets sentence
+  sen <- gets sentence
   matchLit <- match2CondLit mat ind
 
   let barInds | bi <= ind = [bi..ind]
@@ -319,10 +325,12 @@ match2CondLit (Bar (bi,bm) mat) ind = do
 
 match2CondLit mat ind = do 
   s <- asks solver
-  sent <- gets sentence
-  coh <- flip fromMaybe (IM.lookup ind sent)
-          `fmap` throwError (OutOfScope ind "match2CondLit") 
-                      
+  (Config sen len) <- get
+  coh <- case IM.lookup ind sen of 
+           Nothing -> do tell [ "match2CondLit: position " ++ show ind ++ 
+                                " out of scope, sentence length " ++ show len ]
+                         throwError (OutOfScope ind "match2CondLit")                 
+           Just c -> return c
   liftIO $ case mat of
     -- if Mix is for condition, then it doesn't matter whether some tag not
     -- in the tagset is True. Only for *targets* there must be something else.
