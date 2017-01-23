@@ -19,7 +19,7 @@ import System.Environment ( getArgs )
 --maybe remove these (and things that need them) to CG_SAT?
 import Control.Monad ( forM )
 import Control.Monad.IO.Class ( liftIO )
-import Control.Monad.Except ( runExceptT )
+import Control.Monad.Except ( runExceptT, catchError )
 import Control.Monad.RWS ( runRWST, gets, put, asks, local )
 
 --------------------------------------------------------------------------------
@@ -60,7 +60,7 @@ main = do
     readingsInLex <- (map parseReading . words) --Apertium format
                        `fmap` readFile rdsfile 
     (tsets,ruless) <- parse `fmap` readFile grfile
-    let rules = splits $ concat ruless
+    let rules = concat ruless
     let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
                         then concatMap Utils.tagSet2Readings tsets
                         else []
@@ -82,11 +82,9 @@ main = do
     let env = mkEnv s (readingsInLex++readingsInGr) (tagsInLex++lemInLex)
 
 
-    rules `forM`
-      \(r,rs) -> do (resOrErr,_,log_) <- rwse env emptyConfig $ testRule r rs
+    (_,_,log_) <- rwse env emptyConfig $ testRules Nothing (splits rules)
 
-                    print resOrErr
-                    print log_
+    --mapM_ putStrLn log_
 
     putStrLn "---------"
 
@@ -103,11 +101,27 @@ for = flip fmap
 ----------------------------------------------------------------------------
 -- Functions that apply only for analysis, not disambiguation
 
+testRules :: Maybe Int -> [(Rule,[Rule])] -> RWSE ()
+testRules _       []    = return ()
+testRules prevWid ((r,rs):rule_rules) = do
+  --liftIO $ putStrLn (show (length rule_rules) ++ " rules left")
+  x@(confOrErr, newWid) 
+    <- testRule prevWid r rs `catchError` 
+         \e -> case e of
+                 NoReadingsLeft -> return (Internal,prevWid)
+                 _              -> return (NoConf,prevWid) --TODO
 
-testRule :: Rule -> [Rule] -> RWSE Conflict
-testRule rule prevRules = do 
+  liftIO $ print x
+  testRules newWid rule_rules
+
+testRule :: Maybe Int -> Rule -> [Rule] -> RWSE (Conflict, Maybe Int)
+testRule prevWid rule prevRules = do 
   let (w,trgCohInd) = width rule
-  initSent <- mkSentence w
+  let sameWidth = case prevWid of
+                    Nothing -> False
+                    Just wid -> wid == w 
+  initSent <- if sameWidth then ps "reused the same sentence!" >> gets sentence
+                            else mkSentence w
   s <- asks solver
   tm <- asks tagMap 
 
@@ -118,7 +132,9 @@ testRule rule prevRules = do
 
   ps "--------"
 
-  mapM_ apply prevRules
+  if sameWidth
+    then ps "applied only last rule!" >> apply (last prevRules)
+    else mapM_ apply prevRules
 
   newSent <- gets sentence
   --liftIO $ print newSent
@@ -133,7 +149,7 @@ testRule rule prevRules = do
   liftIO $ print b
 
   if b then do --liftIO $ deleteSolver s
-               return NoConf
+               return (NoConf,Just w)
     else
      
      do s' <- liftIO newSolver
@@ -145,7 +161,7 @@ testRule rule prevRules = do
                                            if b then return Internal
                                            else return (Interaction )
         liftIO $ deleteSolver s'
-        return c
+        return (c, Just w)
 
 
 
