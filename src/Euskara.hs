@@ -375,6 +375,74 @@ data Sintaktikoak = ADILOK Dir -- @ADILOK> -- Aditz konposatuen funtzioa
                                             -- @-JADNAG_MP_PRED  -- Aditz nagusi jokatugabea, predikatu funtzioan
                  | JADNAG_MP_ZOBJ -- @-JADNAG_MP_ZOBJ  -- Aditz nagusi jokatugabea, zehar-objektu funtzioan
                  | JADNAG_MP_KM   -- @-JADNAG_MP_KM    -- Aditz nagusi jokatugabea, Kasua daraman formaren modifikatzailea
+ deriving (Eq)
+
+instance Show Sintaktikoak where
+    show (ADILOK Ezkerreko) = "@ADILOK>" -- Aditz konposatuen funtzioa
+    show (ADILOK Eskuineko) = "<@ADILOK" -- Aditz konposatuen funtzioa
+    show ADLG     = "@ADLG" --Adizlaguna
+    show ATRIB    = "@ATRIB" --Atributoa (EDBLtik desagertua)
+    show BST_sin  = "@BST" --Bestelakoa
+    show (GRAD Ezkerreko) = "@GRAD>" -- Ezkerreko graduatzailea
+    show (GRAD Eskuineko) = "@<GRAD" -- Eskuineko graduatzailea
+    show HAOS     = "@HAOS" -- Hitz Anitzeko Unitatearen osagaia
+    show (IA Ezkerreko) = "@IA>" --Ezkerreko adjektiboa
+    show (IA Eskuineko) = "@<IA" --Eskuineko adjektiboa
+    show (ID Ezkerreko) = "@ID>" --Ezkerreko determinatzailea
+    show (ID Eskuineko) = "@<ID" --Eskuineko determinatzailea
+    show ITJ_sin  = "@ITJ" --Interjekzioa
+    show (IZLG Ezkerreko) = "@IZLG>" --Ezkerreko izenlaguna
+    show (IZLG Eskuineko) = "@<IZLG" --Eskuineko izenlaguna
+    show KM_ezk   = "@KM>" --Kasua daraman formaren modifikatzailea
+    show LAB_sin  = "@LAB" --Laburdura
+    show LOK_sin  = "@LOK" --Lokailua
+    show MP       = "@MP" --Mendeko perpausa: menderagailu askea
+    show MD_ADLG  = "@MD_ADLG" --Mendeko perpausa adizlagun funtzioan: menderagailu askea2
+    show MD_OBJ   = "@MD_OBJ" --Mendeko perpausa objektu funtzioan: lokailu menderagailu askea3
+    show OBJ      = "@OBJ" --Objektua
+    show PJ       = "@PJ" --Perpaus-juntadura (koordinazioa)
+    show PRED     = "@PRED" --Subjektu edo objektuaren osagarri predikatiboa
+    show PRT_sin  = "@PRT" --Partikula
+    show SIGLA_sin = "@SIGLA" --Sigla
+    show SINBOLOA  = "@SINBOLOA" --Sinboloa / @SINBOLOA> --Sinboloa
+    show SUBJ      = "@SUBJ" --Subjektua
+    show ZOBJ      = "@ZOBJ" --Zehar-objektua
+    show IS        = "@IS" --Funtzio jakinik gabeko izen-sintagma
+    show FSG       = "@FSG" --Funtzio sintaktiko jakinik gabe
+
+--Jadlag
+    show (JADLAG Plus) = "@+JADLAG"    -- Aditz laguntzaile jokatua (etorri naiz)
+    show (JADLAG Minus) = "@-JADLAG"    -- Aditz laguntzaile jokatugabea (?etorri izan naiz)
+    show (JADLAG_MP Plus) = "@+JADLAG_MP"  -- Aditz laguntzaile jokatua, mendeko perpausa
+    show (JADLAG_MP Minus) = "@-JADLAG_MP"  -- Aditz laguntzaile jokatugabea, mendeko perpausa (EDBLtik desagertua1)
+    show JADLAG_MP_ADLG     = "@+JADLAG_MP_ADLG" -- Aditz laguntzaile jokatua, adizlagun funtzioan1
+    show JADLAG_IZLG_ezk    = "@+JADLAG_IZLG>"  -- Aditz laguntzaile jokatua, izenlagun funtzioan (desagertua)2
+    show JADLAG_MP_IZLG_ezk = "@+JADLAG_MP_IZLG>" -- Aditz laguntzaile jokatua, izenlagun funtzioan
+    show JADLAG_MP_IZLG_esk = "@<+JADLAG_MP_IZLG" -- Aditz laguntzaile jokatua, eskuineko izenlagun funtzioan3
+    show JADLAG_MP_OBJ   = "@+JADLAG_MP_OBJ"   -- Aditz laguntzaile jokatua, mendeko objektua (duzun, dadin)
+    show JADLAG_MP_SUBJ  = "@+JADLAG_MP_SUBJ"  -- Aditz laguntzaile jokatua, mendeko subjektua (EDBLn sarrerarik ez)
+    show JADLAG_MP_PRED  = "@+JADLAG_MP_PRED"  -- Aditz laguntzaile jokatua, mendeko predikatzailea
+
+-- Jadnag
+    show (JADNAG Plus) = "@+JADNAG"          -- Aditz nagusi jokatua (nator)
+    show (JADNAG Minus) = "@-JADNAG"          -- Aditz nagusi jokatugabea (etorri naiz)
+    show (JADNAG_MP Plus) = "@+JADNAG_MP"    -- Aditz nagusi jokatua, mendeko perpausa
+    show (JADNAG_MP Minus) = "@-JADNAG_MP"    -- Aditz nagusi jokatugabea, mendeko perpausa
+    show (JADNAG_MP_ADLG Plus) = "@+JADNAG_MP_ADLG"  -- Aditz nagusi jokatua, adizlagun funtzioan
+    show (JADNAG_MP_ADLG Minus) = "@-JADNAG_MP_ADLG"  -- Aditz nagusi jokatugabea, adizlagun funtzioan (-keran)
+    show JADNAG_IZLG = "@+JADNAG_IZLG>"    -- Aditz nagusi jokatua, izenlagun funtzioan (desagertua)2
+    show (JADNAG_MP_IZLG_ezk Plus) = "@+JADNAG_MP_IZLG>" -- Aditz nagusi jokatua, izenlagun funtzioan
+    show (JADNAG_MP_IZLG_ezk Minus) = "@-JADNAG_MP_IZLG>" -- Aditz nagusi jokatugabea, izenlagun funtzioan (EDBLn sarrerarik ez)3
+    show (JADNAG_MP_IZLG_esk Plus) = "@<+JADNAG_MP_IZLG" -- Aditz nagusi jokatua, eskuineko izenlagun funtzioan
+    show (JADNAG_MP_IZLG_esk Minus) = "@<-JADNAG_MP_IZLG" -- Aditz nagusi jokatugabea, eskuinekoizenlagun funtzioan
+    show (JADNAG_MP_OBJ Plus) = "@+JADNAG_MP_OBJ"   -- Aditz nagusi jokatua, objektu funtzioan (dakigun, gatozen)
+    show (JADNAG_MP_OBJ Minus) = "@-JADNAG_MP_OBJ"   -- Aditz nagusi jokatugabea, objektu funtzioan (EDBLn sarrerarik ez)4
+    show (JADNAG_MP_SUBJ Plus) = "@+JADNAG_MP_SUBJ"  -- Aditz nagusi jokatua, subjektu funtzioan
+    show (JADNAG_MP_SUBJ Minus) = "@-JADNAG_MP_SUBJ"  -- Aditz nagusi jokatugabea, subjektu funtzioan (EDBLn sarrerarik ez)5
+    show (JADNAG_MP_PRED Plus) = "@+JADNAG_MP_PRED"  -- Aditz nagusi jokatua, predikatu funtzioan
+    show (JADNAG_MP_PRED Minus) = "@-JADNAG_MP_PRED"  -- Aditz nagusi jokatugabea, predikatu funtzioan
+    show JADNAG_MP_ZOBJ = "@-JADNAG_MP_ZOBJ"  -- Aditz nagusi jokatugabea, zehar-objektu funtzioan
+    show JADNAG_MP_KM   = "@-JADNAG_MP_KM"    -- Aditz nagusi jokatugabea, Kasua daraman formaren modifikatzailea
 
 
 {- Only these are in the morph. grammar
