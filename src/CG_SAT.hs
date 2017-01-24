@@ -119,7 +119,7 @@ mkSentence :: Int -> RWSE Sentence
 mkSentence width = do
   s <- asks solver
   rds <- asks rdMap
-  liftIO $ IM.fromList `fmap` sequence 
+  liftIO $ IM.fromList `fmap` sequence
     [ (,) n `fmap` sequence (IM.mapWithKey (mkLit s n) rds)
         | n <- [1..width] ] 
  where
@@ -326,9 +326,11 @@ match2CondLit (Bar (bi,bm) mat) ind = do
 match2CondLit mat ind = do 
   s <- asks solver
   (Config sen len) <- get
+  let len' = IM.size sen
   coh <- case IM.lookup ind sen of 
            Nothing -> do tell [ "match2CondLit: position " ++ show ind ++ 
-                                " out of scope, sentence length " ++ show len ]
+                                " out of scope, sentence length " ++ show len ++
+                                " or " ++ show len']
                          throwError (OutOfScope ind "match2CondLit")                 
            Just c -> return c
   liftIO $ case mat of
