@@ -52,12 +52,12 @@ data IzeAZP = ARR -- Izen arrunta
  deriving (Show,Eq)
 
 
-data AdbAZP = ARRadb -- Adberbio arrunta
+data AdbAZP = ARR_adb -- Adberbio arrunta
             | GAL --Adberbio galdetzailea
  deriving (Eq)
 -- The tag ARR is in both Ize and Adb, hence different constructor and custom Show instance
 instance Show AdbAZP where 
-    show ARRadb = "ARR"
+    show ARR_adb = "ARR"
     show GAL = "GAL"
 
 
@@ -213,32 +213,32 @@ instance Show DetMugatasuna where
 data Pertsona = NI | HI | HURA | GU | ZU | ZUEK | HAIEK deriving (Show,Eq)
 
 -- Izenen biziduntasuna (BIZ) - Oraindik EDBLn sistematikoki landu gabe.
-data Biziduntasuna = BIZplus -- Biziduna 
-                   | BIZminus -- Bizigabea
+data Biziduntasuna = BIZ_plus -- Biziduna 
+                   | BIZ_minus -- Bizigabea
  deriving (Eq)
 
 instance Show Biziduntasuna where
-    show BIZplus = "BIZ+"
-    show BIZminus = "BIZ-"
+    show BIZ_plus = "BIZ+"
+    show BIZ_minus = "BIZ-"
 
 
 -- Izenen zenbagarritasuna (ZENB) - Oraindik EDBLn landu gabe.
-data Zenbagarritasuna = ZENBplus | ZENBminus deriving (Eq)
+data Zenbagarritasuna = ZENB_plus | ZENB_minus deriving (Eq)
 instance Show Zenbagarritasuna where
-    show ZENBplus = "ZENB+"
-    show ZENBminus = "ZENB-"
+    show ZENB_plus = "ZENB+"
+    show ZENB_minus = "ZENB-"
 
 -- Izenen neurgarritasuna (NEUR) - - Oraindik EDBLn landu gabe.
-data Neurgarritasuna = NEURplus | NEURminus deriving (Eq)
+data Neurgarritasuna = NEUR_plus | NEUR_minus deriving (Eq)
 instance Show Neurgarritasuna where
-    show NEURplus = "NEUR+"
-    show NEURminus = "NEUR-"
+    show NEUR_plus = "NEUR+"
+    show NEUR_minus = "NEUR-"
 
 --Pluralia tantum izenak (PLU) - Oraindik EDBLn sistematikoki landu gabe.
-data PluraliaTantum = PLUplus | PLUminus deriving (Eq)
+data PluraliaTantum = PLU_plus | PLU_minus deriving (Eq)
 instance Show PluraliaTantum where
-    show PLUplus = "PLU+"
-    show PLUminus = "PLU-"
+    show PLU_plus = "PLU+"
+    show PLU_minus = "PLU-"
 
 --Aditz nagusiaren laguntzaile-mota (LAGM) - Oraindik EDBLn sistematikoki landu gabe.
 -- Verb agreement type
@@ -274,7 +274,11 @@ data Errorekodeak = A_FAK --Aditz Faktitiboa
 --------------------------------------------
 -- 2.5 Ezaugarri sintaktikoak
 -- Adjektiboen posizioa (IZAUR)
-data AdjPosizioak = IZAURplus | IZAURminus deriving (Eq)
+data AdjPosizioak = IZAUR_plus | IZAUR_minus deriving (Eq)
+
+instance Show AdjPosizioak where
+    show IZAUR_plus = "IZAUR+"
+    show IZAUR_minus = "IZAUR-"
 
 --Determinatzailearen posizioa sintagman (POS)  - Oraindik EDBLn landu gabe.
 data DetPos = ATZE  -- Atzetik derrigorrez
@@ -293,3 +297,114 @@ data Loturazkoak = HAS --Klausula-hasiera markatzen duen loturazkoa: ezen
 -- 3   Funtzio sintaktikoak --
 ------------------------------
 
+data Dir = Eskuina | Ezkerra deriving (Eq)
+instance Show Dir where
+    show Eskuina = "<"
+    show Ezkerra = ">"
+
+data PlusMinus = Plus | Minus deriving (Eq)
+instance Show PlusMinus where
+    show Plus = "+"
+    show Minus = "-"
+
+data Sintaktikoak = ADILOK Dir -- @ADILOK> -- Aditz konposatuen funtzioa
+                               -- <@ADILOK -- Aditz konposatuen funtzioa
+                 | ADLG     -- @ADLG --Adizlaguna
+                 | ATRIB    -- @ATRIB --Atributoa (EDBLtik desagertua)
+                 | BST_sin  -- @BST --Bestelakoa
+                 | GRAD Dir -- @GRAD> -- Ezkerreko graduatzailea
+                            --  @<GRAD -- Eskuineko graduatzailea
+                 | HAOS     -- @HAOS -- Hitz Anitzeko Unitatearen osagaia
+                 | IA Dir   -- @<IA --Eskuineko adjektiboa
+                            -- @IA> --Ezkerreko adjektiboa
+                 | ID Dir   -- @ID> --Ezkerreko determinatzailea
+                            -- @<ID --Eskuineko determinatzailea
+                 | ITJ_sin  -- @ITJ --Interjekzioa
+                 | IZLG Dir -- @<IZLG --Eskuineko izenlaguna
+                            -- @IZLG> --Ezkerreko izenlaguna
+                 | KM_ezk   -- @KM> --Kasua daraman formaren modifikatzailea
+                 | LAB_sin  -- @LAB --Laburdura
+                 | LOK_sin  -- @LOK --Lokailua
+                 | MP       -- @MP --Mendeko perpausa: menderagailu askea
+                 | MD_ADLG  -- @MD_ADLG --Mendeko perpausa adizlagun funtzioan: menderagailu askea2
+                 | MD_OBJ   -- @MD_OBJ --Mendeko perpausa objektu funtzioan: lokailu menderagailu askea3
+                 | OBJ      -- @OBJ --Objektua
+                 | PJ       -- @PJ --Perpaus-juntadura (koordinazioa)
+                 | PRED     -- @PRED --Subjektu edo objektuaren osagarri predikatiboa
+                 | PRT_sin  -- @PRT --Partikula
+                 | SIGLA_sin -- @SIGLA --Sigla
+                 | SINBOLOA  -- @SINBOLOA --Sinboloa / @SINBOLOA> --Sinboloa
+                 | SUBJ      -- @SUBJ --Subjektua
+                 | ZOBJ      -- @ZOBJ --Zehar-objektua
+                 | IS        -- @IS --Funtzio jakinik gabeko izen-sintagma
+                 | FSG       -- @FSG --Funtzio sintaktiko jakinik gabe
+
+--Jadlag
+                 | JADLAG PlusMinus    -- @+JADLAG     -- Aditz laguntzaile jokatua (etorri naiz)
+                                       -- @-JADLAG     -- Aditz laguntzaile jokatugabea (?etorri izan naiz)
+                 | JADLAG_MP PlusMinus -- @+JADLAG_MP  -- Aditz laguntzaile jokatua, mendeko perpausa
+                                       -- @-JADLAG_MP  -- Aditz laguntzaile jokatugabea, mendeko perpausa (EDBLtik desagertua1)
+                 | JADLAG_MP_ADLG     -- @+JADLAG_MP_ADLG -- Aditz laguntzaile jokatua, adizlagun funtzioan1
+                 | JADLAG_IZLG_ezk    -- @+JADLAG_IZLG>   -- Aditz laguntzaile jokatua, izenlagun funtzioan (desagertua)2
+                 | JADLAG_MP_IZLG_ezk -- @+JADLAG_MP_IZLG> -- Aditz laguntzaile jokatua, izenlagun funtzioan
+                 | JADLAG_MP_IZLG_esk -- @<+JADLAG_MP_IZLG -- Aditz laguntzaile jokatua, eskuineko izenlagun funtzioan3
+                 | JADLAG_MP_OBJ   -- @+JADLAG_MP_OBJ   -- Aditz laguntzaile jokatua, mendeko objektua (duzun, dadin)
+                 | JADLAG_MP_SUBJ  -- @+JADLAG_MP_SUBJ  -- Aditz laguntzaile jokatua, mendeko subjektua (EDBLn sarrerarik ez)
+                 | JADLAG_MP_PRED  -- @+JADLAG_MP_PRED  -- Aditz laguntzaile jokatua, mendeko predikatzailea
+
+-- Jadnag
+                 | JADNAG PlusMinus -- @+JADNAG          -- Aditz nagusi jokatua (nator)
+                                    -- @-JADNAG          -- Aditz nagusi jokatugabea (etorri naiz)
+                 | JADNAG_MP PlusMinus -- @+JADNAG_MP    -- Aditz nagusi jokatua, mendeko perpausa
+                                       -- @-JADNAG_MP    -- Aditz nagusi jokatugabea, mendeko perpausa
+                 | JADNAG_MP_ADLG PlusMinus -- @+JADNAG_MP_ADLG  -- Aditz nagusi jokatua, adizlagun funtzioan
+                                            -- @-JADNAG_MP_ADLG  -- Aditz nagusi jokatugabea, adizlagun funtzioan (-keran)
+                 | JADNAG_IZLG -- @+JADNAG_IZLG>    -- Aditz nagusi jokatua, izenlagun funtzioan (desagertua)2
+                 | JADNAG_MP_IZLG_ezk PlusMinus -- @+JADNAG_MP_IZLG> -- Aditz nagusi jokatua, izenlagun funtzioan
+                                                -- @-JADNAG_MP_IZLG> -- Aditz nagusi jokatugabea, izenlagun funtzioan (EDBLn sarrerarik ez)3
+                 | JADNAG_MP_IZLG_esk PlusMinus -- @<+JADNAG_MP_IZLG -- Aditz nagusi jokatua, eskuineko izenlagun funtzioan
+                                                -- @<-JADNAG_MP_IZLG -- Aditz nagusi jokatugabea, eskuinekoizenlagun funtzioan
+                 | JADNAG_MP_OBJ PlusMinus -- @+JADNAG_MP_OBJ   -- Aditz nagusi jokatua, objektu funtzioan (dakigun, gatozen)
+                                           -- @-JADNAG_MP_OBJ   -- Aditz nagusi jokatugabea, objektu funtzioan (EDBLn sarrerarik ez)4
+                 | JADNAG_MP_SUBJ PlusMinus -- @+JADNAG_MP_SUBJ  -- Aditz nagusi jokatua, subjektu funtzioan
+                                            -- @-JADNAG_MP_SUBJ  -- Aditz nagusi jokatugabea, subjektu funtzioan (EDBLn sarrerarik ez)5
+                 | JADNAG_MP_PRED PlusMinus -- @+JADNAG_MP_PRED  -- Aditz nagusi jokatua, predikatu funtzioan
+                                            -- @-JADNAG_MP_PRED  -- Aditz nagusi jokatugabea, predikatu funtzioan
+                 | JADNAG_MP_ZOBJ -- @-JADNAG_MP_ZOBJ  -- Aditz nagusi jokatugabea, zehar-objektu funtzioan
+                 | JADNAG_MP_KM   -- @-JADNAG_MP_KM    -- Aditz nagusi jokatugabea, Kasua daraman formaren modifikatzailea
+
+
+{- Only these are in the morph. grammar
+ @+JADLAG 
+ @+JADLAG_IZLG> 
+ @+JADLAG_MP 
+ @+JADLAG_MP_ADLG 
+ @+JADLAG_MP_ADLG> 
+ @+JADNAG 
+ @+JADNAG_IZLG> 
+ @+JADNAG_MP 
+ @+JADNAG_MP_ADLG 
+ @+JADNAG_MP_ADLG> 
+ @-JADNAG 
+ @-JADNAG> 
+ @-JADNAG_MP 
+ @-JADNAG_MP_IZLG> 
+ @-JADNAG_MP_KM>
+ @<GRAD 
+ @<IA 
+ @IA> 
+ @<ID 
+ @ID> 
+ @<IZ 
+ @<IZLG 
+ @ADLG 
+ @ATRIB 
+ @IZLG> 
+ @KM> 
+ @LOK 
+ @OBJ 
+ @PJ 
+ @PRED 
+ @SUBJ 
+ @SUBJ> 
+-}
