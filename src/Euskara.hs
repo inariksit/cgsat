@@ -66,8 +66,6 @@ data AdiAZP = SIN -- Aditz sinplea
             | FAK --Aditz faktitiboa
  deriving (Show,Eq)
 
-
-
 data DetAZP = ERKARR -- Determinatzailea: erakusle arrunta
             | ERKIND -- Determinatzailea: erakusle indartua
             | NOLARR -- Det.: nolakotzaile arrunta
@@ -104,6 +102,7 @@ data KategoriaMor = AMM -- Aditz-mota morfema
                   | MAR -- Marratxoa
  deriving (Show,Eq)
 
+
 --------------------------------------------
 -- 2.3 Morfologia-ezaugarriak
 data Kasumarkak = ABL | ABS | ABU | ABZ | ALA | BNK 
@@ -139,20 +138,25 @@ data Modudenbora =
    | C -- Aginterazko orainaldia: hadi
  deriving (Show,Eq)
 
-data Nor = NI | HI | HURA | GU | ZU | ZUEK | HAIEK deriving (Show,Eq)
+-- Verb agreement: 
+-- has 1-3 of the following, either Nor, Nor-Nori, Nor-Nork or Nor-Nori-Nork
+data Nor = NR_NI | NR_HI | NR_HURA | NR_GU 
+         | NR_ZU | NR_ZUEK | NR_HAIEK deriving (Show,Eq)
 
-data Nori = NIRI | HIRI | HARI | GURI | ZURI | ZUEI | HAIEI deriving (Show,Eq)
-
-data Nork = NIK | HIK | HARK | GUK | ZUK | ZUEK_K | HAIEK_K deriving (Eq)
+data Nori = NI_NIRI | NI_HIRI | NI_HARI | NI_GURI 
+          | NI_ZURI | NI_ZUEI | NI_HAIEI deriving (Show,Eq)
+ 
+data Nork = NK_NIK | NK_HIK | NK_HARK | NK_GUK 
+          | NK_ZUK | NK_ZUEK_K | NK_HAIEK_K deriving (Eq)
 
 instance Show Nork where
-    show NIK = "NIK"
-    show HIK = "HIK"
-    show HARK = "HARK" 
-    show GUK  = "GUK"
-    show ZUK  = "ZUK"
-    show ZUEK_K = "ZUEK-K"
-    show HAIEK_K = "HAIEK-K"
+    show NK_NIK = "NK_NIK"
+    show NK_HIK = "NK_HIK"
+    show NK_HARK = "NK_HARK" 
+    show NK_GUK  = "NK_GUK"
+    show NK_ZUK  = "NK_ZUK"
+    show NK_ZUEK_K = "NK_ZUEK-K"
+    show NK_HAIEK_K = "NK_HAIEK-K"
 
 
 --Hitanozko forma alokutiboak (HIT)
@@ -191,14 +195,101 @@ data Erlazioak = BALD -- Baldintzakoa
 --------------------------------------------
 -- 2.4 Ezaugarri lexiko-semantikoak
 -- Determinatzaileen numero-mugatasuna (NMG)
-data Numeromugatasuna = NMG -- Mugabea
-                      | NMGS -- Singularra
-                      | NMGP -- Plurala
+data DetMugatasuna = NMG -- Mugabea
+                   | NMGS -- Singularra
+                   | NMGP -- Plurala
  deriving (Eq)
 
-instance Show Numeromugatasuna where
+instance Show DetMugatasuna where
     show NMG = "MG"
     show NMGS = "NMGS"
     show NMGP = "NMGP"
 
+-- Izenordainen numeroa (NUM)
+-- TODO do we need this?
+-- data IzenNumero = 
+
+--Izenordainen pertsona (PER)
+data Pertsona = NI | HI | HURA | GU | ZU | ZUEK | HAIEK deriving (Show,Eq)
+
+-- Izenen biziduntasuna (BIZ) - Oraindik EDBLn sistematikoki landu gabe.
+data Biziduntasuna = BIZplus -- Biziduna 
+                   | BIZminus -- Bizigabea
+ deriving (Eq)
+
+instance Show Biziduntasuna where
+    show BIZplus = "BIZ+"
+    show BIZminus = "BIZ-"
+
+
+-- Izenen zenbagarritasuna (ZENB) - Oraindik EDBLn landu gabe.
+data Zenbagarritasuna = ZENBplus | ZENBminus deriving (Eq)
+instance Show Zenbagarritasuna where
+    show ZENBplus = "ZENB+"
+    show ZENBminus = "ZENB-"
+
+-- Izenen neurgarritasuna (NEUR) - - Oraindik EDBLn landu gabe.
+data Neurgarritasuna = NEURplus | NEURminus deriving (Eq)
+instance Show Neurgarritasuna where
+    show NEURplus = "NEUR+"
+    show NEURminus = "NEUR-"
+
+--Pluralia tantum izenak (PLU) - Oraindik EDBLn sistematikoki landu gabe.
+data PluraliaTantum = PLUplus | PLUminus deriving (Eq)
+instance Show PluraliaTantum where
+    show PLUplus = "PLU+"
+    show PLUminus = "PLU-"
+
+--Aditz nagusiaren laguntzaile-mota (LAGM) - Oraindik EDBLn sistematikoki landu gabe.
+-- Verb agreement type
+data AditzLaguntzaile = DA --NOR
+                      | DU --NOR-NORK
+                      | DA_DU --NOR eta NOR-NORK
+                      | ZAIO --NOR-NORI
+                      | DIO --NOR-NORI-NORK
+ deriving (Eq)
+
+instance Show AditzLaguntzaile where
+    show DA = "DA"
+    show DU = "DU"
+    show DA_DU = "DA-DU"
+    show ZAIO = "ZAIO"
+    show DIO = "DIO"
+
+--Errore kodeak
+data Errorekodeak = A_FAK --Aditz Faktitiboa
+                  | DE_DI --Dialektalak(deklinabideari dagozkionak, adib. zugaitik)
+                  | DE_ER --Erakusleen deklinabidean sortzen direnak
+                  | DE_LE --Leku-izenen deklinabidean sortzen direnak
+                  | DIAL --Aho-hizkerak nahiz dialektalismoak eragindakoak
+                  | ERAT -- Eratorpenean ematen direnak
+                  | FO_OK --Forma okerra
+                  | LD_FO --Arazo fonetikoek eragindako lema desberdinak
+                  | LD_MA --Maileguen egokitzapenean sortzen diren lema desberdinak
+                  | NEOL --Neologismoak
+                  | KONPOS --Konposizioan ematen direnak
+                  | ATZKI --Atzizkia
+                  | AZTERTU_GABEA --Aztertu gabea (Lexikoaren Behatokian landutako sarrerak)
+
+--------------------------------------------
+-- 2.5 Ezaugarri sintaktikoak
+-- Adjektiboen posizioa (IZAUR)
+data AdjPosizioak = IZAURplus | IZAURminus deriving (Eq)
+
+--Determinatzailearen posizioa sintagman (POS)  - Oraindik EDBLn landu gabe.
+data DetPos = ATZE  -- Atzetik derrigorrez
+            | AURRE -- Aurretik derrigorrez
+            | NN    -- Nonahi, aurretik nahiz atzetik
+
+
+-- Loturazkoak - Klausula muga (KLM) ) - Oraindik EDBLn landu gabe.
+data Loturazkoak = HAS --Klausula-hasiera markatzen duen loturazkoa: ezen
+                 | AM -- Klausula-amaiera markatzen duen loturazkoa: arren
+                 | HA -- Klausula-hasiera zein -amaiera marka dezakeen loturazkoa: ?
+
+--------------------------------------------------------------------------------
+
+------------------------------
+-- 3   Funtzio sintaktikoak --
+------------------------------
 
