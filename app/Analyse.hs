@@ -11,6 +11,7 @@ import SAT.Named
 
 import Data.Foldable ( fold )
 import qualified Data.IntMap as IM
+import Data.Either ( lefts, rights )
 import Data.List ( nub, elemIndex )
 import Data.Maybe ( catMaybes, fromMaybe )
 import Debug.Trace ( trace )
@@ -19,12 +20,12 @@ import System.Environment ( getArgs )
 --maybe remove these (and things that need them) to CG_SAT?
 import Control.Monad ( forM )
 import Control.Monad.IO.Class ( liftIO )
-import Control.Monad.Except ( runExceptT, catchError )
-import Control.Monad.RWS ( runRWST, gets, put, asks, local )
+import Control.Monad.Except ( runExceptT, catchError, throwError, lift )
+import Control.Monad.RWS ( runRWST, get, gets, put, ask, asks, local )
 
 --------------------------------------------------------------------------------
 
-data Conflict = NoConf | Internal | Interaction  -- [Rule]
+data Conflict = NoConf | Internal | Interaction -- [Rule]
   deriving (Show,Eq)
 
 --------------------------------------------------------------------------------
@@ -81,10 +82,13 @@ main = do
 
     let env = mkEnv s (readingsInLex++readingsInGr) (tagsInLex++lemInLex)
 
+    let largestWidth = maximum $ map (fst . width) rules
+    (Right initSent,_,_) <- rwse env emptyConfig $ mkSentence largestWidth
+    let config = Config initSent largestWidth
 
-    (_,_,log_) <- rwse env emptyConfig $ testRules Nothing (splits rules)
+    (_,_,log_) <- rwse env config $ testRules rules
 
-    --mapM_ putStrLn log_
+    mapM_ putStrLn log_
 
     putStrLn "---------"
 
@@ -101,27 +105,61 @@ for = flip fmap
 ----------------------------------------------------------------------------
 -- Functions that apply only for analysis, not disambiguation
 
-testRules :: Maybe Int -> [(Rule,[Rule])] -> RWSE ()
-testRules _       []    = return ()
-testRules prevWid ((r,rs):rule_rules) = do
-  --liftIO $ putStrLn (show (length rule_rules) ++ " rules left")
-  x@(confOrErr, newWid) 
-    <- testRule prevWid r rs `catchError` 
-         \e -> case e of
-                 NoReadingsLeft -> return (Internal,prevWid)
-                 _              -> return (NoConf,prevWid) --TODO
+testRules :: [Rule] -> RWSE [Conflict]
+testRules = mapM testRule
 
-  liftIO $ print x
-  testRules newWid rule_rules
 
-testRule :: Maybe Int -> Rule -> [Rule] -> RWSE (Conflict, Maybe Int)
-testRule prevWid rule prevRules = do 
+testRule :: Rule -> RWSE Conflict
+testRule rule = do
+  c@(Config sen len) <- get
+  e@(Env tm _rm s) <- ask
+  confs <-    -- I suspect there's a nicer way to handle this
+     mapM (\i -> RWSE $ lift $ runExceptT $ runRWSE $ ruleTriggers rule i
+                  :: RWSE (Either CGException Conflict) )
+                [1..len] -- 1) Test if the rule may apply, and return result of that
+
+  apply rule             -- 2) Apply the rule regardless
+
+
+  let legitConfs = rights confs
+  liftIO $ print legitConfs
+  if Interaction `elem` legitConfs 
+    then return Interaction
+    else if Internal `elem` legitConfs || null legitConfs
+      then return Internal
+      else return NoConf
+
+
+ruleTriggers :: Rule -> Int -> RWSE Conflict
+ruleTriggers rule i = do
+  (mustHaveTrg, mustHaveOther, allCondsHold,_,_) <- trigger rule i
+  s <- asks solver
+  (Config sen len) <- get
+  b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
+  if b then return NoConf
+   else 
+     do s' <- liftIO newSolver
+        c <- local (withNewSolver s') $ do sent' <- mkSentence len
+                                           put (Config sent' len)
+                                           apply rule
+                                           (x,y,z,_,_) <- trigger rule i
+                                           b <- liftIO $ solve s' [x,y,z]
+                                           if b then return Internal
+                                           else return (Interaction)
+        liftIO $ deleteSolver s'
+        return c
+
+
+testRule' :: Maybe Int -> Rule -> [Rule] -> RWSE (Conflict, Maybe Int)
+testRule' prevWid rule prevRules = do 
   let (w,trgCohInd) = width rule
   let sameWidth = case prevWid of
                     Nothing -> False
-                    Just wid -> wid == w 
+                    Just wid -> wid >= w 
   initSent <- if sameWidth then ps "reused the same sentence!" >> gets sentence
                             else mkSentence w
+
+  initSent <- gets sentence
   s <- asks solver
   tm <- asks tagMap 
 
@@ -133,35 +171,16 @@ testRule prevWid rule prevRules = do
   ps "--------"
 
   if sameWidth
-    then ps "applied only last rule!" >> apply (last prevRules)
+    then do ps "applied only last rule!" 
+            if null prevRules
+              then ps "empty prevRules, alert!" >> return ()
+              else apply (last prevRules)
     else mapM_ apply prevRules
 
-  newSent <- gets sentence
-  --liftIO $ print newSent
+  conf <- ruleTriggers rule trgCohInd
+  return (conf, Just w)
 
-  (mustHaveTrg, mustHaveOther, allCondsHold,_,_) <- trigger rule trgCohInd 
-   --`catchError` \e -> case e of 
-   --               OutOfScope _ _ -> undefined
-   --               NoReadingsLeft -> undefined
-   --               UnknownError _ -> undefined 
 
-  b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
-  liftIO $ print b
-
-  if b then do --liftIO $ deleteSolver s
-               return (NoConf,Just w)
-    else
-     
-     do s' <- liftIO newSolver
-        c <- local (withNewSolver s') $ do sent' <- mkSentence w
-                                           put (Config sent' w)
-                                           apply rule
-                                           (x,y,z,_,_) <- trigger rule trgCohInd
-                                           b <- liftIO $ solve s' [x,y,z]
-                                           if b then return Internal
-                                           else return (Interaction )
-        liftIO $ deleteSolver s'
-        return (c, Just w)
 
 
 
