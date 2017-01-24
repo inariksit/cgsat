@@ -297,10 +297,13 @@ data Loturazkoak = HAS --Klausula-hasiera markatzen duen loturazkoa: ezen
 -- 3   Funtzio sintaktikoak --
 ------------------------------
 
-data Dir = Eskuina | Ezkerra deriving (Eq)
+-- I guess this means if it is on the left or on the right of something?
+-- So, Eskuineko ("right") points to the left <, because the word itself is on the right.
+-- Same for Ezkerreko.
+data Dir = Eskuineko | Ezkerreko deriving (Eq)
 instance Show Dir where
-    show Eskuina = "<"
-    show Ezkerra = ">"
+    show Eskuineko = "<"
+    show Ezkerreko = ">"
 
 data PlusMinus = Plus | Minus deriving (Eq)
 instance Show PlusMinus where
