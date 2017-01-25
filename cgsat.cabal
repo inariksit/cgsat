@@ -25,6 +25,7 @@ library
                      , minisat
                      , mtl
                      , satplus
+                     , testing-feat
 
   hs-source-dirs:      src
   ghc-options:         -O2
