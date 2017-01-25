@@ -10,10 +10,20 @@ enumerateNullary = consts $ map nullary [minBound..maxBound]
 --Tags present in corpus but not in the documents
 
 data ZERO = ZERO deriving (Show,Eq,Enum,Bounded)
+instance Enumerable ZERO where
+  enumerate = enumerateNullary
 data NOTDEK = NOTDEK deriving (Show,Eq,Enum,Bounded)
+instance Enumerable NOTDEK where
+  enumerate = enumerateNullary
 data AORG = AORG deriving (Show,Eq,Enum,Bounded)
+instance Enumerable AORG where
+  enumerate = enumerateNullary
 data AL = AL deriving (Show,Eq,Enum,Bounded)
+instance Enumerable AL where
+  enumerate = enumerateNullary
 data ZALE = ZALE  deriving (Show,Eq,Enum,Bounded)
+instance Enumerable ZALE where
+  enumerate = enumerateNullary
 --------------------------------------------------------------------------------
 
 --------------------------------------------
@@ -95,13 +105,25 @@ data KategoriaLex = IZE AzpIZE  -- ARR | IZB | LIB | ZKI
                    -- Aditz trinkoa: dator
  deriving (Show,Eq)
 
+instance Enumerable KategoriaLex where
+  enumerate = consts ( unary (funcurry IZE):
+                       unary (funcurry (funcurry (funcurry 
+                             (funcurry (funcurry (funcurry
+                             (funcurry (funcurry ADI)))))))):
+                       unary (funcurry (funcurry (funcurry 
+                             (funcurry (funcurry 
+                             (funcurry ADJ)))))):
+                       unary (funcurry ADB):
+                       unary DET:                       
+                       unary IOR:
+                       unary LOT:
+                       unary (funcurry (funcurry ADL)):
+                       unary (funcurry (funcurry (funcurry
+                             (funcurry (funcurry ADT))))):
+                       map nullary [ ITJ, BST ] )
+                      
 -- (MTKAT) -- I imagine only for nouns?
-data Meta = SIG -- Sigla -- "<CFTC>"<DEN_MAI>" "CFTC" IZE IZB *SIG* ZERO DEN_MAI
-                          -- "<EHNE>"<DEN_MAI>" "EHNE" IZE IZB *SIG* ABS NUMS MUGM DEN_MAI 
-                          -- "<ELAren>"<DEN_MAI_DEK>" "ELA" IZE IZB BIZ- ZENB- NEUR- PLU- *SIG* GEN NUMS MUGM ZERO DEN_MAI_DEK 
-          | SNB --Sinboloa: km, cm, g --"<M.>"<ERROM>" "m" IZE ARR BIZ- SNB ABS NUMS MUGM ERROM 
-          | LAB --Laburdura: etab. -- "<al>" "al." IZE ARR LAB ZERO
-                                    -- "<min>" "min." IZE ARR BIZ+ LAB ZERO 
+data Meta = SIG | SNB | LAB
  deriving (Show,Eq,Enum,Bounded)                                  
 instance Enumerable Meta where
   enumerate = enumerateNullary
@@ -202,6 +224,10 @@ data DefNum = Indef | Def Number deriving (Eq)
 instance Show DefNum where
   show Indef = "MG"
   show (Def n) = show n ++ " MUGM" 
+
+instance Enumerable DefNum where
+  enumerate = consts [nullary Indef, unary Def]
+
 
 -- Mugatasuna may appear without number in Adverbs.
 -- Also there is a MG tag as a part of DetDefNum; 
