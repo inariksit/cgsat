@@ -2,6 +2,20 @@ module Euskara where
 
 import Data.Maybe ( fromJust )
 
+
+{-
+Tags present in corpus but not in the documents
+AORG
+ZERO
+NOTDEK
+-}
+
+
+data ZERO = ZERO deriving (Show,Eq,Enum,Bounded)
+data NOTDEK = NOTDEK deriving (Show,Eq,Enum,Bounded)
+data AORG = AORG deriving (Show,Eq,Enum,Bounded)
+data AL = AL deriving (Show,Eq,Enum,Bounded)
+data ZALE = ZALE  deriving (Show,Eq,Enum,Bounded)
 --------------------------------------------------------------------------------
 
 --------------------------------------------
@@ -26,12 +40,36 @@ data Ortografia = HAS_MAI | DEN_MAI | DEN_MAI_DEK
 --------------------------------------------
 -- 2.1    Kategoria lexikalak
 -- Kategoria (KAT) eta azpikategoria (AZP) nagusiak
-data KategoriaLex = IZE AzpIZE -- Noun
-                  | ADI AzpADI -- Verb
-                  | ADJ AzpADB -- Adjective. OBS. same subcat!
-                  | ADB AzpADB Def -- Adverb.    OBS. same subcat!
+                    -- Noun
+data KategoriaLex = IZE AzpIZE  -- ARR | IZB | LIB | ZKI 
+                        (Maybe Meta)
+
+                    -- Verb
+                  | ADI AzpADI   -- SIN | ADK | FAK
+                        (Maybe Degree) -- SUP
+                        (Maybe VerbType)  -- PART | ADOIN | ADIZE
+                        (Maybe Aspect)  -- BURU | EZBU | GERO | PNT 
+                        (Maybe Erlazioak) -- BALD | DENB | ..
+                        (Maybe Case)   -- ABS | INS | .. 
+                        (Maybe DefNum)  -- MG | MUGM NUMS | .. 
+                        (Maybe ZERO)
+                        (Maybe NOTDEK) -- Shortest I've found: ADI ADK NOTDEK
+                   --  e.g.  ADI ADK ADOIN BURU MOD
+
+                  | ADJ AzpADB -- Adjective. OBS. same subcat as adv
+                        (Maybe AdjPosizioak) -- IZAUR+ | IZAUR-
+                        (Maybe Animacy) -- BIZ+ | BIZ-
+                        (Maybe Degree) 
+                        (Maybe (Case, DefNum)) -- GEN PH MUGM | INE MG | ...
+                        (Maybe AORG)
+                        (Maybe ZERO) -- Shortest I've found: ADJ ARR ZERO
+                        --TODO the rest
+
+                  | ADB AzpADB -- Adverb.
+                        Def 
                     -- only in ADB can Def (Mugatasuna) appear without Num! 
                     -- e.g. "hemendik_aurrera" ADB ARR BIZ- MUGM AORG
+
                   | DET AzpDET
                   | IOR AzpIOR -- Pronoun
                   | LOT AzpLOT -- Connective
@@ -40,19 +78,31 @@ data KategoriaLex = IZE AzpIZE -- Noun
                   | BST -- Bestelakoa
 
     -- Kategoria lagungarriak
-                  | ADL TenseMood AgrADL (Maybe (Case,DefNum)) 
+                  | ADL (Maybe (Case,DefNum))  -- OBS. If the case is GEL, then no DefNum??
+                        TenseMood 
+                        AgrADL   --TODO is there more?                        
                    -- Aditz laguntzailea: du
 
-                  | ADT Aspect AgrADL (Maybe (Case,DefNum)) (Maybe Erlazioak) (Maybe Mod)  --TODO is there more?
+                  | ADT Aspect               -- PNT 
+                        (Maybe Erlazioak)    -- BALD
+                        (Maybe (Case,DefNum)) -- ABS MG  -- OBS. If the case is GEL, then no DefNum
+                        TenseMood             -- B1 
+                        AgrADL               -- NOR NR_HURA
+                        
+                        
+                        (Maybe Mod)  --TODO is there more?
                    -- Aditz trinkoa: dator
  deriving (Show,Eq)
 
+-- (MTKAT) -- I imagine only for nouns?
 data Meta = SIG -- Sigla -- "<CFTC>"<DEN_MAI>" "CFTC" IZE IZB *SIG* ZERO DEN_MAI
                           -- "<EHNE>"<DEN_MAI>" "EHNE" IZE IZB *SIG* ABS NUMS MUGM DEN_MAI 
                           -- "<ELAren>"<DEN_MAI_DEK>" "ELA" IZE IZB BIZ- ZENB- NEUR- PLU- *SIG* GEN NUMS MUGM ZERO DEN_MAI_DEK 
-           | SNB --Sinboloa: km, cm, g --"<M.>"<ERROM>" "m" IZE ARR BIZ- SNB ABS NUMS MUGM ERROM 
-           | LAB --Laburdura: etab. -- "<al>" "al." IZE ARR LAB ZERO
+          | SNB --Sinboloa: km, cm, g --"<M.>"<ERROM>" "m" IZE ARR BIZ- SNB ABS NUMS MUGM ERROM 
+          | LAB --Laburdura: etab. -- "<al>" "al." IZE ARR LAB ZERO
                                     -- "<min>" "min." IZE ARR BIZ+ LAB ZERO 
+ deriving (Show,Eq,Enum,Bounded)                                  
+
 data AgrADL = NOR Nor | NORI Nor Nori | NOR_NORK Nor Nork
             | NOR_NORI Nor Nori | NOR_NORI_NORK Nor Nori Nork deriving (Show,Eq)
 
@@ -144,12 +194,14 @@ data Def = MUGM -- Definite
 
 data Number = NUMS | NUMP | PH deriving (Show,Eq,Enum,Bounded)
 
-data Gradumaila = KONP | SUP | GEHI deriving (Show,Eq,Enum,Bounded)
+-- Gradu maila (MAI)
+data Degree = KONP | SUP | GEHI | IND deriving (Show,Eq,Enum,Bounded)
 
-data Aditzmota = PART | ADOIN | ADIZE deriving (Show,Eq,Enum,Bounded)
+-- Aditz mota (ADM)
+data VerbType = PART | ADOIN | ADIZE deriving (Show,Eq,Enum,Bounded)
 
 -- Aspektua (ASP)
-data Aspect = BURU | EZBURU | GERO | PNT deriving (Show,Eq,Enum,Bounded)
+data Aspect = BURU | EZBU | GERO | PNT deriving (Show,Eq,Enum,Bounded)
 
 -- Modu-denbora (MDN)
 data TenseMood =
@@ -303,14 +355,14 @@ instance Show PluraliaTantum where
 
 --Aditz nagusiaren laguntzaile-mota (LAGM) - Oraindik EDBLn sistematikoki landu gabe.
 -- Main verb agreement type -- OBS. There's a separate tag for synthetic verbs!
-data AditzNagusiaAgr = DA --NOR
-                     | DU --NOR-NORK
-                     | DA_DU --NOR eta NOR-NORK
-                     | ZAIO --NOR-NORI
-                     | DIO --NOR-NORI-NORK
+data AuxType = DA --NOR
+             | DU --NOR-NORK
+             | DA_DU --NOR eta NOR-NORK
+             | ZAIO --NOR-NORI
+             | DIO --NOR-NORI-NORK
  deriving (Eq,Enum,Bounded)
 
-instance Show AditzNagusiaAgr where
+instance Show AuxType where
     show DA = "DA"
     show DU = "DU"
     show DA_DU = "DA-DU"
