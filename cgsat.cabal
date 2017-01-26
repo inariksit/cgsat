@@ -17,7 +17,8 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_SAT, AmbiguityClass, Euskara
+  exposed-modules:     CG_SAT, AmbiguityClass
+  other-modules:       Derive, Euskara
   build-depends:       array
                      , base
                      , containers
@@ -25,8 +26,8 @@ library
                      , minisat
                      , mtl
                      , satplus
+                     , template-haskell
                      , testing-feat
-
   hs-source-dirs:      src
   ghc-options:         -O2
   build-tools:         alex, happy

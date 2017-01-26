@@ -1,29 +1,31 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Euskara where
 
+import Derive
 import Data.Maybe ( fromJust )
-import Test.Feat ( Enumerable, Enumerate, enumerate, consts, nullary, unary, funcurry )
+import Test.Feat ( Enumerable, Enumerate, enumerate, consts, unary, funcurry )
 
 
-enumerateNullary :: (Enum a, Bounded a) => Enumerate a
-enumerateNullary = consts $ map nullary [minBound..maxBound]
+enumBounded :: (Enum a, Bounded a) => Enumerate a
+enumBounded = consts $ map pure [minBound..maxBound]
 
 --Tags present in corpus but not in the documents
 
 data ZERO = ZERO deriving (Show,Eq,Enum,Bounded)
-instance Enumerable ZERO where
-  enumerate = enumerateNullary
+instance Enumerable ZERO where enumerate = enumBounded
+
 data NOTDEK = NOTDEK deriving (Show,Eq,Enum,Bounded)
-instance Enumerable NOTDEK where
-  enumerate = enumerateNullary
+instance Enumerable NOTDEK where enumerate = enumBounded
+
 data AORG = AORG deriving (Show,Eq,Enum,Bounded)
-instance Enumerable AORG where
-  enumerate = enumerateNullary
+instance Enumerable AORG where enumerate = enumBounded
+
 data AL = AL deriving (Show,Eq,Enum,Bounded)
-instance Enumerable AL where
-  enumerate = enumerateNullary
+instance Enumerable AL where enumerate = enumBounded
+
 data ZALE = ZALE  deriving (Show,Eq,Enum,Bounded)
-instance Enumerable ZALE where
-  enumerate = enumerateNullary
+instance Enumerable ZALE where enumerate = enumBounded
 --------------------------------------------------------------------------------
 
 --------------------------------------------
@@ -36,13 +38,13 @@ data Puntuazio = PUNT_PUNT | PUNT_KOMA | PUNT_PUNT_KOMA
                | PUNT_BI_PUNT | PUNT_ESKL | PUNT_GALD | PUNT_HIRU
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Puntuazio where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- 1.2    Ortografia
 data Ortografia = HAS_MAI | DEN_MAI | DEN_MAI_DEK
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Ortografia where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 ---------------------------------
 -- 2    EDBLko etiketa-sistema --
@@ -103,7 +105,7 @@ data KategoriaLex = IZE AzpIZE  -- ARR | IZB | LIB | ZKI
                         
                         (Maybe Mod)  --TODO is there more?
                    -- Aditz trinkoa: dator
- deriving (Show,Eq)
+ deriving (Eq)
 
 instance Enumerable KategoriaLex where
   enumerate = consts ( unary (funcurry IZE):
@@ -120,16 +122,16 @@ instance Enumerable KategoriaLex where
                        unary (funcurry (funcurry ADL)):
                        unary (funcurry (funcurry (funcurry
                              (funcurry (funcurry ADT))))):
-                       map nullary [ ITJ, BST ] )
+                       map pure [ ITJ, BST ] )
                       
 -- (MTKAT) -- I imagine only for nouns?
 data Meta = SIG | SNB | LAB
  deriving (Show,Eq,Enum,Bounded)                                  
 instance Enumerable Meta where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 data AgrADL = NOR Nor | NOR_NORI Nor Nori | NOR_NORK Nor Nork
-            | NOR_NORI_NORK Nor Nori Nork deriving (Show,Eq)
+            | NOR_NORI_NORK Nor Nori Nork deriving (Eq)
 
 instance Enumerable AgrADL where
   enumerate = consts [ unary NOR
@@ -137,20 +139,19 @@ instance Enumerable AgrADL where
                      , unary (funcurry NOR_NORK)
                      , unary (funcurry (funcurry NOR_NORI_NORK)) ]
 
-
 data AzpIZE = ARR -- Izen arrunta 
             | IZB -- Pertsona-izen berezia
             | LIB -- Leku-izen berezia
             | ZKI -- Izen zenbakia
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpIZE where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 data AzpADB = ARR_adb -- Adberbio arrunta
             | GAL --Adberbio galdetzailea
  deriving (Eq,Enum,Bounded)
 instance Enumerable AzpADB where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- The tag ARR is in both Ize and Adb, hence different constructor and custom Show instance
 instance Show AzpADB where 
@@ -163,7 +164,7 @@ data AzpADI = SIN -- Aditz sinplea
             | FAK --Aditz faktitiboa
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpADI where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 data AzpDET = ERKARR -- Determinatzailea: erakusle arrunta
             | ERKIND -- Determinatzailea: erakusle indartua
@@ -176,7 +177,7 @@ data AzpDET = ERKARR -- Determinatzailea: erakusle arrunta
             | ORO --Det.: zenbatzaile orokorra
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpDET where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 data AzpIOR = PERARR -- Pertsona-izenordain arrunta
             | PERIND -- Pertsona-izenordain indartua
@@ -186,27 +187,27 @@ data AzpIOR = PERARR -- Pertsona-izenordain arrunta
             | ELK --Izenordain elkarkaria
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpIOR where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 data AzpLOT = LOK -- Loturazko lokailuak
             | JNT -- Loturazko juntagailua
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpLOT where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 --------------------------------------------
 -- 2.2 Kategoria morfologikoak (KAT)
 data MorphCat = AMM -- Aditz-mota morfema
-                  | ASP -- Aspektu-morfema
-                  | ATZ -- Atzizki lexikala
-                  | AUR -- Aurrizki lexikala
-                  | DEK -- Deklinabide-morfema
-                  | ELI -- Elipsia
-                  | ERL -- Erlazio-atzizkia
-                  | GRA -- Graduatzailea 
-                  | MAR -- Marratxoa
+              | ASP -- Aspektu-morfema
+              | ATZ -- Atzizki lexikala
+              | AUR -- Aurrizki lexikala
+              | DEK -- Deklinabide-morfema
+              | ELI -- Elipsia
+              | ERL -- Erlazio-atzizkia
+              | GRA -- Graduatzailea 
+              | MAR -- Marratxoa
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable MorphCat where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 --------------------------------------------
 -- 2.3 Morfologia-ezaugarriak
@@ -217,7 +218,7 @@ data Case = ABL | ABS | ABU | ABZ | ALA | BNK
           | INE | INS | MOT | PAR | PRO | SOZ
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Case where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Usually Mugatasuna is accompanied by number 
 data DefNum = Indef | Def Number deriving (Eq)
@@ -226,7 +227,7 @@ instance Show DefNum where
   show (Def n) = show n ++ " MUGM" 
 
 instance Enumerable DefNum where
-  enumerate = consts [nullary Indef, unary Def]
+  enumerate = consts [pure Indef, unary Def]
 
 
 -- Mugatasuna may appear without number in Adverbs.
@@ -237,26 +238,26 @@ data Def = MUGM -- Definite
          | MG   -- Indefinite
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Def where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 data Number = NUMS | NUMP | PH deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Number where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Gradu maila (MAI)
 data Degree = KONP | SUP | GEHI | IND deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Degree where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Aditz mota (ADM)
 data VerbType = PART | ADOIN | ADIZE deriving (Show,Eq,Enum,Bounded)
 instance Enumerable VerbType where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Aspektua (ASP)
 data Aspect = BURU | EZBU | GERO | PNT deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Aspect where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Modu-denbora (MDN)
 data TenseMood =
@@ -277,7 +278,7 @@ data TenseMood =
    | MDNC -- Aginterazko orainaldia: hadi -- or just C?
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable TenseMood where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 
 -- Modality
@@ -285,41 +286,26 @@ data Mod = ZIU -- ziurtasunezkoa  Possibility
          | EGI -- egiatasunezkoa  Certainty
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Mod where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Verb agreement: 
 -- has 1-3 of the following, either Nor, Nor-Nori, Nor-Nork or Nor-Nori-Nork
 data Nor = NR_NI | NR_HI | NR_HURA | NR_GU 
-         | NR_ZU | NR_ZUEK | NR_HAIEK deriving (Show,Eq,Enum,Bounded)
+         | NR_ZU | NR_ZUEK | NR_HAIEK deriving (Eq,Enum,Bounded)
 instance Enumerable Nor where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
-data Nori = NI_NIRI | NI_HIRI_TO | NI_HIRI_NO | NI_HARI
+
+data Nori = NI_NIRI | NI_HIRI_dash_TO | NI_HIRI_dash_NO | NI_HARI
           | NI_GURI | NI_ZURI | NI_ZUEI | NI_HAIEI deriving (Eq,Enum,Bounded)
 instance Enumerable Nori where
-  enumerate = enumerateNullary
-
-instance Show Nori where
-    show = fromJust . flip lookup noriTable
-
-noriTable = [ (NI_NIRI,    "NI_NIRI"), (NI_HIRI_TO, "NI_HIRI-TO")
-            , (NI_HIRI_NO, "NI_HIRI-NO"), (NI_HARI, "NI_HARI")
-            , (NI_GURI,    "NI_GURI"), (NI_ZURI,    "NI_ZURI")
-            , (NI_ZUEI,    "NI_ZUEI"), (NI_HAIEI,   "NI_HAIEI") ]
+  enumerate = enumBounded
 
 
-data Nork = NK_NIK | NK_HIK_TO | NK_HIK_NO | NK_HARK
+data Nork = NK_NIK | NK_HIK_dash_TO | NK_HIK_dash_NO | NK_HARK
           | NK_GUK | NK_ZUK | NK_ZUEK_K | NK_HAIEK_K deriving (Eq,Enum,Bounded)
 instance Enumerable Nork where
-  enumerate = enumerateNullary
-
-instance Show Nork where
-    show = fromJust . flip lookup norkTable
-
-norkTable = [ (NK_NIK,    "NK_NIK"),  (NK_HIK_TO, "NK_HIK-TO")
-            , (NK_HIK_NO, "NK_HIK-NO"), (NK_HARK, "NK_HARK")
-            , (NK_GUK,    "NK_GUK"), (NK_ZUK,    "NK_ZUK")
-            , (NK_ZUEK_K, "NK_ZUEK-K"), (NK_HAIEK_K, "NK_HAIEK-K") ]
+  enumerate = enumBounded
 
 
 --Hitanozko forma alokutiboak (HIT)
@@ -327,7 +313,7 @@ data Hitano = TO -- Gizonezkoen hitanoa
             | NO -- Andrazkoen hitanoa
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Hitano where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Menderagailuen erlazioak (ERL) -- subordinate morphemes
 data Erlazioak = BALD -- Baldintzakoa
@@ -339,7 +325,7 @@ data Erlazioak = BALD -- Baldintzakoa
                | KONPL -- Konpletiboa
                | KONT -- Kontzesiboa
                | MOD -- Moduzkoa
-               | MOD_DENB -- Moduzkoa/Denborazkoa (orig. name MOD/DENB)
+               | MOD_slash_DENB -- Moduzkoa/Denborazkoa (orig. name MOD/DENB)
                | MOS -- Mendeko osagaia
                | ZHG -- Zehar-galdera
 -- Lokailuen eta juntagailuen erlazioak (ERL)
@@ -349,7 +335,8 @@ data Erlazioak = BALD -- Baldintzakoa
                | ONDO --Ondoriozkoa
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Erlazioak where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
+
 --------------------------------------------
 -- 2.4 Ezaugarri lexiko-semantikoak
 -- Determinatzaileen numero-mugatasuna (NMG)
@@ -358,7 +345,7 @@ data DetDefNum = NMG -- Mugabea
                | NMGP -- Plurala
  deriving (Eq,Enum,Bounded)
 instance Enumerable DetDefNum where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 instance Show DetDefNum where
     show NMG = "MG"
@@ -372,63 +359,44 @@ instance Show DetDefNum where
 --Izenordainen pertsona (PER)
 data Person = NI | HI | HURA | GU | ZU | ZUEK | HAIEK deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Person where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Izenen biziduntasuna (BIZ) - Oraindik EDBLn sistematikoki landu gabe.
-data Animacy = BIZ_plus -- Biziduna 
-             | BIZ_minus -- Bizigabea
+data Animacy = BIZ_plus_ -- Biziduna 
+             | BIZ_minus_ -- Bizigabea
  deriving (Eq,Enum,Bounded)
 instance Enumerable Animacy where
-  enumerate = enumerateNullary
-
-instance Show Animacy where
-    show BIZ_plus = "BIZ+"
-    show BIZ_minus = "BIZ-"
+  enumerate = enumBounded
 
 
 -- Izenen zenbagarritasuna (ZENB) - Oraindik EDBLn landu gabe.
-data Zenbagarritasuna = ZENB_plus | ZENB_minus deriving (Eq,Enum,Bounded)
-instance Show Zenbagarritasuna where
-    show ZENB_plus = "ZENB+"
-    show ZENB_minus = "ZENB-"
+data Zenbagarritasuna = ZENB_plus_ | ZENB_minus_ deriving (Eq,Enum,Bounded)
 instance Enumerable Zenbagarritasuna where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Izenen neurgarritasuna (NEUR) - - Oraindik EDBLn landu gabe.
-data Neurgarritasuna = NEUR_plus | NEUR_minus deriving (Eq,Enum,Bounded)
-instance Show Neurgarritasuna where
-    show NEUR_plus = "NEUR+"
-    show NEUR_minus = "NEUR-"
+data Neurgarritasuna = NEUR_plus_ | NEUR_minus_ deriving (Eq,Enum,Bounded)
 instance Enumerable Neurgarritasuna where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 --Pluralia tantum izenak (PLU) - Oraindik EDBLn sistematikoki landu gabe.
-data PluraliaTantum = PLU_plus | PLU_minus deriving (Eq,Enum,Bounded)
-instance Show PluraliaTantum where
-    show PLU_plus = "PLU+"
-    show PLU_minus = "PLU-"
+data PluraliaTantum = PLU_plus_ | PLU_minus_ deriving (Eq,Enum,Bounded)
 instance Enumerable PluraliaTantum where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 
 --Aditz nagusiaren laguntzaile-mota (LAGM) - Oraindik EDBLn sistematikoki landu gabe.
 -- Main verb agreement type -- OBS. There's a separate tag for synthetic verbs!
 data AuxType = DA --NOR
              | DU --NOR-NORK
-             | DA_DU --NOR eta NOR-NORK
+             | DA_dash_DU --NOR eta NOR-NORK
              | ZAIO --NOR-NORI
              | DIO --NOR-NORI-NORK
  deriving (Eq,Enum,Bounded)
+
+
 instance Enumerable AuxType where
-  enumerate = enumerateNullary
-
-
-instance Show AuxType where
-    show DA = "DA"
-    show DU = "DU"
-    show DA_DU = "DA-DU"
-    show ZAIO = "ZAIO"
-    show DIO = "DIO"
+  enumerate = enumBounded
 
 
 --Errore kodeak
@@ -445,16 +413,14 @@ data Errorekodeak = A_FAK --Aditz Faktitiboa
                   | KONPOS --Konposizioan ematen direnak
                   | ATZKI --Atzizkia
                   | AZTERTU_GABEA --Aztertu gabea (Lexikoaren Behatokian landutako sarrerak)
-
+ deriving (Show,Eq,Enum,Bounded)
 --------------------------------------------
 -- 2.5 Ezaugarri sintaktikoak
 -- Adjektiboen posizioa (IZAUR)
-data AdjPosizioak = IZAUR_plus | IZAUR_minus deriving (Eq,Enum,Bounded)
+data AdjPosizioak = IZAUR_plus_ | IZAUR_minus_ deriving (Eq,Enum,Bounded)
 instance Enumerable AdjPosizioak where
-  enumerate = enumerateNullary
-instance Show AdjPosizioak where
-    show IZAUR_plus = "IZAUR+"
-    show IZAUR_minus = "IZAUR-"
+  enumerate = enumBounded
+
 
 --Determinatzailearen posizioa sintagman (POS)  - Oraindik EDBLn landu gabe.
 data DetPos = ATZE  -- Atzetik derrigorrez
@@ -462,7 +428,7 @@ data DetPos = ATZE  -- Atzetik derrigorrez
             | NN    -- Nonahi, aurretik nahiz atzetik
  deriving (Show,Eq,Enum,Bounded) 
 instance Enumerable DetPos where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
 
 -- Loturazkoak - Klausula muga (KLM) ) - Oraindik EDBLn landu gabe.
 data Loturazkoak = HAS --Klausula-hasiera markatzen duen loturazkoa: ezen
@@ -470,122 +436,49 @@ data Loturazkoak = HAS --Klausula-hasiera markatzen duen loturazkoa: ezen
                  | HA -- Klausula-hasiera zein -amaiera marka dezakeen loturazkoa: ?
  deriving (Show,Eq,Enum,Bounded) 
 instance Enumerable Loturazkoak where
-  enumerate = enumerateNullary
+  enumerate = enumBounded
+
+
 ------------------------------
 -- 3   Funtzio sintaktikoak --
 ------------------------------
 
--- I guess this means if it is on the left or on the right of something?
--- So, Eskuineko ("on the right of") points to the left <, 
--- because the word itself is on the right. Same for Ezkerreko.
-data Dir = Eskuineko | Ezkerreko deriving (Eq,Enum,Bounded)
-instance Show Dir where
-    show Eskuineko = "<"
-    show Ezkerreko = ">"
-instance Enumerable Dir where
-  enumerate = enumerateNullary
-
-data PlusMinus = Plus | Minus deriving (Eq,Enum,Bounded)
-instance Show PlusMinus where
-    show Plus = "+"
-    show Minus = "-"
-instance Enumerable PlusMinus where
-  enumerate = enumerateNullary
-
 data Sintaktikoak
- = ADILOK Dir | ADLG | ATRIB | BST_sin | GRAD Dir | HAOS | IA Dir | ID Dir
- | ITJ_sin | IZLG Dir | KM_ezk | LAB_sin | LOK_sin | MP | MD_ADLG | MD_OBJ
- | OBJ | PJ | PRED | PRT_sin | SIGLA_sin | SINBOLOA | SUBJ | ZOBJ | IS | FSG
+ = Sin__esk_ADILOK | Sin_ADILOK_ezk_ | Sin_ADLG | Sin_ATRIB | Sin_BST
+ | Sin__esk_GRAD | Sin_Grad_ezk_
+ | Sin_HAOS 
+ | Sin__esk_IA | Sin_IA_ezk_
+ | Sin__esk_ID | Sin_ID_ezk_
+ | Sin_ITJ 
+ | Sin__esk_IZLG | Sin_IZLG_ezk_
+ | Sin_KM_ezk_
+ | Sin_LAB | Sin_LOK 
+ | Sin_MP | Sin_MD_ADLG | Sin_MD_OBJ
+ | Sin_OBJ | Sin_PJ | Sin_PRED | Sin_PRT | Sin_SIGLA
+ | Sin_SINBOLOA | Sin_SUBJ | Sin_ZOBJ | Sin_IS | Sin_FSG
 
 -- Jadlag
- | JADLAG PlusMinus | JADLAG_MP PlusMinus | JADLAG_MP_ADLG | JADLAG_IZLG_ezk
- | JADLAG_MP_IZLG_ezk | JADLAG_MP_IZLG_esk | JADLAG_MP_OBJ | JADLAG_MP_SUBJ | JADLAG_MP_PRED
+ | Sin__plus_JADLAG | Sin__minus_JADLAG
+ | Sin__plus_JADLAG_MP | Sin__minus_JADLAG_MP
+ | Sin_JADLAG_MP_ADLG | Sin_JADLAG_IZLG_ezk_
+ | Sin_JADLAG_MP_IZLG_ezk_ | Sin__esk_JADLAG_MP_IZLG
+ | Sin_JADLAG_MP_OBJ | Sin_JADLAG_MP_SUBJ | Sin_JADLAG_MP_PRED
 
 -- Jadnag
- | JADNAG PlusMinus | JADNAG_MP PlusMinus | JADNAG_MP_ADLG PlusMinus
- | JADNAG_IZLG | JADNAG_MP_IZLG_ezk PlusMinus | JADNAG_MP_IZLG_esk PlusMinus
- | JADNAG_MP_OBJ PlusMinus | JADNAG_MP_SUBJ PlusMinus | JADNAG_MP_PRED PlusMinus
- | JADNAG_MP_ZOBJ | JADNAG_MP_KM
- deriving (Eq)
+ | Sin__plus_JADNAG | Sin__minus_JADNAG
+ | Sin__plus_JADNAG_MP | Sin__minus_JADNAG_MP
+ | Sin__plus_JADNAG_MP_ADLG | Sin__minus_JADNAG_MP_ADLG
+ | Sin_JADNAG_IZLG
+ | Sin__plus_JADNAG_MP_IZLG_ezk_ | Sin__minus_JADNAG_MP_IZLG_ezk_
+ | Sin__esk__plus_JADNAG_MP_IZLG | Sin__esk__minus_JADNAG_MP_IZLG
+ | Sin__plus_JADNAG_MP_OBJ | Sin__minus_JADNAG_MP_OBJ
+ | Sin__plus_JADNAG_MP_SUBJ | Sin__minus_JADNAG_MP_SUBJ
+ | Sin__plus_JADNAG_MP_PRED | Sin__minus_JADNAG_MP_PRED
+ | Sin_JADNAG_MP_ZOBJ | Sin_JADNAG_MP_KM
+ deriving (Eq,Enum,Bounded)
+
 instance Enumerable Sintaktikoak where
-  enumerate = consts ( map nullary [ ADLG, ATRIB, BST_sin, HAOS, ITJ_sin, KM_ezk
-                                   , LAB_sin, LOK_sin, MP, MD_ADLG, MD_OBJ, OBJ, PJ
-                                   , PRED, PRT_sin, SIGLA_sin, SINBOLOA, SUBJ, ZOBJ
-                                   , IS, FSG, JADLAG_MP_ADLG, JADLAG_IZLG_ezk
-                                   , JADLAG_MP_IZLG_esk, JADLAG_MP_IZLG_ezk, JADLAG_MP_OBJ
-                                   , JADLAG_MP_SUBJ, JADLAG_MP_PRED
-                                   , JADNAG_IZLG, JADNAG_MP_ZOBJ, JADNAG_MP_KM ]
-                      ++ map unary [ ADILOK, GRAD, IA, ID, IZLG ] -- Dir -> Sintaktikoak
-                      ++ map unary [ JADLAG, JADLAG_MP, JADNAG_MP -- PlusMinus -> Sint.
-                                   , JADNAG_MP_IZLG_esk, JADNAG_MP_IZLG_ezk
-                                   , JADNAG_MP_OBJ, JADNAG_MP_SUBJ, JADNAG_MP_PRED ] )
-
-instance Show Sintaktikoak where
-    show (ADILOK Ezkerreko) = "@ADILOK>" -- Aditz konposatuen funtzioa
-    show (ADILOK Eskuineko) = "<@ADILOK" -- Aditz konposatuen funtzioa
-    show ADLG     = "@ADLG" --Adizlaguna
-    show ATRIB    = "@ATRIB" --Atributoa (EDBLtik desagertua)
-    show BST_sin  = "@BST" --Bestelakoa
-    show (GRAD Ezkerreko) = "@GRAD>" -- Ezkerreko graduatzailea
-    show (GRAD Eskuineko) = "@<GRAD" -- Eskuineko graduatzailea
-    show HAOS     = "@HAOS" -- Hitz Anitzeko Unitatearen osagaia
-    show (IA Ezkerreko) = "@IA>" --Ezkerreko adjektiboa
-    show (IA Eskuineko) = "@<IA" --Eskuineko adjektiboa
-    show (ID Ezkerreko) = "@ID>" --Ezkerreko determinatzailea
-    show (ID Eskuineko) = "@<ID" --Eskuineko determinatzailea
-    show ITJ_sin  = "@ITJ" --Interjekzioa
-    show (IZLG Ezkerreko) = "@IZLG>" --Ezkerreko izenlaguna
-    show (IZLG Eskuineko) = "@<IZLG" --Eskuineko izenlaguna
-    show KM_ezk   = "@KM>" --Kasua daraman formaren modifikatzailea
-    show LAB_sin  = "@LAB" --Laburdura
-    show LOK_sin  = "@LOK" --Lokailua
-    show MP       = "@MP" --Mendeko perpausa: menderagailu askea
-    show MD_ADLG  = "@MD_ADLG" --Mendeko perpausa adizlagun funtzioan: menderagailu askea2
-    show MD_OBJ   = "@MD_OBJ" --Mendeko perpausa objektu funtzioan: lokailu menderagailu askea3
-    show OBJ      = "@OBJ" --Objektua
-    show PJ       = "@PJ" --Perpaus-juntadura (koordinazioa)
-    show PRED     = "@PRED" --Subjektu edo objektuaren osagarri predikatiboa
-    show PRT_sin  = "@PRT" --Partikula
-    show SIGLA_sin = "@SIGLA" --Sigla
-    show SINBOLOA  = "@SINBOLOA" --Sinboloa / @SINBOLOA> --Sinboloa
-    show SUBJ      = "@SUBJ" --Subjektua
-    show ZOBJ      = "@ZOBJ" --Zehar-objektua
-    show IS        = "@IS" --Funtzio jakinik gabeko izen-sintagma
-    show FSG       = "@FSG" --Funtzio sintaktiko jakinik gabe
-
--- Jadlag
-    show (JADLAG Plus) = "@+JADLAG"    -- Aditz laguntzaile jokatua (etorri naiz)
-    show (JADLAG Minus) = "@-JADLAG"    -- Aditz laguntzaile jokatugabea (?etorri izan naiz)
-    show (JADLAG_MP Plus) = "@+JADLAG_MP"  -- Aditz laguntzaile jokatua, mendeko perpausa
-    show (JADLAG_MP Minus) = "@-JADLAG_MP"  -- Aditz laguntzaile jokatugabea, mendeko perpausa (EDBLtik desagertua1)
-    show JADLAG_MP_ADLG     = "@+JADLAG_MP_ADLG" -- Aditz laguntzaile jokatua, adizlagun funtzioan1
-    show JADLAG_IZLG_ezk    = "@+JADLAG_IZLG>"  -- Aditz laguntzaile jokatua, izenlagun funtzioan (desagertua)2
-    show JADLAG_MP_IZLG_ezk = "@+JADLAG_MP_IZLG>" -- Aditz laguntzaile jokatua, izenlagun funtzioan
-    show JADLAG_MP_IZLG_esk = "@<+JADLAG_MP_IZLG" -- Aditz laguntzaile jokatua, eskuineko izenlagun funtzioan3
-    show JADLAG_MP_OBJ   = "@+JADLAG_MP_OBJ"   -- Aditz laguntzaile jokatua, mendeko objektua (duzun, dadin)
-    show JADLAG_MP_SUBJ  = "@+JADLAG_MP_SUBJ"  -- Aditz laguntzaile jokatua, mendeko subjektua (EDBLn sarrerarik ez)
-    show JADLAG_MP_PRED  = "@+JADLAG_MP_PRED"  -- Aditz laguntzaile jokatua, mendeko predikatzailea
-
--- Jadnag
-    show (JADNAG Plus) = "@+JADNAG"           -- Aditz nagusi jokatua (nator)
-    show (JADNAG Minus) = "@-JADNAG"          -- Aditz nagusi jokatugabea (etorri naiz)
-    show (JADNAG_MP Plus) = "@+JADNAG_MP"     -- Aditz nagusi jokatua, mendeko perpausa
-    show (JADNAG_MP Minus) = "@-JADNAG_MP"    -- Aditz nagusi jokatugabea, mendeko perpausa
-    show (JADNAG_MP_ADLG Plus) = "@+JADNAG_MP_ADLG"  -- Aditz nagusi jokatua, adizlagun funtzioan
-    show (JADNAG_MP_ADLG Minus) = "@-JADNAG_MP_ADLG"  -- Aditz nagusi jokatugabea, adizlagun funtzioan (-keran)
-    show JADNAG_IZLG = "@+JADNAG_IZLG>"       -- Aditz nagusi jokatua, izenlagun funtzioan (desagertua)2
-    show (JADNAG_MP_IZLG_ezk Plus) = "@+JADNAG_MP_IZLG>" -- Aditz nagusi jokatua, izenlagun funtzioan
-    show (JADNAG_MP_IZLG_ezk Minus) = "@-JADNAG_MP_IZLG>" -- Aditz nagusi jokatugabea, izenlagun funtzioan (EDBLn sarrerarik ez)3
-    show (JADNAG_MP_IZLG_esk Plus) = "@<+JADNAG_MP_IZLG" -- Aditz nagusi jokatua, eskuineko izenlagun funtzioan
-    show (JADNAG_MP_IZLG_esk Minus) = "@<-JADNAG_MP_IZLG" -- Aditz nagusi jokatugabea, eskuinekoizenlagun funtzioan
-    show (JADNAG_MP_OBJ Plus) = "@+JADNAG_MP_OBJ"   -- Aditz nagusi jokatua, objektu funtzioan (dakigun, gatozen)
-    show (JADNAG_MP_OBJ Minus) = "@-JADNAG_MP_OBJ"   -- Aditz nagusi jokatugabea, objektu funtzioan (EDBLn sarrerarik ez)4
-    show (JADNAG_MP_SUBJ Plus) = "@+JADNAG_MP_SUBJ"  -- Aditz nagusi jokatua, subjektu funtzioan
-    show (JADNAG_MP_SUBJ Minus) = "@-JADNAG_MP_SUBJ"  -- Aditz nagusi jokatugabea, subjektu funtzioan (EDBLn sarrerarik ez)5
-    show (JADNAG_MP_PRED Plus) = "@+JADNAG_MP_PRED"  -- Aditz nagusi jokatua, predikatu funtzioan
-    show (JADNAG_MP_PRED Minus) = "@-JADNAG_MP_PRED"  -- Aditz nagusi jokatugabea, predikatu funtzioan
-    show JADNAG_MP_ZOBJ = "@-JADNAG_MP_ZOBJ"  -- Aditz nagusi jokatugabea, zehar-objektu funtzioan
-    show JADNAG_MP_KM   = "@-JADNAG_MP_KM"    -- Aditz nagusi jokatugabea, Kasua daraman formaren modifikatzailea
+  enumerate = enumBounded
 
 
 {- Only these are in the morph. grammar
@@ -622,3 +515,24 @@ instance Show Sintaktikoak where
  @SUBJ 
  @SUBJ> 
 -}
+
+
+$(deriveShow ''AgrADL)
+$(deriveShow ''Nor)
+$(deriveShow ''Nori)
+$(deriveShow ''Nork)
+
+$(deriveShow ''AdjPosizioak)
+$(deriveShow ''Animacy)
+$(deriveShow ''AuxType)
+
+$(deriveShow ''KategoriaLex)
+
+$(deriveShow ''Zenbagarritasuna)
+
+$(deriveShow ''Neurgarritasuna)
+
+$(deriveShow ''PluraliaTantum)
+
+$(deriveShow ''Sintaktikoak)
+
