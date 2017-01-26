@@ -4,8 +4,66 @@ module Euskara where
 
 import Derive
 import Data.Maybe ( fromJust )
-import Test.Feat ( Enumerable, Enumerate, enumerate, consts, unary, funcurry )
+import Test.Feat ( Enumerable, Enumerate
+                 , enumerate, consts, unary, funcurry 
+                 , values )
 
+-- Hey Koen, if you're reading this, just skip further to line 89, this is very much in progress
+
+import Data.List ( nub )
+import SAT.Named
+import SAT ( Solver(..), deleteSolver, newSolver )
+
+
+foo :: IO ()
+foo = do 
+  s <- newSolver
+  let litsForCat vs = sequence [ (,) name `fmap` newLit s name 
+                         | (_x,ys) <- vs
+                         , name <- nub $ map (take 3 . show) ys
+                        ]
+  mainPos <- litsForCat (values :: [(Integer,[PartOfSpeech])])
+  nounSub <- litsForCat (values :: [(Integer,[AzpIZE])])
+  verbSub <- litsForCat (values :: [(Integer,[AzpADI])])
+  caseSub <- litsForCat (values :: [(Integer,[Case])])
+
+  let allLits = map snd (mainPos++nounSub++verbSub++caseSub)
+
+  ------------------------------
+  -- Internal constraints for subcats
+
+  atMostOne s (map snd nounSub)
+  atMostOne s (map snd verbSub)
+  atMostOne s (map snd caseSub)
+
+--  atMostOne s (map snd mainPos) -- we don't want this; just checking it "works"
+  hasMainPos <- orl' s (map snd mainPos)
+
+  ---------------------------------
+  -- Constraints for maincat+subcat
+  let Just ize = lookup "IZE" mainPos
+  let Just adi = lookup "ADI" mainPos
+  someIzeAzp <- orl' s (map snd nounSub)
+  ize_izeAzp <- equiv s "IZE=>AzpIZE" ize someIzeAzp
+ 
+  someAdiAzp <- orl' s (map snd verbSub)
+  adi_adiAzp <- equiv s "ADI=>AzpADI" adi someAdiAzp
+
+  someCase <- orl' s (map snd caseSub)
+  case_VerbOrNoun <- equiv s "case => Verb or Noun" someCase =<< orl' s [ize,adi]
+-- TODO: build a reading, using this fancy map thingy ("closed universe"?) 
+-- and specify what literals may and must be present for a given mainPos
+
+-- TODO: make it all automatic; bring back the full data type for KategoriaLex
+-- and create the constraints from that
+  solve s [hasMainPos, ize_izeAzp, adi_adiAzp,case_VerbOrNoun]
+  vs <- sequence [ modelValue s x | x <- allLits ]
+  let trueLits = [ x | (x,True) <- zip allLits vs ]
+  mapM_ print trueLits
+  deleteSolver s
+
+
+--------------------------------------------------------------------------------
 
 enumBounded :: (Enum a, Bounded a) => Enumerate a
 enumBounded = consts $ map pure [minBound..maxBound]
@@ -53,6 +111,35 @@ instance Enumerable Ortografia where
 --------------------------------------------
 -- 2.1    Kategoria lexikalak
 -- Kategoria (KAT) eta azpikategoria (AZP) nagusiak
+
+-- This is like KategoriaLex but only the constructor names.
+-- Just a test to do some simple thing with SAT.
+data PartOfSpeech = IZE AzpIZE -- Noun
+                  | ADI AzpADI 
+                  | ADJ AzpADB
+                  | ADB AzpADB
+                  | DET AzpDET
+                  | IOR AzpIOR -- Pronoun
+                  | LOT AzpLOT -- Connective
+                  | PRT  -- Partikula
+                  | ITJ -- Interjekzioa
+                  | BST -- Bestelakoa
+    -- Kategoria lagungarriak
+                  | ADL 
+                  | ADT 
+ deriving (Eq)
+
+instance Enumerable PartOfSpeech where
+  enumerate = consts ( unary IZE:
+                       unary ADI:
+                       unary ADJ:
+                       unary ADB:
+                       unary DET:
+                       unary IOR:
+                       unary LOT:
+                       map pure [PRT,ITJ,BST,ADL,ADT] )
+
+{-
                     -- Noun
 data KategoriaLex = IZE AzpIZE  -- ARR | IZB | LIB | ZKI 
                         (Maybe Meta)
@@ -107,6 +194,7 @@ data KategoriaLex = IZE AzpIZE  -- ARR | IZB | LIB | ZKI
                    -- Aditz trinkoa: dator
  deriving (Eq)
 
+
 instance Enumerable KategoriaLex where
   enumerate = consts ( unary (funcurry IZE):
                        unary (funcurry (funcurry (funcurry 
@@ -123,7 +211,7 @@ instance Enumerable KategoriaLex where
                        unary (funcurry (funcurry (funcurry
                              (funcurry (funcurry ADT))))):
                        map pure [ ITJ, BST ] )
-                      
+                      -}
 -- (MTKAT) -- I imagine only for nouns?
 data Meta = SIG | SNB | LAB
  deriving (Show,Eq,Enum,Bounded)                                  
@@ -517,16 +605,17 @@ instance Enumerable Sintaktikoak where
 -}
 
 
-$(deriveShow ''AgrADL)
-$(deriveShow ''Nor)
-$(deriveShow ''Nori)
-$(deriveShow ''Nork)
+$( deriveShow ''AgrADL )
+$( deriveShow ''Nor )
+$( deriveShow ''Nori )
+$( deriveShow ''Nork )
 
-$(deriveShow ''AdjPosizioak)
-$(deriveShow ''Animacy)
-$(deriveShow ''AuxType)
+$( deriveShow ''AdjPosizioak )
+$( deriveShow ''Animacy )
+$( deriveShow ''AuxType )
 
-$(deriveShow ''KategoriaLex)
+-- $(deriveShow ''KategoriaLex)
+$( deriveShow ''PartOfSpeech )
 
 $(deriveShow ''Zenbagarritasuna)
 

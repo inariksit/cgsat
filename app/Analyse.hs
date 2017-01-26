@@ -2,6 +2,7 @@ module Main where
 
 
 import CG_SAT
+import Euskara
 import Rule
 import Parse ( parse )
 import Utils
@@ -36,7 +37,8 @@ main = do
   s <- newSolver
 
   case args of 
-   (lang:r)-> do 
+   (eus:_) -> Euskara.foo
+   (lang:r) -> do 
 
     let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
     let subr = if "withsub" `elem` r then ".withsub" else ".nosub"
