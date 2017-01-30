@@ -56,10 +56,12 @@ rwse env conf (RWSE m) = runRWST (runExceptT m) env conf
 -}
 data Env = Env { tagMap :: Map Tag IntSet 
                , rdMap :: IntMap Reading 
+               , lems :: OrList Tag
+               , wfs :: OrList Tag
                , solver :: Solver } 
 
 withNewSolver :: Solver -> Env -> Env
-withNewSolver s (Env tm rm _) = Env tm rm s
+withNewSolver s env = env { solver = s }
 
 data Config = Config { sentence :: Sentence 
                      , senlength :: Int } deriving (Show)
@@ -124,14 +126,33 @@ nullMatch m = case m of
 mkSentence :: Int -> RWSE Sentence
 mkSentence width = do
   s <- asks solver
-  rds <- asks rdMap
+  rds  <- asks rdMap
+  lemmas <- asks lems
+  wordfs <- asks wfs
   rdSent <- liftIO $ IM.fromList `fmap` sequence
     [ (,) n `fmap` sequence (IM.mapWithKey (mkLit s n) rds)
         | n <- [1..width] ] 
-  let lmSent = IM.empty
-  let wfSent = IM.empty
-  return $ S rdSent lmSent wfSent
+
+  lmList <- liftIO $ sequence
+    [ do innerLits <- mapM (mkLitLex s n ) lemmas'
+         let innerTagMap = M.fromList (zip lemmas' innerLits)
+         return (n,innerTagMap)
+
+      | n <- [1..width] 
+      , let lemmas' = getOrList lemmas ] 
+  let lmSent = IM.fromList lmList
+
+  --wfSent <- liftIO $ IM.fromList `fmap` sequence
+  --  [ do innerLits <- map (mkLitLex s n) wordfs
+  --       let innerTagMap = M.fromList (zip wordfs innerLits)
+  --       return (n,innerTagMap)
+  --      | n <- [1..width] ] 
+
+  return $ S rdSent lmSent IM.empty --wfSent
  where
+  mkLitLex :: Solver -> Int -> Tag -> IO Lit
+  mkLitLex s n t = newLit s (showReading (And [t]) n n)
+
   mkLit :: Solver -> Int -> Int -> Reading -> IO Lit
   mkLit s n m rd = newLit s (showReading rd n m)
 
@@ -139,8 +160,8 @@ mkSentence width = do
   showReading (And ts) wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '<':show t++">") ts
 
 
-solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
-solveAndPrintSentence verbose s ass (S sent _ _) = do
+solveAndPrint :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
+solveAndPrint verbose s ass (S sent _ _) = do
   b <- solve s ass
   if b then do
           when verbose $ print ass
@@ -154,7 +175,7 @@ solveAndPrintSentence verbose s ass (S sent _ _) = do
           mapM_ putStrLn trueAnas
           putStrLn "----"
       else do
-        putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
+        putStrLn $ "solveAndPrint: Conflict with assumptions " ++ show ass
 --------------------------------------------------------------------------------
 -- 
 
@@ -401,8 +422,8 @@ defaultRules s sentence =
 --------------------------------------------------------------------------------
 -- From here on, only pure helper functions
 
-mkEnv :: Solver -> [Reading] -> [Tag] -> Env
-mkEnv s rds tags = Env (mkTagMap tags rds) (mkRdMap rds) s 
+mkEnv :: Solver -> [Reading] -> [Tag] -> [Tag] -> [Tag] -> Env
+mkEnv s rds tags ls ws = Env (mkTagMap tags rds) (mkRdMap rds) (Or ls) (Or ws) s 
 
 {- rdMap --  1 |-> vblex sg p3
              2 |-> noun sg mf
@@ -481,7 +502,7 @@ lemsAndWFs :: TagSet -> OrList Tag
 lemsAndWFs tagset = case normaliseTagsetRel tagset of
   Set s -> Or $ (filter isLex) (concatMap getAndList $ getOrList s)
   _     -> Or [] -- TODO
- where
-  isLex (Lem _) = True
-  isLex (WF _)  = True
-  isLex _       = False
+
+isLex (Lem _) = True
+isLex (WF _)  = True
+isLex _       = False

@@ -18,7 +18,7 @@ import Debug.Trace ( trace )
 import System.Environment ( getArgs )
 
 --maybe remove these (and things that need them) to CG_SAT?
-import Control.Monad ( forM )
+import Control.Monad ( forM, when )
 import Control.Monad.IO.Class ( liftIO )
 import Control.Monad.Except ( runExceptT, catchError, throwError, lift )
 import Control.Monad.RWS ( runRWST, get, gets, put, ask, asks, local )
@@ -49,6 +49,7 @@ main = do
     let grfile  = dirname ++ lang ++ ".rlx"
     let tagfile = dirname ++ lang ++ ".tags"
     let lemfile = dirname ++ lang ++ ".lem"
+    let wffile  = dirname ++ lang ++ ".wf"
     let rdsfile = dirname ++ lang ++ ".readings" --  ++ subr
     --let acfile  = dirname ++ lang ++ ".ambiguity-classes"
     --let frmfile = dirname ++ lang ++ ".formula"
@@ -58,12 +59,14 @@ main = do
     tagsInLex <- (map Utils.readTag . filter (not.null) . words) 
                    `fmap` readFile tagfile
     lemInLex <- (map readTag . filter (not.null) . words) `fmap` readFile lemfile
+    wfInLex  <-  (map readTag . filter (not.null) . words) `fmap` readFile wffile
+
     readingsInLex <- (map parseReading . words) --Apertium format
                        `fmap` readFile rdsfile 
     (tsets,ruless) <- parse `fmap` readFile grfile
     let rules = filter (sel_or_rm . oper) (concat ruless)
     let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
-                        then concatMap Utils.tagSet2Readings tsets
+                        then concatMap Utils.tagSet2Readings tsets --TODO filter all lexical items out
                         else []
 
 --    print $ (length tagsInLex, take 50 tagsInLex)
@@ -80,7 +83,7 @@ main = do
 
     putStrLn "---------"
 
-    let env = mkEnv s (readingsInLex++readingsInGr) (tagsInLex++lemInLex)
+    let env = mkEnv s (readingsInLex++readingsInGr) tagsInLex lemInLex wfInLex
 
     let largestWidth = maximum $ map (fst . width) rules
     (Right initSent,_,_) <- rwse env emptyConfig $ mkSentence largestWidth
@@ -95,13 +98,6 @@ main = do
 
 
    _ -> print "give me a 3-letter code for a language" 
-
-splits :: (Eq a) => [a] -> [(a,[a])]
-splits xs = xs `for` \x -> let Just ind = elemIndex x xs
-                           in  (x, take ind xs)
- 
-for = flip fmap
-
 
 sel_or_rm :: Oper -> Bool
 sel_or_rm SELECT = True
@@ -118,9 +114,9 @@ testRules = mapM testRule
 testRule :: Rule -> RWSE Conflict
 testRule rule = do
   c@(Config sen len) <- get
-  e@(Env tm _rm s) <- ask
+  e@(Env tm _rm _ _ s) <- ask
   confs <-    -- I suspect there's a nicer way to handle this
-     mapM (\i -> RWSE $ lift $ runExceptT $ runRWSE $ ruleTriggers rule i
+     mapM (\i -> RWSE $ lift $ runExceptT $ runRWSE $ ruleTriggers False rule i
                   :: RWSE (Either CGException Conflict) )
                 [1..len] -- 1) Test if the rule may apply, and return result of that
 
@@ -137,13 +133,14 @@ testRule rule = do
       else return NoConf
 
 
-ruleTriggers :: Rule -> Int -> RWSE Conflict
-ruleTriggers rule i = do
+ruleTriggers :: Bool -> Rule -> Int -> RWSE Conflict
+ruleTriggers verbose rule i = do
   (mustHaveTrg, mustHaveOther, allCondsHold,_,_) <- trigger rule i
   s <- asks solver
   (Config sen len) <- get
   b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
-  if b then do --liftIO $ solveAndPrintSentence True s [mustHaveTrg, mustHaveOther, allCondsHold] sen
+  if b then do when verbose $
+                 liftIO $ solveAndPrint True s [mustHaveTrg, mustHaveOther, allCondsHold] sen
                return NoConf
    else 
      do s' <- liftIO newSolver
@@ -151,53 +148,16 @@ ruleTriggers rule i = do
                                            put (Config tempSen len)
                                            (x,y,z,_,_) <- trigger rule i
                                            b <- liftIO $ solve s' [x,y,z]
-                                           if b then do --liftIO $ solveAndPrintSentence True s' [x,y,z] sent'
+                                           if b then do when verbose $ 
+                                                          liftIO $ solveAndPrint True s' [x,y,z] tempSen
                                                         return Interaction
-                                           else  do --liftIO $ print rule
-                                                    --liftIO $ solveAndPrintSentence True s' [x,y,z] sent'
-                                                    return Internal
+                                           else do when verbose $ do
+                                                     liftIO $ print rule
+                                                     liftIO $ solveAndPrint True s' [x,y,z] tempSen
+                                                   return Internal
         liftIO $ deleteSolver s'
         put (Config sen len)
         return c
-
-
-testRule' :: Maybe Int -> Rule -> [Rule] -> RWSE (Conflict, Maybe Int)
-testRule' prevWid rule prevRules = do 
-  let (w,trgCohInd) = width rule
-  let sameWidth = case prevWid of
-                    Nothing -> False
-                    Just wid -> wid >= w 
-  initSent <- if sameWidth then ps "reused the same sentence!" >> gets sentence
-                            else mkSentence w
-
-  initSent <- gets sentence
-  s <- asks solver
-  tm <- asks tagMap 
-
-  liftIO $ defaultRules s initSent
-  put (Config initSent w)
-
-  liftIO $ print (rule,"width of rule: " ++ show w, "target ind: " ++ show trgCohInd)
-
-  ps "--------"
-
-  if sameWidth
-    then do ps "applied only last rule!" 
-            if null prevRules
-              then ps "empty prevRules, alert!" >> return ()
-              else apply (last prevRules)
-    else mapM_ apply prevRules
-
-  conf <- ruleTriggers rule trgCohInd
-  return (conf, Just w)
-
-
-
-
-
-
- where
-  ps = liftIO . putStrLn
 
 
 width :: Rule -> (Int,Int)
