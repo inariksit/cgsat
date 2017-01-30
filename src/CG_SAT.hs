@@ -19,7 +19,7 @@ import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
-import Control.Monad ( foldM, liftM2, liftM3, mapAndUnzipM )
+import Control.Monad ( foldM, liftM2, mapAndUnzipM, when )
 import Control.Monad.Except ( MonadError, ExceptT, runExceptT
                             , throwError, catchError )
 import Control.Monad.RWS ( RWST, MonadState, MonadReader, MonadWriter
@@ -72,18 +72,24 @@ data CGException = TagsetNotFound | OutOfScope Int String | NoReadingsLeft
 instance Exception CGException
 
 
-type Sentence = IntMap Cohort
+data Sentence = S { readings :: IntMap Cohort
+                  , lemmas :: IntMap (Map Tag Lit)
+                  , wordforms :: IntMap (Map Tag Lit)  -- One per cohort may be true
+                  } deriving (Show,Eq)
 type Cohort = IntMap Lit
 
-emptyConfig = Config IM.empty 0
+emptyConfig = Config (S IM.empty IM.empty IM.empty) 0
 
 
 --------------------------------------------------------------------------------
 
+type Lex = OrList Tag  -- first attempt: Lex is outside Match, because C shouldn't affect.. how about NOT?
+
 type SeqList a = [a] -- List of things that follow each other in sequence
 
 data Pattern = Pat (OrList ( OrList (SeqList Int) -- OrList length >1 if the ctx is template
-                           , SeqList Match ) )
+                           , SeqList Match
+                           , SeqList Lex ) )
              | PatAlways 
              | Negate Pattern -- Negate goes beyond set negation and C
              deriving (Show,Eq,Ord)
@@ -119,17 +125,36 @@ mkSentence :: Int -> RWSE Sentence
 mkSentence width = do
   s <- asks solver
   rds <- asks rdMap
-  liftIO $ IM.fromList `fmap` sequence
+  rdSent <- liftIO $ IM.fromList `fmap` sequence
     [ (,) n `fmap` sequence (IM.mapWithKey (mkLit s n) rds)
         | n <- [1..width] ] 
+  let lmSent = IM.empty
+  let wfSent = IM.empty
+  return $ S rdSent lmSent wfSent
  where
   mkLit :: Solver -> Int -> Int -> Reading -> IO Lit
   mkLit s n m rd = newLit s (showReading rd n m)
 
   showReading :: Reading -> Int -> Int -> String
-  showReading (And ts)  wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '<':show t++">") ts
+  showReading (And ts) wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '<':show t++">") ts
 
 
+solveAndPrintSentence :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
+solveAndPrintSentence verbose s ass (S sent _ _) = do
+  b <- solve s ass
+  if b then do
+          when verbose $ print ass
+          vals <- sequence 
+                   [ sequence [ modelValue s lit | lit <- IM.elems word ] 
+                      | (sind,word) <- IM.assocs sent ]
+          let trueAnas =
+               [ "\"w" ++ show sind ++ "\"\n"
+                  ++ unlines [ "\t"++show ana | (ana, True) <- zip (IM.elems word) vs ]
+                 | ((sind,word), vs) <- zip (IM.assocs sent) vals ]
+          mapM_ putStrLn trueAnas
+          putStrLn "----"
+      else do
+        putStrLn $ "solveAndPrintSentence: Conflict with assumptions " ++ show ass
 --------------------------------------------------------------------------------
 -- 
 
@@ -145,11 +170,16 @@ apply rule = do
       --Trigger throwErrors NoReadingsLeft if the rule tries to remove all;
       -- as per VISL CG-3 behaviour, remove nothing.
        (someTrgIsTrue, someOtherIsTrue, allCondsHold, trgCoh, trgRds) 
-         <- trigger rule i `catchError` \e -> return (true,true,true,IM.empty,IM.empty)
+         <- trigger rule i `catchError` \e -> case e of 
+              NoReadingsLeft -> return (true,true,true,IM.empty,IM.empty)
+              OutOfScope _ _ -> return (true,true,true,IM.empty,IM.empty)
+              TagsetNotFound -> do liftIO $ putStrLn "Warning: tagset not found"
+                                   return (true,true,true,IM.empty,IM.empty)
+              _              -> throwError e
 
-       if IM.null trgCoh
+       if IM.null trgCoh -- if one of the expected errors was caught,
 
-        then return sen
+        then return sen -- just return the sentence unchanged
 
         else do onlyTrgLeft <- liftIO $ andl' s [ someTrgIsTrue, neg someOtherIsTrue ]
                 cannotApply <- liftIO $ orl' s [ neg allCondsHold, onlyTrgLeft ]
@@ -175,8 +205,8 @@ apply rule = do
   changeReading :: Cohort -> (Int,Lit) -> Cohort
   changeReading coh (i,newrd) = IM.adjust (const newrd) i coh
 
-  changeCohort :: Sentence -> Int-> Cohort -> Sentence
-  changeCohort sen i newcoh = IM.adjust (const newcoh) i sen
+  changeCohort :: Sentence -> Int -> Cohort -> Sentence
+  changeCohort (S sen x y) i newcoh = S (IM.adjust (const newcoh) i sen) x y
 
 
 trigger :: Rule -> Int -> RWSE (Lit,Lit,Lit,Cohort,IntMap Lit)
@@ -185,7 +215,7 @@ trigger rule origin = do
   tm <- asks tagMap
   s <- asks solver
   conds <- condLits rule origin
-  trgCoh <- case IM.lookup origin sen of
+  trgCoh <- case IM.lookup origin (readings sen) of
               Nothing -> do tell [ "trigger: target position " ++ show origin ++ 
                                    " out of scope, sentence length " ++ show len ]
                             throwError (OutOfScope origin "trigger")
@@ -227,13 +257,12 @@ ctx2Pattern senlen origin ctx = case ctx of
   Always -> return PatAlways
 
   c@(Ctx posn polr tgst)
-    -> do (ps,m) <- singleCtx2Pat c
-          return $ Pat (Or [(ps,m)])
+    -> do (ps,m,l) <- singleCtx2Pat c
+          return $ Pat (Or [(ps,m,l)])
           
   Link ctxs 
-    -> do (ps,ms) <- mapAndUnzipM singleCtx2Pat (getAndList ctxs)
-          --liftIO $ print ("ctx2Pattern",take 10 ps, take 10 ms) -- DEBUG
-          return $ Pat (Or [(fold ps, fold ms)])
+    -> do (ps,ms,ls) <- unzip3 `fmap` mapM singleCtx2Pat (getAndList ctxs)
+          return $ Pat (Or [(fold ps, fold ms, fold ls)])
     -- This wouldn't support linked templates, 
     -- but I don't think any sane CG engine supports them either.
 
@@ -253,13 +282,14 @@ ctx2Pattern senlen origin ctx = case ctx of
                 -- This is to be expected, because we try to apply every rule to every cohort.
         else do 
           tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
+          let lextags = lemsAndWFs tgst :: OrList Tag
           mop <- getMatch origin posn polr
           let match = either id mop tagset
           if nullMatch match 
             then do tell ["singleCtx2Pat: tagset " ++ show tgst ++ " not found, rule cannot apply"]
                     throwError TagsetNotFound -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
-                                                     -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
-            else return (fmap (:[]) allPositions, [match] ) 
+                                             -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
+            else return (fmap (:[]) allPositions, [match], [lextags] ) 
 
 
 
@@ -297,7 +327,7 @@ pattern2Lit pat = do
     Negate p  -> neg `fmap` pattern2Lit p
     Pat pats  -> do let ms_is = concat [ nub $ concat
                                   [ zip mats inds | inds <- getOrList indss ]
-                                   | (indss,mats) <- getOrList pats ]
+                                   | (indss,mats,_ls) <- getOrList pats ]
 
                     lits <- mapM (uncurry match2CondLit) ms_is
                     liftIO $ orl' s lits
@@ -326,11 +356,10 @@ match2CondLit (Bar (bi,bm) mat) ind = do
 match2CondLit mat ind = do 
   s <- asks solver
   (Config sen len) <- get
-  let len' = IM.size sen
-  coh <- case IM.lookup ind sen of 
+  --let len' = IM.size sen
+  coh <- case IM.lookup ind (readings sen) of 
            Nothing -> do tell [ "match2CondLit: position " ++ show ind ++ 
-                                " out of scope, sentence length " ++ show len ++
-                                " or " ++ show len']
+                                " out of scope, sentence length " ++ show len ]
                          throwError (OutOfScope ind "match2CondLit")                 
            Just c -> return c
   liftIO $ case mat of
@@ -365,7 +394,7 @@ defaultRules :: Solver -> Sentence -> IO ()
 defaultRules s sentence = 
    sequence_ [ do addClause s lits          --Every word must have >=1 reading
                 --  constraints s mp [] form  --Constraints based on lexicon --TODO AmbiguityClasses.hs
-               | coh <- IM.elems sentence 
+               | coh <- IM.elems (readings sentence)
                , let lits = IM.elems coh 
                , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i coh) ] 
 
@@ -418,7 +447,7 @@ partitionTarget op is coh = case op of
 -- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
-normaliseTagsetAbs :: TagSet -> Map Tag IntSet -> Either Match IntSet 
+normaliseTagsetAbs :: TagSet -> Map Tag IntSet -> Either Match IntSet
 normaliseTagsetAbs tagset tagmap = case tagset of
   All -> Left AllTags
   Set s -> Right (lu s tagmap)
@@ -440,10 +469,19 @@ normaliseTagsetAbs tagset tagmap = case tagset of
  where
   norm = (`normaliseTagsetAbs` tagmap)
 
-  lu :: OrList Reading -> M.Map Tag IntSet -> IntSet
+  lu :: OrList Reading -> Map Tag IntSet -> IntSet
   lu s m = IS.unions [ fold1 IS.intersection $ 
                          catMaybes [ M.lookup t m | t <- getAndList ts ]
                         | ts <- getOrList s ]
 
   fold1 f [] = IS.empty
   fold1 f xs = foldl1 f xs
+
+lemsAndWFs :: TagSet -> OrList Tag
+lemsAndWFs tagset = case normaliseTagsetRel tagset of
+  Set s -> Or $ (filter isLex) (concatMap getAndList $ getOrList s)
+  _     -> Or [] -- TODO
+ where
+  isLex (Lem _) = True
+  isLex (WF _)  = True
+  isLex _       = False
