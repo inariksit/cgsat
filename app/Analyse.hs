@@ -2,7 +2,6 @@ module Main where
 
 
 import CG_SAT
-import Euskara
 import Rule
 import Parse ( parse )
 import Utils
@@ -37,7 +36,6 @@ main = do
   s <- newSolver
 
   case args of 
-   (eus:_) -> Euskara.foo
    (lang:r) -> do 
 
     let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
@@ -63,7 +61,7 @@ main = do
     readingsInLex <- (map parseReading . words) --Apertium format
                        `fmap` readFile rdsfile 
     (tsets,ruless) <- parse `fmap` readFile grfile
-    let rules = concat ruless
+    let rules = filter (sel_or_rm . oper) (concat ruless)
     let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
                         then concatMap Utils.tagSet2Readings tsets
                         else []
@@ -88,7 +86,7 @@ main = do
     (Right initSent,_,_) <- rwse env emptyConfig $ mkSentence largestWidth
     let config = Config initSent largestWidth
 
-    (_,_,log_) <- rwse env config $ testRules rules
+    (_,_,log_) <- rwse env config $ testRules (take 50 rules)
 
     mapM_ putStrLn log_
 
@@ -103,6 +101,12 @@ splits xs = xs `for` \x -> let Just ind = elemIndex x xs
                            in  (x, take ind xs)
  
 for = flip fmap
+
+
+sel_or_rm :: Oper -> Bool
+sel_or_rm SELECT = True
+sel_or_rm REMOVE = True
+sel_or_rm _ = False
 
 ----------------------------------------------------------------------------
 -- Functions that apply only for analysis, not disambiguation
@@ -126,9 +130,10 @@ testRule rule = do
   let legitConfs = rights confs
   liftIO $ print legitConfs
   if Interaction `elem` legitConfs 
-    then return Interaction
+    then liftIO $ print rule >> return Interaction
+
     else if Internal `elem` legitConfs || null legitConfs
-      then return Internal
+      then liftIO $ print rule >> return Internal
       else return NoConf
 
 
@@ -138,17 +143,21 @@ ruleTriggers rule i = do
   s <- asks solver
   (Config sen len) <- get
   b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
-  if b then return NoConf
+  if b then do --liftIO $ solveAndPrintSentence True s [mustHaveTrg, mustHaveOther, allCondsHold] sen
+               return NoConf
    else 
      do s' <- liftIO newSolver
-        c <- local (withNewSolver s') $ do sent' <- mkSentence len
-                                           put (Config sent' len)
-                                           apply rule
+        c <- local (withNewSolver s') $ do tempSen <- mkSentence len
+                                           put (Config tempSen len)
                                            (x,y,z,_,_) <- trigger rule i
                                            b <- liftIO $ solve s' [x,y,z]
-                                           if b then return Internal
-                                           else return (Interaction)
+                                           if b then do --liftIO $ solveAndPrintSentence True s' [x,y,z] sent'
+                                                        return Interaction
+                                           else  do --liftIO $ print rule
+                                                    --liftIO $ solveAndPrintSentence True s' [x,y,z] sent'
+                                                    return Internal
         liftIO $ deleteSolver s'
+        put (Config sen len)
         return c
 
 
