@@ -4,7 +4,7 @@ module CG_SAT where
 
 import Rule hiding ( Not, Negate )
 import qualified Rule as R
-import Utils
+import CghsUtils ( isLex, normalisePosition, normaliseTagsetRel )
 import SAT ( Solver(..) )
 import SAT.Named
 
@@ -19,7 +19,7 @@ import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
-import Control.Monad ( foldM, liftM2, mapAndUnzipM, when )
+import Control.Monad ( foldM, liftM2, when )
 import Control.Monad.Except ( MonadError, ExceptT, runExceptT
                             , throwError, catchError )
 import Control.Monad.RWS ( RWST, MonadState, MonadReader, MonadWriter
@@ -58,7 +58,7 @@ data Env = Env { tagMap :: Map Tag IntSet
                , rdMap :: IntMap Reading 
                , lems :: OrList Tag
                , wfs :: OrList Tag
-               , solver :: Solver } 
+               , solver :: Solver }
 
 withNewSolver :: Solver -> Env -> Env
 withNewSolver s env = env { solver = s }
@@ -68,7 +68,7 @@ data Config = Config { sentence :: Sentence
 
 type Log = [String]
 
-data CGException = TagsetNotFound | OutOfScope Int String | NoReadingsLeft 
+data CGException = TagsetNotFound String | OutOfScope Int String | NoReadingsLeft 
                  | UnknownError String deriving ( Show )
 
 instance Exception CGException
@@ -85,7 +85,7 @@ emptyConfig = Config (S IM.empty IM.empty IM.empty) 0
 
 --------------------------------------------------------------------------------
 
-type Lex = OrList Tag  -- first attempt: Lex is outside Match, because C shouldn't affect.. how about NOT?
+type Lex = (OrList Tag, OrList Tag)  -- first attempt: Lex is outside Match, because C shouldn't affect.. how about NOT?
 
 type SeqList a = [a] -- List of things that follow each other in sequence
 
@@ -128,23 +128,23 @@ mkSentence width = do
   s <- asks solver
   rds  <- asks rdMap
   lemmas <- asks lems
-  wordfs <- asks wfs
+  wforms <- asks wfs
   rdSent <- liftIO $ IM.fromList `fmap` sequence
     [ (,) n `fmap` sequence (IM.mapWithKey (mkLit s n) rds)
         | n <- [1..width] ] 
 
-  lmList <- liftIO $ sequence
-    [ do innerLits <- mapM (mkLitLex s n ) lemmas'
+  lmSent <- liftIO $ IM.fromList `fmap` sequence
+    [ do innerLits <- mapM (mkLitLex s n) lemmas'
          let innerTagMap = M.fromList (zip lemmas' innerLits)
          return (n,innerTagMap)
 
       | n <- [1..width] 
       , let lemmas' = getOrList lemmas ] 
-  let lmSent = IM.fromList lmList
+--  let lmSent = IM.fromList lmList
 
   --wfSent <- liftIO $ IM.fromList `fmap` sequence
-  --  [ do innerLits <- map (mkLitLex s n) wordfs
-  --       let innerTagMap = M.fromList (zip wordfs innerLits)
+  --  [ do innerLits <- map (mkLitLex s n) wforms
+  --       let innerTagMap = M.fromList (zip wforms innerLits)
   --       return (n,innerTagMap)
   --      | n <- [1..width] ] 
 
@@ -194,8 +194,8 @@ apply rule = do
          <- trigger rule i `catchError` \e -> case e of 
               NoReadingsLeft -> return (true,true,true,IM.empty,IM.empty)
               OutOfScope _ _ -> return (true,true,true,IM.empty,IM.empty)
-              TagsetNotFound -> do liftIO $ putStrLn "Warning: tagset not found"
-                                   return (true,true,true,IM.empty,IM.empty)
+              TagsetNotFound s -> do liftIO $ putStrLn ("Warning: tagset " ++ s ++ " not found")
+                                     return (true,true,true,IM.empty,IM.empty)
               _              -> throwError e
 
        if IM.null trgCoh -- if one of the expected errors was caught,
@@ -302,17 +302,15 @@ ctx2Pattern senlen origin ctx = case ctx of
                 throwError $ OutOfScope origin "ctx2Pattern" -- Pattern fails because condition(s) are not in scope. 
                 -- This is to be expected, because we try to apply every rule to every cohort.
         else do 
-          tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap
-          let lextags = lemsAndWFs tgst :: OrList Tag
+          tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap --normaliseTagsetAbs ignores lexical tags
+          let lxt@(lemmas,wforms) = lemsAndWFs tgst :: (OrList Tag,OrList Tag)
           mop <- getMatch origin posn polr
           let match = either id mop tagset
-          if nullMatch match 
-            then do tell ["singleCtx2Pat: tagset " ++ show tgst ++ " not found, rule cannot apply"]
-                    throwError TagsetNotFound -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
+          if nullMatch match && null (getOrList lemmas) && null (getOrList wforms)
+            then do tell ["singleCtx2Pat: tagset " ++ show tgst ++ show lxt ++ " not found, rule cannot apply"]
+                    throwError $ TagsetNotFound (show tgst) -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
                                              -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
-            else return (fmap (:[]) allPositions, [match], [lextags] ) 
-
-
+            else return (fmap (:[]) allPositions, [match], [lxt] ) 
 
 getMatch :: Int -> Position -> Polarity -> RWSE (IntSet -> Match)
 getMatch origin pos pol = case (pos,pol) of
@@ -346,19 +344,19 @@ pattern2Lit pat = do
   case pat of
     PatAlways -> return true
     Negate p  -> neg `fmap` pattern2Lit p
-    Pat pats  -> do let ms_is = concat [ nub $ concat
-                                  [ zip mats inds | inds <- getOrList indss ]
-                                   | (indss,mats,_ls) <- getOrList pats ]
+    Pat pats  -> do let ms_is_ls = concat [ nub $ concat
+                                  [ zip3 mats ls inds | inds <- getOrList indss ]
+                                   | (indss,mats,ls) <- getOrList pats ]
 
-                    lits <- mapM (uncurry match2CondLit) ms_is
+                    lits <- mapM (\(x,y,z) -> match2CondLit x y z) ms_is_ls
                     liftIO $ orl' s lits
 
 
-match2CondLit :: Match -> Int -> RWSE Lit
-match2CondLit (Bar (bi,bm) mat) ind = do
+match2CondLit :: Match -> Lex -> Int -> RWSE Lit
+match2CondLit (Bar (bi,bm) mat) lextags ind = do
   s <- asks solver
   sen <- gets sentence
-  matchLit <- match2CondLit mat ind
+  matchLit <- match2CondLit mat lextags ind
 
   let barInds | bi <= ind = [bi..ind]
               | otherwise = [ind..bi]
@@ -370,33 +368,42 @@ match2CondLit (Bar (bi,bm) mat) ind = do
                 _      -> error "match2CondLit: invalid condition for BARRIER"
 
   -- cohorts between the condition and target do NOT contain the specified readings
-  barLits <- mapM (match2CondLit negBM) barInds
+  -- TODO: add lexical tags here too
+  barLits <- mapM (match2CondLit negBM (Or[],Or[]) {-TODO-} ) barInds
 
   liftIO $ andl' s (matchLit:barLits)
 
-match2CondLit mat ind = do 
+match2CondLit mat (Or lemmas, Or wforms) ind = do 
   s <- asks solver
   (Config sen len) <- get
-  --let len' = IM.size sen
-  coh <- case IM.lookup ind (readings sen) of 
+
+
+  (coh,lemMap,wfMap) <- case lookupSent ind sen of 
            Nothing -> do tell [ "match2CondLit: position " ++ show ind ++ 
                                 " out of scope, sentence length " ++ show len ]
                          throwError (OutOfScope ind "match2CondLit")                 
-           Just c -> return c
+           Just (c,l,w) -> return (c,l,w)
+  someLem <- liftIO $ maybe (return true) (orl' s) 
+                            (sequence $ fmap (`M.lookup` lemMap) lemmas)
+  someWF <- liftIO $ maybe (return true) (orl' s) 
+                           (sequence $ fmap (`M.lookup` wfMap) wforms)
   liftIO $ case mat of
     -- if Mix is for condition, then it doesn't matter whether some tag not
     -- in the tagset is True. Only for *targets* there must be something else.
     Mix is -> do let (inmap,_) = partitionCohort is coh
-                 orl' s (elems inmap)
+                 someReading <- orl' s (elems inmap)
+                 andl' s [someReading, someLem, someWF]
 
               -- Any difference whether to compute neg $ orl' or andl $ map neg?                 
     Cau is -> do let (inmap,outmap) = partitionCohort is coh
-                 andl' s =<< sequence [ orl' s (elems inmap)
-                                      , andl' s (neg `fmap` elems outmap) ]
+                 someReading <- orl' s (elems inmap)
+                 noOtherReading <- andl' s (neg `fmap` elems outmap)
+                 andl' s [someReading, noOtherReading, someLem, someWF]
 
     Not is -> do let (inmap,outmap) = partitionCohort is coh
-                 andl' s =<< sequence [ andl' s (neg `fmap` elems inmap)
-                                      , orl' s (elems outmap) ]
+                 noReading <- andl' s (neg `fmap` elems inmap)
+                 someOtherReading <- orl' s (elems outmap) 
+                 andl' s [ noReading, someOtherReading, someLem, someWF ]
 
   -- `NOT 1C foo' means: "either there's no foo, or the foo is not unique."
   -- Either way, having at least one true non-foo lit fulfils the condition,
@@ -422,8 +429,8 @@ defaultRules s sentence =
 --------------------------------------------------------------------------------
 -- From here on, only pure helper functions
 
-mkEnv :: Solver -> [Reading] -> [Tag] -> [Tag] -> [Tag] -> Env
-mkEnv s rds tags ls ws = Env (mkTagMap tags rds) (mkRdMap rds) (Or ls) (Or ws) s 
+mkEnv :: Solver -> [Reading] -> [Tag] -> [Tag] -> Env
+mkEnv s rds ls ws = Env (mkTagMap rds) (mkRdMap rds) (Or ls) (Or ws) s 
 
 {- rdMap --  1 |-> vblex sg p3
              2 |-> noun sg mf
@@ -437,15 +444,21 @@ mkRdMap = IM.fromDistinctAscList . zip [1..]
                  sg    |-> IS(1,2,3,120,1800)
                  mf    |-> IS(2,20,210)
                  adv   |-> IS() -}
-mkTagMap :: [Tag] -> [Reading] -> Map Tag IntSet 
-mkTagMap ts rds = M.fromList $
+mkTagMap :: [Reading] -> Map Tag IntSet 
+mkTagMap rds = M.fromList $
   ts `for` \t -> let getInds = IS.fromList . map (1+) . findIndices (elem t)
                  in (t, getInds rdLists) 
  where 
   for = flip fmap 
   rdLists = map getAndList rds
+  ts = nub $ concat rdLists
   -- maybe write this more readably later? --getInds :: Tag -> [Reading] -> IntSet
 
+lookupSent :: Int -> Sentence -> Maybe (IntMap Lit, Map Tag Lit, Map Tag Lit)
+lookupSent ind (S rds lemmas wforms) = if IM.null c then Nothing else Just (c,l,w)
+ where 
+   c = fromMaybe IM.empty (IM.lookup ind rds)
+   [l,w] = fromMaybe [M.empty,M.empty] (sequence (IM.lookup ind `fmap` [lemmas,wforms]))
 
 partitionCohort :: IntSet -> Cohort -> (IntMap Lit,IntMap Lit)
 partitionCohort is coh = let onlykeys = IM.fromSet (const true) is --Intersection is based on keys
@@ -476,9 +489,16 @@ normaliseTagsetAbs tagset tagmap = case tagset of
   Inters t t' -> liftM2 IS.intersection (norm t) (norm t')
 
 {- Intended behaviour:
-     adv adV (ada "very") `diff` ada == adv adV
-     adv adV ada `diff` (ada "very") == adv adV (ada ((*) -"very")) -}
-  Diff t t' -> liftM2 IS.difference (norm t) (norm t')
+     adv adV (ada xx) `diff` ada == adv adV
+     adv adV ada `diff` (ada xx) == adv adV (ada ((*) -xx)) 
+     OBS. this all breaks when we split morph/synt. tags from lexical -}
+  Diff t t' 
+    -> do is  <- norm t
+          is' <- norm t'
+          if IS.null is -- only lexical tags on the left side
+              then Left $ Not is' --TODO include Lex in what this returns too
+              else Right $ IS.difference is is'
+
 
 {- say t=[n,adj] and t'=[m,f,mf]
    is  = specified readings that match t: (n foo), (n bar), (n mf), ... , (adj foo), (adj bar), (adj f), ..
@@ -492,17 +512,21 @@ normaliseTagsetAbs tagset tagmap = case tagset of
 
   lu :: OrList Reading -> Map Tag IntSet -> IntSet
   lu s m = IS.unions [ fold1 IS.intersection $ 
-                         catMaybes [ M.lookup t m | t <- getAndList ts ]
+                         catMaybes [ M.lookup t m | t <- getAndList ts
+                                                  , not $ isLex t ] -- don't include lexical tags
                         | ts <- getOrList s ]
 
   fold1 f [] = IS.empty
   fold1 f xs = foldl1 f xs
 
-lemsAndWFs :: TagSet -> OrList Tag
+lemsAndWFs :: TagSet -> (OrList Tag,OrList Tag)
 lemsAndWFs tagset = case normaliseTagsetRel tagset of
-  Set s -> Or $ (filter isLex) (concatMap getAndList $ getOrList s)
-  _     -> Or [] -- TODO
+  Set s -> let onlytags = concatMap getAndList (getOrList s)
+           in ( Or $ filter isLem onlytags, Or $ filter isWF onlytags )
+  _     -> (Or [],Or []) -- TODO
+ where 
+  isLem (Lem _) = True
+  isLem _       = False
 
-isLex (Lem _) = True
-isLex (WF _)  = True
-isLex _       = False
+  isWF (WF _) = True
+  isWF _      = False
