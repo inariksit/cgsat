@@ -3,8 +3,8 @@ module Main where
 
 import CG_SAT
 import Rule
-import Parse ( parse )
-import Utils
+import CghsUtils
+import CgsatUtils
 
 import SAT ( Solver(..), newSolver, deleteSolver )
 import SAT.Named
@@ -38,71 +38,20 @@ main = do
   case args of 
    (lang:r) -> do 
 
-    let verbose = ("v" `elem` r || "d" `elem` r, "d" `elem` r)
-    let subr = if "withsub" `elem` r then ".withsub" else ".nosub"
-    let rdsfromgrammar = True --"undersp" `elem` r || "rdsfromgrammar" `elem` r
-    let parseReading = if "withsub" `elem` r 
-                        then Utils.parseReadingApeSubr
-                        else Utils.parseReadingApe
- 
-    let dirname = "data/" ++ lang ++ "/" 
-    let grfile  = dirname ++ lang ++ ".rlx"
-    let tagfile = dirname ++ lang ++ ".tags"
-    let lemfile = dirname ++ lang ++ ".lem"
-    let wffile  = dirname ++ lang ++ ".wf"
-    let rdsfile = dirname ++ lang ++ ".readings" --  ++ subr
-    --let acfile  = dirname ++ lang ++ ".ambiguity-classes"
-    --let frmfile = dirname ++ lang ++ ".formula"
-    
-    ----------------------------------------------------------------------------
+     (env,rules) <- liftIO $ envRules (lang,r) s
+     let largestWidth = maximum $ map (fst . width) rules
+     (Right initSent,_,_) <- rwse env emptyConfig $ mkSentence largestWidth
+     let config = Config initSent largestWidth
 
-    tagsInLex <- (map Utils.readTag . filter (not.null) . words) 
-                   `fmap` readFile tagfile
-    lemInLex <- (map readTag . filter (not.null) . words) `fmap` readFile lemfile
-    wfInLex  <-  (map readTag . filter (not.null) . words) `fmap` readFile wffile
+     (_,_,log_) <- rwse env config $ testRules (take 50 rules)
 
-    readingsInLex <- (map parseReading . words) --Apertium format
-                       `fmap` readFile rdsfile 
-    (tsets,ruless) <- parse `fmap` readFile grfile
-    let rules = filter (sel_or_rm . oper) (concat ruless)
-    let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
-                        then concatMap Utils.tagSet2Readings tsets --TODO filter all lexical items out
-                        else []
+     mapM_ putStrLn log_
 
---    print $ (length tagsInLex, take 50 tagsInLex)
---    print $ (length lemInLex, take 50 lemInLex)
-    putStrLn "---------"
-
-    print $ (length readingsInLex, take 50 readingsInLex)
-
-    print $ (length readingsInGr, take 50 readingsInGr)
-    putStrLn "---------"
-
-    --mapM_ print (take 15 rules)
-    putStrLn $ show (length rules) ++ " rules"
-
-    putStrLn "---------"
-
-    let env = mkEnv s (readingsInLex++readingsInGr) tagsInLex lemInLex wfInLex
-
-    let largestWidth = maximum $ map (fst . width) rules
-    (Right initSent,_,_) <- rwse env emptyConfig $ mkSentence largestWidth
-    let config = Config initSent largestWidth
-
-    (_,_,log_) <- rwse env config $ testRules (take 50 rules)
-
-    mapM_ putStrLn log_
-
-    putStrLn "---------"
+     putStrLn "---------"
 
 
 
    _ -> print "give me a 3-letter code for a language" 
-
-sel_or_rm :: Oper -> Bool
-sel_or_rm SELECT = True
-sel_or_rm REMOVE = True
-sel_or_rm _ = False
 
 ----------------------------------------------------------------------------
 -- Functions that apply only for analysis, not disambiguation
@@ -166,4 +115,3 @@ width rule = (length [minw..maxw], maybe 9999 (1+) (elemIndex 0 [minw..maxw]))
   ctxScopes = fmap scopes (context rule) :: AndList (OrList Int) -- And [Or [1], Or [1,2,3], Or [-2,-1]]
   flatScopes = fold (getAndList ctxScopes) :: OrList Int -- Or [1,1,2,3,-2,-1]
   (minw,maxw) = (0 `min` minimum flatScopes, 0 `max` maximum flatScopes)
-
