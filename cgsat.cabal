@@ -17,8 +17,8 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CG_SAT, AmbiguityClass, Euskara
-  other-modules:       Derive
+  exposed-modules:     CG_SAT, AmbiguityClass CgsatUtils
+  other-modules:       Derive, Euskara
   build-depends:       array
                      , base
                      , containers
