@@ -1,9 +1,11 @@
+graveyard/*
 *.ambiguous*
 *.readings*
 *.expanded*
 *.ambiguity-classes*
 .DS_Store
 *~
+*pdf
 *.aux
 *.bbl
 *.bib
