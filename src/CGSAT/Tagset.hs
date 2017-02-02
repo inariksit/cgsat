@@ -1,7 +1,8 @@
 module CGSAT.Tagset where
 
 import CGSAT.Base
-import CGHS
+import CGHS hiding ( Tag(..), Reading )
+import qualified CGHS
 
 import Data.List ( find )
 import Data.Maybe ( catMaybes, fromMaybe )
@@ -9,21 +10,26 @@ import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
 import qualified Data.Map as M
 
-unknownLem :: Tag
+
+--------------------------------------------------------------------------------
+
+
+unknownLem :: Lem
 unknownLem = Lem "unknown"
 
-unknownWF :: Tag
+unknownWF :: WF
 unknownWF = WF "unknown"
 
-unknownReading :: Reading
-unknownReading = And [Tag "unknown reading"]
+unknownReading :: MorphReading
+unknownReading = Rd $ And [Tag unk]
+ where unk = CGHS.Tag "unknown reading"
 
 --------------------------------------------------------------------------------
 
 -- Match is properly normalised, no complements
 data Match = M MatchType 
-               (OrList Tag) --Word forms
-               (OrList Tag) --Lemmas
+               (OrList WF) --Word forms
+               (OrList Lem) --Lemmas
                IntSet       --Morph. readings
            | Bar (Int,Match) Match -- ^ Cohort matches the second Match, and requires that 
                                    -- there is no match to the first Match, up to the Int.
@@ -133,16 +139,6 @@ normaliseTagsetAbs tagset tagmap = case tagset of
   fold1 f xs = foldl1 f xs
 
 
-lemsAndWFs :: TagSet -> (OrList Tag,OrList Tag)
-lemsAndWFs tagset = case normaliseTagsetRel tagset of
-  Set s -> let onlytags = concatMap getAndList (getOrList s)
-           in ( Or $ filter isLem onlytags, Or $ filter isWF onlytags )
-  _     -> (Or [],Or []) -- TODO
- where 
-  isLem (Lem _) = True
-  isLem _       = False
 
-  isWF (WF _) = True
-  isWF _      = False
 
 -}

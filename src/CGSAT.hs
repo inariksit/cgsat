@@ -30,29 +30,8 @@ import Data.List ( findIndices, intercalate, nub )
 import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
 
---------------------------------------------------------------------------------
-
-
-
--- The type Reading that CGHS/Rule exports is actually an underspecified reading.
--- For our symbolic sentences, each reading has a word form, lemma and other tags.
--- Maybe make some newtypes to enforce that wform is WF _ and lemma is Lem _?
-data SplitReading = SR { wform :: Tag 
-                       , lemma :: Tag 
-                       , reading :: Reading } deriving (Eq)
-
-instance Show SplitReading where
-  show (SR w l r) = show w ++ " " ++ show l ++ " " ++ show r
-
-
-{- With the split of lex. and morph. tags, we represent all the combinations
-   as a Cartesian product: [WF] x [Lem] x [[Tag]]. 
-  
-   
--}
 
 --------------------------------------------------------------------------------
-
 
 
 dummyTest :: RWSE ()

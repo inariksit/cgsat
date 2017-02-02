@@ -47,7 +47,10 @@ module CGSAT.Base (
 
     -- ** Log
   , Log
-	)
+
+    -- * SplitReading
+  , SplitReading, MorphReading(..), Lem(..), WF(..), Tag(..)
+  )
 where
 
 -- Exporting standard functions along with my own, 
@@ -69,8 +72,10 @@ import qualified Data.IntSet as IS
 
 import SAT ( Solver, newSolver, deleteSolver )
 import SAT.Named
-import CGHS  -- ( Tag, Reading, AndList(..), OrList(..) )
+
 import CGHS.Rule ( Oper(..) )
+import CGHS hiding ( Tag(..), Reading )
+import qualified CGHS
 
 import Data.List ( findIndices, nub, partition )
 
@@ -112,12 +117,15 @@ mkConfig w = Config w `fmap` mkSentence w
 
 emptyConfig = Config 0 IM.empty
 
+--------------------------------------------------------------------------------
+-- Sentence, Cohort
+
 type Sentence = IntMap Cohort
 
-data Cohort = Coh { wordforms :: Map Tag Lit  -- One per cohort
-                , lemmas :: Map Tag Lit     -- Several per cohort
-                , readings :: IntMap Lit    -- Same amount as lemmas
-                } deriving (Show,Eq)
+data Cohort = Coh { wordforms :: Map WF Lit -- One per cohort
+                  , lemmas :: Map Lem Lit   -- Several per cohort
+                  , readings :: IntMap Lit  -- Several per cohort -- TODO connect to lemmas
+                  } deriving (Show,Eq)
 
 emptyCohort :: Cohort
 emptyCohort = Coh M.empty M.empty IM.empty
@@ -146,14 +154,63 @@ mkSentence w
 
 
  where
-  mkLitLex :: Solver -> Int -> Tag -> IO Lit
+  mkLitLex :: (Show a) => Solver -> Int -> a -> IO Lit
   mkLitLex s n t = newLit s (showReading (And [t]) n n)
 
-  mkLit :: Solver -> Int -> Int -> Reading -> IO Lit
-  mkLit s n m rd = newLit s (showReading rd n m)
+  mkLit :: Solver -> Int -> Int -> MorphReading -> IO Lit
+  mkLit s n m (Rd rd) = newLit s (showReading rd n m)
 
-  showReading :: Reading -> Int -> Int -> String
+  showReading :: (Show a) => AndList a -> Int -> Int -> String
   showReading (And ts) wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '_':show t) ts
+
+
+--------------------------------------------------------------------------------
+-- Newtypes. These have the same names as the type Tag in CGHS, 
+-- but in CGHS, WF, Lem and Tag are constructors, here they are types.
+
+newtype WF = WF { getWF :: String } deriving (Eq,Ord)
+instance Show WF where
+  show (WF str) = show (CGHS.WF str)
+
+fromWF :: CGHS.Tag -> WF
+fromWF (CGHS.WF x) = WF x
+
+newtype Lem = Lem { getLem :: String } deriving (Eq,Ord)
+instance Show Lem where
+  show (Lem str) = show (CGHS.Lem str)
+
+fromLem :: CGHS.Tag -> Lem
+fromLem (CGHS.Lem x) = Lem x
+
+newtype Tag = Tag { getTag :: CGHS.Tag } deriving (Eq,Ord)
+instance Show Tag where
+  show (Tag tag) = show tag
+
+fromTag :: CGHS.Tag -> Tag
+fromTag = Tag
+
+newtype MorphReading = Rd { getReading :: AndList Tag } deriving (Eq,Show,Ord)
+
+fromReading :: CGHS.Reading -> MorphReading
+fromReading rd = Rd (fmap fromTag morphtags)
+ where (morphtags,_) = removeLexReading rd
+
+-- The type Reading that CGHS/Rule exports is actually an underspecified reading.
+-- For our symbolic sentences, each reading has a word form, lemma and other tags.
+-- Maybe make some newtypes to enforce that wform is WF _ and lemma is Lem _?
+data SplitReading = SR { wform :: WF
+                       , lemma :: Lem
+                       , reading :: MorphReading } deriving (Eq)
+
+instance Show SplitReading where
+  show (SR w l r) = show w ++ " " ++ show l ++ " " ++ show r
+
+
+{- With the split of lex. and morph. tags, we represent all the combinations
+   as a Cartesian product: [WF] x [Lem] x [[Tag]]. 
+  
+   
+-}
 
 
 --------------------------------------------------------------------------------
@@ -169,31 +226,34 @@ mkSentence w
            rdMap 
 -}
 data Env = Env { tagMap :: Map Tag IntSet 
-               , rdMap :: IntMap Reading 
-               , lems :: OrList Tag
-               , wfs :: OrList Tag
+               , rdMap :: IntMap MorphReading 
+               , lems :: OrList Lem
+               , wfs :: OrList WF
                , solver :: Solver }
 
 withNewSolver :: Solver -> Env -> Env
 withNewSolver s env = env { solver = s }
 
 
-mkEnv :: Solver -> [Reading] -> [Tag] -> [Tag] -> Env
-mkEnv s rds ls ws = Env (mkTagMap rds) (mkRdMap rds) (Or ls) (Or ws) s 
+mkEnv :: Solver -> [CGHS.Reading] -> [CGHS.Tag] -> [CGHS.Tag] -> Env
+mkEnv s rds ls ws = Env (mkTagMap rds) (mkRdMap rds) (mkLems ls) (mkWFs ws) s 
+ where 
+  mkLems = Or . map fromLem
+  mkWFs = Or . map fromWF
 
 {- rdMap --  1 |-> vblex sg p3
              2 |-> noun sg mf
           9023 |-> adj sg mf comp -}
-mkRdMap :: [Reading] -> IntMap Reading
-mkRdMap = IM.fromDistinctAscList . zip [1..]
+mkRdMap :: [CGHS.Reading] -> IntMap MorphReading
+mkRdMap = IM.fromDistinctAscList . zip [1..] . map (Rd . fmap fromTag)
 
 {- tagMap    --  vblex |-> IS(1,30,31,32,..,490)
                  sg    |-> IS(1,2,3,120,1800)
                  mf    |-> IS(2,20,210,9023) -}
-mkTagMap :: [Reading] -> Map Tag IntSet 
+mkTagMap :: [CGHS.Reading] -> Map Tag IntSet 
 mkTagMap rds = M.fromList $
   ts `for` \t -> let getInds = IS.fromList . map (1+) . findIndices (elem t)
-                 in (t, getInds rdLists) 
+                 in (fromTag t, getInds rdLists) 
  where 
   for = flip fmap 
   rdLists = map getAndList rds
@@ -256,7 +316,7 @@ selOrRm SELECT = True
 selOrRm REMOVE = True
 selOrRm _ = False
 
-isLem :: Tag -> Bool
-isLem (Lem _) = True
-isLem _       = False
+isLem :: CGHS.Tag -> Bool
+isLem (CGHS.Lem _) = True
+isLem _            = False
 
