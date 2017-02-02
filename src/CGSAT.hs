@@ -9,6 +9,7 @@ module CGSAT (
   , Config, mkConfig
   , Env, envRules
 
+  , dummyTest
   ) where
 
 import CGHS.Rule hiding ( Not, Negate )
@@ -36,36 +37,60 @@ import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 -- The type Reading that CGHS/Rule exports is actually an underspecified reading.
 -- For our symbolic sentences, each reading has a word form, lemma and other tags.
 -- Maybe make some newtypes to enforce that wform is WF _ and lemma is Lem _?
-data SymbolicReading = SR { wform :: Tag 
-                          , lemma :: Tag 
-                          , reading :: Reading } deriving (Eq)
+data SplitReading = SR { wform :: Tag 
+                       , lemma :: Tag 
+                       , reading :: Reading } deriving (Eq)
 
-instance Show SymbolicReading where
-  show (SR w l r) = show w ++ show l ++ show r
+instance Show SplitReading where
+  show (SR w l r) = show w ++ " " ++ show l ++ " " ++ show r
 
 
+{- With the split of lex. and morph. tags, we represent all the combinations
+   as a Cartesian product: [WF] x [Lem] x [[Tag]]. 
+  
+   
+-}
 
 --------------------------------------------------------------------------------
--- Interaction with SAT-solver, non-pure functions
 
 
+
+dummyTest :: RWSE ()
+dummyTest = do
+  s <- asks solver
+  sent <- mkSentence 2
+  liftIO $ defaultRules s sent
+  liftIO $ solveAndPrint False s [] sent
+  
 
 solveAndPrint :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
-solveAndPrint verbose s ass sent = do
-  b <- solve s ass
-  if b then do
-          when verbose $ print ass
-          vals <- sequence 
-                   [ sequence [ modelValue s lit | lit <- [true] ] -- TODO! IM.elems word ] 
-                      | (sind,wfs_lems_rds) <- IM.assocs sent ]
-          --let trueAnas =
-          --     [ "\"w" ++ show sind ++ "\"\n"
-          --        ++ unlines [ "\t"++show ana | (ana, True) <- zip (IM.elems word) vs ]
-          --       | ((sind,word), vs) <- zip (IM.assocs sent) vals ]
-          --mapM_ putStrLn trueAnas
-          putStrLn "----"
-      else do
-        putStrLn $ "solveAndPrint: Conflict with assumptions " ++ show ass
+solveAndPrint vrb s ass sen = do
+   b <- solve s ass
+   if b 
+   then do
+      when vrb $ print ass
+      trueVals <- sequence 
+         [ do trueWFs <- modelValue s `filterM` M.elems wfs
+              trueLems <- modelValue s `filterM` M.elems lems
+              trueRds <- modelValue s `filterM` IM.elems rds
+              return (trueWFs,trueLems,trueRds)
+            | (Coh wfs lems rds) <- IM.elems sen ]
+      mapM_ print trueVals --TODO nicer printout
+
+
+      --let trueRds =
+      --         [ show wf ++ " (w" ++ show sind ++ ")\n"
+      --            ++ unlines [ "\t"++show lem 
+      --                          | (lem, True) <- zip (M.elems lems) lemVals ]
+      --            ++ unlines [ "\t"++show rd 
+      --                          | (rd, True) <- zip (M.elems rd) rdVals ]
+      --           | ((sind,C wfs lems rds), vs) <- zip (IM.assocs sen) vals ]
+      --mapM_ putStrLn trueRds
+      putStrLn "----"
+    else do
+         putStrLn $ "solveAndPrint: Conflict with assumptions " ++ show ass
+
+
 --------------------------------------------------------------------------------
 -- 
 
@@ -148,14 +173,15 @@ trigger rule origin = do
   return (mht, mho, ach, trgCoh, trg)
 
 
---TODO update to new system
 defaultRules :: Solver -> Sentence -> IO ()
 defaultRules s sentence = 
-   sequence_ [ do addClause s lits          --Every word must have >=1 reading
+   sequence_ [ do addClause s (M.elems wfs)          
+                  addClause s (M.elems lms)
+                  addClause s (IM.elems rds) --Every word must have >=1 reading
+                  atMostOne s (M.elems wfs) -- Word forms must have exactly 1 reading
                 --  constraints s mp [] form  --Constraints based on lexicon --TODO AmbiguityClasses.hs
-               | (Coh _ _ coh) <- IM.elems sentence
-               , let lits = IM.elems coh 
-               , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i coh) ] 
+               | (Coh wfs lms rds) <- IM.elems sentence
+               , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i rds) ] 
 
 --------------------------------------------------------------------------------
 -- From here on, only pure helper functions

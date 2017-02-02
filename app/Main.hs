@@ -1,6 +1,6 @@
 module Main where
 
-import CGSAT ( rwse, evalRWSE, mkConfig, envRules )
+import CGSAT ( rwse, evalRWSE, mkConfig, envRules, dummyTest )
 import Analyse ( width, testRules )
 import SAT ( newSolver )
 
@@ -15,6 +15,10 @@ main = do
   s <- newSolver
 
   case args of 
+   ("dummy":_) -> do
+     (env,_) <- envRules ("eus",[]) s
+     evalRWSE env dummyTest
+
    (lang:r) -> do 
      (env,rules) <- envRules (lang,r) s
      let largestWidth = maximum $ map (fst . width) rules
@@ -31,3 +35,5 @@ main = do
 
 
    _ -> print "give me a 3-letter code for a language" 
+
+
