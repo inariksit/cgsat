@@ -20,8 +20,11 @@ import Data.List ( nub )
 
 type SeqList a = [a] -- List of things that follow each other in sequence
 
-data Pattern = Pat (OrList ( OrList (SeqList Int) -- OrList length >1 if the ctx is template
-                           , SeqList Match ))
+data Pattern = Pat (OrList  -- OrList length >1 if the ctx is template
+                           ( OrList (SeqList Int) -- SeqLists are same length
+                           , SeqList (OrList Match) -- OrList because of the split
+                           )
+                   )
              | PatAlways 
              | Negate Pattern -- Negate goes beyond set negation and C
              deriving (Eq)
@@ -77,7 +80,7 @@ ctx2Pattern senlen origin ctx = case ctx of
         else do 
           --tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap --normaliseTagsetAbs ignores lexical tags
           let match = foo tgst --TODO
-          if nullMatch match
+          if all nullMatch (getOrList match)
             then do tell ["singleCtx2Pat: tagset " ++ show tgst ++" not found, rule cannot apply"]
                     throwError $ TagsetNotFound (show tgst) -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
                                              -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
@@ -120,12 +123,18 @@ pattern2Lit pat = do
                                   [ zip mats inds | inds <- getOrList indss ]
                                    | (indss,mats) <- getOrList pats ]
 
-                    lits <- mapM (uncurry match2CondLit) ms_is
+                    lits <- mapM (uncurry matches2CondLit) ms_is
                     liftIO $ orl' s lits
 
+matches2CondLit :: OrList Match -> Int -> RWSE Lit
+matches2CondLit mats ind = do
+  s <- asks solver
+  lits <- sequence [ match2CondLit mat ind
+                        | mat <- getOrList mats ]
+  liftIO $ orl' s lits
 
 match2CondLit :: Match -> Int -> RWSE Lit
-match2CondLits AllTags = return true
+match2CondLits AllTags ind = return true --TODO: check if index is out of scope, then return False
 match2CondLit (Bar (bi,bm) mat) ind = undefined
 
 match2CondLit (M mtype wfs lems rdints) ind = do

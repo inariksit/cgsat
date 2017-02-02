@@ -47,10 +47,10 @@ nullMatch m = case m of
 
 
 -- TODO: make a proper function that makes a Match from a TagSet
-foo :: TagSet -> Match
-foo tagset = M Mix (Or [unknownWF])
-                   (Or [unknownLem])
-                   (IS.fromList [999])
+foo :: TagSet -> OrList Match
+foo tagset = Or [M Mix (Or [unknownWF])
+                       (Or [unknownLem])
+                       (IS.fromList [999]) ]
 
 
 -- TODO: sort out all this crap
