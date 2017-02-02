@@ -2,7 +2,7 @@
 
 module CGSAT.Base (
     -- * Control.Monad
-    foldM, liftM2, when, mapAndUnzipM
+    filterM, foldM, liftM2, mapAndUnzipM, when
 
     -- * Control.Monad.RWS
   , RWST, MonadState, MonadReader, MonadWriter
@@ -153,7 +153,7 @@ mkSentence w
   mkLit s n m rd = newLit s (showReading rd n m)
 
   showReading :: Reading -> Int -> Int -> String
-  showReading (And ts) wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '<':show t++">") ts
+  showReading (And ts) wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '_':show t) ts
 
 
 --------------------------------------------------------------------------------
@@ -198,7 +198,6 @@ mkTagMap rds = M.fromList $
   for = flip fmap 
   rdLists = map getAndList rds
   ts = nub $ concat rdLists
-
 
 
 ----------------------------------------------------------------------------
@@ -249,10 +248,6 @@ envRules (lang,r) s = do
     putStrLn $ show (length rules) ++ " rules"
     mapM_ print (take 15 rules)
 
-    putStrLn "\n\n=========="
-    mapM_ print lemmas
-    mapM_ print wforms
-    putStrLn "==========\n\n"
 
   return (env,rules)
 
