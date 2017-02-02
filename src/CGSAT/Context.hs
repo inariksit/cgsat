@@ -1,0 +1,197 @@
+{-# LANGUAGE FlexibleContexts #-}
+
+module CGSAT.Context where
+
+-- Everything related to contextual tests.
+
+import CGSAT.Base
+import CGSAT.Tagset
+import CGHS hiding ( Not,Negate )
+import qualified CGHS
+
+import qualified Data.IntMap as IM
+import qualified Data.IntSet as IS
+import qualified Data.Map as M
+
+import Data.Foldable ( fold )
+import Data.List ( nub )
+
+--------------------------------------------------------------------------------
+
+type SeqList a = [a] -- List of things that follow each other in sequence
+
+data Pattern = Pat (OrList ( OrList (SeqList Int) -- OrList length >1 if the ctx is template
+                           , SeqList Match ))
+             | PatAlways 
+             | Negate Pattern -- Negate goes beyond set negation and C
+             deriving (Eq)
+
+
+--------------------------------------------------------------------------------
+-- Create new literals from contextual tests of a rule
+
+condLits :: Rule -- ^ Rule, whose conditions to turn into literals
+         -> Int  -- ^ Absolute position of the target in the sentence
+         -> RWSE (AndList Lit) -- If all condition(s) are in scope, return literal for each condition.
+                 -- Otherwise, ctx2Pattern or pattern2Lit returns OutOfScope.
+condLits rule origin = do
+  slen <- gets senlength
+  pats <- ctx2Pattern slen origin `mapM` context rule -- :: AndList (Maybe Pattern)
+  mapM pattern2Lit pats :: RWSE (AndList Lit)
+
+
+--------------------------------------------------------------------------------
+-- Transform the contextual test(s) of one rule into a Pattern.
+
+ctx2Pattern :: Int  -- ^ Sentence length
+            -> Int  -- ^ Absolute position of the target in the sentence
+            -> Context -- ^ Context to be transformed
+            -> RWSE Pattern
+ctx2Pattern senlen origin ctx = case ctx of
+  Always -> return PatAlways
+
+  c@(Ctx posn polr tgst)
+    -> do (ps,m) <- singleCtx2Pat c
+          return $ Pat (Or [ (ps,m) ] )
+          
+  Link ctxs 
+    -> do (ps,ms) <- mapAndUnzipM singleCtx2Pat (getAndList ctxs)
+          return $ Pat (Or [(fold ps, fold ms)])
+    -- This wouldn't support linked templates, 
+    -- but I don't think any sane CG engine supports them either.
+
+  Template ctxs
+    -> do pats <- ctx2Pattern senlen origin `mapM` ctxs --  :: OrList Pattern
+          return undefined --(fold pats)
+
+  CGHS.Negate ctx 
+    -> Negate `fmap` ctx2Pattern senlen origin ctx
+
+ where 
+  singleCtx2Pat (Ctx posn polr tgst) = 
+    do let allPositions = normalisePosition posn senlen origin :: OrList Int -- 1* -> e.g. [2,3,4]
+       if null (getOrList allPositions) 
+        then do --tell ["ctx2Pattern: position " ++ show posn ++ " not in scope"]
+                throwError $ OutOfScope origin "ctx2Pattern" -- Pattern fails because condition(s) are not in scope. 
+                -- This is to be expected, because we try to apply every rule to every cohort.
+        else do 
+          --tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap --normaliseTagsetAbs ignores lexical tags
+          let match = foo tgst --TODO
+          if nullMatch match
+            then do tell ["singleCtx2Pat: tagset " ++ show tgst ++" not found, rule cannot apply"]
+                    throwError $ TagsetNotFound (show tgst) -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
+                                             -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
+            else return (fmap (:[]) allPositions, [match] ) 
+
+{- TODO get rid of this, write a new one
+getMatch :: Int -> Position -> Polarity -> RWSE (IntSet -> Match)
+getMatch origin pos pol = case (pos,pol) of
+  (Pos (Barrier ts) c n, _) -> do
+    tsMatch <- getMatch origin (Pos AtLeast c n) pol
+    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
+    let barMatch = either id Mix barTags
+    let barInd = origin + n 
+    return $ Bar (barInd,barMatch) . tsMatch
+
+  (Pos (CBarrier ts) c n, _) -> do 
+    tsMatch <- getMatch origin (Pos AtLeast c n) pol
+    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
+    let barMatch = either id Cau barTags
+    let barInd = origin + n 
+    return $ Bar (barInd,barMatch) . tsMatch
+
+  (Pos _ NC _, Yes)   -> return Mix
+  (Pos _ NC _, R.Not) -> return Not
+  (Pos _ C _,  Yes)   -> return Cau
+  (Pos _ C _,  R.Not) -> return NotCau
+-}
+--------------------------------------------------------------------------------
+-- Transform the pattern into a literal. Fails if any other step before has failed.
+
+pattern2Lit :: Pattern 
+            -> RWSE Lit
+pattern2Lit pat = do 
+  s <- asks solver
+  sen <- gets sentence
+  case pat of
+    PatAlways -> return true
+    Negate p  -> neg `fmap` pattern2Lit p
+    Pat pats  -> do let ms_is = concat [ nub $ concat
+                                  [ zip mats inds | inds <- getOrList indss ]
+                                   | (indss,mats) <- getOrList pats ]
+
+                    lits <- mapM (uncurry match2CondLit) ms_is
+                    liftIO $ orl' s lits
+
+
+match2CondLit :: Match -> Int -> RWSE Lit
+match2CondLits AllTags = return true
+match2CondLit (Bar (bi,bm) mat) ind = undefined
+
+match2CondLit (M mtype wfs lems rdints) ind = do
+  s <- asks solver
+  (Config len sen) <- get
+
+  coh@(wfMap,lemMap,rdMap) <- case IM.lookup ind sen of 
+           Nothing -> do tell [ "match2CondLit: position " ++ show ind ++ 
+                                " out of scope, sentence length " ++ show len ]
+                         throwError (OutOfScope ind "match2CondLit")                 
+           Just (Coh w l r) -> return (w,l,r)
+
+  let (inWFs,outWFs) = M.partitionWithKey (\k _ -> k `elem` wfs) wfMap
+  let (inLems,outLems) = M.partitionWithKey (\k _ -> k `elem` lems) lemMap
+  let (inRds,outRds) = IM.partitionWithKey (\k _ -> IS.member k rdints) rdMap
+
+  -- This is requirement for one reading.
+  -- It will probably be a problem to connect a lemma and a word form
+  -- to the rest of the reading.
+  -- For now, I won't try with lemmas, but I can add a constraint to wfs
+  -- that only one per cohort may be true.
+  liftIO $ case mtype of
+    Mix -> do mixWF <- mix s inWFs
+              mixLemma <- mix s inLems
+              mixReading <- orl' s (IM.elems inRds)
+              andl' s [mixWF, mixLemma, mixReading]
+
+    Cau -> do cauWF <- cauM s inWFs outWFs
+              cauLemma <- cauM s inLems outLems
+              cauReading <- cauIM s inRds outRds
+              andl' s [cauWF, cauLemma, cauReading]
+    Not -> do notWF <- cauM s outWFs inWFs
+              notLemma <- cauM s outLems inLems
+              notReading <- cauIM s outRds inRds
+              andl' s [notWF, notLemma, notReading]
+    NotCau -> do ncWF <- mix s outWFs
+                 ncLemma <- mix s outLems
+                 ncReading <-  orl' s (IM.elems outRds)
+                 andl' s [ncWF, ncLemma, ncReading]
+
+ where
+  mix s = orl' s . M.elems
+
+  cau f s y n = andl' s =<< sequence 
+                       [ orl' s (f y)
+                       , neg `fmap` orl' s (f n) ]
+  cauM = cau M.elems
+  cauIM = cau IM.elems 
+{-
+match2CondLit (Bar (bi,bm) mat) ind = do
+  s <- asks solver
+  sen <- gets sentence
+  matchLit <- match2CondLit mat  ind
+
+  let barInds | bi <= ind = [bi..ind]
+              | otherwise = [ind..bi]
+
+
+  let negBM = case bm of
+                Mix is -> Not is
+                Cau is -> NotCau is
+                _      -> error "match2CondLit: invalid condition for BARRIER"
+
+  -- cohorts between the condition and target do NOT contain the specified readings
+  -- TODO: add lexical tags here too
+  barLits <- mapM (match2CondLit negBM (Or[],Or[]) {-TODO-} ) barInds
+
+  liftIO $ andl' s (matchLit:barLits)
+-}
