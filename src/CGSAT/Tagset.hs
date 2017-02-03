@@ -5,7 +5,7 @@ import CGHS hiding ( Tag(..), Reading )
 import qualified CGHS
 
 import Data.List ( find )
-import Data.Maybe ( catMaybes, fromMaybe )
+import Data.Maybe ( catMaybes, fromMaybe, mapMaybe )
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
 import qualified Data.Map as M
@@ -59,45 +59,19 @@ foo tagset = Or [M Mix (Or [unknownWF])
                        (IS.fromList [999]) ]
 
 
--- TODO: sort out all this crap
-{-
-splitReading :: Reading -> SymbolicReading
-splitReading (And tags) = SR wf lm rds
- where 
-  wf = fromMaybe unknownWF (find isWF tags)
-  lm = fromMaybe unknownLem (find isLem tags)
-  onlyrds = filter (not.isLex) tags
-  rds = if null onlyrds then unknownReading else onlyrds
-  
-  isLem (Lem _) = True
-  isLem _       = False
-
-  isWF (WF _) = True
-  isWF _      = False
-
-foo :: [SymbolicReading] -> Match
-foo srs = undefined
-
-
-normaliseYetAnother :: TagSet -> NotNormalMatch -- (??????)
-normaliseYetAnother tagset = case normaliseTagsetRel tagset of
-  AllTags -> undefined
-  Diff s s' -> undefined -- split further into readings that have AnyBut for the s' side
-  Set rds -> let symbReadings = fmap splitReading rds
-  			 in 
-
-
-complSetDiff :: ComplSet [a] -> ComplSet [a] -> ComplSet [a]
-complSetDiff (CS anyof anybut) (CS anyof' anybut') 
-  | null anybut && null anybut' = CS anyof anyof' -- A \ B = A ∩ cB
-  | null anyof && null anyof' = CS anybut' anybut -- cA \ cB = B \ A
-
+splitReading :: CGHS.Reading -> SplitReading 
+splitReading rd = SR wf lm rds
+ where
+  (onlymorph,lextags) = removeLexReading rd
+  (wfs,lms) = (mapMaybe fromWF lextags,mapMaybe fromLem lextags)
+  wf = if null wfs then unknownWF else head wfs -- if there's more than 1, tough luck
+  lm = if null lms then unknownLem else head lms -- if there's more than 1, tough luck
+  rds = if null onlymorph then unknownReading else fromReading onlymorph
 
 
 -- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
--}
 normaliseTagsetAbs :: TagSet -> Map Tag IntSet -> Either Match IntSet
 normaliseTagsetAbs tagset tagmap = Left AllTags --TODO
 

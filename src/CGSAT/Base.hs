@@ -49,7 +49,9 @@ module CGSAT.Base (
   , Log
 
     -- * SplitReading
-  , SplitReading, MorphReading(..), Lem(..), WF(..), Tag(..)
+  , SplitReading(..), MorphReading(..)
+  , Lem(..), WF(..), Tag(..)
+  , fromLem, fromWF, fromReading
   )
 where
 
@@ -78,6 +80,7 @@ import CGHS hiding ( Tag(..), Reading )
 import qualified CGHS
 
 import Data.List ( findIndices, nub, partition )
+import Data.Maybe ( mapMaybe )
 
 --------------------------------------------------------------------------------
 -- RWSE, CGException
@@ -172,15 +175,17 @@ newtype WF = WF { getWF :: String } deriving (Eq,Ord)
 instance Show WF where
   show (WF str) = show (CGHS.WF str)
 
-fromWF :: CGHS.Tag -> WF
-fromWF (CGHS.WF x) = WF x
+fromWF :: CGHS.Tag -> Maybe WF
+fromWF (CGHS.WF x) = Just (WF x)
+fromWF _           = Nothing
 
 newtype Lem = Lem { getLem :: String } deriving (Eq,Ord)
 instance Show Lem where
   show (Lem str) = show (CGHS.Lem str)
 
-fromLem :: CGHS.Tag -> Lem
-fromLem (CGHS.Lem x) = Lem x
+fromLem :: CGHS.Tag -> Maybe Lem
+fromLem (CGHS.Lem x) = Just (Lem x)
+fromLem _            = Nothing
 
 newtype Tag = Tag { getTag :: CGHS.Tag } deriving (Eq,Ord)
 instance Show Tag where
@@ -238,8 +243,8 @@ withNewSolver s env = env { solver = s }
 mkEnv :: Solver -> [CGHS.Reading] -> [CGHS.Tag] -> [CGHS.Tag] -> Env
 mkEnv s rds ls ws = Env (mkTagMap rds) (mkRdMap rds) (mkLems ls) (mkWFs ws) s 
  where 
-  mkLems = Or . map fromLem
-  mkWFs = Or . map fromWF
+  mkLems = Or . mapMaybe fromLem
+  mkWFs = Or . mapMaybe fromWF
 
 {- rdMap --  1 |-> vblex sg p3
              2 |-> noun sg mf
