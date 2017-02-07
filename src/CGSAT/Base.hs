@@ -20,7 +20,7 @@ module CGSAT.Base (
   , Exception
 
     -- * Map, IntMap, IntSet
-  , Map, IntMap, IntSet
+  , Map, IntMap, (!), IntSet
 
 
     -- * SAT+
@@ -43,7 +43,7 @@ module CGSAT.Base (
     -- ** Config
   , Config(..), emptyConfig, mkConfig
   , Sentence, mkSentence
-  , Cohort(..), emptyCohort
+  , Cohort(..), emptyCohort, partitionCohort
 
     -- ** Log
   , Log
@@ -67,7 +67,7 @@ import Control.Exception
 
 import Data.Map ( Map )
 import qualified Data.Map as M
-import Data.IntMap ( IntMap )
+import Data.IntMap ( IntMap, (!) )
 import qualified Data.IntMap as IM
 import Data.IntSet ( IntSet )
 import qualified Data.IntSet as IS 
@@ -127,11 +127,19 @@ type Sentence = IntMap Cohort
 
 data Cohort = Coh { wordforms :: Map WF Lit -- One per cohort
                   , lemmas :: Map Lem Lit   -- Several per cohort
-                  , readings :: IntMap Lit  -- Several per cohort -- TODO connect to lemmas
+                  , readings :: Map MorphReading Lit  -- Several per cohort -- TODO connect to lemmas
                   } deriving (Show,Eq)
 
 emptyCohort :: Cohort
-emptyCohort = Coh M.empty M.empty IM.empty
+emptyCohort = Coh M.empty M.empty M.empty
+
+partitionCohort :: Cohort -> SplitReading -> (Cohort,Cohort)
+partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) =
+  (Coh inWFs inLems inRds, Coh outWFs outLems outRds)
+ where
+  (inWFs,outWFs) = M.partitionWithKey (\k _ -> k `elem` ws) wMap
+  (inLems,outLems) = M.partitionWithKey (\k _ -> k `elem` ls) lMap
+  (inRds,outRds) = M.partitionWithKey (\k _ -> k `elem` rs) rMap
 
 -- | Using the readings and the solver in environment, create a sentence.
 mkSentence :: Int -> RWSE Sentence
@@ -139,32 +147,32 @@ mkSentence w
          | w <= 0    = return IM.empty
          | otherwise = do
   s <- asks solver
-  rds  <- asks rdMap
-  lemmas <- asks lems
-  wforms <- asks wfs
+  morphrds  <- getOrList `fmap` asks rds
+  lemmas <- getOrList `fmap` asks lems
+  wforms <- getOrList `fmap` asks wfs
 
   liftIO $ IM.fromList `fmap` sequence
      [ (,) n `fmap`
-       do rdiMap <- sequence (IM.mapWithKey (mkLit s n) rds)
-          lemMap <- do lemLits <- mapM (mkLitLex s n) lemmas'
-                       return $ M.fromList (zip lemmas' lemLits)
-          wfMap <- do wfLits <- mapM (mkLitLex s n) wforms'
-                      return $ M.fromList (zip wforms' wfLits)
-          return (Coh wfMap lemMap rdiMap)
-       | n <- [1..w]
-       , let lemmas' = getOrList lemmas 
-       , let wforms' = getOrList wforms ] 
+       do --rdiMap <- sequence (IM.mapWithKey (mkLit s n) morphrds)
+          rdMap <- do rdLits <- mapM (mkLit s n) morphrds
+                      return $ M.fromList (zip morphrds rdLits)
+          lemMap <- do lemLits <- mapM (mkLitLex s n) lemmas
+                       return $ M.fromList (zip lemmas lemLits)
+          wfMap <- do wfLits <- mapM (mkLitLex s n) wforms
+                      return $ M.fromList (zip wforms wfLits)
+          return (Coh wfMap lemMap rdMap)
+       | n <- [1..w] ] 
 
 
  where
   mkLitLex :: (Show a) => Solver -> Int -> a -> IO Lit
-  mkLitLex s n t = newLit s (showReading (And [t]) n n)
+  mkLitLex s n t = newLit s (showReading (And [t]) n)
 
-  mkLit :: Solver -> Int -> Int -> MorphReading -> IO Lit
-  mkLit s n m (Rd rd) = newLit s (showReading rd n m)
+  mkLit :: Solver -> Int -> MorphReading -> IO Lit
+  mkLit s n (Rd rd) = newLit s (showReading rd n)
 
-  showReading :: (Show a) => AndList a -> Int -> Int -> String
-  showReading (And ts) wdi rdi = "w" ++ show wdi ++ concatMap (\t -> '_':show t) ts
+  showReading :: (Show a) => AndList a -> Int -> String
+  showReading (And ts) wdi = "w" ++ show wdi ++ concatMap (\t -> '_':show t) ts
 
 
 --------------------------------------------------------------------------------
@@ -203,12 +211,12 @@ fromReading rd = Rd (fmap fromTag morphtags)
 -- The type Reading that CGHS/Rule exports is actually an underspecified reading.
 -- For our symbolic sentences, each reading has a word form, lemma and other tags.
 -- Maybe make some newtypes to enforce that wform is WF _ and lemma is Lem _?
-data SplitReading = SR { wform :: WF
-                       , lemma :: Lem
-                       , reading :: MorphReading } deriving (Eq)
+data SplitReading = SR { wform :: OrList WF
+                       , lemma :: OrList Lem
+                       , reading :: OrList MorphReading } deriving (Eq,Ord)
 
-instance Show SplitReading where
-  show (SR w l r) = show w ++ " " ++ show l ++ " " ++ show r
+--instance Show SplitReading where
+--  show (SR w l r) = show w ++ " " ++ show l ++ " " ++ show r
 
 
 {- With the split of lex. and morph. tags, we represent all the combinations
@@ -221,48 +229,53 @@ instance Show SplitReading where
 --------------------------------------------------------------------------------
 -- Env
                 
-{-  tagMap 
-           ‾‾`v
-
-         vblex |-> [321,         322,         323      ...]
-                     |            |            |
-                    vblex sg p1  vblex sg p2  vblex sg ...  
-                ___,^
-           rdMap 
--}
-data Env = Env { tagMap :: Map Tag IntSet 
-               , rdMap :: IntMap MorphReading 
+data Env = Env { --tagMap :: Map Tag IntSet 
+                 -- , rdMap :: IntMap MorphReading 
+                 wfs :: OrList WF
                , lems :: OrList Lem
-               , wfs :: OrList WF
+               , rds :: OrList MorphReading
                , solver :: Solver }
 
 withNewSolver :: Solver -> Env -> Env
 withNewSolver s env = env { solver = s }
 
-
 mkEnv :: Solver -> [CGHS.Reading] -> [CGHS.Tag] -> [CGHS.Tag] -> Env
-mkEnv s rds ls ws = Env (mkTagMap rds) (mkRdMap rds) (mkLems ls) (mkWFs ws) s 
+mkEnv s rds ls ws = Env (mkWFs ws) (mkLems ls) (mkRds rds) s 
  where 
-  mkLems = Or . mapMaybe fromLem
-  mkWFs = Or . mapMaybe fromWF
+  mkRds = Or . map fromReading
+  mkLems x = Or (unknownLem:mapMaybe fromLem x)
+  mkWFs x = Or (unknownWF:mapMaybe fromWF x)
 
-{- rdMap --  1 |-> vblex sg p3
-             2 |-> noun sg mf
-          9023 |-> adj sg mf comp -}
-mkRdMap :: [CGHS.Reading] -> IntMap MorphReading
-mkRdMap = IM.fromDistinctAscList . zip [1..] . map (Rd . fmap fromTag)
 
-{- tagMap    --  vblex |-> IS(1,30,31,32,..,490)
-                 sg    |-> IS(1,2,3,120,1800)
-                 mf    |-> IS(2,20,210,9023) -}
-mkTagMap :: [CGHS.Reading] -> Map Tag IntSet 
-mkTagMap rds = M.fromList $
-  ts `for` \t -> let getInds = IS.fromList . map (1+) . findIndices (elem t)
-                 in (fromTag t, getInds rdLists) 
- where 
-  for = flip fmap 
-  rdLists = map getAndList rds
-  ts = nub $ concat rdLists
+unknownLem :: Lem
+unknownLem = Lem "unknown"
+
+unknownWF :: WF
+unknownWF = WF "unknown"
+
+--unknownReading :: MorphReading
+--unknownReading = Rd $ And [Tag unk]
+-- where unk = CGHS.Tag "unknown reading"
+
+--------------------------------------------------------------------------------
+
+--{- rdMap --  1 |-> vblex sg p3
+--             2 |-> noun sg mf
+--          9023 |-> adj sg mf comp -}
+--mkRdMap :: [CGHS.Reading] -> IntMap MorphReading
+--mkRdMap = IM.fromDistinctAscList . zip [1..] . map (Rd . fmap fromTag)
+
+-- tagMap    --  vblex |-> IS(1,30,31,32,..,490)
+--                 sg    |-> IS(1,2,3,120,1800)
+--                 mf    |-> IS(2,20,210,9023) 
+--mkTagMap :: [CGHS.Reading] -> Map Tag IntSet 
+--mkTagMap rds = M.fromList $
+--  ts `for` \t -> let getInds = IS.fromList . map (1+) . findIndices (elem t)
+--                 in (fromTag t, getInds rdLists) 
+-- where 
+--  for = flip fmap 
+--  rdLists = map getAndList rds
+--  ts = nub $ concat rdLists
 
 
 ----------------------------------------------------------------------------

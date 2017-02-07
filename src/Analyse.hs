@@ -36,7 +36,7 @@ testRules = mapM testRule
 testRule :: Rule -> RWSE Conflict
 testRule rule = do
   c@(Config len sen) <- get
-  e@(Env tm _rm _ _ s) <- ask
+  e@(Env w l r s) <- ask
   confs <-    -- I suspect there's a nicer way to handle this
      mapM (\i -> RWSE $ lift $ runExceptT $ runRWSE $ ruleTriggers False rule i
                   :: RWSE (Either CGException Conflict) )
@@ -57,10 +57,12 @@ testRule rule = do
 
 ruleTriggers :: Bool -> Rule -> Int -> RWSE Conflict
 ruleTriggers verbose rule i = do
-  (mustHaveTrg, mustHaveOther, allCondsHold,_,_) <- trigger rule i
   s <- asks solver
   (Config len sen) <- get
-  b <- liftIO $ solve s [mustHaveTrg, mustHaveOther, allCondsHold]
+  (allCondsHold, trgAndOthers) <- trigger rule i
+  mustHaveTrg <- liftIO $ orl' s [true] -- TODO: excract lits from TargetCohort
+  mustHaveOther <- liftIO $ orl' s (map snd trgAndOthers)
+  b <- liftIO $ solve s [allCondsHold]
   if b then do when verbose $
                  liftIO $ solveAndPrint True s [mustHaveTrg, mustHaveOther, allCondsHold] sen
                return NoConf
@@ -71,7 +73,8 @@ ruleTriggers verbose rule i = do
                                            tempConf <- mkConfig len
                                            put tempConf
                                            tempSen <- gets sentence
-                                           (x,y,z,_,_) <- trigger rule i
+                                           --(x,y,z,_,_) <- trigger rule i
+                                           let (x,y,z) = (true,true,true)
                                            b <- liftIO $ solve s' [x,y,z]
                                            if b then do when verbose $ 
                                                           liftIO $ solveAndPrint True s' [x,y,z] tempSen

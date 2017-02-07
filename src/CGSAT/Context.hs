@@ -22,9 +22,9 @@ type SeqList a = [a] -- List of things that follow each other in sequence
 
 data Pattern = Pat (OrList  -- OrList length >1 if the ctx is template
                            ( OrList (SeqList Int) -- SeqLists are same length
-                           , SeqList (OrList Match) -- OrList because of the split
+                           , SeqList (OrList Match) -- OrList because of the split:
                            )
-                   )
+                   )            
              | PatAlways 
              | Negate Pattern -- Negate goes beyond set negation and C
              deriving (Eq)
@@ -137,19 +137,19 @@ match2CondLit :: Match -> Int -> RWSE Lit
 match2CondLits AllTags ind = return true --TODO: check if index is out of scope, then return False
 match2CondLit (Bar (bi,bm) mat) ind = undefined
 
-match2CondLit (M mtype wfs lems rdints) ind = do
+--match2CondLit (M mtype wfs lems mrds) ind = do
+match2CondLit (M mtype splitrd) ind = do
+
   s <- asks solver
   (Config len sen) <- get
 
-  coh@(wfMap,lemMap,rdMap) <- case IM.lookup ind sen of 
+  coh <- case IM.lookup ind sen of 
            Nothing -> do tell [ "match2CondLit: position " ++ show ind ++ 
                                 " out of scope, sentence length " ++ show len ]
                          throwError (OutOfScope ind "match2CondLit")                 
-           Just (Coh w l r) -> return (w,l,r)
+           Just co -> return co
 
-  let (inWFs,outWFs) = M.partitionWithKey (\k _ -> k `elem` wfs) wfMap
-  let (inLems,outLems) = M.partitionWithKey (\k _ -> k `elem` lems) lemMap
-  let (inRds,outRds) = IM.partitionWithKey (\k _ -> IS.member k rdints) rdMap
+  let ( Coh inWFs inLems inRds , Coh outWFs outLems outRds) = partitionCohort coh splitrd
 
   -- This is requirement for one reading.
   -- It will probably be a problem to connect a lemma and a word form
@@ -159,30 +159,29 @@ match2CondLit (M mtype wfs lems rdints) ind = do
   liftIO $ case mtype of
     Mix -> do mixWF <- mix s inWFs
               mixLemma <- mix s inLems
-              mixReading <- orl' s (IM.elems inRds)
+              mixReading <- mix s inRds
               andl' s [mixWF, mixLemma, mixReading]
 
-    Cau -> do cauWF <- cauM s inWFs outWFs
-              cauLemma <- cauM s inLems outLems
-              cauReading <- cauIM s inRds outRds
+    Cau -> do cauWF <- cau s inWFs outWFs
+              cauLemma <- cau s inLems outLems
+              cauReading <- cau s inRds outRds
               andl' s [cauWF, cauLemma, cauReading]
-    Not -> do notWF <- cauM s outWFs inWFs
-              notLemma <- cauM s outLems inLems
-              notReading <- cauIM s outRds inRds
+    Not -> do notWF <- cau s outWFs inWFs
+              notLemma <- cau s outLems inLems
+              notReading <- cau s outRds inRds
               andl' s [notWF, notLemma, notReading]
     NotCau -> do ncWF <- mix s outWFs
                  ncLemma <- mix s outLems
-                 ncReading <-  orl' s (IM.elems outRds)
+                 ncReading <-  mix s outRds
                  andl' s [ncWF, ncLemma, ncReading]
 
  where
   mix s = orl' s . M.elems
 
-  cau f s y n = andl' s =<< sequence 
-                       [ orl' s (f y)
-                       , neg `fmap` orl' s (f n) ]
-  cauM = cau M.elems
-  cauIM = cau IM.elems 
+  cau s y n = andl' s =<< 
+                 sequence [ orl' s (M.elems y)
+                          , neg `fmap` orl' s (M.elems n) ]
+ 
 {-
 match2CondLit (Bar (bi,bm) mat) ind = do
   s <- asks solver

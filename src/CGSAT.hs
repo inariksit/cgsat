@@ -21,10 +21,8 @@ import CGSAT.Base
 import CGSAT.Context
 import CGSAT.Tagset
 
-
-import qualified Data.IntMap as IM
-import qualified Data.IntSet as IS 
 import qualified Data.Map as M
+import qualified Data.IntMap as IM
 
 import Data.List ( findIndices, intercalate, nub )
 import Data.Maybe ( catMaybes, fromMaybe, isNothing )
@@ -32,6 +30,10 @@ import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
 
 --------------------------------------------------------------------------------
+
+type TargetCohort = Cohort
+-- Split the three maps of Cohort into those that only include target.
+-- Just to make some type signatures clearer.
 
 
 dummyTest :: RWSE ()
@@ -51,20 +53,10 @@ solveAndPrint vrb s ass sen = do
       trueVals <- sequence 
          [ do trueWFs <- modelValue s `filterM` M.elems wfs
               trueLems <- modelValue s `filterM` M.elems lems
-              trueRds <- modelValue s `filterM` IM.elems rds
+              trueRds <- modelValue s `filterM` M.elems rds
               return (trueWFs,trueLems,trueRds)
             | (Coh wfs lems rds) <- IM.elems sen ]
       mapM_ print trueVals --TODO nicer printout
-
-
-      --let trueRds =
-      --         [ show wf ++ " (w" ++ show sind ++ ")\n"
-      --            ++ unlines [ "\t"++show lem 
-      --                          | (lem, True) <- zip (M.elems lems) lemVals ]
-      --            ++ unlines [ "\t"++show rd 
-      --                          | (rd, True) <- zip (M.elems rd) rdVals ]
-      --           | ((sind,C wfs lems rds), vs) <- zip (IM.assocs sen) vals ]
-      --mapM_ putStrLn trueRds
       putStrLn "----"
     else do
          putStrLn $ "solveAndPrint: Conflict with assumptions " ++ show ass
@@ -77,101 +69,145 @@ solveAndPrint vrb s ass sen = do
 apply :: Rule -> RWSE ()
 apply rule = do 
   s <- asks solver
-  w <- gets senlength
 
   ----------- The seitan of the function ------------
   let applyToCohort sen i = do
 
       --Trigger throwErrors NoReadingsLeft if the rule tries to remove all;
       -- as per VISL CG-3 behaviour, remove nothing.
-       (someTrgIsTrue, someOtherIsTrue, allCondsHold, trgCoh, trgRds) 
+       (allCondsHold, trgsAndOthers) 
          <- trigger rule i `catchError` \e -> case e of 
-              NoReadingsLeft -> return (true,true,true,emptyCohort,IM.empty)
-              OutOfScope _ _ -> return (true,true,true,emptyCohort,IM.empty)
+              NoReadingsLeft -> return (true,[])
+              OutOfScope _ _ -> return (true,[])
               TagsetNotFound s -> do liftIO $ putStrLn ("Warning: tagset " ++ s ++ " not found")
-                                     return (true,true,true,emptyCohort,IM.empty)
+                                     return  (true,[])
               _              -> throwError e
 
-                   --TODO
-       if IM.null (readings trgCoh) -- if one of the expected errors was caught,
+       if null trgsAndOthers -- if one of the expected errors was caught,
 
         then return sen -- just return the sentence unchanged
 
-        else do onlyTrgLeft <- liftIO $ andl' s [ someTrgIsTrue, neg someOtherIsTrue ]
-                cannotApply <- liftIO $ orl' s [ neg allCondsHold, onlyTrgLeft ]
- 
-                newTrgLits <- liftIO $ sequence               
-                      [ (,) j `fmap`        --wN<a>' is true if both of the following:
-                         andl s newTrgName [ oldTrgLit     --wN<a> was also true, and
-                                           , cannotApply ] --rule cannot apply 
-                         | (j,oldTrgLit) <- IM.assocs trgRds
-                         , let newTrgName = show oldTrgLit ++ "'" ]
+        else 
+          do newTrgLits <- liftIO $ unzip3 `fmap` sequence
+              [ do cannotApply <- orl' s [ neg allCondsHold -- Same for all versions of target
+                                                  , neg otherReadingsLeft ] -- Different for each version of target
+                   newWFs <- sequence 
+                              [ do newWFLit <- andl s newName [ oldWFLit, cannotApply ]
+                                   return (wf,newWFLit)
+                                  | (wf,oldWFLit) <- M.assocs (wordforms trgCoh) 
+                                  , let newName = show oldWFLit ++ "'" ]
 
-                --let newcoh = foldl changeReading trgCoh newTrgLits
-                --let newsen = changeCohort sen i newcoh
-                --return newsen
-                return sen --TODO
+                   newLems <- sequence 
+                              [ do newLemLit <- liftIO $ andl s newName [ oldLemLit, cannotApply ]
+                                   return (lem,newLemLit)
+                                  | (lem,oldLemLit) <- M.assocs (lemmas trgCoh) 
+                                  , let newName = show oldLemLit ++ "'" ]
+                   newRds <- sequence 
+                              [ do newRdLit <- andl s newName [ oldRdLit, cannotApply ]
+                                   return (rd,newRdLit)
+                                  | (rd,oldRdLit)  <- M.assocs (readings trgCoh) 
+                                  , let newName = show oldRdLit ++ "'" ]
+
+                   return (newWFs, newLems, newRds) -- :: IO ([],[],[])
+                    | (trgCoh, otherReadingsLeft) <- trgsAndOthers ] -- :: [ ([],[],[]) ]
+
+
+             let newcoh = updateCohort (sen ! i) newTrgLits
+             let newsen = updateSentence sen i newcoh
+             return newsen
 
   ----------------------------------------------------
-  sen <- gets sentence --TODO
-  put (Config w sen) --TODO
- -- sen <- gets sentence
- -- newSen <- foldM applyToCohort sen [1..w]
- -- put (Config w newSen)
 
- --where
- -- changeReading :: Cohort -> (Int,Lit) -> Cohort
- -- changeReading coh (i,newrd) = IM.adjust (const newrd) i coh
+  (Config w sen) <- get
+  newSen <- foldM applyToCohort sen [1..w]
+  put (Config w newSen)
 
- -- changeCohort :: Sentence -> Int -> Cohort -> Sentence
- -- changeCohort sen i newcoh = IM.adjust (const newcoh) i sen
+ where
+  --updateCohort :: Cohort -> ( [[(WF,Lit)]], [[(Lem,Lit)]], [[(MorphReading,Lit)]] ) -> Cohort
+  updateCohort (Coh w l r) (newWFs,newLems,newRds) = 
+    Coh (foldl updateLit w (concat newWFs))
+        (foldl updateLit l (concat newLems))
+        (foldl updateLit r (concat newRds))
+
+  updateLit :: (Ord k) => Map k Lit -> (k,Lit) -> Map k Lit
+  updateLit coh (a,newrd) = M.adjust (const newrd) a coh
+
+  updateSentence :: Sentence -> Int -> Cohort -> Sentence
+  updateSentence sen i newcoh = IM.adjust (const newcoh) i sen
 
 
-trigger :: Rule -> Int -> RWSE (Lit,Lit,Lit,Cohort,IntMap Lit)
+trigger :: Rule 
+        -> Int -- ^ Rule applied to an index in the sentence
+        -> RWSE ( Lit -- ^ Conditions of that rule
+                , [(TargetCohort,Lit)] )-- ^ List of possible targets and others                
 trigger rule origin = do
   (Config len sen) <- get
-  tm <- asks tagMap
-  s <- asks solver
+  env@(Env ws ls rs s) <- ask
   conds <- condLits rule origin
   trgCoh <- case IM.lookup origin sen of
               Nothing -> do tell [ "trigger: target position " ++ show origin ++ 
                                    " out of scope, sentence length " ++ show len ]
                             throwError (OutOfScope origin "trigger")
               Just ch -> return ch
-  trgIS <- case normaliseTagsetAbs (target rule) tm of
-             Left AllTags -> do tell [ "trigger: rule " ++ show rule ++ 
-                                       " tries to remove or select all readings" ]
-                                throwError NoReadingsLeft
-             Right intset -> return intset --TODO: made normaliseTagsetAbs return always Left
-                                                    --TODO
-  let (trg,oth) = partitionTarget (oper rule) trgIS (readings trgCoh)
+  targetSplitReadings 
+         <- do normTagset <- normaliseTagsetAbs (target rule)
+               case normTagset of
+                 Left AllTags -> do tell [ "trigger: rule " ++ show rule ++ 
+                                        " tries to remove or select all readings" ]
+                                    throwError NoReadingsLeft
+                 Right srs -> return (getOrList srs)
+  
 
-  mht <- liftIO $ orl' s (IM.elems trg) -- 1) Cohort has ≥1 target lits
-  mho <- liftIO $ orl' s (IM.elems oth) -- 2) Cohort has ≥1 other lits                              
-  ach <- liftIO $ andl' s (getAndList conds) -- 3) All conditions hold
-  return (mht, mho, ach, trgCoh, trg)
+  condshold <- liftIO $ andl' s (getAndList conds) -- All conditions hold: this is same for the whole cohort
+  trg_others <- mapM (targetAndOthers s trgCoh)  -- Target and others is relative to each SplitReading:
+                     targetSplitReadings         -- returning a list of (trg,other) pairs
+                   
 
+  return (condshold, trg_others)
+
+ where
+  targetAndOthers :: Solver -> Cohort -> SplitReading 
+                  -> RWSE (TargetCohort,Lit)
+  targetAndOthers s coh srd = do
+    let (targetCoh,otherCoh) = partitionTarget (oper rule) coh srd
+
+
+    otherWFs <- safeElems (wordforms otherCoh)
+    otherLem <- safeElems (lemmas otherCoh)
+    otherRds <- safeElems (readings otherCoh)
+    isOther <- liftIO $ 
+                andl' s =<< sequence [ orl s (wdn++":nt_wordform") otherWFs
+                                     , orl s (wdn++":nt_lemma") otherLem
+                                     , orl s (wdn++":nt_morph.rd") otherRds ]
+
+    return (targetCoh,isOther)
+
+  wdn = "w" ++ show origin    
+
+  -- If some if the maps in the non-target cohort is null,
+  -- this means that everything is in the target, and the rule
+  -- would try remove all readings. For this, we throw an error.
+  safeElems :: Map k Lit -> RWSE [Lit]
+  safeElems m = if M.null m then throwError NoReadingsLeft else return (M.elems m)
+
+--------------------------------------------------------------------------------
 
 defaultRules :: Solver -> Sentence -> IO ()
 defaultRules s sentence = 
-   sequence_ [ do addClause s (M.elems wfs)          
-                  addClause s (M.elems lms)
-                  addClause s (IM.elems rds) --Every word must have >=1 reading
-                  atMostOne s (M.elems wfs) -- Word forms must have exactly 1 reading
-                --  constraints s mp [] form  --Constraints based on lexicon --TODO AmbiguityClasses.hs
-               | (Coh wfs lms rds) <- IM.elems sentence
-               , let mp i = fromMaybe (error $ "constraints: " ++ show i) (IM.lookup i rds) ] 
+   sequence_ [ do addClause s (M.elems w)          
+                  addClause s (M.elems l)
+                  addClause s (M.elems r) -- Cohort must have >=1 reading
+                  atMostOne s (M.elems w) -- , and exactly 1 word form
+                  --TODO: add ambiguity class constraints
+               | (Coh w l r) <- IM.elems sentence ] 
 
 --------------------------------------------------------------------------------
--- From here on, only pure helper functions
 
-
-
-partitionTarget :: Oper -> IntSet -> IntMap Lit -> (IntMap Lit,IntMap Lit)
-partitionTarget op is coh = case op of
-  SELECT -> (outmap,inmap)
-  REMOVE -> (inmap,outmap)
-  _   -> (inmap,outmap) --TODO other operations
+partitionTarget :: Oper -> Cohort -> SplitReading -> (Cohort,Cohort)
+partitionTarget op coh sr = case op of
+  SELECT -> (outcoh,incoh)
+  REMOVE -> (incoh,outcoh)
+  _   -> (incoh,outcoh) --TODO other operations
  where
-  (inmap,outmap) = IM.partitionWithKey (\ k _ -> IS.member k is) coh
+  (incoh,outcoh) = partitionCohort coh sr 
 

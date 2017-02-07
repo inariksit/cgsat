@@ -13,28 +13,18 @@ import qualified Data.Map as M
 
 --------------------------------------------------------------------------------
 
-
-unknownLem :: Lem
-unknownLem = Lem "unknown"
-
-unknownWF :: WF
-unknownWF = WF "unknown"
-
-unknownReading :: MorphReading
-unknownReading = Rd $ And [Tag unk]
- where unk = CGHS.Tag "unknown reading"
-
---------------------------------------------------------------------------------
-
 -- Match is properly normalised, no complements
 data Match = M MatchType 
-               (OrList WF) --Word forms
-               (OrList Lem) --Lemmas
-               IntSet       --Morph. readings
+               SplitReading
+               --(OrList WF) --Word forms
+               --(OrList Lem) --Lemmas
+               --IntSet       --Morph. readings
            | Bar (Int,Match) Match -- ^ Cohort matches the second Match, and requires that 
                                    -- there is no match to the first Match, up to the Int.
            | AllTags -- Cohort may contain any tag
            deriving ( Eq )
+
+
 
 data MatchType
   = Mix -- ^ Cohort contains tags in IntSet, and may contain tags outside IntSet.
@@ -48,15 +38,17 @@ data MatchType
 nullMatch :: Match -> Bool
 nullMatch m = case m of
   AllTags -> False
-  M _ ws ls is -> null (getOrList ws) && null (getOrList ls) && IS.null is
+  M _ (SR ws ls rs) -> null (getOrList ws) && null (getOrList ls) && null (getOrList rs)
   Bar _ m -> nullMatch m
 
 
 -- TODO: make a proper function that makes a Match from a TagSet
 foo :: TagSet -> OrList Match
-foo tagset = Or [M Mix (Or [unknownWF])
-                       (Or [unknownLem])
-                       (IS.fromList [999]) ]
+foo tagset = Or [M Mix (SR (Or [])
+                           (Or [])
+                           (Or [])
+                        ) 
+                ]
 
 
 splitReading :: CGHS.Reading -> SplitReading 
@@ -64,16 +56,16 @@ splitReading rd = SR wf lm rds
  where
   (onlymorph,lextags) = removeLexReading rd
   (wfs,lms) = (mapMaybe fromWF lextags,mapMaybe fromLem lextags)
-  wf = if null wfs then unknownWF else head wfs -- if there's more than 1, tough luck
-  lm = if null lms then unknownLem else head lms -- if there's more than 1, tough luck
-  rds = if null onlymorph then unknownReading else fromReading onlymorph
+  wf = Or $ if null wfs then [] else wfs
+  lm = Or $ if null lms then [] else lms
+  rds = Or $ if null onlymorph then [] else [fromReading onlymorph]
 
 
 -- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
-normaliseTagsetAbs :: TagSet -> Map Tag IntSet -> Either Match IntSet
-normaliseTagsetAbs tagset tagmap = Left AllTags --TODO
+normaliseTagsetAbs :: TagSet -> RWSE (Either Match (OrList SplitReading))
+normaliseTagsetAbs tagset = return (Left AllTags) --TODO
 
 {-
 normaliseTagsetAbs tagset tagmap = case tagset of
