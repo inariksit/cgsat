@@ -3,6 +3,7 @@ module CGSAT.Tagset where
 import CGSAT.Base
 import CGHS hiding ( Tag(..), Reading )
 import qualified CGHS
+import qualified CGHS.Rule as R
 
 import Data.Foldable ( fold )
 import Data.List ( find, (\\) )
@@ -16,15 +17,10 @@ import qualified Data.Map as M
 -- Match is properly normalised, no complements
 data Match = M MatchType 
                SplitReading
-               --(OrList WF) --Word forms
-               --(OrList Lem) --Lemmas
-               --IntSet       --Morph. readings
            | Bar (Int,Match) Match -- ^ Cohort matches the second Match, and requires that 
                                    -- there is no match to the first Match, up to the Int.
            | AllTags -- Cohort may contain any tag
            deriving ( Eq )
-
-
 
 data MatchType
   = Mix -- ^ Cohort contains tags in IntSet, and may contain tags outside IntSet.
@@ -35,6 +31,15 @@ data MatchType
            -- either of Not and Mix are valid.
  deriving ( Eq )
 
+getMatchType :: R.Position -> R.Polarity -> MatchType
+getMatchType pos pol = case (pos,pol) of
+--  (Pos (Barrier _) ... )
+--  (Pos (CBarrier _) ... )
+  (R.Pos _ R.NC _,       R.Yes) -> Mix
+  (R.Pos _ R.NC _,       R.Not) -> Not
+  (R.Pos _ R.C _,        R.Yes) -> Cau
+  (R.Pos _ R.C _,        R.Not) -> NotCau
+
 nullMatch :: Match -> Bool
 nullMatch m = case m of
   AllTags -> False
@@ -42,13 +47,6 @@ nullMatch m = case m of
   Bar _ m -> nullMatch m
 
 
--- TODO: make a proper function that makes a Match from a TagSet
-foo :: TagSet -> OrList Match
-foo tagset = Or [M Mix (SR (Or [])
-                           (Or [])
-                           (Or [])
-                        ) 
-                ]
 
 
 splitReading :: CGHS.Reading -> SplitReading 
@@ -103,6 +101,5 @@ normaliseTagsetAbs tagset e@(Env _ _ envRds _) =
         specifiedTagList = Or $ filter (`includes` underspTaglist) (getOrList justTaglists)
     in fmap Rd specifiedTagList
 
-includes :: (Eq a, Foldable t) => t a -> t a -> Bool
-includes t1 t2 = all (`elem` t1) t2
+
 

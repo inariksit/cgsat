@@ -78,36 +78,34 @@ ctx2Pattern senlen origin ctx = case ctx of
                 throwError $ OutOfScope origin "ctx2Pattern" -- Pattern fails because condition(s) are not in scope. 
                 -- This is to be expected, because we try to apply every rule to every cohort.
         else do 
-          tagset <- normaliseTagsetAbs tgst `fmap` ask --normaliseTagsetAbs ignores lexical tags
-          let match = foo tgst --TODO
-          if all nullMatch (getOrList match)
+          splitRds <- normaliseTagsetAbs tgst `fmap` ask  -- :: RWSE (OrList SplitReading)
+
+          let matchtype = getMatchType posn polr -- TODO: Barrier case doesn't work
+
+          let matches = either (\x -> Or [x]) (fmap (M matchtype)) splitRds
+          if all nullMatch matches
             then do tell ["singleCtx2Pat: tagset " ++ show tgst ++" not found, rule cannot apply"]
                     throwError $ TagsetNotFound (show tgst) -- Pattern fails because tagset is not found in any readings, ie. it won't match anything.
                                              -- This is unexpected, and indicates a bug in the grammar, TODO alert user!!!!
-            else return (fmap (:[]) allPositions, [match] ) 
+            else return (fmap (:[]) allPositions, [matches] ) 
 
-{- TODO get rid of this, write a new one
-getMatch :: Int -> Position -> Polarity -> RWSE (IntSet -> Match)
-getMatch origin pos pol = case (pos,pol) of
-  (Pos (Barrier ts) c n, _) -> do
-    tsMatch <- getMatch origin (Pos AtLeast c n) pol
-    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
-    let barMatch = either id Mix barTags
-    let barInd = origin + n 
-    return $ Bar (barInd,barMatch) . tsMatch
 
-  (Pos (CBarrier ts) c n, _) -> do 
-    tsMatch <- getMatch origin (Pos AtLeast c n) pol
-    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
-    let barMatch = either id Cau barTags
-    let barInd = origin + n 
-    return $ Bar (barInd,barMatch) . tsMatch
+--getMatch :: Int -> Position -> Polarity -> RWSE Match
+--getMatch origin pos pol = case (pos,pol) of
+--  (Pos (Barrier ts) c n, _) -> do
+--    tsMatch <- getMatch origin (Pos AtLeast c n) pol
+--    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
+--    let barMatch = either id Mix barTags
+--    let barInd = origin + n 
+--    return $ Bar (barInd,barMatch) . tsMatch
 
-  (Pos _ NC _, Yes)   -> return Mix
-  (Pos _ NC _, R.Not) -> return Not
-  (Pos _ C _,  Yes)   -> return Cau
-  (Pos _ C _,  R.Not) -> return NotCau
--}
+--  (Pos (CBarrier ts) c n, _) -> do 
+--    tsMatch <- getMatch origin (Pos AtLeast c n) pol
+--    barTags <- normaliseTagsetAbs ts `fmap` asks tagMap
+--    let barMatch = either id Cau barTags
+--    let barInd = origin + n 
+--    return $ Bar (barInd,barMatch) . tsMatch
+
 --------------------------------------------------------------------------------
 -- Transform the pattern into a literal. Fails if any other step before has failed.
 
