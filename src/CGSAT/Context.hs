@@ -78,7 +78,7 @@ ctx2Pattern senlen origin ctx = case ctx of
                 throwError $ OutOfScope origin "ctx2Pattern" -- Pattern fails because condition(s) are not in scope. 
                 -- This is to be expected, because we try to apply every rule to every cohort.
         else do 
-          --tagset <- normaliseTagsetAbs tgst `fmap` asks tagMap --normaliseTagsetAbs ignores lexical tags
+          tagset <- normaliseTagsetAbs tgst `fmap` ask --normaliseTagsetAbs ignores lexical tags
           let match = foo tgst --TODO
           if all nullMatch (getOrList match)
             then do tell ["singleCtx2Pat: tagset " ++ show tgst ++" not found, rule cannot apply"]

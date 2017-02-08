@@ -150,7 +150,7 @@ trigger rule origin = do
                             throwError (OutOfScope origin "trigger")
               Just ch -> return ch
   targetSplitReadings 
-         <- do normTagset <- normaliseTagsetAbs (target rule)
+         <- do let normTagset = normaliseTagsetAbs (target rule) env
                case normTagset of
                  Left AllTags -> do tell [ "trigger: rule " ++ show rule ++ 
                                         " tries to remove or select all readings" ]
