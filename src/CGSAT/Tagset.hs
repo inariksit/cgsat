@@ -4,10 +4,10 @@ import CGSAT.Base
 import CGHS hiding ( Tag(..), Reading )
 import qualified CGHS
 
-import Data.List ( find )
+import Data.Foldable ( fold )
+import Data.List ( find, (\\) )
 import Data.Maybe ( catMaybes, fromMaybe, mapMaybe )
-import qualified Data.IntMap as IM
-import qualified Data.IntSet as IS
+--import qualified Data.IntMap as IM
 import qualified Data.Map as M
 
 
@@ -61,50 +61,48 @@ splitReading rd = SR wf lm rds
   rds = Or $ if null onlymorph then [] else [fromReading onlymorph]
 
 
+foldSplitReading :: (Foldable t, Functor t) => t SplitReading -> SplitReading
+foldSplitReading srs = SR (fold $ fmap sr_w srs) (fold $ fmap sr_l srs) (fold $ fmap sr_r srs)
+
 -- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
 -- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
-normaliseTagsetAbs :: TagSet -> RWSE (Either Match (OrList SplitReading))
-normaliseTagsetAbs tagset = return (Left AllTags) --TODO
+normaliseTagsetAbs :: TagSet -> Env -> Either Match (OrList SplitReading)
+normaliseTagsetAbs tagset e@(Env _ _ envRds _) = 
+  --TODO: we can handle Cartesian products, and some other things nicer
+  -- if we do it here without normaliseTagsetRel.
+  -- Look into it later. Also finish Diff.
+  case normaliseTagsetRel tagset of
+    All ->  Left AllTags
+    Set s -> Right (fmap splitReading s) -- OrList SplitReading
+    Diff s s' 
+     -> let ns = normaliseTagsetAbs s  e
+            ns' = normaliseTagsetAbs s' e
+        in case (ns,ns') of
+             (Left AllTags, _) -> undefined  --TODO: this is a legit case
+             (Right x, Right y) -> do -- TODO: this is very suspicious
+                let allX = foldSplitReading x
+                let allY = foldSplitReading y
 
-{-
-normaliseTagsetAbs tagset tagmap = case tagset of
-  All -> Left AllTags
-  Set s -> Right (lu s tagmap)
-  Union t t' -> liftM2 IS.union (norm t) (norm t')
-  Inters t t' -> liftM2 IS.intersection (norm t) (norm t')
+                let specifiedXMorphRds = fold $ fmap (specifyMorphReading envRds) (sr_r allX) :: OrList MorphReading
+                let specifiedYMorphRds = fold $ fmap (specifyMorphReading envRds) (sr_r allY) :: OrList MorphReading
+                let diffMorphRds = Or $ getOrList specifiedXMorphRds \\ getOrList specifiedYMorphRds
+                let diffWFs = Or $ (getOrList $ sr_w allX) \\ (getOrList $ sr_w allY)
+                let diffLems = Or $ (getOrList $ sr_l allX) \\ (getOrList $ sr_l allY)
+                Right (Or [SR diffWFs diffLems diffMorphRds])
+             (Right x, Left y) -> Left AllTags
+             (Left x, Left y) -> Left AllTags
 
-{- Intended behaviour:
-     adv adV (ada xx) `diff` ada == adv adV
-     adv adV ada `diff` (ada xx) == adv adV (ada ((*) -xx)) 
-     OBS. this all breaks when we split morph/synt. tags from lexical -}
-  Diff t t' -> liftM2 IS.difference (norm t) (norm t')
+    x  -> undefined --UnknownError ("normaliseTagsetAbs: weird tagset found " ++ show x)
 
-          --if IS.null is -- only lexical tags on the left side
-          --    then Left $ Not is' --TODO include Lex in what this returns too
-          --    else Right $ 
-
-
-{- say t=[n,adj] and t'=[m,f,mf]
-   is  = specified readings that match t: (n foo), (n bar), (n mf), ... , (adj foo), (adj bar), (adj f), ..
-   is' = specified readings that match t': (n m), (n f), (vblex sg p3 mf), (adj f), ..
-   intersection of the specified readings returns those that match 
-   sequence [[n,adj],[m,f,mf]]: (n m), (n f), ..., (adj f), (adj mf) -}
-  Cart t t' -> liftM2 IS.intersection (norm t) (norm t')
 
  where
-  norm = (`normaliseTagsetAbs` tagmap)
+  specifyMorphReading :: OrList MorphReading -> MorphReading -> OrList MorphReading
+  specifyMorphReading envrds (Rd underspTaglist) =
+    let justTaglists = fmap (getReading) envrds :: OrList (AndList Tag)
+        specifiedTagList = Or $ filter (`includes` underspTaglist) (getOrList justTaglists)
+    in fmap Rd specifiedTagList
 
-  lu :: OrList Reading -> Map Tag IntSet -> IntSet
-  lu s m = IS.unions [ fold1 IS.intersection $ 
-                         catMaybes [ M.lookup t m | t <- getAndList ts
-                                                  , not $ isLex t ] -- don't include lexical tags
-                        | ts <- getOrList s ]
+includes :: (Eq a, Foldable t) => t a -> t a -> Bool
+includes t1 t2 = all (`elem` t1) t2
 
-  fold1 f [] = IS.empty
-  fold1 f xs = foldl1 f xs
-
-
-
-
--}
