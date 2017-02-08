@@ -149,9 +149,9 @@ mkSentence w
          | w <= 0    = return IM.empty
          | otherwise = do
   s <- asks solver
-  morphrds  <- getOrList `fmap` asks rds
-  lemmas <- getOrList `fmap` asks lems
-  wforms <- getOrList `fmap` asks wfs
+  morphrds  <- getOrList `fmap` asks env_rds
+  lemmas <- getOrList `fmap` asks env_lems
+  wforms <- getOrList `fmap` asks env_wfs
 
   liftIO $ IM.fromList `fmap` sequence
      [ (,) n `fmap`
@@ -212,30 +212,16 @@ fromReading rd = Rd (fmap fromTag morphtags)
 
 -- The type Reading that CGHS/Rule exports is actually an underspecified reading.
 -- For our symbolic sentences, each reading has a word form, lemma and other tags.
--- Maybe make some newtypes to enforce that wform is WF _ and lemma is Lem _?
-data SplitReading = SR { wform :: OrList WF
-                       , lemma :: OrList Lem
-                       , reading :: OrList MorphReading } deriving (Eq,Ord)
-
---instance Show SplitReading where
---  show (SR w l r) = show w ++ " " ++ show l ++ " " ++ show r
-
-
-{- With the split of lex. and morph. tags, we represent all the combinations
-   as a Cartesian product: [WF] x [Lem] x [[Tag]]. 
-  
-   
--}
-
+data SplitReading = SR { sr_w :: OrList WF
+                       , sr_l :: OrList Lem
+                       , sr_r :: OrList MorphReading } deriving (Eq,Ord)
 
 --------------------------------------------------------------------------------
 -- Env
                 
-data Env = Env { --tagMap :: Map Tag IntSet 
-                 -- , rdMap :: IntMap MorphReading 
-                 wfs :: OrList WF
-               , lems :: OrList Lem
-               , rds :: OrList MorphReading
+data Env = Env { env_wfs :: OrList WF
+               , env_lems :: OrList Lem
+               , env_rds :: OrList MorphReading
                , solver :: Solver }
 
 withNewSolver :: Solver -> Env -> Env
@@ -254,30 +240,6 @@ unknownLem = Lem "unknown"
 
 unknownWF :: WF
 unknownWF = WF "unknown"
-
---unknownReading :: MorphReading
---unknownReading = Rd $ And [Tag unk]
--- where unk = CGHS.Tag "unknown reading"
-
---------------------------------------------------------------------------------
-
---{- rdMap --  1 |-> vblex sg p3
---             2 |-> noun sg mf
---          9023 |-> adj sg mf comp -}
---mkRdMap :: [CGHS.Reading] -> IntMap MorphReading
---mkRdMap = IM.fromDistinctAscList . zip [1..] . map (Rd . fmap fromTag)
-
--- tagMap    --  vblex |-> IS(1,30,31,32,..,490)
---                 sg    |-> IS(1,2,3,120,1800)
---                 mf    |-> IS(2,20,210,9023) 
---mkTagMap :: [CGHS.Reading] -> Map Tag IntSet 
---mkTagMap rds = M.fromList $
---  ts `for` \t -> let getInds = IS.fromList . map (1+) . findIndices (elem t)
---                 in (fromTag t, getInds rdLists) 
--- where 
---  for = flip fmap 
---  rdLists = map getAndList rds
---  ts = nub $ concat rdLists
 
 
 ----------------------------------------------------------------------------
