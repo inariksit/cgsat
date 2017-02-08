@@ -21,10 +21,12 @@ main = do
 
    (lang:r) -> do 
      (env,rules) <- envRules (lang,r) s
+     let verbose = "v" `elem` r
+--     let verbose = True
      let largestWidth = maximum $ map (fst . width) rules
      config <- evalRWSE env (mkConfig largestWidth)
 
-     (_,_,log_) <- rwse env config $ testRules (take 50 rules)
+     (_,_,log_) <- rwse env config $ testRules verbose (take 50 rules)
 
      mapM_ putStrLn log_
 
