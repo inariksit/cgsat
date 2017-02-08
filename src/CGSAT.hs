@@ -9,6 +9,7 @@ module CGSAT (
   , Config, mkConfig
   , Env, envRules
 
+  , TargetCohort
   , dummyTest
   ) where
 
