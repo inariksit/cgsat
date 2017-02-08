@@ -178,9 +178,11 @@ match2CondLit (M mtype splitrd) ind = do
  where
   mix s = orl' s . M.elems
 
-  cau s y n = andl' s =<< 
-                 sequence [ orl' s (M.elems y)
-                          , neg `fmap` orl' s (M.elems n) ]
+  cau s y n 
+    | M.null y  = mix s n -- If some element (wf,lemma,rd) is not specified for a split reading, just assume it can take any of the values
+    | otherwise = andl' s =<< 
+                     sequence [ orl' s (M.elems y)
+                              , neg `fmap` orl' s (M.elems n) ]
  
 {-
 match2CondLit (Bar (bi,bm) mat) ind = do

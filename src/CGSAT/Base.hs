@@ -137,6 +137,8 @@ partitionCohort :: Cohort -> SplitReading -> (Cohort,Cohort)
 partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) =
   (Coh inWFs inLems inRds, Coh outWFs outLems outRds)
  where
+  -- If ws/ls/rs is empty, then all of the map goes into outXxx.
+  -- Maybe handle this nicer here; now I'm trying to check it in Context.hs.
   (inWFs,outWFs) = M.partitionWithKey (\k _ -> k `elem` ws) wMap
   (inLems,outLems) = M.partitionWithKey (\k _ -> k `elem` ls) lMap
   (inRds,outRds) = M.partitionWithKey (\k _ -> k `elem` rs) rMap
