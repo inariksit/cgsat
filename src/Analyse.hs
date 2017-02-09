@@ -48,12 +48,14 @@ testRule v rule = do
 
 
   let legitConfs = rights confs
-  liftIO $ print legitConfs
+  liftIO $ print ("legit conflicts: ", legitConfs)
   if Interaction `elem` legitConfs 
-    then liftIO $ print rule >> return Interaction
+    then return Interaction
 
-    else if Internal `elem` legitConfs || null legitConfs
-      then liftIO $ print rule >> return Internal
+    else if Internal `elem` legitConfs
+      then return Internal
+          else if null legitConfs
+                then liftIO $ print confs >> return Internal
       else return NoConf
 
 
@@ -63,8 +65,13 @@ ruleTriggers verbose rule i = do
   (Config len sen) <- get
   (allCondsHold, trgCohs_otherLits) <- trigger rule i
   let (trgCohs, otherLits) = unzip trgCohs_otherLits
-  mustHaveTarget <- liftIO $ orl' s (concatMap litsFromCohort trgCohs) --TODO
-  mustHaveOther <- liftIO $ orl' s otherLits --TODO
+
+ --TODO: this is totally not working correctly. Do something smart, combine maybe with
+ --the bit that does similar things in CGSAT.apply
+  mustHaveTarget <- liftIO $ orl' s (concatMap litsFromCohort trgCohs)
+
+  liftIO $ print ("mustHaveTarget: ", mustHaveTarget)
+  mustHaveOther <- liftIO $ orl' s otherLits
   b <- liftIO $ solve s [allCondsHold,mustHaveTarget,mustHaveOther]
   if b then do when verbose $
                  liftIO $ solveAndPrint True s [mustHaveTarget, mustHaveOther, allCondsHold] sen
