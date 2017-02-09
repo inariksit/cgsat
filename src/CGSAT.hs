@@ -13,7 +13,7 @@ module CGSAT (
 
   , litsFromCohort
 
-  , dummyTest
+  , dummyGenerate
 
   ) where
 
@@ -43,11 +43,13 @@ type TargetCohort = Cohort
 -- Just to make some type signatures clearer.
 
 
-dummyTest :: RWSE ()
-dummyTest = do
+dummyGenerate :: [Rule] -> RWSE ()
+dummyGenerate rules = do
   s <- asks solver
-  sent <- mkSentence 2
+  let largestWidth = maximum $ map (fst . width) rules
+  sent <- mkSentence largestWidth
   liftIO $ defaultRules s sent
+  mapM_ apply rules
   liftIO $ solveAndPrint False s [] sent
   
 

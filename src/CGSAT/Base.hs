@@ -231,6 +231,12 @@ mkEnv :: Solver -> [CGHS.Reading] -> [CGHS.Tag] -> [CGHS.Tag] -> Env
 mkEnv s rds ls ws = Env (mkWFs ws) (mkLems ls) (mkRds rds) s 
  where 
   mkRds = Or . map fromReading
+  --mkLems x = let lems = mapMaybe fromLem x
+  --           in if null lems then Or [unknownLem]
+  --                           else Or lems
+  --mkWFs x = let wfs = mapMaybe fromWF x
+  --          in if null wfs then Or [unknownWF]
+  --                          else Or wfs
   mkLems x = Or (unknownLem:mapMaybe fromLem x)
   mkWFs x = Or (unknownWF:mapMaybe fromWF x)
 
@@ -282,13 +288,13 @@ envRules (lang,r) s = do
 
   let env = mkEnv s nonLexReadings lemmas wforms
   when verbose $ do 
-    print (length readingsInLex, take 50 readingsInLex)
-
-    print (length readingsInGr, take 50 readingsInGr)
+    print (length nonLexReadings, take 50 nonLexReadings)
+    print (length lemmas, take 50 lemmas)
+    print (length wforms, take 50 wforms)
     putStrLn "---------"
 
     putStrLn $ show (length rules) ++ " rules"
-    mapM_ print (take 15 rules)
+    --mapM_ print (take 15 rules)
 
 
   return (env,rules)

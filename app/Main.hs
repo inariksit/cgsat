@@ -1,6 +1,6 @@
 module Main where
 
-import CGSAT ( rwse, evalRWSE, mkConfig, emptyConfig, envRules, dummyTest, apply, width, mostReadingsLeft )
+import CGSAT ( rwse, evalRWSE, mkConfig, emptyConfig, envRules, dummyGenerate, apply, width )
 import Analyse ( testRules )
 import Order ( order )
 import SAT ( newSolver )
@@ -16,9 +16,6 @@ main = do
   s <- newSolver
 
   case args of 
-   ("dummy":_) -> do
-     (env,_) <- envRules ("eus",[]) s
-     evalRWSE env dummyTest
 
    (lang:task:r) -> do 
      (env,rules) <- envRules (lang,r) s
@@ -30,19 +27,23 @@ main = do
           let largestWidth = maximum $ map (fst . width) rules
           config <- evalRWSE env (mkConfig largestWidth)
 
-          (_,_,log_) <- rwse env config $ testRules verbose (take 50 rules)
+          (_,_,log_) <- rwse env config $ testRules verbose (take 60 rules)
 
           mapM_ putStrLn log_
 
           putStrLn "---------"
 
       "order" -> do
-          (a,_,_) <- rwse env emptyConfig $ order (take 2 rules)
+          let fewRules = take 4 rules
+          (a,_,_) <- rwse env emptyConfig $ order fewRules
           let rls = either (const []) id a
           putStrLn "Original order: "
-          mapM_ print (take 4 rules)
+          mapM_ print fewRules
           putStrLn "New order: "
           mapM_ print rls
+
+      "dummy" -> do
+          evalRWSE env (dummyGenerate rules)
 
       _ -> putStrLn "I don't do that yet"
 

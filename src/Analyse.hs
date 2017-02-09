@@ -36,6 +36,7 @@ testRules v = mapM (testRule v)
 
 testRule :: Bool -> Rule -> RWSE Conflict
 testRule v rule = do
+  liftIO (print rule)
   c@(Config len sen) <- get
   e@(Env w l r s) <- ask
   confs <-    -- I suspect there's a nicer way to handle this
@@ -62,11 +63,11 @@ ruleTriggers verbose rule i = do
   (Config len sen) <- get
   (allCondsHold, trgCohs_otherLits) <- trigger rule i
   let (trgCohs, otherLits) = unzip trgCohs_otherLits
-  mustHaveTrg <- liftIO $ orl' s (concatMap litsFromCohort trgCohs) --TODO
+  mustHaveTarget <- liftIO $ orl' s (concatMap litsFromCohort trgCohs) --TODO
   mustHaveOther <- liftIO $ orl' s otherLits --TODO
-  b <- liftIO $ solve s [allCondsHold]
+  b <- liftIO $ solve s [allCondsHold,mustHaveTarget,mustHaveOther]
   if b then do when verbose $
-                 liftIO $ solveAndPrint True s [mustHaveTrg, mustHaveOther, allCondsHold] sen
+                 liftIO $ solveAndPrint True s [mustHaveTarget, mustHaveOther, allCondsHold] sen
                return NoConf
    else 
      do s' <- liftIO newSolver
