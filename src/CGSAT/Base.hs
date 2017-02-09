@@ -125,9 +125,9 @@ emptyConfig = Config 0 IM.empty
 
 type Sentence = IntMap Cohort
 
-data Cohort = Coh { wordforms :: Map WF Lit -- One per cohort
-                  , lemmas :: Map Lem Lit   -- Several per cohort
-                  , readings :: Map MorphReading Lit  -- Several per cohort -- TODO connect to lemmas
+data Cohort = Coh { coh_w :: Map WF Lit -- One per cohort
+                  , coh_l :: Map Lem Lit   -- Several per cohort
+                  , coh_r :: Map MorphReading Lit  -- Several per cohort -- TODO connect to lemmas
                   } deriving (Show,Eq)
 
 emptyCohort :: Cohort

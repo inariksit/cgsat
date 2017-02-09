@@ -3,20 +3,25 @@ module CGSAT (
     apply, trigger, defaultRules
 
   , solveAndPrint
+  , mostReadingsLeft
 
   , RWSE, rwse, evalRWSE
   , CGException(..)
-  , Config, mkConfig
+  , Config, mkConfig, emptyConfig
   , Env, envRules
+  , width
 
-  , TargetCohort
+  , litsFromCohort
+
   , dummyTest
+
   ) where
 
 import CGHS.Rule hiding ( Not, Negate )
 import qualified CGHS.Rule as R
 import CGHS 
---( isLex, normalisePosition, normaliseTagsetRel )
+
+import SAT.Named
 
 import CGSAT.Base
 import CGSAT.Context
@@ -25,7 +30,8 @@ import CGSAT.Tagset
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 
-import Data.List ( findIndices, intercalate, nub )
+import Data.Foldable ( fold )
+import Data.List ( elemIndex, findIndices, intercalate, nub )
 import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
 
@@ -91,22 +97,22 @@ apply rule = do
         else 
           do newTrgLits <- liftIO $ unzip3 `fmap` sequence
               [ do cannotApply <- orl' s [ neg allCondsHold -- Same for all versions of target
-                                                  , neg otherReadingsLeft ] -- Different for each version of target
+                                         , neg otherReadingsLeft ] -- Different for each version of target
                    newWFs <- sequence 
                               [ do newWFLit <- andl s newName [ oldWFLit, cannotApply ]
                                    return (wf,newWFLit)
-                                  | (wf,oldWFLit) <- M.assocs (wordforms trgCoh) 
+                                  | (wf,oldWFLit) <- M.assocs (coh_w trgCoh) 
                                   , let newName = show oldWFLit ++ "'" ]
 
                    newLems <- sequence 
                               [ do newLemLit <- liftIO $ andl s newName [ oldLemLit, cannotApply ]
                                    return (lem,newLemLit)
-                                  | (lem,oldLemLit) <- M.assocs (lemmas trgCoh) 
+                                  | (lem,oldLemLit) <- M.assocs (coh_l trgCoh) 
                                   , let newName = show oldLemLit ++ "'" ]
                    newRds <- sequence 
                               [ do newRdLit <- andl s newName [ oldRdLit, cannotApply ]
                                    return (rd,newRdLit)
-                                  | (rd,oldRdLit)  <- M.assocs (readings trgCoh) 
+                                  | (rd,oldRdLit)  <- M.assocs (coh_r trgCoh) 
                                   , let newName = show oldRdLit ++ "'" ]
 
                    return (newWFs, newLems, newRds) -- :: IO ([],[],[])
@@ -173,9 +179,9 @@ trigger rule origin = do
     let (targetCoh,otherCoh) = partitionTarget (oper rule) coh srd
 
 
-    otherWFs <- safeElems (wordforms otherCoh)
-    otherLem <- safeElems (lemmas otherCoh)
-    otherRds <- safeElems (readings otherCoh)
+    otherWFs <- safeElems (coh_w otherCoh)
+    otherLem <- safeElems (coh_l otherCoh)
+    otherRds <- safeElems (coh_r otherCoh)
     isOther <- liftIO $ 
                 andl' s =<< sequence [ orl s (wdn++":nt_wordform") otherWFs
                                      , orl s (wdn++":nt_lemma") otherLem
@@ -212,3 +218,30 @@ partitionTarget op coh sr = case op of
  where
   (incoh,outcoh) = partitionCohort coh sr 
 
+
+
+width :: Rule -> (Int,Int)
+width rule = (length [minw..maxw], maybe 9999 (1+) (elemIndex 0 [minw..maxw]))
+ where                                   
+  ctxScopes = fmap scopes (context rule) :: AndList (OrList Int) -- And [Or [1], Or [1,2,3], Or [-2,-1]]
+  flatScopes = fold (getAndList ctxScopes) :: OrList Int -- Or [1,1,2,3,-2,-1]
+  (minw,maxw) = (0 `min` minimum flatScopes, 0 `max` maximum flatScopes)
+
+
+mostReadingsLeft :: [Lit] -> RWSE (Int,Int)
+mostReadingsLeft ass = do
+  s <- asks solver
+  sen <- gets sentence
+  liftIO $ defaultRules s sen
+  let allLits = concatMap litsFromCohort (IM.elems sen)
+  k <- liftIO $ count s allLits  -- :: IO Unary
+  b <- liftIO $ solveMaximize s ass k
+  trueLits <- liftIO $ modelValue s `filterM` allLits
+  return (length trueLits, length allLits)
+
+litsFromCohort :: Cohort -> [Lit]
+litsFromCohort (Coh x y z) = xlits++ylits++zlits
+ where
+  xlits = M.elems x
+  ylits = M.elems y
+  zlits = M.elems z

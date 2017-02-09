@@ -15,7 +15,7 @@ import Data.Foldable ( fold )
 import qualified Data.IntMap as IM
 import qualified Data.Map as M
 import Data.Either ( lefts, rights )
-import Data.List ( nub, elemIndex )
+import Data.List ( nub )
 import Data.Maybe ( catMaybes, fromMaybe )
 import Debug.Trace ( trace )
 import System.Environment ( getArgs )
@@ -62,7 +62,7 @@ ruleTriggers verbose rule i = do
   (Config len sen) <- get
   (allCondsHold, trgCohs_otherLits) <- trigger rule i
   let (trgCohs, otherLits) = unzip trgCohs_otherLits
-  mustHaveTrg <- liftIO $ orl' s (concatMap getLits trgCohs) --TODO
+  mustHaveTrg <- liftIO $ orl' s (concatMap litsFromCohort trgCohs) --TODO
   mustHaveOther <- liftIO $ orl' s otherLits --TODO
   b <- liftIO $ solve s [allCondsHold]
   if b then do when verbose $
@@ -78,7 +78,7 @@ ruleTriggers verbose rule i = do
                                            liftIO $ defaultRules s' tempSen
                                            (condsHold,trg_oth) <- trigger rule i
                                            let (trg,oth) = unzip trg_oth --TODO
-                                           mustHaveTrg <- liftIO $ orl' s' (concatMap getLits trg)
+                                           mustHaveTrg <- liftIO $ orl' s' (concatMap litsFromCohort trg)
                                            mustHaveOth <- liftIO $ orl' s' oth
                                            b <- liftIO $ solve s' [condsHold,mustHaveTrg,mustHaveOth]
                                            if b then do when verbose $ 
@@ -92,18 +92,3 @@ ruleTriggers verbose rule i = do
         put (Config len sen)
         return c
 
-
-width :: Rule -> (Int,Int)
-width rule = (length [minw..maxw], maybe 9999 (1+) (elemIndex 0 [minw..maxw]))
- where                                   
-  ctxScopes = fmap scopes (context rule) :: AndList (OrList Int) -- And [Or [1], Or [1,2,3], Or [-2,-1]]
-  flatScopes = fold (getAndList ctxScopes) :: OrList Int -- Or [1,1,2,3,-2,-1]
-  (minw,maxw) = (0 `min` minimum flatScopes, 0 `max` maximum flatScopes)
-
-
-getLits :: TargetCohort -> [Lit]
-getLits (Coh x y z) = xlits++ylits++zlits
- where
-  xlits = M.elems x
-  ylits = M.elems y
-  zlits = M.elems z
