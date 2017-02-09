@@ -22,6 +22,12 @@ data Match = M MatchType
            | AllTags -- Cohort may contain any tag
            deriving ( Eq )
 
+--TODO
+instance Show Match where
+  show AllTags   = "AllTags"
+  show (M m _)   = "Match " ++ show m ++ " some readings"
+  show (Bar _ _) = "Barrier match"
+
 data MatchType
   = Mix -- ^ Cohort contains tags in IntSet, and may contain tags outside IntSet.
         -- OBS. not same as target, which *must* contain tags outside IntSet.
@@ -29,7 +35,7 @@ data MatchType
   | Not -- ^ Cohort contains no tags in IntSet.
   | NotCau -- ^ Cohort contains (not only) tags in IntSet:
            -- either of Not and Mix are valid.
- deriving ( Eq )
+ deriving ( Eq, Show )
 
 getMatchType :: R.Position -> R.Polarity -> MatchType
 getMatchType pos pol = case (pos,pol) of
@@ -67,31 +73,46 @@ foldSplitReading srs = SR (fold $ fmap sr_w srs) (fold $ fmap sr_l srs) (fold $ 
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
 normaliseTagsetAbs :: TagSet -> Env -> Either Match (OrList SplitReading)
 normaliseTagsetAbs tagset e@(Env _ _ envRds _) = 
-  --TODO: we can handle Cartesian products, and some other things nicer
-  -- if we do it here without normaliseTagsetRel.
-  -- Look into it later. Also finish Diff.
-  case normaliseTagsetRel tagset of
-    All ->  Left AllTags
-    Set s -> Right (fmap splitReading s) -- OrList SplitReading
-    Diff s s' 
-     -> let ns = normaliseTagsetAbs s  e
-            ns' = normaliseTagsetAbs s' e
-        in case (ns,ns') of
-             (Left AllTags, _) -> undefined  --TODO: this is a legit case
-             (Right x, Right y) -> do -- TODO: this is very suspicious
-                let allX = foldSplitReading x
-                let allY = foldSplitReading y
 
-                let specifiedXMorphRds = fold $ fmap (specifyMorphReading envRds) (sr_r allX) :: OrList MorphReading
-                let specifiedYMorphRds = fold $ fmap (specifyMorphReading envRds) (sr_r allY) :: OrList MorphReading
-                let diffMorphRds = Or $ getOrList specifiedXMorphRds \\ getOrList specifiedYMorphRds
-                let diffWFs = Or $ (getOrList $ sr_w allX) \\ (getOrList $ sr_w allY)
-                let diffLems = Or $ (getOrList $ sr_l allX) \\ (getOrList $ sr_l allY)
-                Right (Or [SR diffWFs diffLems diffMorphRds])
-             (Right x, Left y) -> Left AllTags
-             (Left x, Left y) -> Left AllTags
+  case tagset of
+    All -> Left AllTags
 
-    x  -> undefined --UnknownError ("normaliseTagsetAbs: weird tagset found " ++ show x)
+    -- For a case like
+    -- "haar" + (N | NP)
+    Cart ts ts'
+      -> let normTs  = normaliseTagsetRel ts
+             normTs' = normaliseTagsetRel ts'
+          in case (normTs,normTs') of
+               (Set x,Set y)
+                  -> if and
+                         [ all isLex (getAndList reading) | reading <- getOrList x ]
+                          then let srs  = fmap splitReading x :: OrList SplitReading
+                                   srs' = fmap splitReading y :: OrList SplitReading
+                                in Right $ Or [ foldl1 mergeSRs (mappend srs srs') ]
+                            else normaliseTagsetAbs (normaliseTagsetRel tagset) e
+               _ -> normaliseTagsetAbs (normaliseTagsetRel tagset) e
+
+    _ -> case normaliseTagsetRel tagset of
+           Set s -> Right (fmap splitReading s) -- OrList SplitReading
+           Diff s s' 
+              -> let ns = normaliseTagsetAbs s  e
+                     ns' = normaliseTagsetAbs s' e
+                 in case (ns,ns') of
+                      (Left AllTags, _) -> undefined  --TODO: this is a legit case
+                      (Right x, Right y) -> do -- TODO: this is very suspicious
+                        let allX = foldSplitReading x
+                        let allY = foldSplitReading y
+
+                        let specifiedXMorphRds = fold $ fmap (specifyMorphReading envRds) (sr_r allX) :: OrList MorphReading
+                        let specifiedYMorphRds = fold $ fmap (specifyMorphReading envRds) (sr_r allY) :: OrList MorphReading
+                        let diffMorphRds = Or $ getOrList specifiedXMorphRds \\ getOrList specifiedYMorphRds
+                        let diffWFs = Or $ (getOrList $ sr_w allX) \\ (getOrList $ sr_w allY)
+                        let diffLems = Or $ (getOrList $ sr_l allX) \\ (getOrList $ sr_l allY)
+                        Right (Or [SR diffWFs diffLems diffMorphRds])
+                      (Right x, Left y) -> Left AllTags
+                      (Left x, Left y) -> Left AllTags
+
+           x  -> undefined --UnknownError ("normaliseTagsetAbs: weird tagset found " ++ show x)
 
 
  where
