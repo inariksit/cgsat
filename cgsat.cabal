@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 
 library
-  exposed-modules:     CGSAT, Analyse, Disambiguate
+  exposed-modules:     CGSAT, Analyse, Disambiguate, Order
   other-modules:       CGSAT.AmbiguityClass, CGSAT.Base, CGSAT.Context, CGSAT.Tagset,
                        Derive, Euskara
   build-depends:       array
