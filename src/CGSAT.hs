@@ -31,7 +31,7 @@ import qualified Data.Map as M
 import qualified Data.IntMap as IM
 
 import Data.Foldable ( fold )
-import Data.List ( elemIndex, findIndices, intercalate, nub )
+import Data.List ( elemIndex, findIndices, intercalate, nub, (\\) )
 import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
 
@@ -166,12 +166,12 @@ trigger rule origin = do
                                     throwError NoReadingsLeft
                  Right srs -> return (getOrList srs)
   
-
+  --liftIO $ putStrLn "trigger: targetSplitReadings"
+  --liftIO $ mapM_ print targetSplitReadings
   condshold <- liftIO $ andl' s (getAndList conds) -- All conditions hold: this is same for the whole cohort
   trg_others <- mapM (targetAndOthers s trgCoh)  -- Target and others is relative to each SplitReading:
                      targetSplitReadings         -- returning a list of (trg,other) pairs
-                   
-
+                    
   return (condshold, trg_others)
 
  where
@@ -179,7 +179,8 @@ trigger rule origin = do
                   -> RWSE (TargetCohort,Lit)
   targetAndOthers s coh srd = do
     let (targetCoh,otherCoh) = partitionTarget (oper rule) coh srd
-
+    --liftIO $ print ("targetAndOthers: srd", srd)
+    --liftIO $ print ("targetAndOthers: targetCoh ", targetCoh)
 
     otherWFs <- safeElems (coh_w otherCoh)
     otherLem <- safeElems (coh_l otherCoh)
@@ -239,6 +240,8 @@ mostReadingsLeft ass = do
   k <- liftIO $ count s allLits  -- :: IO Unary
   b <- liftIO $ solveMaximize s ass k
   trueLits <- liftIO $ modelValue s `filterM` allLits
+  let falseLits = allLits \\ trueLits 
+  liftIO $ mapM_ print falseLits
   return (length trueLits, length allLits)
 
 litsFromCohort :: Cohort -> [Lit]
