@@ -66,11 +66,10 @@ ruleTriggers verbose rule i = do
   (allCondsHold, trgCohs_otherLits) <- trigger rule i
   let (trgCohs, otherLits) = unzip trgCohs_otherLits
 
- --TODO: this is totally not working correctly. Do something smart, combine maybe with
- --the bit that does similar things in CGSAT.apply
-  mustHaveTarget <- liftIO $ orl' s (concatMap litsFromCohort trgCohs)
+  mustHaveTarget <- liftIO $ getTargetLit s trgCohs
 
   liftIO $ print ("mustHaveTarget: ", mustHaveTarget)
+  liftIO $ print ("trgCohs: ", trgCohs)
   mustHaveOther <- liftIO $ orl' s otherLits
   b <- liftIO $ solve s [allCondsHold,mustHaveTarget,mustHaveOther]
   if b then do when verbose $
@@ -78,15 +77,13 @@ ruleTriggers verbose rule i = do
                return NoConf
    else 
      do s' <- liftIO newSolver
-        c <- local (withNewSolver s') $ do --tempSen <- mkSentence len
-                                           --put (Config len tempSen)
-                                           tempConf <- mkConfig len
+        c <- local (withNewSolver s') $ do tempConf <- mkConfig len
                                            put tempConf
                                            tempSen <- gets sentence
                                            liftIO $ defaultRules s' tempSen
                                            (condsHold,trg_oth) <- trigger rule i
-                                           let (trg,oth) = unzip trg_oth --TODO
-                                           mustHaveTrg <- liftIO $ orl' s' (concatMap litsFromCohort trg)
+                                           let (trg,oth) = unzip trg_oth 
+                                           mustHaveTrg <- liftIO $ getTargetLit s' trg
                                            mustHaveOth <- liftIO $ orl' s' oth
                                            b <- liftIO $ solve s' [condsHold,mustHaveTrg,mustHaveOth]
                                            if b then do when verbose $ 
@@ -99,4 +96,14 @@ ruleTriggers verbose rule i = do
         liftIO $ deleteSolver s'
         put (Config len sen)
         return c
+
+ where
+  getTargetLit :: Solver -> [SplitCohort] -> IO Lit
+  getTargetLit s trgCohs =  andl' s =<< sequence
+    [ do wfLit  <- orl' s (maybe [true] M.elems mw)
+         lemLit <- orl' s (maybe [true] M.elems ml)
+         rdLit  <- orl' s (maybe [true] M.elems mr)
+         andl' s [wfLit, lemLit, rdLit]
+     | (SCoh mw ml mr) <- trgCohs ]
+
 

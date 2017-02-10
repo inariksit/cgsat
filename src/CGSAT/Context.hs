@@ -147,7 +147,7 @@ match2CondLit (M mtype splitrd) ind = do
                          throwError (OutOfScope ind "match2CondLit")                 
            Just co -> return co
 
-  let ( Coh inWFs inLems inRds , Coh outWFs outLems outRds) = partitionCohort coh splitrd
+  let (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds) = partitionCohort coh splitrd
 
   -- This is requirement for one reading.
   -- It will probably be a problem to connect a lemma and a word form
@@ -155,9 +155,9 @@ match2CondLit (M mtype splitrd) ind = do
   -- For now, I won't try with lemmas, but I can add a constraint to wfs
   -- that only one per cohort may be true.
   liftIO $ case mtype of
-    Mix -> do mixWF <- mix s inWFs outWFs
-              mixLemma <- mix s inLems outLems
-              mixReading <- mix s inRds outRds
+    Mix -> do mixWF <- mix s inWFs
+              mixLemma <- mix s inLems
+              mixReading <- mix s inRds
               andl' s [mixWF, mixLemma, mixReading]
 
     Cau -> do cauWF <- cau s inWFs outWFs
@@ -168,22 +168,26 @@ match2CondLit (M mtype splitrd) ind = do
               notLemma <- cau s outLems inLems
               notReading <- cau s outRds inRds
               andl' s [notWF, notLemma, notReading]
-    NotCau -> do ncWF <- mix s outWFs inWFs
-                 ncLemma <- mix s outLems inLems
-                 ncReading <-  mix s outRds inRds
+    NotCau -> do ncWF <- mix s outWFs
+                 ncLemma <- mix s outLems
+                 ncReading <-  mix s outRds
                  andl' s [ncWF, ncLemma, ncReading]
 
  where
-  mix s y n | M.null y  = orl' s (M.elems n)
-            | otherwise = orl' s (M.elems y)
-            -- if both y and n are null, then orl' will return false
+  mix s y = case y of  -- If partitionCohort encountered an empty slot in a SplitReading,
+             Nothing -> return true -- it doesn't care: default rule will be enough for determining the readings in this particular slot.
+             Just mp -> if M.null mp 
+                          --then throwError $ UnknownError "match2CondLit: map in a split cohort is empty"
+                          then error "match2CondLit: map in a split cohort is empty"
+                          else orl' s (M.elems mp)
 
-  cau s y n 
-    | M.null y  = mix s n y -- If some element (wf,lemma,rd) is not specified for a split reading, just assume it can take any of the values
-    | otherwise = andl' s =<< 
-                     sequence [ orl' s (M.elems y)
-                              , neg `fmap` orl' s (M.elems n) ]
- 
+  cau s y n = case (y,n) of  
+     (Nothing, Nothing) -> return true
+     (Just ym, Just nm)
+       -> andl' s =<< sequence [ orl' s (M.elems ym)
+                               , neg `fmap` orl' s (M.elems nm) ]
+--     _ -> throwError $ UnknownError "match2CondLit: something unexpected happened"
+     _ -> error "match2CondLit: something unexpected happened"
 {-
 match2CondLit (Bar (bi,bm) mat) ind = do
   s <- asks solver

@@ -43,7 +43,8 @@ module CGSAT.Base (
     -- ** Config
   , Config(..), emptyConfig, mkConfig
   , Sentence, mkSentence
-  , Cohort(..), emptyCohort, partitionCohort
+  , Cohort(..), emptyCohort
+  , SplitCohort(..), partitionCohort
 
     -- ** Log
   , Log
@@ -130,18 +131,41 @@ data Cohort = Coh { coh_w :: Map WF Lit -- One per cohort
                   , coh_r :: Map MorphReading Lit  -- Several per cohort -- TODO connect to lemmas
                   } deriving (Show,Eq)
 
+data SplitCohort = SCoh { scoh_w :: Maybe (Map WF Lit)
+                  , scoh_l :: Maybe (Map Lem Lit)
+                  , scoh_r :: Maybe (Map MorphReading Lit)
+                  } deriving (Show,Eq)
+
 emptyCohort :: Cohort
 emptyCohort = Coh M.empty M.empty M.empty
 
-partitionCohort :: Cohort -> SplitReading -> (Cohort,Cohort)
+partitionCohort :: Cohort -> SplitReading -> (SplitCohort,SplitCohort)
 partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) =
-  (Coh inWFs inLems inRds, Coh outWFs outLems outRds)
+  (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds)
  where
   -- If ws/ls/rs is empty, then all of the map goes into outXxx.
   -- Maybe handle this nicer here; now I'm trying to check it in Context.hs.
-  (inWFs,outWFs) = M.partitionWithKey (\k _ -> k `elem` ws) wMap
-  (inLems,outLems) = M.partitionWithKey (\k _ -> k `elem` ls) lMap
-  (inRds,outRds) = M.partitionWithKey (\k _ -> k `elem` rs) rMap
+  wforms = ws -- if null (getOrList ws) then Or [unknownWF] else ws
+  lemmas = ls -- if null (getOrList ls) then Or [unknownLem] else ls
+  (inWFs,outWFs) = if null ws 
+                    then (Nothing,Nothing)
+                    else mapTuple Just $ 
+                           M.partitionWithKey (\k _ -> k `elem` wforms) wMap
+  (inLems,outLems) = if null ls
+                      then (Nothing,Nothing)
+                      else mapTuple Just $ 
+                             M.partitionWithKey (\k _ -> k `elem` lemmas) lMap
+  (inRds,outRds) = if null rs
+                      then (Nothing,Nothing)
+                      else mapTuple Just $
+                             M.partitionWithKey (\k _ -> k `isSubr` rs) rMap
+
+  subr (Rd uspec) (Rd spec) = includes uspec spec
+  isSubr :: MorphReading -> OrList MorphReading -> Bool
+  isSubr rd rds = any (subr rd) rds
+
+  mapTuple :: (a->b) -> (a,a) -> (b,b)
+  mapTuple f (x,y) = (f x, f y)
 
 -- | Using the readings and the solver in environment, create a sentence.
 mkSentence :: Int -> RWSE Sentence

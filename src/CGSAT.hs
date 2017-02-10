@@ -148,7 +148,7 @@ apply rule = do
 trigger :: Rule 
         -> Int -- ^ Rule applied to an index in the sentence
         -> RWSE ( Lit -- ^ Conditions of that rule
-                , [(TargetCohort,Lit)] )-- ^ List of possible targets and others                
+                , [(SplitCohort,Lit)] )-- ^ List of possible targets and others                
 trigger rule origin = do
   (Config len sen) <- get
   env@(Env ws ls rs s) <- ask
@@ -176,15 +176,16 @@ trigger rule origin = do
 
  where
   targetAndOthers :: Solver -> Cohort -> SplitReading 
-                  -> RWSE (TargetCohort,Lit)
+                  -> RWSE (SplitCohort,Lit)
   targetAndOthers s coh srd = do
     let (targetCoh,otherCoh) = partitionTarget (oper rule) coh srd
     --liftIO $ print ("targetAndOthers: srd", srd)
     --liftIO $ print ("targetAndOthers: targetCoh ", targetCoh)
+    --liftIO $ print ("targetAndOthers: otherCoh ", otherCoh)
 
-    otherWFs <- safeElems (coh_w otherCoh)
-    otherLem <- safeElems (coh_l otherCoh)
-    otherRds <- safeElems (coh_r otherCoh)
+    otherWFs <- safeElems (scoh_w otherCoh)
+    otherLem <- safeElems (scoh_l otherCoh)
+    otherRds <- safeElems (scoh_r otherCoh)
     isOther <- liftIO $ 
                 andl' s =<< sequence [ orl s (wdn++":nt_wordform") otherWFs
                                      , orl s (wdn++":nt_lemma") otherLem
@@ -197,8 +198,11 @@ trigger rule origin = do
   -- If some if the maps in the non-target cohort is null,
   -- this means that everything is in the target, and the rule
   -- would try remove all readings. For this, we throw an error.
-  safeElems :: Map k Lit -> RWSE [Lit]
-  safeElems m = if M.null m then throwError NoReadingsLeft else return (M.elems m)
+  -- Problem: with Select rules, we flip in and out, so this throws error in error.
+  safeElems :: Maybe (Map k Lit) -> RWSE [Lit]
+  safeElems Nothing = return [true]
+  safeElems (Just m) | M.null m = throwError $ NoReadingsLeft "trigger.safeElems" 
+                     | otherwise = return (M.elems m)
 
 --------------------------------------------------------------------------------
 
@@ -213,7 +217,7 @@ defaultRules s sentence =
 
 --------------------------------------------------------------------------------
 
-partitionTarget :: Oper -> Cohort -> SplitReading -> (Cohort,Cohort)
+partitionTarget :: Oper -> Cohort -> SplitReading -> (SplitCohort,SplitCohort)
 partitionTarget op coh sr = case op of
   SELECT -> (outcoh,incoh)
   REMOVE -> (incoh,outcoh)
