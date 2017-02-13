@@ -51,25 +51,27 @@ dummyGenerate rules = do
   liftIO $ defaultRules s sent
   mapM_ apply rules
   liftIO $ solveAndPrint False s [] sent
+  return ()
   
 
-solveAndPrint :: Bool -> Solver -> [Lit] -> Sentence -> IO ()
+solveAndPrint :: Bool -> Solver -> [Lit] -> Sentence -> IO Bool
 solveAndPrint vrb s ass sen = do
-   b <- solve s ass
-   if b 
-   then do
-      when vrb $ print ass
-      trueVals <- sequence 
+  --defaultRules s sen
+  b <- solve s ass
+  if b 
+  then do
+    when vrb $ print ass
+    trueVals <- sequence 
          [ do trueWFs <- modelValue s `filterM` M.elems wfs
               trueLems <- modelValue s `filterM` M.elems lems
               trueRds <- modelValue s `filterM` M.elems rds
               return (trueWFs,trueLems,trueRds)
             | (Coh wfs lems rds) <- IM.elems sen ]
-      mapM_ print trueVals --TODO nicer printout
-      putStrLn "----"
-    else do
-         putStrLn $ "solveAndPrint: Conflict with assumptions " ++ show ass
-
+    mapM_ print trueVals --TODO nicer printout
+    putStrLn "----"
+  else do
+    putStrLn $ "solveAndPrint: Conflict with assumptions " ++ show ass
+  return b
 
 --------------------------------------------------------------------------------
 -- 

@@ -63,18 +63,19 @@ ruleTriggers :: Bool -> Rule -> Int -> RWSE Conflict
 ruleTriggers verbose rule i = do
   s <- asks solver
   (Config len sen) <- get
+  --liftIO $ defaultRules s sen
   (allCondsHold, trgCohs_otherLits) <- trigger rule i
   let (trgCohs, otherLits) = unzip trgCohs_otherLits
 
   mustHaveTarget <- liftIO $ getTargetLit s trgCohs
 
-  liftIO $ print ("mustHaveTarget: ", mustHaveTarget)
-  liftIO $ print ("trgCohs: ", trgCohs)
+  --liftIO $ print ("mustHaveTarget: ", mustHaveTarget)
+  --liftIO $ print ("trgCohs: ", trgCohs)
   mustHaveOther <- liftIO $ orl' s otherLits
-  b <- liftIO $ solve s [allCondsHold,mustHaveTarget,mustHaveOther]
-  if b then do when verbose $
-                 liftIO $ solveAndPrint True s [mustHaveTarget, mustHaveOther, allCondsHold] sen
-               return NoConf
+  b <- liftIO $
+        if verbose then solveAndPrint True s [mustHaveTarget, mustHaveOther, allCondsHold] sen
+          else solve s [allCondsHold,mustHaveTarget,mustHaveOther]
+  if b then return NoConf
    else 
      do s' <- liftIO newSolver
         c <- local (withNewSolver s') $ do tempConf <- mkConfig len
@@ -85,14 +86,11 @@ ruleTriggers verbose rule i = do
                                            let (trg,oth) = unzip trg_oth 
                                            mustHaveTrg <- liftIO $ getTargetLit s' trg
                                            mustHaveOth <- liftIO $ orl' s' oth
-                                           b <- liftIO $ solve s' [condsHold,mustHaveTrg,mustHaveOth]
-                                           if b then do when verbose $ 
-                                                          liftIO $ solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
-                                                        return Interaction
-                                           else do when verbose $ do
-                                                     liftIO $ print rule
-                                                     liftIO $ solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
-                                                   return Internal
+                                           b <- liftIO $
+                                                 if verbose then solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
+                                                   else solve s' [condsHold,mustHaveTrg,mustHaveOth]
+                                           return $ if b then Interaction
+                                                        else Internal
         liftIO $ deleteSolver s'
         put (Config len sen)
         return c
