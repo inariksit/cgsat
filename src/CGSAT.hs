@@ -105,25 +105,27 @@ apply rule = do
                    newWFs <- sequence 
                               [ do newWFLit <- andl s newName [ oldWFLit, cannotApply ]
                                    return (wf,newWFLit)
-                                  | (wf,oldWFLit) <- M.assocs (coh_w trgCoh) 
+                                  | (wf,oldWFLit) <- maybe [] M.assocs mw
                                   , let newName = show oldWFLit ++ "'" ]
 
                    newLems <- sequence 
                               [ do newLemLit <- liftIO $ andl s newName [ oldLemLit, cannotApply ]
                                    return (lem,newLemLit)
-                                  | (lem,oldLemLit) <- M.assocs (coh_l trgCoh) 
+                                  | (lem,oldLemLit) <- maybe [] M.assocs ml
                                   , let newName = show oldLemLit ++ "'" ]
                    newRds <- sequence 
                               [ do newRdLit <- andl s newName [ oldRdLit, cannotApply ]
                                    return (rd,newRdLit)
-                                  | (rd,oldRdLit)  <- M.assocs (coh_r trgCoh) 
+                                  | (rd,oldRdLit) <- maybe [] M.assocs mr
                                   , let newName = show oldRdLit ++ "'" ]
-
+                   --print ("apply.newRds ", newRds)                   
                    return (newWFs, newLems, newRds) -- :: IO ([],[],[])
-                    | (trgCoh, otherReadingsLeft) <- trgsAndOthers ] -- :: [ ([],[],[]) ]
+                    | ( SCoh mw ml mr
+                      , otherReadingsLeft) <- trgsAndOthers ] -- :: [ ([],[],[]) ]
 
 
              let newcoh = updateCohort (sen ! i) newTrgLits
+             --liftIO $ print ("apply.newCoh    ", newcoh)
              let newsen = updateSentence sen i newcoh
              return newsen
 
@@ -180,7 +182,7 @@ trigger rule origin = do
   targetAndOthers :: Solver -> Cohort -> SplitReading 
                   -> RWSE (SplitCohort,Lit)
   targetAndOthers s coh srd = do
-    let (targetCoh,otherCoh) = partitionTarget (oper rule) coh srd
+    (targetCoh,otherCoh) <- partitionTarget (oper rule) coh srd
     --liftIO $ print ("targetAndOthers: srd", srd)
     --liftIO $ print ("targetAndOthers: targetCoh ", targetCoh)
     --liftIO $ print ("targetAndOthers: otherCoh ", otherCoh)
@@ -219,14 +221,13 @@ defaultRules s sentence =
 
 --------------------------------------------------------------------------------
 
-partitionTarget :: Oper -> Cohort -> SplitReading -> (SplitCohort,SplitCohort)
-partitionTarget op coh sr = case op of
-  SELECT -> (outcoh,incoh)
-  REMOVE -> (incoh,outcoh)
-  _   -> (incoh,outcoh) --TODO other operations
- where
-  (incoh,outcoh) = partitionCohort coh sr 
-
+partitionTarget :: Oper -> Cohort -> SplitReading -> RWSE (SplitCohort,SplitCohort)
+partitionTarget op coh sr = do 
+  (incoh,outcoh) <- partitionCohort coh sr 
+  case op of
+    SELECT -> return (outcoh,incoh)
+    REMOVE -> return (incoh,outcoh)
+    _      -> return (incoh,outcoh) --TODO other operations
 
 
 width :: Rule -> (Int,Int)

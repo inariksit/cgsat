@@ -147,13 +147,9 @@ match2CondLit (M mtype splitrd) ind = do
                          throwError (OutOfScope ind "match2CondLit")                 
            Just co -> return co
 
-  let (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds) = partitionCohort coh splitrd
+  (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds) <- partitionCohort coh splitrd
 
-  -- This is requirement for one reading.
-  -- It will probably be a problem to connect a lemma and a word form
-  -- to the rest of the reading.
-  -- For now, I won't try with lemmas, but I can add a constraint to wfs
-  -- that only one per cohort may be true.
+
   liftIO $ case mtype of
     Mix -> do mixWF <- mix s inWFs
               mixLemma <- mix s inLems
@@ -176,18 +172,14 @@ match2CondLit (M mtype splitrd) ind = do
  where
   mix s y = case y of  -- If partitionCohort encountered an empty slot in a SplitReading,
              Nothing -> return true -- it doesn't care: default rule will be enough for determining the readings in this particular slot.
-             Just mp -> if M.null mp 
-                          --then throwError $ UnknownError "match2CondLit: map in a split cohort is empty"
-                          then error "match2CondLit: map in a split cohort is empty"
-                          else orl' s (M.elems mp)
+             Just mp -> orl' s (M.elems mp)
 
   cau s y n = case (y,n) of  
      (Nothing, Nothing) -> return true
-     (Just ym, Just nm)
-       -> andl' s =<< sequence [ orl' s (M.elems ym)
+     (Just ym, Just nm) -> andl' s =<< sequence
+                               [ orl' s (M.elems ym)
                                , neg `fmap` orl' s (M.elems nm) ]
---     _ -> throwError $ UnknownError "match2CondLit: something unexpected happened"
-     _ -> error "match2CondLit: something unexpected happened"
+
 {-
 match2CondLit (Bar (bi,bm) mat) ind = do
   s <- asks solver

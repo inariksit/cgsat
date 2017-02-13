@@ -53,6 +53,7 @@ module CGSAT.Base (
   , SplitReading(..), MorphReading(..)
   , Lem(..), WF(..), Tag(..)
   , fromLem, fromWF, fromReading
+  , isLexSR, mergeSRs
   )
 where
 
@@ -140,33 +141,25 @@ data SplitCohort = SCoh { scoh_w :: Maybe (Map WF Lit)
 emptyCohort :: Cohort
 emptyCohort = Coh M.empty M.empty M.empty
 
-partitionCohort :: Cohort -> SplitReading -> (SplitCohort,SplitCohort)
-partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) =
-  (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds)
+partitionCohort :: Cohort -> SplitReading -> RWSE (SplitCohort,SplitCohort)
+partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) = do
+  (inWFs,outWFs) <- inOut elem ws wMap "wfs"
+  (inLems,outLems) <- inOut elem ls lMap "lems"
+  (inRds,outRds) <- inOut isSubr rs rMap "readings"
+  return (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds)
  where
-  -- If ws/ls/rs is empty, then all of the map goes into outXxx.
-  -- Maybe handle this nicer here; now I'm trying to check it in Context.hs.
-  wforms = ws -- if null (getOrList ws) then Or [unknownWF] else ws
-  lemmas = ls -- if null (getOrList ls) then Or [unknownLem] else ls
-  (inWFs,outWFs) = if null ws 
-                    then (Nothing,Nothing)
-                    else mapTuple Just $ 
-                           M.partitionWithKey (\k _ -> k `elem` wforms) wMap
-  (inLems,outLems) = if null ls
-                      then (Nothing,Nothing)
-                      else mapTuple Just $ 
-                             M.partitionWithKey (\k _ -> k `elem` lemmas) lMap
-  (inRds,outRds) = if null rs
-                      then (Nothing,Nothing)
-                      else mapTuple Just $
-                             M.partitionWithKey (\k _ -> k `isSubr` rs) rMap
+  inOut f xs xmap errormsg = do
+    if null xs then return (Nothing,Nothing)
+     else
+      do let (maybeInXs,maybeOutXs) = M.partitionWithKey (\k _ -> k `f` xs) xmap
+         if M.null maybeInXs
+           then throwError $ TagsetNotFound (show (getOrList xs) ++ " " ++ errormsg)
+           else return (Just maybeInXs, Just maybeOutXs) 
 
-  subr (Rd uspec) (Rd spec) = includes uspec spec
   isSubr :: MorphReading -> OrList MorphReading -> Bool
   isSubr rd rds = any (subr rd) rds
 
-  mapTuple :: (a->b) -> (a,a) -> (b,b)
-  mapTuple f (x,y) = (f x, f y)
+  subr (Rd uspec) (Rd spec) = includes uspec spec
 
 -- | Using the readings and the solver in environment, create a sentence.
 mkSentence :: Int -> RWSE Sentence
@@ -240,6 +233,17 @@ fromReading rd = Rd (fmap fromTag morphtags)
 data SplitReading = SR { sr_w :: OrList WF
                        , sr_l :: OrList Lem
                        , sr_r :: OrList MorphReading } deriving (Eq,Ord)
+
+instance Show SplitReading where
+  show (SR w l r) = "{ " ++ show (getOrList w) ++ "\n  " ++
+                           show (getOrList l) ++ "\n  " ++
+                           show (getOrList r) ++ " }"
+
+isLexSR :: SplitReading -> Bool
+isLexSR (SR w l r) = null (getOrList r)
+
+mergeSRs :: SplitReading -> SplitReading -> SplitReading
+mergeSRs (SR w l r) (SR w' l' r') = SR (mappend w w') (mappend l l') (mappend r r')
 
 --------------------------------------------------------------------------------
 -- Env
