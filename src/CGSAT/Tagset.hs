@@ -79,6 +79,7 @@ normaliseTagsetAbs tagset e@(Env _ _ envRds _) =
 
     -- For a case like
     -- "haar" + (N | NP)
+    -- TODO: test this properly
     Cart ts ts'
       -> let normTs  = normaliseTagsetRel ts
              normTs' = normaliseTagsetRel ts'

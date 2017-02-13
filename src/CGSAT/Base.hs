@@ -260,14 +260,8 @@ mkEnv :: Solver -> [CGHS.Reading] -> [CGHS.Tag] -> [CGHS.Tag] -> Env
 mkEnv s rds ls ws = Env (mkWFs ws) (mkLems ls) (mkRds rds) s 
  where 
   mkRds = Or . map fromReading
-  --mkLems x = let lems = mapMaybe fromLem x
-  --           in if null lems then Or [unknownLem]
-  --                           else Or lems
-  --mkWFs x = let wfs = mapMaybe fromWF x
-  --          in if null wfs then Or [unknownWF]
-  --                          else Or wfs
   mkLems x = Or (unknownLem:mapMaybe fromLem x)
-  mkWFs x = Or (unknownWF:mapMaybe fromWF x)
+  mkWFs x = Or (unknownWF:WF "dummy":mapMaybe fromWF x)
 
 
 unknownLem :: Lem
@@ -337,3 +331,8 @@ isLem :: CGHS.Tag -> Bool
 isLem (CGHS.Lem _) = True
 isLem _            = False
 
+bosRd :: CGHS.Reading
+bosRd = And [CGHS.BOS]
+
+eosRd :: CGHS.Reading
+eosRd = And [CGHS.EOS]

@@ -29,7 +29,12 @@ data Pattern = Pat (OrList  -- OrList length >1 if the ctx is template
              | Negate Pattern -- Negate goes beyond set negation and C
              deriving (Eq)
 
+instance Show Pattern where
+  show (Pat is_mss) = "Pat " ++ concatMap show' (getOrList is_mss)
+  show PatAlways = "PatAlways"
 
+show' :: (OrList [Int], [OrList Match]) -> String
+show' (is,ms) = concatMap (show) is ++ concatMap (show . getOrList) ms
 --------------------------------------------------------------------------------
 -- Create new literals from contextual tests of a rule
 
@@ -132,10 +137,9 @@ matches2CondLit mats ind = do
   liftIO $ orl' s lits
 
 match2CondLit :: Match -> Int -> RWSE Lit
-match2CondLits AllTags ind = return true --TODO: check if index is out of scope, then return False
+match2CondLit AllTags ind = return true --TODO: check if index is out of scope, then return False
 match2CondLit (Bar (bi,bm) mat) ind = undefined
 
---match2CondLit (M mtype wfs lems mrds) ind = do
 match2CondLit (M mtype splitrd) ind = do
 
   s <- asks solver
