@@ -100,7 +100,8 @@ evalRWSE :: Env -> RWSE a -> IO a
 evalRWSE env m = do (Right x,_,_) <- rwse env emptyConfig m
                     return x
 
-data CGException = TagsetNotFound String | OutOfScope Int String | NoReadingsLeft 
+data CGException = TagsetNotFound String | OutOfScope Int String 
+                 | NoReadingsLeft String
                  | UnknownError String deriving ( Show,Eq )
 
 instance Exception CGException

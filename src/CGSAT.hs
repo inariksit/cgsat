@@ -88,7 +88,7 @@ apply rule = do
       -- as per VISL CG-3 behaviour, remove nothing.
        (allCondsHold, trgsAndOthers) 
          <- trigger rule i `catchError` \e -> case e of 
-              NoReadingsLeft -> return (true,[])
+              NoReadingsLeft _ -> return (true,[])
               OutOfScope _ _ -> return (true,[])
               TagsetNotFound s -> do liftIO $ putStrLn ("Warning: tagset " ++ s ++ " not found")
                                      return  (true,[])
@@ -165,7 +165,7 @@ trigger rule origin = do
                case normTagset of
                  Left AllTags -> do tell [ "trigger: rule " ++ show rule ++ 
                                         " tries to remove or select all readings" ]
-                                    throwError NoReadingsLeft
+                                    throwError $ NoReadingsLeft "normaliseTagsetAbs"
                  Right srs -> return (getOrList srs)
   
   --liftIO $ putStrLn "trigger: targetSplitReadings"
