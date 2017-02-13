@@ -1,4 +1,4 @@
-module Order ( order 
+module Order ( order, howmanyReadings
     ) where
 
 import CGHS ( Rule )
@@ -9,11 +9,18 @@ import Data.List ( permutations, sort )
 
 order :: [Rule] -> RWSE [Rule]
 order rules
- | length rules > 4 = return rules
+ | length rules < 5 = orderPerm rules
  | otherwise = do
-    let allRls = permutations rules
-    rds <- mapM howmanyReadings allRls
-    return (snd . head $ sort $ zip rds allRls)
+    ns <- mapM (howmanyReadings . (:[])) rules
+    let (best,rest) = (     snd $ head $ sort $ zip ns rules
+                      , map snd $ tail $ sort $ zip ns rules )
+    (:) best `fmap` (order rest)
+
+orderPerm :: [Rule] -> RWSE [Rule]
+orderPerm rules = do
+  let allRls = permutations rules
+  rds <- mapM howmanyReadings allRls
+  return (snd $ minimum $ zip rds allRls)
 
 howmanyReadings :: [Rule] -> RWSE Int
 howmanyReadings rules = do
