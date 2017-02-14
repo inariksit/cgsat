@@ -143,9 +143,9 @@ emptyCohort = Coh M.empty M.empty M.empty
 
 partitionCohort :: Cohort -> SplitReading -> RWSE (SplitCohort,SplitCohort)
 partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) = do
-  (inWFs,outWFs) <- inOut elem ws wMap "wfs"
-  (inLems,outLems) <- inOut elem ls lMap "lems"
-  (inRds,outRds) <- inOut isSubr rs rMap "readings"
+  (inWFs,outWFs) <- inOut elem ws wMap "(searched as a word form)"
+  (inLems,outLems) <- inOut elem ls lMap "(searched as a lemma)"
+  (inRds,outRds) <- inOut isSubr rs rMap "(searched as a morphological reading)"
   return (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds)
  where
   inOut f xs xmap errormsg = do
@@ -153,7 +153,9 @@ partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) = do
      else
       do let (maybeInXs,maybeOutXs) = M.partitionWithKey (\k _ -> k `f` xs) xmap
          if M.null maybeInXs
-           then throwError $ TagsetNotFound (show (getOrList xs) ++ " " ++ errormsg)
+           then do --liftIO $ print (getOrList xs)
+                   --liftIO $ print xmap
+                   throwError $ TagsetNotFound (show (getOrList xs) ++ " " ++ errormsg)
            else return (Just maybeInXs, Just maybeOutXs) 
 
   isSubr :: MorphReading -> OrList MorphReading -> Bool
@@ -199,23 +201,26 @@ mkSentence w
 -- Newtypes. These have the same names as the type Tag in CGHS, 
 -- but in CGHS, WF, Lem and Tag are constructors, here they are types.
 
-newtype WF = WF { getWF :: String } deriving (Eq,Ord)
+newtype WF = WF { getWF :: CGHS.Tag } deriving (Eq,Ord)
+
 instance Show WF where
-  show (WF str) = show (CGHS.WF str)
+  show (WF wf) = show wf
 
 fromWF :: CGHS.Tag -> Maybe WF
-fromWF (CGHS.WF x) = Just (WF x)
-fromWF _           = Nothing
+fromWF x@(CGHS.WF _) = Just (WF x)
+fromWF _             = Nothing
 
-newtype Lem = Lem { getLem :: String } deriving (Eq,Ord)
+newtype Lem = Lem { getLem :: CGHS.Tag } deriving (Eq,Ord)
+
 instance Show Lem where
-  show (Lem str) = show (CGHS.Lem str)
+  show (Lem lem) = show lem
 
 fromLem :: CGHS.Tag -> Maybe Lem
-fromLem (CGHS.Lem x) = Just (Lem x)
-fromLem _            = Nothing
+fromLem x@(CGHS.Lem _) = Just (Lem x)
+fromLem _              = Nothing
 
 newtype Tag = Tag { getTag :: CGHS.Tag } deriving (Eq,Ord)
+
 instance Show Tag where
   show (Tag tag) = show tag
 
@@ -261,14 +266,14 @@ mkEnv s rds ls ws = Env (mkWFs ws) (mkLems ls) (mkRds rds) s
  where 
   mkRds = Or . map fromReading
   mkLems x = Or (unknownLem:mapMaybe fromLem x)
-  mkWFs x = Or (unknownWF:WF "dummy":mapMaybe fromWF x)
+  mkWFs x = Or (unknownWF:WF (CGHS.WF "dummy"):mapMaybe fromWF x)
 
 
 unknownLem :: Lem
-unknownLem = Lem "unknown"
+unknownLem = Lem (CGHS.Lem "unknown")
 
 unknownWF :: WF
-unknownWF = WF "unknown"
+unknownWF = WF (CGHS.WF "unknown")
 
 
 ----------------------------------------------------------------------------
@@ -278,7 +283,7 @@ envRules :: (String,[String]) -> Solver -> IO (Env,[Rule])
 envRules (lang,r) s = do 
 
   let verbose = "v" `elem` r || "d" `elem` r
-  let subr = if "withsub" `elem` r then ".withsub" else ".nosub"
+  let subr = if "withsub" `elem` r then ".withsub" else ""
   let rdsfromgrammar = True --"undersp" `elem` r || "rdsfromgrammar" `elem` r
   let parseReading = if "withsub" `elem` r 
                        then parseReadingApeSubr
@@ -287,7 +292,7 @@ envRules (lang,r) s = do
   let dirname = "data/" ++ lang ++ "/" 
   let grfile  = dirname ++ lang ++ ".rlx"
   let lexfile = dirname ++ lang ++ ".lexforms"
-  let rdsfile = dirname ++ lang ++ ".readings" --  ++ subr
+  let rdsfile = dirname ++ lang ++ ".readings" ++ subr
 
   --let acfile  = dirname ++ lang ++ ".ambiguity-classes"
   --let frmfile = dirname ++ lang ++ ".formula"
@@ -297,23 +302,26 @@ envRules (lang,r) s = do
   (tsets,ruless) <- parse `fmap` readFile grfile
   let rules = filter (selOrRm . oper) (concat ruless)
 
-  readingsInLex <- (map parseReading . words) `fmap` readFile rdsfile --Apertium format
-  lexformsInLex <- (map readTag . filter (not.null) . words) `fmap` readFile lexfile                     
+  readingsByUser <- (map parseReading . words) `fmap` readFile rdsfile --Apertium format
+  lexformsByUser <- (map readTag . filter (not.null) . words) `fmap` readFile lexfile                     
 
   let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
                       then concatMap tagSet2Readings tsets
                       else []
+  print readingsInGr
+  let (nonLexInGr,lexformsInGr) = unzip $ map removeLexReading (readingsInGr)
+  let (nonLexByUser,_) = unzip $ map removeLexReading (bosRd:eosRd:readingsByUser)
+ 
 
-  let (nonLexReadings,lexformsInGr) = unzip $ map removeLexReading (readingsInGr++readingsInLex)
-
-  let (lemmas,wforms) = partition isLem (nub $ concat lexformsInGr++lexformsInLex)
-
+  let allLexforms = nub $ concat (lexformsByUser:lexformsInGr)
+  let (lemmas,wforms) = partition isLem allLexforms
+  let nonLexReadings = nonLexByUser++nonLexInGr
 
   let env = mkEnv s nonLexReadings lemmas wforms
   when verbose $ do 
-    print (length nonLexReadings, take 50 nonLexReadings)
-    print (length lemmas, take 50 lemmas)
-    print (length wforms, take 50 wforms)
+    print (length nonLexReadings, take 15 nonLexReadings)
+    print (length lemmas, take 15 lemmas)
+    print (length wforms, take 15 wforms)
     putStrLn "---------"
 
     putStrLn $ show (length rules) ++ " rules"
