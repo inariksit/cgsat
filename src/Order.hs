@@ -1,11 +1,38 @@
-module Order ( order, howmanyReadings
-    ) where
+module Order ( 
+    order
+  , howmanyReadings
+  , checkByTarget
+  ) where
 
-import CGHS ( Rule )
+import CGHS ( Rule, sortByContext, groupRules )
 import CGSAT
+import Analyse
 import CGSAT.Base
 
 import Data.List ( permutations, sort )
+
+
+--------------------------------------------------------------------------------
+-- Grouping by targets and sorting by contexts; then run conflict check
+
+checkByTarget :: [Rule] -> RWSE [(Conflict,Rule)]
+checkByTarget rules = do
+  let verbose = False
+  let groupedRls = sortByContext `map` groupRules rules :: [[Rule]]
+  liftIO $ mapM_ (\x -> do print (head x)
+                           putStrLn "..."
+                           print (last x)
+                           putStrLn "\n"
+                 ) (take 5 groupedRls)
+  confs <- mapM (testRules verbose) (take 5 groupedRls)
+  let cs_rs = [ [ (c,rl) | (c,rl) <- zip cs rls, isConflict c ]
+                | (cs,rls) <- zip confs groupedRls ]
+  liftIO $ mapM_ print cs_rs
+  return (concat cs_rs)
+
+
+--------------------------------------------------------------------------------
+-- Based on solveMaximize
 
 order :: [Rule] -> RWSE [Rule]
 order rules
@@ -21,6 +48,7 @@ orderPerm rules = do
   let allRls = permutations rules
   rds <- mapM howmanyReadings allRls
   return (snd $ minimum $ zip rds allRls)
+
 
 howmanyReadings :: [Rule] -> RWSE Int
 howmanyReadings rules = do
