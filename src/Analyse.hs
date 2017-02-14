@@ -2,6 +2,7 @@ module Analyse (
     testRules
   , width
   , Conflict(..)
+  , isConflict
   ) where
 
 
@@ -26,6 +27,9 @@ import System.Environment ( getArgs )
 data Conflict = NoConf | Internal | Interaction -- [Rule]
   deriving (Show,Eq)
 
+isConflict :: Conflict -> Bool
+isConflict NoConf = False
+isConflict _      = True
 
 ----------------------------------------------------------------------------
 -- Functions that apply only for analysis, not disambiguation
@@ -43,19 +47,22 @@ testRule v rule = do
      mapM (\i -> RWSE $ lift $ runExceptT $ runRWSE $ ruleTriggers v rule i
                   :: RWSE (Either CGException Conflict) )
                 [1..len] -- 1) Test if the rule may apply, and return result of that
+--                [3] -- 1) Test if the rule may apply, and return result of that
 
   apply rule             -- 2) Apply the rule regardless
 
 
   let legitConfs = rights confs
-  liftIO $ print ("legit conflicts: ", legitConfs)
+  when v $ liftIO $ print legitConfs
+  --liftIO $ print ("all results: ", confs)
   if Interaction `elem` legitConfs 
     then return Interaction
 
     else if Internal `elem` legitConfs
       then return Internal
           else if null legitConfs
-                then liftIO $ print confs >> return Internal
+                then do when v $ liftIO $ print confs 
+                        return Internal
       else return NoConf
 
 
