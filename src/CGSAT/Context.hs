@@ -45,6 +45,7 @@ condLits :: Rule -- ^ Rule, whose conditions to turn into literals
 condLits rule origin = do
   slen <- gets senlength
   pats <- ctx2Pattern slen origin `mapM` context rule -- :: AndList (Maybe Pattern)
+  --liftIO $ mapM_ print (getAndList pats)
   mapM pattern2Lit pats :: RWSE (AndList Lit)
 
 
@@ -134,7 +135,7 @@ matches2CondLit mats ind = do
   s <- asks solver
   lits <- sequence [ match2CondLit mat ind
                         | mat <- getOrList mats ]
-  liftIO $ orl' s lits
+  liftIO $ orl' s lits --TODO: this may be too allowing with NOTs
 
 match2CondLit :: Match -> Int -> RWSE Lit
 match2CondLit AllTags ind = return true --TODO: check if index is out of scope, then return False

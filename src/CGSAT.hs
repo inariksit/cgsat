@@ -166,7 +166,7 @@ trigger rule origin = do
          <- do let normTagset = normaliseTagsetAbs (target rule) env
                case normTagset of
                  Left AllTags -> do tell [ "trigger: rule " ++ show rule ++ 
-                                        " tries to remove or select all readings" ]
+                                           " tries to remove or select all readings" ]
                                     throwError $ NoReadingsLeft "normaliseTagsetAbs"
                  Right srs -> return (getOrList srs)
   

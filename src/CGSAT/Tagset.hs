@@ -53,8 +53,6 @@ nullMatch m = case m of
   Bar _ m -> nullMatch m
 
 
-
-
 splitReading :: CGHS.Reading -> SplitReading 
 splitReading rd = SR wf lm rds
  where
@@ -68,8 +66,9 @@ splitReading rd = SR wf lm rds
 foldSplitReading :: (Foldable t, Functor t) => t SplitReading -> SplitReading
 foldSplitReading srs = SR (fold $ fmap sr_w srs) (fold $ fmap sr_l srs) (fold $ fmap sr_r srs)
 
--- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding IntSets of fully specified readings.
--- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings, not with absolute IntSets.
+
+-- | Takes a tagset, with OrLists of underspecified readings,  and returns corresponding fully specified readings.
+-- Compare to normaliseRel in cghs/Rule: it only does the set operations relative to the underspecified readings.
 -- That's why we cannot handle Diffs in normaliseRel, but only here.
 normaliseTagsetAbs :: TagSet -> Env -> Either Match (OrList SplitReading)
 normaliseTagsetAbs tagset e@(Env _ _ envRds _) = 
