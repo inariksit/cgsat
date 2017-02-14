@@ -2,7 +2,7 @@ module Main where
 
 import CGSAT ( rwse, evalRWSE, mkConfig, emptyConfig, envRules, dummyGenerate, apply, width )
 import Analyse ( testRules )
-import Order ( order, howmanyReadings )
+import Order ( order, howmanyReadings, checkByTarget )
 import SAT ( newSolver )
 
 import System.Environment ( getArgs )
@@ -26,15 +26,19 @@ main = do
 
      case task of
       "analyse" -> do 
-          (_,_,log_) <- rwse env config $ testRules verbose (take 2 rules)
+          let rls = take 2 rules
+          (_,_,log_) <- rwse env config $ testRules verbose rls
 
           mapM_ putStrLn log_
 
           putStrLn "---------"
 
       "models" -> do
-          (a,_,_) <- rwse env config $ howmanyReadings (take 20 rules)
-          print a
+          let rls = take 4 rules
+          mapM_ (\x -> rwse env config $ howmanyReadings [x]) rls
+          putStrLn "end"
+          --(b,_,_) <- rwse env config $ howmanyReadings (reverse rls)
+          --print b
 
       "order" -> do          
           let fewRules = take 10 rules
@@ -44,6 +48,10 @@ main = do
           mapM_ print fewRules
           putStrLn "New order: "
           mapM_ print rls
+
+      "check" -> do
+          _ <- rwse env config $ checkByTarget rules
+          putStrLn "done"
 
       "dummy" -> do
           evalRWSE env (dummyGenerate rules)
