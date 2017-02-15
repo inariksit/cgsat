@@ -8,6 +8,11 @@ import Test.Feat ( Enumerable, Enumerate
                  , enumerate, consts, unary, funcurry 
                  , values )
 
+generateReadings :: IO ()
+generateReadings = 
+  writeFile ("data/eus/eus.readings.new") $ unlines $
+   concatMap (map show.snd) 
+             (values :: [(Integer,[PartOfSpeech])])
 
 --------------------------------------------------------------------------------
 
@@ -65,6 +70,7 @@ data PartOfSpeech = IZE AzpIZE -- Noun
                         Case
                         DefNum
 --                        (Maybe AORG)
+                        (Maybe ZERO)
                   | ADI_v_ AzpADI 
                            ADOIN
                            Aspect
@@ -79,7 +85,7 @@ data PartOfSpeech = IZE AzpIZE -- Noun
                         Case
                         DefNum                  
                   | ADB AzpADB
-                  | DET AzpDET
+                  | DET AzpDET Case
                   | IOR AzpIOR -- Pronoun
                   | LOT AzpLOT -- Connective
                   | PRT  -- Partikula
@@ -96,7 +102,7 @@ data PartOfSpeech = IZE AzpIZE -- Noun
 instance Enumerable PartOfSpeech where
 --  enumerate = enumBounded
   enumerate = consts ( unary (funcurry (funcurry
-                             ( IZE))):
+                             (funcurry IZE))):
                        unary (funcurry (funcurry 
                              (ADI_v_))):
                        unary (funcurry (funcurry 
@@ -104,7 +110,7 @@ instance Enumerable PartOfSpeech where
                              (funcurry ADI_n_))))):
                        unary (funcurry (funcurry ADJ)):
                        unary ADB:
-                       unary DET:
+                       unary (funcurry DET):
                        unary IOR:
                        unary LOT:
                        unary ADL:
