@@ -15,18 +15,20 @@ import Data.List ( permutations, sort )
 --------------------------------------------------------------------------------
 -- Grouping by targets and sorting by contexts; then run conflict check
 
-checkByTarget :: [Rule] -> RWSE [(Conflict,Rule)]
-checkByTarget rules = do
+checkByTarget :: [Rule] -> Int -> Int -> RWSE [(Conflict,Rule)]
+checkByTarget rules from to = do
   let verbose = False
   let groupedRls = sortByContext `map` groupRules rules :: [[Rule]]
+  let rulesFromTo = drop from $ take to groupedRls
   liftIO $ mapM_ (\x -> do print (head x)
-                           putStrLn "..."
+                           let len = length x
+                           putStrLn (show len ++ " rules...")
                            print (last x)
                            putStrLn "\n"
-                 ) (take 5 groupedRls)
-  confs <- mapM (testRules verbose) (take 5 groupedRls)
+                 ) rulesFromTo
+  confs <- mapM (testRules verbose) rulesFromTo
   let cs_rs = [ [ (c,rl) | (c,rl) <- zip cs rls, isConflict c ]
-                | (cs,rls) <- zip confs groupedRls ]
+                | (cs,rls) <- zip confs rulesFromTo ]
   liftIO $ mapM_ print cs_rs
   return (concat cs_rs)
 
