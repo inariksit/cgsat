@@ -808,18 +808,19 @@ SET ADPOSAG = ADPOSAGIZE OR ADPOSAGADJ OR (ADI ADK) ;
 
 #LIST ADPOSAGADJ =  ("ageri" ADJ ABS MG) ("herabe" ADJ ABS MG) ("maite" ADJ ABS MG)("nabari" ADJ ABS MG) ("gaitzi" ADJ ABS MG) ("bizi" ADJ ABS MG)("haizu" ADJ ABS MG) ("laket" ADJ ABS MG) ("atsegin" ADJ ABS MG);
 LIST ADPOSAGADJ_LEM = "ageri" "herabe" "maite""nabari" "gaitzi" 
-					  "bizi" "haizu" "laket" "atsegin" ;
+		      "bizi" "haizu" "laket" "atsegin" ;
 
 SET ADPOSAGADJ = ADPOSAGADJ_LEM + (ADJ ABS MG) 
-				 OR  ("bizi" ADJ ABS M) ;
+	         OR  ("bizi" ADJ ABS M) ;
 
 # LIST ADPOSAGIZE = ("aiher" IZE ABS MG) ("balio" IZE ABS MG)("behar" IZE ABS MG) ("behar" IZE ABS NUMS MUGM)("gura" IZE ABS MG) ("uste" IZE ABS MG) ("mintzo" IZE ABS  MG)("ahal" IZE ABS MG) ("axola" IZE ABS MG) ("ezin" IZE ABS MG)("falta" IZE ABS MG) ("nahi" IZE ABS MG) ("zor" IZE ABS MG)("merezi" IZE ABS MG) ;
+
 LIST ADPOSAGIZE_LEM = "aiher" "balio" "behar" "gura" "uste" "mintzo" "ahal" 
-				      "axola" "ezin" "falta"  "nahi" "zor" "merezi" ;
+                      "axola" "ezin" "falta"  "nahi" "zor" "merezi" ;
 
 SET ADPOSAGIZE = ADPOSAGIZE_LEM + (IZE ABS MG)
-			 OR  ("behar" IZE ABS NUMS MUGM) 
-			 OR  ("behar" IZE INE NUMS MUGM) ;
+                 OR  ("behar" IZE ABS NUMS MUGM) 
+                 OR  ("behar" IZE INE NUMS MUGM) ;
 
 LIST GAL = GAL;
 LIST ADL = ADL ;
@@ -1428,8 +1429,7 @@ LIST ADIPERIFRAS1 =	("adina" ADB) ("beste" ADB)
 # Komentarioa: ADPOSAGak gehi "bezala"  "adina" ... perifrasi-multzoa da.
 
 
-### Inari: there was a star before "io" ADI -- I can't parse this with it. Wtf >__> 
-LIST ADIOSAG = ("esan" ADI) ("pentsatu" ADI) ("uste" IZE) ("sinetsi" ADI) ("otu" ADI) ("bururatu" ADI) ("sumatu" ADI) ("iruditu" ADI) ("io" ADI) ("aipatu" ADI) ("ikusi" ADI) ("erabaki" ADI) ("erakutsi" ADI) ("adierazi" ADI) ("onartu" ADI) ("salatu" ADI) ("imajinatu" ADI)  ("ziur" ADI) ("erantzun" ADI);
+LIST ADIOSAG = ("esan" ADI) ("pentsatu" ADI) ("uste" IZE) ("sinetsi" ADI) ("otu" ADI) ("bururatu" ADI) ("sumatu" ADI) ("iruditu" ADI) ("*io" ADI) ("aipatu" ADI) ("ikusi" ADI) ("erabaki" ADI) ("erakutsi" ADI) ("adierazi" ADI) ("onartu" ADI) ("salatu" ADI) ("imajinatu" ADI)  ("ziur" ADI) ("erantzun" ADI);
 
 #LIST ADK = ADK;
 
@@ -3319,8 +3319,6 @@ SECTION
 SELECT (ADB) IF (0 ("batera")) (-1 (ADL) OR (ADT));
 # Adibidea: ... ditugu BATERA ...
 
-## Inari 22/12 -- This is where I made it on the first day. Not sure what to do with "..".." :(
-
 SELECT (ADB) IF (0 IZE + ZERO) (NOT 0 GEL)  (-1 ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<$.>"<PUNT_PUNT>")) (NOT 1 DET);
 #2015-12-07
 SELECT (IZE) IF (0 ("batezbesteko"));
@@ -3554,7 +3552,7 @@ REMOVE (IZE) IF (0 (BEN) LINK 0  (BENETAKO));
 SELECT (IZE_IZEELI) IF (0C IZE) (NOT 0 IZB OR LIB);
 #OHARRA_HK: ematen dut beti elipsidun analisia dela aukeratzekoa, morfologian genitiboaren ondoren kasuren bat gehitzen baldin bada, IZE_IZEELI aukera ematen baita. Aldiz, kontrakoa, alegia, elipsirik gabea, ez du ematen izan daitekeenik
 #2010 azaroko erregelak:
-SELECT (ADI) IF (0C ADI LINK 0 IZE) (NOT 0 POSPOZ) (1 ADPOSAG);
+SELECT (ADI) IF (0C ADI LINK 0 IZE) (NOT 0 POSPOZ) (1 ADPOSAG); # Inari: this looks suspicious
 #HK_OHARRA: not 0 pospoz eta 0C ADI
 #Adibidea: ... pauso berri bat EMAN beharrean
 SELECT (IZE) IF (0C IZE LINK 0 ZKI) (NOT -1 IZE OR ADJ);
@@ -7182,12 +7180,12 @@ REMOVE (ZERO) (1 ("izan" ADT) OR ("ukan" ADT)) (NOT 0 MDNC OR ADB) ;
 
 
 #SELECT (ABS) IF (0C IZE) (1 ("<gabe>"));
-SELECT (ABS) IF (0 IZE) (1 ("<Gabe>" <HAS_MAI>));
-SELECT (ABS) IF (0 IZE) (1 ("<GABE>" <DEN_MAI>));
+SELECT (ABS) IF (0 IZE) (1 ("<Gabe>"<HAS_MAI>"));
+SELECT (ABS) IF (0 IZE) (1 ("<GABE>"<DEN_MAI>"));
 #Adibidea: NAHI gabe ...
 #SELECT (ZERO) IF (0 PART) (1 ("<gabe>"));
-SELECT (ZERO) IF (0 PART) (1 ("<Gabe>" <HAS_MAI>));
-SELECT (ZERO) IF (0 PART) (1 ("<GABE>" <DEN_MAI>));
+SELECT (ZERO) IF (0 PART) (1 ("<Gabe>"<HAS_MAI>"));
+SELECT (ZERO) IF (0 PART) (1 ("<GABE>"<DEN_MAI>"));
 #Adibidea: IKUSI gabe ...
 #2005-04-12an gehitutakoak
 SELECT (ZERO) (0 PART + MG + GEL) (1 IZE);
