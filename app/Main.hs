@@ -50,7 +50,8 @@ main = do
           mapM_ print rls
 
       "check" -> do
-          _ <- rwse env config $ checkByTarget rules
+          let (from:to:_) = map read r :: [Int]
+          _ <- rwse env config $ checkByTarget rules from to
           putStrLn "done"
 
       "dummy" -> do
