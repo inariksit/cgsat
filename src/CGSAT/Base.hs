@@ -306,9 +306,8 @@ envRules (lang,r) s = do
   lexformsByUser <- (map readTag . filter (not.null) . words) `fmap` readFile lexfile                     
 
   let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
-                      then concatMap tagSet2Readings tsets
+                      then concatMap (tagSet2Readings.snd) tsets
                       else []
-  print readingsInGr
   let (nonLexInGr,lexformsInGr) = unzip $ map removeLexReading (readingsInGr)
   let (nonLexByUser,_) = unzip $ map removeLexReading (bosRd:eosRd:readingsByUser)
  
