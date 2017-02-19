@@ -84,6 +84,9 @@ import qualified CGHS
 import Data.List ( findIndices, nub, partition )
 import Data.Maybe ( mapMaybe )
 
+import System.FilePath ( pathSeparator )
+
+
 --------------------------------------------------------------------------------
 -- RWSE, CGException
 
@@ -289,7 +292,7 @@ envRules (lang,r) s = do
                        then parseReadingApeSubr
                        else parseReadingApe
  
-  let dirname = "data/" ++ lang ++ "/" 
+  let dirname = "data" ++ [pathSeparator]
   let grfile  = dirname ++ lang ++ ".rlx"
   let lexfile = dirname ++ lang ++ ".lexforms"
   let rdsfile = dirname ++ lang ++ ".readings" ++ subr
