@@ -83,7 +83,7 @@ normaliseTagsetAbs tagset e@(Env _ _ envRds _) =
       -> let normTs  = normaliseTagsetRel ts
              normTs' = normaliseTagsetRel ts'
           in case (normTs,normTs') of
-               (Set x,Set y)
+               (Set _ x, Set _ y)
                   -> if and
                          [ all isLex (getAndList reading) | reading <- getOrList x ]
                           then let srs  = fmap splitReading x :: OrList SplitReading
@@ -93,7 +93,7 @@ normaliseTagsetAbs tagset e@(Env _ _ envRds _) =
                _ -> normaliseTagsetAbs (normaliseTagsetRel tagset) e
 
     _ -> case normaliseTagsetRel tagset of
-           Set s -> Right (fmap splitReading s) -- OrList SplitReading
+           Set _ s -> Right (fmap splitReading s) -- OrList SplitReading
            Diff s s' 
               -> let ns = normaliseTagsetAbs s  e
                      ns' = normaliseTagsetAbs s' e
