@@ -302,7 +302,7 @@ envRules (lang,r) s = do
   
   ----------------------------------------------------------------------------
 
-  (tsets,ruless) <- parse `fmap` readFile grfile
+  (tsets,ruless) <- parse False `fmap` readFile grfile
   let rules = filter (selOrRm . oper) (concat ruless)
 
   readingsByUser <- (map parseReading . words) `fmap` readFile rdsfile --Apertium format
