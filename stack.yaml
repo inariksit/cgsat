@@ -45,7 +45,7 @@ packages:
    commit: 218b1824ae4a42b7e67ad3bf3f7b390c7ee122fd
 - location:
    git: https://github.com/inariksit/cghs.git
-   commit: 6a05ac6f1dbc04ee940862cc8a46cc47cf36c25c
+   commit: 531cfbbede0d25b3a3d598c3e045c2941a16b905
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
