@@ -18,8 +18,6 @@ import qualified Data.Map as M
 import Data.Either ( lefts, rights )
 import Data.List ( nub )
 import Data.Maybe ( catMaybes, fromMaybe )
-import Debug.Trace ( trace )
-import System.Environment ( getArgs )
 
 
 --------------------------------------------------------------------------------

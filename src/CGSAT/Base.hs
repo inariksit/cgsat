@@ -287,11 +287,11 @@ envRules (lang,r) s = do
 
   let verbose = "v" `elem` r || "d" `elem` r
   let subr = if "withsub" `elem` r then ".withsub" else ""
-  let rdsfromgrammar = True --"undersp" `elem` r || "rdsfromgrammar" `elem` r
-  let parseReading = if "withsub" `elem` r 
-                       then parseReadingApeSubr
-                       else parseReadingApe
- 
+  let parseReadings = if "withsub" `elem` r 
+                       then map parseReadingApeSubr . words
+                       else map parseReadingApe . words
+  let parseLexforms = map readTag . filter (not.null) . words
+
   let dirname = "data" ++ [pathSeparator]
   let grfile  = dirname ++ lang ++ ".rlx"
   let lexfile = dirname ++ lang ++ ".lexforms"
@@ -302,34 +302,31 @@ envRules (lang,r) s = do
   
   ----------------------------------------------------------------------------
 
-  (tsets,ruless) <- parse False `fmap` readFile grfile
-  let rules = filter (selOrRm . oper) (concat ruless)
+  let compact = False
+  (tsets,ruless) <- parse compact `fmap` readFile grfile
+  readingsByUser <- parseReadings `fmap` readFile rdsfile --Apertium format
+  lexformsByUser <- parseLexforms `fmap` readFile lexfile                     
 
-  readingsByUser <- (map parseReading . words) `fmap` readFile rdsfile --Apertium format
-  lexformsByUser <- (map readTag . filter (not.null) . words) `fmap` readFile lexfile                     
-
-  let readingsInGr = if rdsfromgrammar --OBS. will mess up ambiguity class constraints
-                      then concatMap (tagSet2Readings.snd) tsets
-                      else []
-  let (nonLexInGr,lexformsInGr) = unzip $ map removeLexReading (readingsInGr)
-  let (nonLexByUser,_) = unzip $ map removeLexReading (bosRd:eosRd:readingsByUser)
- 
-
+  -- Use only lexical forms in grammar, otherwise ignore underspecified readings
+  let readingsInGr = concatMap (tagSet2Readings.snd) tsets
+  let (_,lexformsInGr) = unzip $ map removeLexReading (readingsInGr)
   let allLexforms = nub $ concat (lexformsByUser:lexformsInGr)
   let (lemmas,wforms) = partition isLem allLexforms
-  let nonLexReadings = nonLexByUser++nonLexInGr
 
-  let env = mkEnv s nonLexReadings lemmas wforms
+  -- Remove lexical readings from the readings given in the file.
+  -- In principle the files should already be separated, this is just to make sure.
+  let morphReadings = map (fst . removeLexReading) (bosRd:eosRd:readingsByUser)
+
+  -- Printouts, for checking if the data looks correctly parsed etc.
   when verbose $ do 
-    print (length nonLexReadings, take 15 nonLexReadings)
+    print (length morphReadings, take 15 morphReadings)
     print (length lemmas, take 15 lemmas)
     print (length wforms, take 15 wforms)
     putStrLn "---------"
 
-    putStrLn $ show (length rules) ++ " rules"
-    --mapM_ print (take 15 rules)
-
-
+  -- Make env, filter only select/remove rules, and return!
+  let env = mkEnv s morphReadings lemmas wforms
+  let rules = filter (selOrRm . oper) (concat ruless)
   return (env,rules)
 
 selOrRm :: Oper -> Bool

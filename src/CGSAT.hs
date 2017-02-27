@@ -38,11 +38,6 @@ import Data.Maybe ( catMaybes, fromMaybe, isNothing )
 
 --------------------------------------------------------------------------------
 
-type TargetCohort = Cohort
--- Split the three maps of Cohort into those that only include target.
--- Just to make some type signatures clearer.
-
-
 dummyGenerate :: [Rule] -> RWSE ()
 dummyGenerate rules = do
   s <- asks solver

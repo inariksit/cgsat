@@ -43,7 +43,7 @@ order rules
     ns <- mapM (howmanyReadings . (:[])) rules
     let (best,rest) = (     snd $ head $ sort $ zip ns rules
                       , map snd $ tail $ sort $ zip ns rules )
-    (:) best `fmap` (order rest)
+    (:) best `fmap` order rest
 
 orderPerm :: [Rule] -> RWSE [Rule]
 orderPerm rules = do
@@ -58,7 +58,7 @@ howmanyReadings rules = do
   liftIO $ putStrLn "howmanyReadings"
   liftIO $ mapM_ print rules
   liftIO $ putStrLn "---------"
-  s' <- liftIO $ newSolver
+  s' <- liftIO newSolver
   let largestWidth = maximum $ map (fst . width) rules
   i <- local (withNewSolver s') $ do
     conf <- mkConfig largestWidth
