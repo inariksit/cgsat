@@ -19,7 +19,7 @@ data-dir:      data
 library
   exposed-modules:     CGSAT, Analyse, Disambiguate, Order
   other-modules:       CGSAT.AmbiguityClass, CGSAT.Base, CGSAT.Context, CGSAT.Tagset,
-                       Derive, Euskara
+                       Derive, Euskara, Paths_cgsat
   build-depends:       array
                      , base
                      , containers
