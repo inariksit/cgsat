@@ -85,7 +85,7 @@ apply rule = do
          <- trigger rule i `catchError` \e -> case e of 
               NoReadingsLeft _ -> return (true,[])
               OutOfScope _ _ -> return (true,[])
-              TagsetNotFound s -> do liftIO $ putStrLn ("Warning: tagset " ++ s ++ " not found")
+              TagsetNotFound s -> do tell [ "Warning: tagset " ++ s ++ " not found" ]
                                      return  (true,[])
               _              -> throwError e
 

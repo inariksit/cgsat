@@ -38,21 +38,19 @@ testRules v = mapM (testRule v)
 
 testRule :: Bool -> Rule -> RWSE Conflict
 testRule v rule = do
-  liftIO (print rule)
+  when v $ liftIO (print rule)
   c@(Config len sen) <- get
   e@(Env w l r s) <- ask
   confs <-    -- I suspect there's a nicer way to handle this
      mapM (\i -> RWSE $ lift $ runExceptT $ runRWSE $ ruleTriggers v rule i
                   :: RWSE (Either CGException Conflict) )
                 [1..len] -- 1) Test if the rule may apply, and return result of that
---                [3] -- 1) Test if the rule may apply, and return result of that
 
   apply rule             -- 2) Apply the rule regardless
 
 
   let legitConfs = rights confs
   when v $ liftIO $ print legitConfs
-  --liftIO $ print ("all results: ", confs)
   if Interaction `elem` legitConfs 
     then return Interaction
 
