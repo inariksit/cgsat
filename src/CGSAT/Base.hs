@@ -84,8 +84,7 @@ import qualified CGHS
 import Data.List ( findIndices, nub, partition )
 import Data.Maybe ( mapMaybe )
 
-import System.FilePath ( pathSeparator )
-
+import Paths_cgsat
 
 --------------------------------------------------------------------------------
 -- RWSE, CGException
@@ -292,13 +291,12 @@ envRules (lang,r) s = do
                        else map parseReadingApe . words
   let parseLexforms = map readTag . filter (not.null) . words
 
-  let dirname = "data" ++ [pathSeparator]
-  let grfile  = dirname ++ lang ++ ".rlx"
-  let lexfile = dirname ++ lang ++ ".lexforms"
-  let rdsfile = dirname ++ lang ++ ".readings" ++ subr
+  grfile  <- getDataFileName (lang ++ ".rlx")
+  lexfile <- getDataFileName (lang ++ ".lexforms")
+  rdsfile <- getDataFileName (lang ++ ".readings" ++ subr)
 
-  --let acfile  = dirname ++ lang ++ ".ambiguity-classes"
-  --let frmfile = dirname ++ lang ++ ".formula"
+  -- acfile  <- getDataFileName (lang ++ ".ambiguity-classes")
+  -- frmfile <- getDataFileName (lang ++ ".formula")
   
   ----------------------------------------------------------------------------
 
