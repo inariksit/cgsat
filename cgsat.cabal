@@ -14,7 +14,7 @@ cabal-version:       >=1.10
 
 data-files:    *.rlx, *.readings, *.readings.withsub, *.lexforms
 
-data-dir:      data/
+data-dir:      data
 
 library
   exposed-modules:     CGSAT, Analyse, Disambiguate, Order
