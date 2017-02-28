@@ -76,8 +76,13 @@ replacements =
 
   , ("Nothing", "")
   , ("Just ", "")
+  , ("Left ", "")
+  , ("Right ", "")
   , ("_n_", "")
   , ("_v_", "")
+  , ("(",   "")
+  , (")",   "")
+  , (",",  " ")
   ]
 -- This function is taken from StackOverflow
 -- http://stackoverflow.com/questions/14880299/how-can-i-replace-a-substring-of-a-string-with-another-in-haskell-without-using

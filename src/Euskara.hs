@@ -10,7 +10,7 @@ import Test.Feat ( Enumerable, Enumerate
 
 generateReadings :: IO ()
 generateReadings = 
-  writeFile ("data/eus/eus.readings.new") $ unlines $
+  writeFile ("/tmp/eus.readings.new") $ unlines $
    concatMap (map show.snd) 
              (values :: [(Integer,[PartOfSpeech])])
 
@@ -64,13 +64,16 @@ instance Enumerable Ortografia where
 -- Kategoria (KAT) eta azpikategoria (AZP) nagusiak
 
 
+type Case = Either CoreCase (OtherCase, Maybe ZERO)
+
 -- This is like KategoriaLex but only the constructor names.
 -- Just a test to do some simple thing with SAT.
+--TODO: use MorphCat
 data PartOfSpeech = IZE AzpIZE -- Noun
                         Case
                         DefNum
---                        (Maybe AORG)
-                        (Maybe ZERO)
+                        (Maybe AORG)
+
                   | ADI_v_ AzpADI 
                            ADOIN
                            Aspect
@@ -78,15 +81,16 @@ data PartOfSpeech = IZE AzpIZE -- Noun
                   | ADI_n_ AzpADI 
                            PART_ADIZE
                            Aspect
-                           Case 
+                           Case
                            DefNum
                            (Maybe NOTDEK)
                   | ADJ AzpADB
-                        Case
+                        (Either CoreCase 
+                                (OtherCase, Maybe ZERO))
                         DefNum                  
                   | ADB AzpADB
                   | DET AzpDET Case
-                  | IOR AzpIOR -- Pronoun
+                  | IOR AzpIOR Case -- Pronoun
                   | LOT AzpLOT -- Connective
                   | PRT  -- Partikula
                   | ITJ -- Interjekzioa
@@ -111,7 +115,7 @@ instance Enumerable PartOfSpeech where
                        unary (funcurry (funcurry ADJ)):
                        unary ADB:
                        unary (funcurry DET):
-                       unary IOR:
+                       unary (funcurry IOR):
                        unary LOT:
                        unary ADL:
                        unary ADT:
@@ -282,11 +286,16 @@ instance Enumerable MorphCat where
 -- 2.3 Morfologia-ezaugarriak
 
 -- Kasumarkak
-data Case = ABL | ABS | ABU | ABZ | ALA | BNK 
-          | DAT | DES | DESK | ERG | GEL | GEN
-          | INE | INS | MOT | PAR | PRO | SOZ
+
+data CoreCase = ABS | ERG | DAT deriving (Show,Eq,Enum,Bounded)
+instance Enumerable CoreCase where
+  enumerate = enumBounded
+
+data OtherCase = ABL | ABU | ABZ | ALA
+               | BNK | DES | DESK | GEL | GEN
+               | INE | INS | MOT | PAR | PRO | SOZ
  deriving (Show,Eq,Enum,Bounded)
-instance Enumerable Case where
+instance Enumerable OtherCase where
   enumerate = enumBounded
 
 -- Usually Mugatasuna is accompanied by number 
