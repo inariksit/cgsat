@@ -2,10 +2,12 @@ module Main where
 
 import CGSAT ( rwse, evalRWSE, mkConfig, emptyConfig, envRules, dummyGenerate, apply, width )
 import Analyse ( testRules )
-import Order ( order, howmanyReadings, checkByTarget )
+import Order ( order, howmanyReadings, checkByTarget, feedingOrder )
 import SAT ( newSolver )
 
 import System.Environment ( getArgs )
+import Control.Monad ( forM_ )
+import Data.List ( delete, elemIndex )
 
 
 --------------------------------------------------------------------------------
@@ -26,7 +28,7 @@ main = do
 
      case task of
       "analyse" -> do 
-          let rls = take 2 rules
+          let rls = take 20 rules
           (_,_,log_) <- rwse env config $ testRules verbose rls
 
           mapM_ putStrLn log_
@@ -49,6 +51,19 @@ main = do
           putStrLn "New order: "
           mapM_ print rls
 
+      "feed" -> do
+          let splitrls = splits $ take 3 rules
+          forM_ splitrls $ \(r,rs) ->
+            do (a,_,_) <- rwse env emptyConfig $ feedingOrder r rs
+               let result = either (const []) id a
+               putStrLn ("Rule: " ++ show r)
+               putStrLn "Rules that feed to it:"
+               let len = length result
+               print len
+               if len < 50
+                then mapM_ print result
+                else return ()
+
       "check" -> do
           let (from:to:_) = map read r :: [Int]
           _ <- rwse env config $ checkByTarget rules from to
@@ -62,3 +77,9 @@ main = do
    _ -> print "give me a 3-letter code for a language" 
 
 
+splits :: (Eq a) => [a] -> [(a,[a])]
+splits xs = xs `for` \x -> let Just ind = elemIndex x xs
+                              in  (x, delete x xs)
+                              --in  (x, take ind xs)
+
+for = flip fmap
