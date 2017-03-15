@@ -81,8 +81,7 @@ ruleTriggers verbose rule i = do
   if b then return NoConf
    else 
      do s' <- liftIO newSolver
-        c <- local (withNewSolver s') $ do tempConf <- mkConfig len
-                                           put tempConf
+        c <- local (withNewSolver s') $ do newConfig len
                                            tempSen <- gets sentence
                                            liftIO $ defaultRules s' tempSen
                                            (condsHold,trg_oth) <- trigger rule i

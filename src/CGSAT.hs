@@ -55,7 +55,7 @@ solveAndPrint vrb s ass sen = do
   b <- solve s ass
   if b 
   then do
-    when vrb $ print ass
+    when vrb $ putStrLn ("Assumptions to solve: " ++ show ass)
     trueVals <- sequence 
          [ do trueWFs <- modelValue s `filterM` M.elems wfs
               trueLems <- modelValue s `filterM` M.elems lems
@@ -224,7 +224,7 @@ partitionTarget op coh sr = do
     REMOVE -> return (incoh,outcoh)
     _      -> return (incoh,outcoh) --TODO other operations
 
-
+-- | Returns the width of the rule, and the position of target index
 width :: Rule -> (Int,Int)
 width rule = (length [minw..maxw], maybe 9999 (1+) (elemIndex 0 [minw..maxw]))
  where                                   
