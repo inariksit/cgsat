@@ -41,7 +41,7 @@ module CGSAT.Base (
   , envRules
 
     -- ** Config
-  , Config(..), emptyConfig, mkConfig
+  , Config(..), emptyConfig, mkConfig, newConfig
   , Sentence, mkSentence
   , Cohort(..), emptyCohort
   , SplitCohort(..), partitionCohort
@@ -119,6 +119,8 @@ data Config = Config { senlength :: Int
                      , sentence :: Sentence 
                      } deriving (Show)
 
+newConfig :: Int -> RWSE ()
+newConfig w = mkConfig w >>= put
 
 mkConfig :: Int -> RWSE Config
 mkConfig w = Config w `fmap` mkSentence w
