@@ -114,14 +114,14 @@ apply rule = do
                                   | (rd,oldRdLit) <- maybe [] M.assocs mr
                                   , let newName = show oldRdLit ++ "'" ]
                    --print ("apply.newRds ", newRds)                   
-                   return (newWFs, newLems, newRds) -- :: IO ([],[],[])
+                   return (newWFs, newLems, newRds) -- :: IO ( [[(a,Lit)]], [[(b,Lit)]], [[(c,Lit)]] )
                     | ( SCoh mw ml mr
-                      , otherReadingsLeft) <- trgsAndOthers ] -- :: [ ([],[],[]) ]
+                      , otherReadingsLeft) <- trgsAndOthers ]
 
 
              let newcoh = updateCohort (sen ! i) newTrgLits
              --liftIO $ print ("apply.newCoh    ", newcoh)
-             let newsen = updateSentence sen i newcoh
+             let newsen = updateSentence sen (i,newcoh)
              return newsen
 
   ----------------------------------------------------
@@ -131,17 +131,11 @@ apply rule = do
   put (Config w newSen)
 
  where
-  --updateCohort :: Cohort -> ( [[(WF,Lit)]], [[(Lem,Lit)]], [[(MorphReading,Lit)]] ) -> Cohort
+  updateCohort :: Cohort -> ( [[(WF,Lit)]], [[(Lem,Lit)]], [[(MorphReading,Lit)]] ) -> Cohort
   updateCohort (Coh w l r) (newWFs,newLems,newRds) = 
     Coh (foldl updateLit w (concat newWFs))
         (foldl updateLit l (concat newLems))
         (foldl updateLit r (concat newRds))
-
-  updateLit :: (Ord k) => Map k Lit -> (k,Lit) -> Map k Lit
-  updateLit coh (a,newrd) = M.adjust (const newrd) a coh
-
-  updateSentence :: Sentence -> Int -> Cohort -> Sentence
-  updateSentence sen i newcoh = IM.adjust (const newcoh) i sen
 
 
 trigger :: Rule 
