@@ -3,6 +3,7 @@ module Analyse (
   , width
   , Conflict(..)
   , isConflict
+  , ruleTriggers
   ) where
 
 
@@ -38,7 +39,7 @@ testRules v = mapM (testRule v)
 
 testRule :: Bool -> Rule -> RWSE Conflict
 testRule v rule = do
-  when v $ liftIO (print rule)
+  when v $ liftIO $ putStrLn ("\n=============\n" ++ show rule)
   c@(Config len sen) <- get
   e@(Env w l r s) <- ask
   confs <-    -- I suspect there's a nicer way to handle this
@@ -89,7 +90,9 @@ ruleTriggers verbose rule i = do
                                            mustHaveTrg <- liftIO $ getTargetLit s' trg
                                            mustHaveOth <- liftIO $ orl' s' oth
                                            b <- liftIO $
-                                                 if verbose then solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
+                                                 if verbose then do
+                                                     putStrLn "\nTrying to solve with a fresh sentence:"
+                                                     solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
                                                    else solve s' [condsHold,mustHaveTrg,mustHaveOth]
                                            return $ if b then Interaction
                                                         else Internal
