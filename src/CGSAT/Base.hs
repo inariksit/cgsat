@@ -42,9 +42,10 @@ module CGSAT.Base (
 
     -- ** Config
   , Config(..), emptyConfig, mkConfig, newConfig
-  , Sentence, mkSentence
+  , Sentence, mkSentence, trueSentence
   , Cohort(..), emptyCohort
   , SplitCohort(..), partitionCohort
+  , updateLit, updateSentence
 
     -- ** Log
   , Log
@@ -145,6 +146,15 @@ data SplitCohort = SCoh { scoh_w :: Maybe (Map WF Lit)
 emptyCohort :: Cohort
 emptyCohort = Coh M.empty M.empty M.empty
 
+-- | Modify a literal in a map
+updateLit :: (Ord k) => Map k Lit -> (k,Lit) -> Map k Lit
+updateLit coh (rd,newlit) = M.adjust (const newlit) rd coh
+
+-- | Modify a cohort in a sentence
+updateSentence :: Sentence -> (Int,Cohort) -> Sentence
+updateSentence sen (i,newcoh) = IM.adjust (const newcoh) i sen
+
+-- | Partition a cohort into two SplitCohorts: specified readings and other readings
 partitionCohort :: Cohort -> SplitReading -> RWSE (SplitCohort,SplitCohort)
 partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) = do
   (inWFs,outWFs) <- inOut elem ws wMap "(searched as a word form)"
@@ -153,10 +163,11 @@ partitionCohort (Coh wMap lMap rMap) (SR ws ls rs) = do
   return (SCoh inWFs inLems inRds, SCoh outWFs outLems outRds)
  where
   inOut f xs xmap errormsg = do
-    if null xs then return (Nothing,Nothing)
+   if null xs -- Empty list in SplitReading means "this column can be anything"
+     then return (Nothing,Nothing) -- `Nothing' in SplitCohort means "this column can be anything"
      else
       do let (maybeInXs,maybeOutXs) = M.partitionWithKey (\k _ -> k `f` xs) xmap
-         if M.null maybeInXs
+         if M.null maybeInXs -- Non-empty list in SplitReading but empty list in result means "tagset was specified, but it is not found"
            then do --liftIO $ print (getOrList xs)
                    --liftIO $ print xmap
                    throwError $ TagsetNotFound (show (getOrList xs) ++ " " ++ errormsg)
@@ -201,6 +212,20 @@ mkSentence w
   showReading (And ts) wdi = "w" ++ show wdi ++ concatMap (\t -> '_':show t) ts
 
 
+trueSentence :: Int -> RWSE Sentence
+trueSentence w = do 
+  sent <- mkSentence w
+  return $ foldl updateSentence sent
+                 [ (i, updateCohort t t t coh) | (i,coh) <- IM.assocs sent ]
+
+ where
+  t :: (Ord k) => Map k Lit -> Map k Lit --Replace all lits in the map with true
+  t x = foldl updateLit x $ M.keys x `zip` repeat true
+
+  updateCohort f g h (Coh w l r) = Coh (f w) (g l) (h r)
+
+
+
 --------------------------------------------------------------------------------
 -- Newtypes. These have the same names as the type Tag in CGHS, 
 -- but in CGHS, WF, Lem and Tag are constructors, here they are types.
@@ -211,8 +236,11 @@ instance Show WF where
   show (WF wf) = show wf
 
 fromWF :: CGHS.Tag -> Maybe WF
-fromWF x@(CGHS.WF _) = Just (WF x)
-fromWF _             = Nothing
+fromWF x@(CGHS.WF _)  = Just (WF x)
+fromWF x@(CGHS.Rgx r) = if '<' `elem` r 
+                          then Just (WF (CGHS.WF (fromRgx r)))
+                          else Nothing
+fromWF _              = Nothing
 
 newtype Lem = Lem { getLem :: CGHS.Tag } deriving (Eq,Ord)
 
@@ -221,6 +249,9 @@ instance Show Lem where
 
 fromLem :: CGHS.Tag -> Maybe Lem
 fromLem x@(CGHS.Lem _) = Just (Lem x)
+fromLem x@(CGHS.Rgx r) = if '<' `elem` r 
+                          then Nothing
+                          else Just (Lem (CGHS.Lem (fromRgx r)))
 fromLem _              = Nothing
 
 newtype Tag = Tag { getTag :: CGHS.Tag } deriving (Eq,Ord)
@@ -230,6 +261,9 @@ instance Show Tag where
 
 fromTag :: CGHS.Tag -> Tag
 fromTag = Tag
+
+fromRgx :: String -> String
+fromRgx rgx = filter (\x -> x `notElem` ['"', '\\', '<', '>', '[', ']']) $ init rgx 
 
 newtype MorphReading = Rd { getReading :: AndList Tag } deriving (Eq,Show,Ord)
 
