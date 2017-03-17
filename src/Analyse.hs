@@ -61,39 +61,43 @@ ruleTriggers :: Bool -> Rule -> Int -> RWSE Conflict
 ruleTriggers verbose rule i = do
   s <- asks solver
   (Config len sen) <- get
-  reqOrErr <- Just `fmap` trigger rule i 
-                `catchError` \e -> case e of
-                   TagsetNotFound _ -> return Nothing -- Treat as an internal conflict
-                   _ -> throwError e -- Other thing went wrong: treat as an error
-  case reqOrErr of
-    Nothing -> return Internal -- If tagset is not found, treat it as an internal conflict
-    Just (allCondsHold, trgCohs_otherLits) -> do
-      let (trgCohs, otherLits) = unzip trgCohs_otherLits
-      mustHaveTarget <- liftIO $ getTargetLit s trgCohs
-      mustHaveOther <- liftIO $ orl' s otherLits
-      b <- liftIO $
-        if verbose then solveAndPrint True s [mustHaveTarget, mustHaveOther, allCondsHold] sen
-                 else solve s [allCondsHold,mustHaveTarget,mustHaveOther]
-      if b then return NoConf
-       else do s' <- liftIO newSolver
-               c <- local (withNewSolver s') $ do
-                      newConfig len
-                      tempSen <- gets sentence
-                      liftIO $ defaultRules s' tempSen
-                      (condsHold,trg_oth) <- trigger rule i
-                      let (trg,oth) = unzip trg_oth 
-                      mustHaveTrg <- liftIO $ getTargetLit s' trg
-                      mustHaveOth <- liftIO $ orl' s' oth
-                      b <- liftIO $ if verbose then do
-                                           putStrLn "\nTrying to solve with a fresh sentence:"
-                                           solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
-                                     else solve s' [condsHold,mustHaveTrg,mustHaveOth]
-                      return $ if b then Interaction else Internal
-               liftIO $ deleteSolver s'
-               put (Config len sen)
-               return c
 
+  reqOrErr <- getReq rule i 
+
+  case reqOrErr of
+    Nothing  -> return Internal -- If tagset is not found, treat it as an internal conflict
+    Just req -> do
+      b <- triggers' s req sen
+      if b then return NoConf
+        else do
+          s' <- liftIO newSolver
+          c <- local (withNewSolver s') $ do
+                  newConfig len
+                  tempSen <- gets sentence
+                  liftIO $ defaultRules s' tempSen
+                  (Just req') <- getReq rule i
+                  b' <- triggers' s' req' tempSen
+                  return $ if b' then Interaction else Internal      
+          liftIO $ deleteSolver s'
+          put (Config len sen)
+          return c      
  where
+
+  getReq rule i = Just `fmap` trigger rule i 
+                   `catchError` \e -> case e of
+                                       TagsetNotFound _ 
+                                         -> return Nothing -- Treat as an internal conflict
+                                       _ -> throwError e -- Other thing went wrong: treat as an error
+
+  triggers' s (condsHold, trgCohs_otherLits) sen  = do
+    let (trgCohs, otherLits) = unzip trgCohs_otherLits
+    mustHaveTarget <- liftIO $ getTargetLit s trgCohs
+    mustHaveOther <- liftIO $ orl' s otherLits
+    liftIO $ if verbose 
+               then solveAndPrint True s [mustHaveTarget,mustHaveOther,condsHold] sen
+               else solve s [mustHaveTarget,mustHaveOther,condsHold]
+ 
+
   getTargetLit :: Solver -> [SplitCohort] -> IO Lit
   getTargetLit s trgCohs =  andl' s =<< sequence
     [ do wfLit  <- orl' s (maybe [true] M.elems mw)
