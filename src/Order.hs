@@ -3,6 +3,7 @@ module Order (
   , howmanyReadings
   , checkByTarget
   , feedingOrder
+  , bleedingOrder
   , needsPrevious
   ) where
 
@@ -11,7 +12,7 @@ import CGSAT
 import Analyse
 import CGSAT.Base
 
-import Data.List ( permutations, sort )
+import Data.List ( permutations, sort, (\\) )
 import Data.Maybe ( catMaybes )
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
@@ -29,32 +30,40 @@ needsPrevious rl = do
           put (Config w truesen)
           (condsHold,_) <- trigger rl trgInd
           liftIO $ solve s' [condsHold]
+        `catchError` \e -> case e of 
+                             TagsetNotFound _ 
+                               -> return False -- The rule has something wrong, but other rules won't fix it!
+                             _ -> throwError e
   liftIO $ deleteSolver s'
   put (Config len sen)
   return b
 
 feedingOrder :: Rule -> [Rule] -> RWSE [Rule]
 feedingOrder rl rls = catMaybes `fmap` sequence
-  --TODO: less copypaste, do something smart with needsPrevious / a whole new function that calls it in local (withNewSolver s') ? Feels stupid to do the withNewSolver and trueSentence all over again
   [ do s' <- liftIO newSolver 
        let (w,trgInd) = width rl
        (Config len sen) <- get
        fdrl <- local (withNewSolver s') $ do
-                  truesen <- trueSentence w
-                  put (Config w truesen)
-                  apply prevRl
-                  conf <- ruleTriggers False rl trgInd
-                  return $ case conf of
-                    NoConf -> Just prevRl
-                    _ -> Nothing
+                  truesen <- trueSentence len
+                  put (Config len truesen)
+                  b <- bleeds prevRl rl
+                  return $ if b then Nothing 
+                             else Just prevRl
 
        liftIO $ deleteSolver s'
        return fdrl
 
     | prevRl <- rls ]
 
+
+bleeds :: Rule -> Rule -> RWSE Bool
+bleeds rl rl' = do 
+  apply rl
+  isConflict `fmap` testRule False rl'
+
 bleedingOrder :: Rule -> [Rule] -> RWSE [Rule]
-bleedingOrder rl = undefined
+bleedingOrder rl rls = do feedRls <- feedingOrder rl rls
+                          return $ rls \\ feedRls
 
 
 --------------------------------------------------------------------------------
