@@ -40,65 +40,57 @@ testRules v = mapM (testRule v)
 testRule :: Bool -> Rule -> RWSE Conflict
 testRule v rule = do
   when v $ liftIO $ putStrLn ("\n=============\n" ++ show rule)
-  c@(Config len sen) <- get
-  e@(Env w l r s) <- ask
-  confs <-    -- I suspect there's a nicer way to handle this
-     mapM (\i -> RWSE $ lift $ runExceptT $ runRWSE $ ruleTriggers v rule i
-                  :: RWSE (Either CGException Conflict) )
-                [1..len] -- 1) Test if the rule may apply, and return result of that
-
-  apply rule             -- 2) Apply the rule regardless
+  len <- gets senlength
+  confs <- mapM (evalE . ruleTriggers v rule) [1..len]
+              -- 1) Test if the rule may apply, and return result of that
+  apply rule  -- 2) Apply the rule regardless
 
 
   let legitConfs = rights confs
-  when v $ liftIO $ print legitConfs
-  if Interaction `elem` legitConfs 
-    then return Interaction
+  when v $ liftIO $ print confs
+  if NoConf `elem` legitConfs
+    then return NoConf
+    else if Interaction `elem` legitConfs 
+      then return Interaction
+      else return Internal
 
-    else if Internal `elem` legitConfs
-      then return Internal
-          else if null legitConfs
-                then do when v $ liftIO $ print confs 
-                        return Internal
-      else return NoConf
 
 
 ruleTriggers :: Bool -> Rule -> Int -> RWSE Conflict
 ruleTriggers verbose rule i = do
   s <- asks solver
   (Config len sen) <- get
-  --liftIO $ defaultRules s sen
-  (allCondsHold, trgCohs_otherLits) <- trigger rule i
-  let (trgCohs, otherLits) = unzip trgCohs_otherLits
-
-  mustHaveTarget <- liftIO $ getTargetLit s trgCohs
-
-  --liftIO $ print ("mustHaveTarget: ", mustHaveTarget)
-  --liftIO $ print ("trgCohs: ", trgCohs)
-  mustHaveOther <- liftIO $ orl' s otherLits
-  b <- liftIO $
+  reqOrErr <- Just `fmap` trigger rule i 
+                `catchError` \e -> case e of
+                   TagsetNotFound _ -> return Nothing -- Treat as an internal conflict
+                   _ -> throwError e -- Other thing went wrong: treat as an error
+  case reqOrErr of
+    Nothing -> return Internal -- If tagset is not found, treat it as an internal conflict
+    Just (allCondsHold, trgCohs_otherLits) -> do
+      let (trgCohs, otherLits) = unzip trgCohs_otherLits
+      mustHaveTarget <- liftIO $ getTargetLit s trgCohs
+      mustHaveOther <- liftIO $ orl' s otherLits
+      b <- liftIO $
         if verbose then solveAndPrint True s [mustHaveTarget, mustHaveOther, allCondsHold] sen
-          else solve s [allCondsHold,mustHaveTarget,mustHaveOther]
-  if b then return NoConf
-   else 
-     do s' <- liftIO newSolver
-        c <- local (withNewSolver s') $ do newConfig len
-                                           tempSen <- gets sentence
-                                           liftIO $ defaultRules s' tempSen
-                                           (condsHold,trg_oth) <- trigger rule i
-                                           let (trg,oth) = unzip trg_oth 
-                                           mustHaveTrg <- liftIO $ getTargetLit s' trg
-                                           mustHaveOth <- liftIO $ orl' s' oth
-                                           b <- liftIO $
-                                                 if verbose then do
-                                                     putStrLn "\nTrying to solve with a fresh sentence:"
-                                                     solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
-                                                   else solve s' [condsHold,mustHaveTrg,mustHaveOth]
-                                           return $ if b then Interaction
-                                                        else Internal
-        liftIO $ deleteSolver s'
-        put (Config len sen)
-        return c
+                 else solve s [allCondsHold,mustHaveTarget,mustHaveOther]
+      if b then return NoConf
+       else do s' <- liftIO newSolver
+               c <- local (withNewSolver s') $ do
+                      newConfig len
+                      tempSen <- gets sentence
+                      liftIO $ defaultRules s' tempSen
+                      (condsHold,trg_oth) <- trigger rule i
+                      let (trg,oth) = unzip trg_oth 
+                      mustHaveTrg <- liftIO $ getTargetLit s' trg
+                      mustHaveOth <- liftIO $ orl' s' oth
+                      b <- liftIO $ if verbose then do
+                                           putStrLn "\nTrying to solve with a fresh sentence:"
+                                           solveAndPrint True s' [condsHold,mustHaveTrg,mustHaveOth] tempSen
+                                     else solve s' [condsHold,mustHaveTrg,mustHaveOth]
+                      return $ if b then Interaction else Internal
+               liftIO $ deleteSolver s'
+               put (Config len sen)
+               return c
 
  where
   getTargetLit :: Solver -> [SplitCohort] -> IO Lit
