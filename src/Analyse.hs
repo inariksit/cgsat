@@ -1,5 +1,6 @@
 module Analyse (
     testRules
+  , testRule
   , width
   , Conflict(..)
   , isConflict

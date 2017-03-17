@@ -34,7 +34,8 @@ module CGSAT.Base (
    
 
     -- * RWSE
-  , rwse, evalRWSE, RWSE(..), CGException(..)
+  , rwse, evalRWSE, evalE
+  , RWSE(..), CGException(..)
 
     -- ** Env
   , Env(..), mkEnv, withNewSolver
@@ -103,6 +104,9 @@ rwse env conf (RWSE m) = runRWST (runExceptT m) env conf
 evalRWSE :: Env -> RWSE a -> IO a
 evalRWSE env m = do (Right x,_,_) <- rwse env emptyConfig m
                     return x
+
+evalE :: RWSE a -> RWSE (Either CGException a)
+evalE (RWSE m) = RWSE $ lift $ runExceptT m
 
 data CGException = TagsetNotFound String | OutOfScope Int String 
                  | NoReadingsLeft String

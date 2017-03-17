@@ -97,23 +97,9 @@ apply rule = do
           do newTrgLits <- liftIO $ unzip3 `fmap` sequence
               [ do cannotApply <- orl' s [ neg allCondsHold -- Same for all versions of target
                                          , neg otherReadingsLeft ] -- Different for each version of target
-                   newWFs <- sequence 
-                              [ do newWFLit <- andl s newName [ oldWFLit, cannotApply ]
-                                   return (wf,newWFLit)
-                                  | (wf,oldWFLit) <- maybe [] M.assocs mw
-                                  , let newName = show oldWFLit ++ "'" ]
-
-                   newLems <- sequence 
-                              [ do newLemLit <- liftIO $ andl s newName [ oldLemLit, cannotApply ]
-                                   return (lem,newLemLit)
-                                  | (lem,oldLemLit) <- maybe [] M.assocs ml
-                                  , let newName = show oldLemLit ++ "'" ]
-                   newRds <- sequence 
-                              [ do newRdLit <- andl s newName [ oldRdLit, cannotApply ]
-                                   return (rd,newRdLit)
-                                  | (rd,oldRdLit) <- maybe [] M.assocs mr
-                                  , let newName = show oldRdLit ++ "'" ]
-                   --print ("apply.newRds ", newRds)                   
+                   newWFs <- newLits s mw cannotApply 
+                   newLems <- newLits s ml cannotApply
+                   newRds <- newLits s mr cannotApply
                    return (newWFs, newLems, newRds) -- :: IO ( [[(a,Lit)]], [[(b,Lit)]], [[(c,Lit)]] )
                     | ( SCoh mw ml mr
                       , otherReadingsLeft) <- trgsAndOthers ]
@@ -137,6 +123,11 @@ apply rule = do
         (foldl updateLit l (concat newLems))
         (foldl updateLit r (concat newRds))
 
+  newLits s xmap cannotApply =
+    sequence [ do newXLit <- andl s newName [ oldXLit, cannotApply ]
+                  return (x,newXLit)
+               | (x,oldXLit) <- maybe [] M.assocs xmap
+               , let newName = show oldXLit ++ "'" ]
 
 trigger :: Rule 
         -> Int -- ^ Rule applied to an index in the sentence
@@ -145,7 +136,7 @@ trigger :: Rule
 trigger rule origin = do
   (Config len sen) <- get
   env@(Env ws ls rs s) <- ask
-  conds <- condLits rule origin
+  conds <- condLits rule origin -- may throw TagsetNotFound
   trgCoh <- case IM.lookup origin sen of
               Nothing -> do tell [ "trigger: target position " ++ show origin ++ 
                                    " out of scope, sentence length " ++ show len ]
