@@ -76,18 +76,16 @@ data PartOfSpeech = IZE AzpIZE -- Noun
 
                   | ADI_v_ AzpADI 
                            ADOIN
-                           Aspect
+                           (Either Aspect NOTDEK)
 
                   | ADI_n_ AzpADI 
                            PART_ADIZE
-                           Aspect
-                           Case
-                           DefNum
-                           (Maybe NOTDEK)
+                           (Either (Case,DefNum) NOTDEK)
+                           (Maybe Erlazioak)
+
                   | ADJ AzpADB
-                        (Either CoreCase 
-                                (OtherCase, Maybe ZERO))
-                        DefNum                  
+                        Case
+                        DefNum           
                   | ADB AzpADB
                   | DET AzpDET Case
                   | IOR AzpIOR Case -- Pronoun
@@ -96,10 +94,12 @@ data PartOfSpeech = IZE AzpIZE -- Noun
                   | ITJ -- Interjekzioa
                   | BST -- Bestelakoa
     -- Kategoria lagungarriak
-                  | ADL 
-                        (Maybe NOTDEK)
-                  | ADT 
-                        (Maybe NOTDEK)
+                  | ADL AgrADL
+                      --  (Maybe Erlazioak)
+                        TenseMood
+                --  | ADT AgrADL
+                        --TenseMood
+
 
  deriving (Eq)
 
@@ -108,17 +108,16 @@ instance Enumerable PartOfSpeech where
   enumerate = consts ( unary (funcurry (funcurry
                              (funcurry IZE))):
                        unary (funcurry (funcurry 
-                             (ADI_v_))):
+                             ( ADI_v_))):
                        unary (funcurry (funcurry 
-                             (funcurry (funcurry 
-                             (funcurry ADI_n_))))):
+                             (funcurry ADI_n_))):
                        unary (funcurry (funcurry ADJ)):
                        unary ADB:
                        unary (funcurry DET):
                        unary (funcurry IOR):
                        unary LOT:
-                       unary ADL:
-                       unary ADT:
+                       unary (funcurry ( ADL)):
+                   --    unary (funcurry ADT):
                        map pure [PRT,ITJ,BST] )
 
 
@@ -241,23 +240,23 @@ instance Enumerable AzpADI where
 
 data AzpDET = ERKARR -- Determinatzailea: erakusle arrunta
             | ERKIND -- Determinatzailea: erakusle indartua
-            | NOLARR -- Det.: nolakotzaile arrunta
+--            | NOLARR -- Det.: nolakotzaile arrunta
             | NOLGAL --Det.: nolakotzaile galdetzailea
             | DZH -- Det.: zenbatzaile zehaztua
-            | BAN -- Det.: zenbatzaile banatzailea
+--            | BAN -- Det.: zenbatzaile banatzailea
             | ORD --Det.: zenbatzaile ordinala
             | DZG --Det.: zenbatzaile zehaztugabea
-            | ORO --Det.: zenbatzaile orokorra
+--            | ORO --Det.: zenbatzaile orokorra
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpDET where
   enumerate = enumBounded
 
-data AzpIOR = PERARR -- Pertsona-izenordain arrunta
-            | PERIND -- Pertsona-izenordain indartua
-            | IZGMGB -- Izenordain zehaztugabe mugagabea
-            | IZGGAL -- Izenordain zehaztugabe galdetzailea
-            | BIH -- Izenordain bihurkaria
-            | ELK --Izenordain elkarkaria
+data AzpIOR = IZGMGB -- Izenordain zehaztugabe mugagabea
+--            | PERIND -- Pertsona-izenordain indartua
+--            | PERARR -- Pertsona-izenordain arrunta
+--            | IZGGAL -- Izenordain zehaztugabe galdetzailea
+--            | BIH -- Izenordain bihurkaria
+--            | ELK --Izenordain elkarkaria
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpIOR where
   enumerate = enumBounded
@@ -272,7 +271,7 @@ instance Enumerable AzpLOT where
 data MorphCat = AMM -- Aditz-mota morfema
               | ASP -- Aspektu-morfema
               | ATZ -- Atzizki lexikala
-              | AUR -- Aurrizki lexikala
+--              | AUR -- Aurrizki lexikala
               | DEK -- Deklinabide-morfema
               | ELI -- Elipsia
               | ERL -- Erlazio-atzizkia
@@ -351,7 +350,7 @@ instance Enumerable Aspect where
 -- Modu-denbora (MDN)
 data TenseMood =
      A1 -- Indikatibozko orainaldia: naiz
-   | A2 -- Indikatibozko geroaldi arkaikoa: naizateke
+--   | A2 -- Indikatibozko geroaldi arkaikoa: naizateke  -- Not used in the latest grammar
    | A3 -- Subjuntibozko orainaldia: nadi(n)
    | A4 -- Subjuntibozko baldintza: (ba)nadi
    | A5 -- Ahalezko orainaldia: naiteke
@@ -361,7 +360,7 @@ data TenseMood =
    | B4 -- Indik. baldintza (aurrekoa): (ba)nintz
    | B5A -- Subjuntibozko lehenaldia: nendin, zedin
    | B5B -- Subjuntibozko alegiazkoa: ledi(n)
-   | B6 -- Subjuntibozko baldintza (lehenaldia): banendi
+--   | B6 -- Subjuntibozko baldintza (lehenaldia): banendi  -- Not used in the latest grammar
    | B7 -- Ahalezko lehenaldia: ninteke
    | B8 -- Ahalezko lehenaldi urruna: nintekeen
    | MDNC -- Aginterazko orainaldia: hadi -- or just C?
@@ -379,20 +378,31 @@ instance Enumerable Mod where
 
 -- Verb agreement: 
 -- has 1-3 of the following, either Nor, Nor-Nori, Nor-Nork or Nor-Nori-Nork
-data Nor = NR_NI | NR_HI | NR_HURA | NR_GU 
-         | NR_ZU | NR_ZUEK | NR_HAIEK deriving (Eq,Enum,Bounded)
+data Nor =
+         NR_NI 
+         | NR_HI 
+         | NR_HURA 
+         -- | NR_GU | NR_ZU | NR_ZUEK 
+         | NR_HAIEK deriving (Eq,Enum,Bounded)
 instance Enumerable Nor where
   enumerate = enumBounded
 
 
-data Nori = NI_NIRI | NI_HIRI_dash_TO | NI_HIRI_dash_NO | NI_HARI
+data Nori = NI_NIRI 
+          | NI_HIRI
+          -- | NI_HIRI_dash_TO 
+          -- | NI_HIRI_dash_NO 
+          | NI_HARI
           | NI_GURI | NI_ZURI | NI_ZUEI | NI_HAIEI deriving (Eq,Enum,Bounded)
 instance Enumerable Nori where
   enumerate = enumBounded
 
 
-data Nork = NK_NIK | NK_HIK_dash_TO | NK_HIK_dash_NO | NK_HARK
-          | NK_GUK | NK_ZUK | NK_ZUEK_K | NK_HAIEK_K deriving (Eq,Enum,Bounded)
+data Nork = NK_NIK 
+          | NK_HIK -- | NK_HIK_dash_TO 
+          | NK_HIK_dash_NO | NK_HARK
+          | NK_GUK | NK_ZUK 
+          | NK_ZUEK_dash_K | NK_HAIEK_dash_K deriving (Eq,Enum,Bounded)
 instance Enumerable Nork where
   enumerate = enumBounded
 
@@ -412,16 +422,16 @@ data Erlazioak = BALD -- Baldintzakoa
                | HELB -- Helburuzkoa
                | KAUS -- Kausazkoa 
                | KONPL -- Konpletiboa
-               | KONT -- Kontzesiboa
+--               | KONT -- Kontzesiboa
                | MOD -- Moduzkoa
                | MOD_slash_DENB -- Moduzkoa/Denborazkoa (orig. name MOD/DENB)
                | MOS -- Mendeko osagaia
                | ZHG -- Zehar-galdera
 -- Lokailuen eta juntagailuen erlazioak (ERL)
                | AURK -- Aurkaritzakoa
-               | EMEN -- Emendiozkoa 
-               | HAUT -- Hautazkoa
-               | ONDO --Ondoriozkoa
+--               | EMEN -- Emendiozkoa 
+--               | HAUT -- Hautazkoa
+--               | ONDO --Ondoriozkoa
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Erlazioak where
   enumerate = enumBounded
