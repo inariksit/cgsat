@@ -54,7 +54,7 @@ genPE n = do
 --------------------------------------------------------------------------------
 
 showAndReplace :: (Show a) => a -> String
-showAndReplace = replaceAll replacements . show
+showAndReplace = replaceAll [("Left ", ""), ("Right ", ""), ("Just ", "")] . replaceAll replacements . show
 
 replaceAll :: [(String,String)] -> String -> String
 replaceAll []            haystack = haystack
@@ -73,6 +73,12 @@ replacements =
   -- because the word itself is on the right. Same for Ezkerreko.
   , ("_esk_", "<")
   , ("_ezk_", ">")
+
+  -- Terrible hacks
+  , ("ADL", "ADL ADT")
+  , ("ADJ", "ADJ ADB")
+  , (" IZE", " IZE ADB")
+  , ("PUNT_deletethis", " ")
 
   , ("Nothing", "")
   , ("Just ", "")

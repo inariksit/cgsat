@@ -69,13 +69,16 @@ type Case = Either CoreCase (OtherCase, Maybe ZERO)
 -- This is like KategoriaLex but only the constructor names.
 -- Just a test to do some simple thing with SAT.
 --TODO: use MorphCat
-data PartOfSpeech = IZE AzpIZE -- Noun
+data PartOfSpeech = EZEZAG
+                  | PUNT_deletethis Puntuazio
+                  | IZE AzpIZE -- Noun
                         Case
                         DefNum
                         (Maybe AORG)
 
                   | ADI_v_ AzpADI 
                            ADOIN
+                           AuxType
                            (Either Aspect NOTDEK)
 
                   | ADI_n_ AzpADI 
@@ -85,8 +88,11 @@ data PartOfSpeech = IZE AzpIZE -- Noun
 
                   | ADJ AzpADB
                         Case
-                        DefNum           
-                  | ADB AzpADB
+                        DefNum
+                        AdjPosizioak
+
+--                  | ADB AdjPosizioak
+
                   | DET AzpDET Case
                   | IOR AzpIOR Case -- Pronoun
                   | LOT AzpLOT -- Connective
@@ -108,11 +114,12 @@ instance Enumerable PartOfSpeech where
   enumerate = consts ( unary (funcurry (funcurry
                              (funcurry IZE))):
                        unary (funcurry (funcurry 
-                             ( ADI_v_))):
+                             (funcurry ADI_v_))):
                        unary (funcurry (funcurry 
                              (funcurry ADI_n_))):
-                       unary (funcurry (funcurry ADJ)):
-                       unary ADB:
+                       unary (funcurry (funcurry 
+                             (funcurry ADJ))):
+                      -- unary ( ADB):
                        unary (funcurry DET):
                        unary (funcurry IOR):
                        unary LOT:
@@ -234,6 +241,8 @@ instance Show AzpADB where
 data AzpADI = SIN -- Aditz sinplea
             | ADK -- Aditz konposatua
             | FAK --Aditz faktitiboa
+            | ADP -- Aditz perifrastikoa
+
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable AzpADI where
   enumerate = enumBounded
