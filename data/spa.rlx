@@ -138,18 +138,22 @@ SECTION
 # Example: 
 # |sentences that trigger 1st rule| > |sentences that trigger 2nd rule|
 
+LIST InfOrEnc = (inf) (enc) ;
 
-SET Como = ("como") OR ("Como") ;
+SELECT:que_1 CnjSub (0 ("que")) (-1C InfOrEnc) ;
 
-REMOVE:r_salvo_1 Vblex (0 ("salvo") OR ("Salvo")) (*-1 Vblex BARRIER Cnj_Rel) ;  # no funciona sempre
-REMOVE:r_salvo_2 Vblex (0 ("salvo") OR ("Salvo")) (*1 Vblex BARRIER Cnj_Rel) ;
-REMOVE:r_salvo_2 Vblex (0 ("salvo") OR ("Salvo")) ;
 
-#TODO: test with these four rules! why is it internal conflict O_o
-SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 Barrera_Final_Estrict_SN) ;
-SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 CM OR CnjCoo) (1 Barrera_Final_Estrict_SN) ;
-SELECT:media_1 N IF (-3C Num) (-2 N) (-1 CnjCoo) (0 ("media")) ;
-SELECT:pr_cnjadv_3 CnjAdv (0 ("después_de") OR ("Después_de") OR ("antes_de") OR ("Antes_de") OR ("tras") OR ("Tras")) (1C Inf OR Enc) ;
+# SET Como = ("como") OR ("Como") ;
+
+# REMOVE:r_salvo_1 Vblex (0 ("salvo") OR ("Salvo")) (*-1 Vblex BARRIER Cnj_Rel) ;  # no funciona sempre
+# REMOVE:r_salvo_2 Vblex (0 ("salvo") OR ("Salvo")) (*1 Vblex BARRIER Cnj_Rel) ;
+# REMOVE:r_salvo_2 Vblex (0 ("salvo") OR ("Salvo")) ;
+
+# #TODO: test with these four rules! why is it internal conflict O_o
+# SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 Barrera_Final_Estrict_SN) ;
+# SELECT:n_a_eos_2 N IF (0 Noun_Adj_PP LINK NOT 0 NP OR ("ser")) (-1 Det) (NOT -1 ("este") OR ("Este")) (1 CM OR CnjCoo) (1 Barrera_Final_Estrict_SN) ;
+# SELECT:media_1 N IF (-3C Num) (-2 N) (-1 CnjCoo) (0 ("media")) ;
+# SELECT:pr_cnjadv_3 CnjAdv (0 ("después_de") OR ("Después_de") OR ("antes_de") OR ("Antes_de") OR ("tras") OR ("Tras")) (1C Inf OR Enc) ;
 
 
 

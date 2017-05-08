@@ -76,8 +76,11 @@ SECTION
 
 
 # Playground area 
+
 # REMOVE:r_adv_n Adv IF (1 Noun);
-# REMOVE Adv IF (-1 Det) (0 Adj) (1 Noun);
+# REMOVE Noun IF (-1C Te);
+# REMOVE Noun IF (-1C Adv);
+
 # real grammar starts !
 
 
@@ -94,7 +97,8 @@ SELECT VbGer IF (-1 DetHet) (NOT 0 Noun);
 SELECT DetHet IF (1 VbGer);
 
 # unsafe
-SET HaarN = ("haar"i) + Noun ;
+LIST Haar = ("haar"i) ;
+SET HaarN = Haar + Noun ;
 REMOVE HaarN IF (1 Noun);
 
 # unsafe
@@ -151,13 +155,13 @@ SELECT DezeDet  IF (-1 BOS) (1 Zijn);
 SELECT ZijnVerb IF (-2 BOS) (-1 ("deze"i));
 
 # . Tegenwoordig zijn
-SELECT (vbser pres pl) IF (-2 BOS) (-1 Adv) (0 ("zijn"i));
+#Inari SELECT (vbser pres pl) IF (-2 BOS) (-1 Adv) (0 ("zijn"i));
 
 # , bij niet
 SELECT Pr IF (-1 Cm) (1 Adv);
 
 # uit pinda's
-SELECT Noun IF (-1 Pr) (0/1 Gen);
+#SELECT Noun IF (-1 Pr) (0/1 Gen);
 
 # de oliën
 #REMOVE Verb IF (-1 DetDe);
@@ -181,12 +185,13 @@ SELECT Noun IF (-1 (det)) (1 (pr));
 
 # op zijn eiland aanvallen
 SELECT VblexInf IF (-1 Noun) (NOT -1 Cmp);
+
 REMOVE ("zijn"i vbser) IF (-1 (pr)) (1 Noun);
 
 # . Heb je
 SELECT:heb_je (vbhaver pres p2 sg) IF (-1 BOS) (1 (prn obj uns p2 mf sg));
 
-REMOVE ("s"i gen) IF (NOT -1 (np));
+#Inari REMOVE ("s"i gen) IF (NOT -1 (np));
 
 # is zijn zus
 SELECT DetPos IF (-1 (vbser pres p3 sg)) (0 ("zijn"i)) (1 Noun);
