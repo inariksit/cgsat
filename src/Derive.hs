@@ -78,7 +78,9 @@ replacements =
   , ("ADL", "ADL ADT")
   , ("ADJ", "ADJ ADB")
   , (" IZE", " IZE ADB")
-  , ("PUNT_deletethis", " ")
+  , ("PUNT_deletethis", "")
+  , ("StartS", "<s>")
+  , ("EndS", "</s>") 
 
   , ("Nothing", "")
   , ("Just ", "")

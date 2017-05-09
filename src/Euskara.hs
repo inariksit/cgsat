@@ -43,8 +43,9 @@ instance Enumerable ZALE where enumerate = enumBounded
 
 -- 1.1    Puntuazio-markak
 
-data Puntuazio = PUNT_PUNT | PUNT_KOMA | PUNT_PUNT_KOMA 
+data Puntuazio = PUNT_PUNT | PUNT_KOMA | PUNT_PUNT_KOMA | BEREIZ
                | PUNT_BI_PUNT | PUNT_ESKL | PUNT_GALD | PUNT_HIRU
+               | StartS | EndS 
  deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Puntuazio where
   enumerate = enumBounded
@@ -83,7 +84,7 @@ data PartOfSpeech = EZEZAG
 
                   | ADI_n_ AzpADI 
                            PART_ADIZE
-                           (Either (Case,DefNum) NOTDEK)
+                           (Either (Case,DefNum,Aspect) NOTDEK)
                            (Maybe Erlazioak)
 
                   | ADJ AzpADB
@@ -124,8 +125,9 @@ instance Enumerable PartOfSpeech where
                        unary (funcurry IOR):
                        unary LOT:
                        unary (funcurry ( ADL)):
+                       unary PUNT_deletethis:
                    --    unary (funcurry ADT):
-                       map pure [PRT,ITJ,BST] )
+                       map pure [PRT,ITJ,BST, EZEZAG] )
 
 
 
@@ -334,6 +336,7 @@ instance Enumerable Number where
 data Degree = KONP | SUP | GEHI | IND deriving (Show,Eq,Enum,Bounded)
 instance Enumerable Degree where
   enumerate = enumBounded
+
 
 -- Aditz mota (ADM)
 -- Splitting this, because PART and ADIZE may take case, def, ...
