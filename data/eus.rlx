@@ -30,11 +30,11 @@ LIST EMAN = ("Eman") ("eman");
 LIST POST = <kanpora>;
 LIST IZEN_ZENBAKIA = (IZE ZKI);
 LIST KOMENTARIOAK = BEREIZ ;
-LIST PKOMA = PUNT_PUNT_KOMA;
+LIST PKOMA = PUNT_PUNT_KOMA; #EZ DA ERTABILTZEN
 LIST PUNT_PUNT_KOMA = PUNT_PUNT_KOMA;
-LIST PUNT/BIPUNT/PKOMA = <s> </s> PUNT_PUNT PUNT_BI_PUNT PUNT_PUNT_KOMA ;
-LIST PUNT/BIPUNT/PKOMA/KOMA = <s> </s> PUNT_PUNT PUNT_BI_PUNT PUNT_PUNT_KOMA PUNT_KOMA ;
-LIST PUNT/BIPUNT/PKOMA/KOMA/LOT = <s> </s> PUNT_PUNT PUNT_BI_PUNT PUNT_PUNT_KOMA PUNT_KOMA LOT ;
+LIST PUNT/BIPUNT/PKOMA = <s> </s> PUNT_PUNT PUNT_BI_PUNT PUNT_PUNT_KOMA ;# ERREGELA BAT
+LIST PUNT/BIPUNT/PKOMA/KOMA = <s> </s> PUNT_PUNT PUNT_BI_PUNT PUNT_PUNT_KOMA PUNT_KOMA ;#ERREGELA BAT
+LIST PUNT/BIPUNT/PKOMA/KOMA/LOT = <s> </s> PUNT_PUNT PUNT_BI_PUNT PUNT_PUNT_KOMA PUNT_KOMA LOT ;#ERREGELA BAT
 LIST PUNT_KOMA = PUNT_KOMA ;#JM
 LIST KOMA = PUNT_KOMA;
 LIST PUNT = PUNT_PUNT;
@@ -64,7 +64,7 @@ LIST PART/IZE = PART IZE;
 LIST ADOIN = ADOIN;
 LIST SIN = SIN ;
 LIST ADT = ADT ;
-LIST ADPOSAG = ("ageri" ADJ ABS MG) ("aiher" IZE ABS MG) ("balio" IZE ABS MG)("behar" IZE ABS MG) ("behar" IZE ABS NUMS MUGM) ("behar" IZE INE NUMS MUGM)("gura" IZE ABS MG) ("herabe" ADJ ABS MG) ("maite" ADJ ABS MG)("uste" IZE ABS MG) ("nabari" ADJ ABS MG) ("mintzo" IZE ABS  MG)("ahal" IZE ABS MG) ("axola" IZE ABS MG) ("ezin" IZE ABS MG)("gaitzi" ADJ ABS MG) ("bizi" ADJ ABS MUGM)("falta" IZE ABS MG)("haizu" ADJ ABS MG) ("laket" ADJ ABS MG) ("nahi" IZE ABS MG) ("zor" IZE ABS MG)("atsegin" ADJ ABS MG) ("merezi" IZE ABS MG) (ADI ADK);
+LIST ADPOSAG = ("ageri" ADJ ABS MG) ("aiher" IZE ABS MG) ("balio" IZE ABS MG)("behar" IZE ABS MG) ("behar" IZE ABS NUMS MUGM) ("behar" IZE INE NUMS MUGM)("gura" IZE ABS MG) ("herabe" ADJ ABS MG) ("maite" ADJ ABS MG)("uste" IZE ABS MG) ("nabari" ADJ ABS MG) ("mintzo" IZE ABS  MG)("ahal" IZE ABS MG) ("axola" IZE ABS MG) ("ezin" IZE ABS MG)("gaitzi" ADJ ABS MG) ("bizi" ADJ ABS M)("falta" IZE ABS MG)("haizu" ADJ ABS MG) ("laket" ADJ ABS MG) ("nahi" IZE ABS MG) ("zor" IZE ABS MG)("atsegin" ADJ ABS MG) ("merezi" IZE ABS MG) (ADI ADK);
 LIST ADPOSAGADJ =  ("ageri" ADJ ABS MG) ("herabe" ADJ ABS MG) ("maite" ADJ ABS MG)("nabari" ADJ ABS MG) ("gaitzi" ADJ ABS MG) ("bizi" ADJ ABS MG)("haizu" ADJ ABS MG) ("laket" ADJ ABS MG) ("atsegin" ADJ ABS MG);
 LIST ADPOSAGIZE =  ("aiher" IZE ABS MG) ("balio" IZE ABS MG)("behar" IZE ABS MG) ("behar" IZE ABS NUMS MUGM)("gura" IZE ABS MG) ("uste" IZE ABS MG) ("mintzo" IZE ABS  MG)("ahal" IZE ABS MG) ("axola" IZE ABS MG) ("ezin" IZE ABS MG)("falta" IZE ABS MG) ("nahi" IZE ABS MG) ("zor" IZE ABS MG)("merezi" IZE ABS MG) ;
 LIST GAL = GAL;
@@ -139,7 +139,7 @@ LIST DENB = DENB ;
 LIST MOD = MOD ;
 LIST HELB = HELB ;
 LIST ESPL = ESPL ;
-LIST ELI = ELI;
+LIST ELI = (ADB_IZEELI) (ADI_IZEELI) (ADJ_IZEELI) (ADL_IZEELI) (ADT_IZEELI) (DET_IZEELI) (IOR_IZEELI) (IZE_IZEELI) ;
 LIST BADA = "<bada>" "<Bada>"<HAS_MAI>" "<BADA>"<DEN_MAI>";
 LIST DELA = "Dela" "dela";
 LIST DEN = "den" ;
@@ -388,7 +388,7 @@ LIST MUGM = MUGM ;
 LIST MG = MG ;
 LIST ABS-HK = (IZE ABS NUMP) (ADJ ABS NUMP) (DET ABS NUMP) ;
 LIST KONKORPL = (NUMP MUGM) (NR_HAIEK) ;
-LIST GRA = GRA;
+LIST GRA =  (KONP) (SUP) (GEHI) (IND) ;
 LIST ORD = ORD;
 LIST EZEZAG = EZEZAG ;
 LIST AORG = AORG ;
@@ -793,7 +793,7 @@ SECTION
 SELECT (ADB) IF (0 ("batera")) (-1 (ADL) OR (ADT));
 # Adibidea: ... ditugu BATERA ...
 
-#SELECT (ADB) IF (0 IZE + ZERO) (NOT 0 GEL)  (-1 ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<$.>"<PUNT_PUNT>")) (NOT 1 DET);
+SELECT (ADB) IF (0 IZE + ZERO) (NOT 0 GEL)  (-1 (PUNT_PUNT_KOMA) OR (PUNT_KOMA) OR (PUNT_PUNT)) (NOT 1 DET);
 
 SELECT (IZE) IF (0 ("batezbesteko"));
 
@@ -882,7 +882,7 @@ SELECT (ADB) IF (0 ("badaezpada")) (-1 LOT) (1 ADI/ADL/ADT);
 SELECT (ADB) IF (0 ("bakarrik")) (-1 BAKAR);
 SELECT (ZERO) IF (0 BAKAR) (1 ("bakarrik"));
 SELECT (ZERO) IF (0C GAL);
-#REMOVE (ZERO) IF (NOT 0 ADI) (NOT 0 ADIZE OR ADB) (NEGATE 1 ("<,>"<PUNT_KOMA>") LINK 1 IZE OR ETA OR ("eta_abar")) (1 PUNTUAZIOA);##PUNT_GALD
+REMOVE (ZERO) IF (NOT 0 ADI) (NOT 0 ADIZE OR ADB) (NEGATE 1 (PUNT_KOMA) LINK 1 IZE OR ETA OR ("eta_abar")) (1 PUNTUAZIOA);##PUNT_GALD
 
 #oharra_HK: (not 0 pospoz OR DEK) ETA OC IZE; zegoen lehen.; O MUGM GEHITU DIOT "mugakide" modukoetan gaizki ez egiteko
 
@@ -897,9 +897,9 @@ REMOVE (ADI) IF (0 PART LINK 0 IZE) (-1 ADIZE LINK 0 GEL)(1  ADI LINK 0 PART);
 
 REMOVE (IZE) IF (0 ADI LINK 0 PART) (1 ADL);
 
-#SELECT  (BURU) IF (0 PART) (*-1 ADL LINK *-1 A1 OR B1 BARRIER PUNTUAZIOA OR LOT) (NOT 1 DET OR POSPOZ OR ("arte") OR ADI);##PUNT_GALD
+SELECT  (BURU) IF (0 PART) (*-1 ADL LINK *-1 A1 OR B1 BARRIER PUNTUAZIOA OR LOT) (NOT 1 DET OR POSPOZ OR ("arte") OR ADI);##PUNT_GALD
 
-#SELECT (BURU) IF (0 PART) (*1 ADL LINK *1 A1 OR B1 BARRIER PUNTUAZIOA) (NOT -1 IZE) (NOT 1 DET OR ("arte")) (NOT 1 IZEMP_PART_ALA);##PUNT_GALD
+SELECT (BURU) IF (0 PART) (*1 ADL LINK *1 A1 OR B1 BARRIER PUNTUAZIOA) (NOT -1 IZE) (NOT 1 DET OR ("arte")) (NOT 1 IZEMP_PART_ALA);##PUNT_GALD
 
 SELECT (BURU) IF (0 PART) (1 ADL) (NOT 1 (A5) OR (A3));
 
@@ -914,13 +914,13 @@ REMOVE (DAT) IF (0 ("opari"));
 
 SELECT (LOT) IF (0 ("arren")) (-1 ADI/ADL/ADT);
 
-SELECT (LOT) IF (0 ("ostera")) (-1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+SELECT (LOT) IF (0 ("ostera")) (-1 PUNTUAZIOA);##PUNT_GALD
 
 SELECT (ADB) IF (0 IZE) (NOT 0 (MUGM)) (NOT 0 GEL) (NOT 0 ADI) (NOT 0 DET) (NOT 1 PART) (NOT -1 ZERO) (1C ADI/ADL/ADT);
 #2015-12-03
 SELECT (ADB) IF (0 ADJ) (1 LOT) (2 ADB);
 #2015-12-03
-REMOVE (ADB) IF (0 ZERO + IZE) (NOT 0 GEN OR GEL) (NOT 0 (EZEZAG)) (NOT 0 KONP) (NOT -1 DET OR PART) (NOT -1 ADB)(NOT -1 LOT) (NOT -1 ("<.>"<PUNT_PUNT>"))(NOT -1 ("<.>"<PUNT_PUNT>")) (NOT 1 PART) (NOT 1 LOT)(NOT 1 ("<,>"<PUNT_KOMA>"));
+REMOVE (ADB) IF (0 ZERO + IZE) (NOT 0 GEN OR GEL) (NOT 0 (EZEZAG)) (NOT 0 KONP) (NOT -1 DET OR PART) (NOT -1 ADB)(NOT -1 LOT) (NOT -1 (PUNT_PUNT))(NOT -1 (PUNT_PUNT)) (NOT 1 PART) (NOT 1 LOT)(NOT 1 (PUNT_KOMA));
 #2015-12-04
 
 
@@ -932,12 +932,12 @@ SELECT (ADB) IF (0 ("<BEREZ>"<DEN_MAI>") LINK 0 DET);
 SELECT (DET) IF (0 GUTXIAGO OR GEHIAGO) (NOT 0 NUMS);
 #2005-03-09an gehitu dugu erregela hau.
 
-SELECT (BST) IF (0 ("<ezta>")) (1 ("<?>"<PUNT_GALD>")); ##PUNT_GALD/ordezkatuta
-SELECT (BST) IF (0 ("<Ezta>")) (1 ("<?>"<PUNT_GALD>")); ##PUNT_GALD/ordezkatuta
-SELECT (BST) IF (0 ("<EZTA>")) (1 ("<?>"<PUNT_GALD>")); ##PUNT_GALD/ordezkatuta
+SELECT (BST) IF (0 ("<ezta>")) (1 (PUNT_GALD)); ##PUNT_GALD/ordezkatuta
+SELECT (BST) IF (0 ("<Ezta>")) (1 (PUNT_GALD)); ##PUNT_GALD/ordezkatuta
+SELECT (BST) IF (0 ("<EZTA>")) (1 (PUNT_GALD)); ##PUNT_GALD/ordezkatuta
 
-REMOVE (BST) IF (0 ("<Ezta>")) (NOT 1 ("<?>"<PUNT_GALD>")); ##"<?>"<PUNT_GALD>"/ordezkatuta
-REMOVE (BST) IF (0 ("<EZTA>")) (NOT 1 ("<?>"<PUNT_GALD>")); ##"<?>"<PUNT_GALD>"/ordezkatuta
+REMOVE (BST) IF (0 ("<Ezta>")) (NOT 1 (PUNT_GALD)); ##"<?>"<PUNT_GALD>"/ordezkatuta
+REMOVE (BST) IF (0 ("<EZTA>")) (NOT 1 (PUNT_GALD)); ##"<?>"<PUNT_GALD>"/ordezkatuta
 
 REMOVE (BST) IF (0 EZEZAG);
 #2015-12-09
@@ -1569,7 +1569,7 @@ REMOVE (ADJ) IF (0 ("<ZUTIK>"<DEN_MAI>")) (NOT -1 ABS-MG) ;
 
 SELECT (ADJ) IF (0 ("<bakoitzean>")) (NOT -1 ERLT);
 
-SELECT (LOT) IF (0 ("<berriz>")) (NOT -1 ADI/ADL/ADT) (1 PUNT_KOMA);
+SELECT (LOT) IF (0 ("<berriz>")) (NOT -1 ADI/ADL/ADT) (1 (PUNT_KOMA));
 
 # BAKARRIK
 REMOVE (ADJ) IF (0 ("<bakarrik>")) (NOT -1 ABS-MG) ;
@@ -1697,10 +1697,10 @@ REMOVE (IZE) IF (0 ("<BAIT>"<DEN_MAI>")) (-1 ADI) (1 ADL/ADT) ;
 # Adibidea: sentitzen bait nintzen...
 
 # ALEGIA
-SELECT (LOK) IF (0 ("alegia")) (-1 PUNT_PUNT_KOMA) (1 PUNT_KOMA);# PROBATZEN0420
-SELECT (LOK) IF (0 ("alegia")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (LOK) IF (0 ("<Alegia>"<HAS_MAI>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (LOK) IF (0 ("<ALEGIA>"<DEN_MAI>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (LOK) IF (0 ("alegia")) (-1 (PUNT_PUNT_KOMA)) (1 (PUNT_KOMA));# PROBATZEN0420
+SELECT (LOK) IF (0 ("alegia")) (-1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (LOK) IF (0 ("<Alegia>"<HAS_MAI>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (LOK) IF (0 ("<ALEGIA>"<DEN_MAI>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
 
 # JANTZIRIK
 REMOVE (IZE) IF (0 ("<jantzirik>")) (1 INTRANTS) ;
@@ -1762,12 +1762,12 @@ SELECT (ADB) IF (0 IZE + INS) (NOT -1 GEN);
 #2015-12-01
 SELECT (LOT) IF (NOT 0 ("bere")) (-1 PUNTUAZIOA);##PUNT_GALD
 
-SELECT (LOT) IF (0 ("<gainera>")) (-1 PUNT_KOMA) (1 PUNT_KOMA) ;
-SELECT (LOT) IF (0 ("<Gainera>"<HAS_MAI>")) (-1 PUNT_KOMA) (1 PUNT_KOMA) ;
-SELECT (LOT) IF (0 ("<GAINERA>"<DEN_MAI>")) (-1 PUNT_KOMA) (1 PUNT_KOMA) ;
-SELECT (LOT) IF (0 ("<gainera>")) (-1 ETA) (1 PUNT_KOMA) ;
-SELECT (LOT) IF (0 ("<Gainera>"<HAS_MAI>")) (-1 ETA) (1 PUNT_KOMA) ;
-SELECT (LOT) IF (0 ("<GAINERA>"<DEN_MAI>")) (-1 ETA) (1 PUNT_KOMA) ;
+SELECT (LOT) IF (0 ("<gainera>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA)) ;
+SELECT (LOT) IF (0 ("<Gainera>"<HAS_MAI>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA)) ;
+SELECT (LOT) IF (0 ("<GAINERA>"<DEN_MAI>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA)) ;
+SELECT (LOT) IF (0 ("<gainera>")) (-1 ETA) (1 (PUNT_KOMA)) ;
+SELECT (LOT) IF (0 ("<Gainera>"<HAS_MAI>")) (-1 ETA) (1 (PUNT_KOMA)) ;
+SELECT (LOT) IF (0 ("<GAINERA>"<DEN_MAI>")) (-1 ETA) (1 (PUNT_KOMA)) ;
 SELECT (IZE) IF (0 ("<gainera>")) (-1 GEN) ;
 SELECT (IZE) IF (0 ("<Gainera>"<HAS_MAI>")) (-1 GEN) ;
 SELECT (IZE) IF (0 ("<GAINERA>"<DEN_MAI>")) (-1 GEN) ;
@@ -1781,9 +1781,9 @@ REMOVE (IZE) IF (0 ("<gainera>")) (-1 PUNTUAZIOA) (NOT 1 NOTDEK);##PUNT_GALD
 REMOVE (IZE) IF (0 ("<Gainera>"<HAS_MAI>")) (-1 PUNTUAZIOA) (NOT 1 NOTDEK);##PUNT_GALD
 REMOVE (IZE) IF (0 ("<GAINERA>"<DEN_MAI>")) (-1 PUNTUAZIOA) (NOT 1 NOTDEK) ;##PUNT_GALD
 # Komentarioa: "gainera erori zitzaion" -gain- da, baina, "gainera badu..." hori -gainera-.
-REMOVE (ADOIN) IF (0 ("<gainera>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
-REMOVE (ADOIN) IF (0 ("<Gainera>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
-REMOVE (ADOIN) IF (0 ("<GAINERA>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
+REMOVE (ADOIN) IF (0 ("<gainera>")) (-1 PUNTUAZIOA);##PUNT_GALD
+REMOVE (ADOIN) IF (0 ("<Gainera>")) (-1 PUNTUAZIOA);##PUNT_GALD
+REMOVE (ADOIN) IF (0 ("<GAINERA>")) (-1 PUNTUAZIOA);##PUNT_GALD
 #2005-02-04an gehitu dugu azken erregela hau.
 
 SELECT (ADB) IF (0 ("<esaterako>")) (-1 PUNTUAZIOA);##PUNT_GALD
@@ -1813,14 +1813,14 @@ SELECT (ADL) IF (0 ("<Bada>"<HAS_MAI>")) (-1 ASP) ;
 SELECT (ADL) IF (0 ("<BADA>"<DEN_MAI>")) (-1 ASP) ;
 # Adibidea: "konturatzen bada".
 
-SELECT (LOT) IF (0 ("<bada>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
-SELECT (LOT) IF (0 ("<Bada>"<HAS_MAI>")) (-1 PUNTUAZIOA) (1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_("<,>"<PUNT_KOMA>") OR ("<,>"<PUNT_("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
-SELECT (LOT) IF (0 ("<BADA>"<DEN_MAI>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
+SELECT (LOT) IF (0 ("<bada>")) (-1 PUNTUAZIOA);##PUNT_GALD
+SELECT (LOT) IF (0 ("<Bada>"<HAS_MAI>")) (-1 PUNTUAZIOA);##PUNT_GALD
+SELECT (LOT) IF (0 ("<BADA>"<DEN_MAI>")) (-1 PUNTUAZIOA);##PUNT_GALD
 # Adibidea: , BADA ,
 # Komentarioa: EEBSn begiratu dut eta hauek ere badira testuinguru onak erregelak egiteko "bada"rekin, noski!: 1) koma artean, LOT da, 2) ezker-eskuin, posizio batera, ADL-ADT badu, orduan LOT da "zeintzuk dira, bada?"; 
 
-REMOVE (LOK) IF (0 ("<Bada>"<HAS_MAI>")) (NOT 1 ("<,>"<PUNT_KOMA>"));
-REMOVE (LOK) IF (0 ("<BADA>"<DEN_MAI>")) (NOT 1 ("<,>"<PUNT_KOMA>"));
+REMOVE (LOK) IF (0 ("<Bada>"<HAS_MAI>")) (NOT 1 (PUNT_KOMA));
+REMOVE (LOK) IF (0 ("<BADA>"<DEN_MAI>")) (NOT 1 (PUNT_KOMA));
 # Adibidea:"BADA hemen beste zerbait ere"
 # ENE BADA HAUL???
 SELECT (ITJ) IF (0 ("<ene>")) (1 BADA);
@@ -1851,9 +1851,9 @@ SELECT (IZE) IF (0 ("<EGUN>"<DEN_MAI>")) (NOT -1 GAUR) (1 DET/ADJ) ;
 SELECT (ADB) IF (0 ("<egun>")) (NOT -1 DET) (1 PUNT) ;
 SELECT (ADB) IF (0 ("<Egun>"<HAS_MAI>")) (NOT -1 DET) (1 PUNT) ;
 SELECT (ADB) IF (0 ("<EGUN>"<DEN_MAI>")) (NOT -1 DET) (1 PUNT) ;
-SELECT (ADB) IF (0 ("<egun>")) (NOT -1 DET) (1 ("<,>"<PUNT_KOMA>")) ;
-SELECT (ADB) IF (0 ("<Egun>"<HAS_MAI>")) (NOT -1 DET) (1 ("<,>"<PUNT_KOMA>")) ;
-SELECT (ADB) IF (0 ("<EGUN>"<DEN_MAI>")) (NOT -1 DET) (1 ("<,>"<PUNT_KOMA>")) ;
+SELECT (ADB) IF (0 ("<egun>")) (NOT -1 DET) (1 (PUNT_KOMA)) ;
+SELECT (ADB) IF (0 ("<Egun>"<HAS_MAI>")) (NOT -1 DET) (1 (PUNT_KOMA)) ;
+SELECT (ADB) IF (0 ("<EGUN>"<DEN_MAI>")) (NOT -1 DET) (1 (PUNT_KOMA)) ;
 # Adibidea:  interesgarria da EGUN."
 
 SELECT (ADB) IF (0 ("<egun>")) (-1 GAUR + ADB) ;
@@ -1899,9 +1899,9 @@ REMOVE (IZE) IF (0 ("<esan>")) (1 ADI OR ADL OR ADT OR ADPOSAG) ;
 REMOVE (IZE) IF (0 ("<Esan>"<HAS_MAI>")) (1 ADI OR ADL OR ADT OR ADPOSAG) ;
 REMOVE (IZE) IF (0 ("<ESAN>"<DEN_MAI>")) (1 ADI OR ADL OR ADT OR ADPOSAG) ;
 
-REMOVE (IZE) IF (0 ("<esan>") LINK 0 ADI) (-1 IZE) (1 ("<,>"<PUNT_KOMA>")) ;
-REMOVE (IZE) IF (0 ("<Esan>"<HAS_MAI>") LINK 0 ADI) (-1 IZE) (1 ("<,>"<PUNT_KOMA>")) ;
-REMOVE (IZE) IF (0 ("<ESAN>"<DEN_MAI>") LINK 0 ADI) (-1 IZE) (1 ("<,>"<PUNT_KOMA>")) ;
+REMOVE (IZE) IF (0 ("<esan>") LINK 0 ADI) (-1 IZE) (1 (PUNT_KOMA)) ;
+REMOVE (IZE) IF (0 ("<Esan>"<HAS_MAI>") LINK 0 ADI) (-1 IZE) (1 (PUNT_KOMA)) ;
+REMOVE (IZE) IF (0 ("<ESAN>"<DEN_MAI>") LINK 0 ADI) (-1 IZE) (1 (PUNT_KOMA)) ;
 REMOVE (IZE) IF (0 ("<esan>")) (1 ADI) (*2 ADL) ;
 REMOVE (IZE) IF (0 ("<Esan>"<HAS_MAI>")) (1 ADI) (*2 ADL) ;
 REMOVE (IZE) IF (0 ("<ESAN>"<DEN_MAI>")) (1 ADI) (*2 ADL) ;
@@ -1959,7 +1959,7 @@ REMOVE (ADJ) IF (0 ("<LAU>"<DEN_MAI>")) (1 IZE/ADJ) ;
 # Adibidea: lau emakume
 
 # ETA
-SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (-1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_("<,>"<PUNT_KOMA>") OR ("<,>"<PUNT_("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (-1 PUNTUAZIOA);##PUNT_GALD
 
 REMOVE (ERL) IF (0 ("<eta>")) (1 IZE/ADJ/PART)(-1 IZE/ADJ/PART) ;
 REMOVE (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (1 IZE/ADJ/PART)(-1 IZE/ADJ/PART) ;
@@ -1968,30 +1968,30 @@ REMOVE (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (1 IZE/ADJ/PART + (DEN_MAI))(-1 IZE/ADJ/
 SELECT (JNT) IF (0 ("<eta>")) (-1 BAIZIK) ;
 SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (-1 BAIZIK) ;
 SELECT (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (-1 BAIZIK + (DEN_MAI)) (1 (DEN_MAI)) ;
-SELECT (JNT) IF (0 ("<eta>")) (NOT -1 ADI) (-1 IZE/ADJ) (1 ("<,>"<PUNT_KOMA>")) (2 IZE/ADJ) ;
-SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (NOT -1 ADI) (-1 IZE/ADJ) (1 ("<,>"<PUNT_KOMA>")) (2 IZE/ADJ) ;
-SELECT (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (NOT -1 ADI) (-1 IZE/ADJ + (DEN_MAI)) (1 ("<,>"<PUNT_KOMA>")) (2 IZE/ADJ + (DEN_MAI)) ;
+SELECT (JNT) IF (0 ("<eta>")) (NOT -1 ADI) (-1 IZE/ADJ) (1 (PUNT_KOMA)) (2 IZE/ADJ) ;
+SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (NOT -1 ADI) (-1 IZE/ADJ) (1 (PUNT_KOMA)) (2 IZE/ADJ) ;
+SELECT (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (NOT -1 ADI) (-1 IZE/ADJ + (DEN_MAI)) (1 (PUNT_KOMA)) (2 IZE/ADJ + (DEN_MAI)) ;
 # Adibidea:: "alegia eta, nobela"
 
 SELECT (ERL) IF (0 ("<eta>")) (-1 MOD + DENB) (NOT 1 PUNT_HIRU); #"<...>"<PUNT_HIRU>
-SELECT (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (-1 MOD + DENB) (NOT 1 ("<...>"<PUNT_HIRU>)); 
-SELECT (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (-1 MOD + DENB + (DEN_MAI)) (NOT 1 ("<...>"<PUNT_HIRU>));
+SELECT (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (-1 MOD + DENB) (NOT 1 PUNT_HIRU);#"<...>"<PUNT_HIRU>
+SELECT (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (-1 MOD + DENB + (DEN_MAI)) (NOT 1 PUNT_HIRU);#"<...>"<PUNT_HIRU>
 # Adibidea: "zela eta" eta horrelakoak harrapatzeko; arazoa izango da MOD-DENB desanbiguatua dagoenean. KONPL ezaugarriari ezin zaio erreferentziarik egin gauza asko direlako KONPL. (NOT 1 "<...>"<PUNT_HIRU>) baldintza erabat partikularra da kasu batetarako.
 
 
-REMOVE (ERL) IF (0 ("<eta>")) (-1 ("<$.>"<PUNT_PUNT>") OR  ("<,>"<PUNT_KOMA>") OR (BEREIZ)) ; #PUNT
-REMOVE (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (-1 ("<$.>"<PUNT_PUNT>") OR ("<,>"<PUNT_KOMA>")OR ("<;>"<PUNT_PUNT_KOMA>") OR (BEREIZ));
-REMOVE (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (-1 ("<$.>"<PUNT_PUNT>") OR ("<,>"<PUNT_KOMA>")OR ("<;>"<PUNT_PUNT_KOMA>") OR (BEREIZ));
-SELECT (ERL) IF (0 ("<eta>")) (-1 ADL/ADT) (1C ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR (BEREIZ));
-SELECT (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (-1 ADL/ADT) (1C ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR (BEREIZ));
-SELECT (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (-1 ADL/ADT + (DEN_MAI)) (1C ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR (BEREIZ));
+REMOVE (ERL) IF (0 ("<eta>")) (-1 (PUNT_PUNT) OR  (PUNT_KOMA) OR (BEREIZ)) ; #PUNT
+REMOVE (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (-1 (PUNT_PUNT) OR (PUNT_KOMA)OR (PUNT_PUNT_KOMA) OR (BEREIZ));
+REMOVE (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (-1 (PUNT_PUNT) OR (PUNT_KOMA)OR (PUNT_PUNT_KOMA) OR (BEREIZ));
+SELECT (ERL) IF (0 ("<eta>")) (-1 ADL/ADT) (1C (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (BEREIZ));
+SELECT (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (-1 ADL/ADT) (1C (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (BEREIZ));
+SELECT (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (-1 ADL/ADT + (DEN_MAI)) (1C (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (BEREIZ));
 SELECT (JNT) IF (0 ("<eta>")) (-1 AHALIK) ;
 SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (-1 AHALIK) ;
 SELECT (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (-1 (DEN_MAI)) (1 (DEN_MAI));
 
-SELECT (JNT) IF (0 ("<eta>")) (1 ("<...>"<PUNT_HIRU>)) ; #"<...>"<PUNT_HIRU>
-SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (1 ("<...>"<PUNT_HIRU>)) ; #"<...>"<PUNT_HIRU>
-SELECT (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (1 ("<...>"<PUNT_HIRU>)) (-1 (DEN_MAI)); #"<...>"<PUNT_HIRU>
+SELECT (JNT) IF (0 ("<eta>")) (1 PUNT_HIRU) ; #"<...>"<PUNT_HIRU>
+SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (1 PUNT_HIRU) ; #"<...>"<PUNT_HIRU>
+SELECT (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (1 PUNT_HIRU) (-1 (DEN_MAI)); #"<...>"<PUNT_HIRU>
 # Komentarioa: hau ere erabat partikularra da, berez puntuazioa duenean ERL tokatzen zaio, baina kasu partikular bati begira dago eginda.
 
 SELECT (ERL) IF (0 ("<eta>")) (-1 ADT) (1 BESTE);
@@ -2006,7 +2006,7 @@ REMOVE (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (-1 GERO_HITZA) ;
 REMOVE (ERL) IF (0 ("<eta>")) (1 IOR/IZE/DET/ADB) ;
 REMOVE (ERL) IF (0 ("<Eta>"<HAS_MAI>")) (1 IOR/IZE/DET/ADB) ;
 REMOVE (ERL) IF (0 ("<ETA>"<DEN_MAI>")) (1 IOR/IZE/DET/ADB) ;
-SELECT (JNT) IF (0 ("<eta>")) (NOT -1 MOD + DENB) (NOT -1 ADT) (NOT -1 LOK) (NOT 1 BESTE) (NOT 1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNTKOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) ;##PUNT_GALD
+SELECT (JNT) IF (0 ("<eta>")) (NOT -1 MOD + DENB) (NOT -1 ADT) (NOT -1 LOK) (NOT 1 BESTE) (NOT 1 PUNTUAZIOA) ;##PUNT_GALD
 # 2005-01-18 an gehitu ditugu (NOT -1 LOK ) eta (NOT 1 (1 PUNTUAZIOA)  ezaugarriak)
 SELECT (JNT) IF (0 ("<eta>")) (-1 LOK);
 # 2005-01-18 an gehitu dugu erregela hau.Emaitzak ez dira oso onak eskuzko etiketatzearekin ez gatozelako bat.
@@ -2015,22 +2015,22 @@ SELECT (JNT) IF (0 ("<Eta>"<HAS_MAI>")) (NOT -1 MOD + DENB) (NOT -1 ADT) (NOT 1 
 SELECT (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (NOT -1 MOD + DENB) (NOT -1 ADT) (NOT 1 BESTE) (-1 (DEN_MAI)) (1 (DEN_MAI)) ;
 # Komentarioa: Rubenekin hitz eginda: "dela eta"ren "eta" ERL da, besteak JNT, "nahiz eta" etab. EEBSn ere horrela egiten genuen. Bestetik egon naiz begiratzen EEBSn eta ERL agertzen da nagusi-nagusiki muga baten aurretik edota ADI, ADL, ADT + MARRATXO.
 
-REMOVE (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (-1 PUNT_PUNT OR PUNT_KOMA OR (BEREIZ)) (NOT 1 (DEN_MAI));
-REMOVE (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (NOT -1 PUNT_PUNT OR PUNT_KOMA OR (BEREIZ)OR (DEN_MAI)) (NOT 1 (DEN_MAI));
-REMOVE (SIG) IF (0 ("<ETA>"<DEN_MAI>")) (-1 PUNT_PUNT OR PUNT_KOMA OR (BEREIZ) OR (DEN_MAI)) (1 (DEN_MAI));
+REMOVE (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (-1 (PUNT_PUNT) OR (PUNT_KOMA) OR (BEREIZ)) (NOT 1 (DEN_MAI));
+REMOVE (JNT) IF (0 ("<ETA>"<DEN_MAI>")) (NOT -1 (PUNT_PUNT) OR (PUNT_KOMA) OR (BEREIZ)OR (DEN_MAI)) (NOT 1 (DEN_MAI));
+REMOVE (SIG) IF (0 ("<ETA>"<DEN_MAI>")) (-1 (PUNT_PUNT) OR (PUNT_KOMA) OR (BEREIZ) OR (DEN_MAI)) (1 (DEN_MAI));
 
 # EZ
 REMOVE (IZE) IF (0 ("<ez>")) (1 ADL/ADT) ;
 REMOVE (IZE) IF (0 ("<Ez>"<HAS_MAI>")) (1 ADL/ADT) ;
 REMOVE (IZE) IF (0 ("<EZ>"<DEN_MAI>")) (1 ADL/ADT) ;
 
-REMOVE (IZE) IF (0 ("<ez>")) (*1 PUNT_KOMA LINK 1 EZ) ;
-REMOVE (IZE) IF (0 ("<Ez>"<HAS_MAI>")) (*1 PUNT_KOMA LINK 1 EZ) ;
-REMOVE (IZE) IF (0 ("<EZ>"<DEN_MAI>")) (*1 PUNT_KOMA LINK 1 EZ) ;
+REMOVE (IZE) IF (0 ("<ez>")) (*1 (PUNT_KOMA) LINK 1 EZ) ;
+REMOVE (IZE) IF (0 ("<Ez>"<HAS_MAI>")) (*1 (PUNT_KOMA) LINK 1 EZ) ;
+REMOVE (IZE) IF (0 ("<EZ>"<DEN_MAI>")) (*1 (PUNT_KOMA) LINK 1 EZ) ;
 
-REMOVE (IZE) IF (0 ("<ez>")) (*-1 PUNT_KOMA LINK *-1 EZ) ;
-REMOVE (IZE) IF (0 ("<Ez>"<HAS_MAI>")) (*-1 PUNT_KOMA LINK *-1 EZ) ;
-REMOVE (IZE) IF (0 ("<EZ>"<DEN_MAI>")) (*-1 PUNT_KOMA LINK *-1 EZ) ;
+REMOVE (IZE) IF (0 ("<ez>")) (*-1 (PUNT_KOMA) LINK *-1 EZ) ;
+REMOVE (IZE) IF (0 ("<Ez>"<HAS_MAI>")) (*-1 (PUNT_KOMA) LINK *-1 EZ) ;
+REMOVE (IZE) IF (0 ("<EZ>"<DEN_MAI>")) (*-1 (PUNT_KOMA) LINK *-1 EZ) ;
 
 REMOVE (IZE) IF (0 ("<ez>")) (1 PRT-ZIU OR ADITZMULTZO) (2C ADL/ADT) ;
 REMOVE (IZE) IF (0 ("<Ez>"<HAS_MAI>")) (1 PRT-ZIU OR ADITZMULTZO) (2C ADL/ADT) ;
@@ -2056,13 +2056,13 @@ REMOVE (IZE) IF (0 ("<EZ>"<DEN_MAI>")) (NOT 1 ADJ) (NOT 1 DET) ;
 # Adibidea: EZ borobila.
 
 # BIDE
-REMOVE (PRT) IF (0 ("<bide>")) (1 PUNT_PUNT OR PUNT_KOMA OR (BEREIZ)) ;
-REMOVE (PRT) IF (0 ("<Bide>"<HAS_MAI>")) (1 ("<$.>"<PUNT_PUNT>") OR PUNT_KOMA OR (BEREIZ)) ;
-REMOVE (PRT) IF (0 ("<BIDE>"<DEN_MAI>")) (1 ("<$.>"<PUNT_PUNT>") OR PUNT_KOMA OR (BEREIZ)) ;
+REMOVE (PRT) IF (0 ("<bide>")) (1 (PUNT_PUNT) OR (PUNT_KOMA) OR (BEREIZ)) ;
+REMOVE (PRT) IF (0 ("<Bide>"<HAS_MAI>")) (1 (PUNT_PUNT) OR (PUNT_KOMA) OR (BEREIZ)) ;
+REMOVE (PRT) IF (0 ("<BIDE>"<DEN_MAI>")) (1 (PUNT_PUNT) OR (PUNT_KOMA) OR (BEREIZ)) ;
 
-REMOVE (PRT) IF (0 ("<bide>")) (-1 ("<$.>"<PUNT_PUNT>") OR PUNT_KOMA);
-REMOVE (PRT) IF (0 ("<Bide>"<HAS_MAI>")) (-1 ("<$.>"<PUNT_PUNT>") OR PUNT_KOMA) ;
-REMOVE (PRT) IF (0 ("<BIDE>"<DEN_MAI>")) (-1 ("<$.>"<PUNT_PUNT>") OR PUNT_KOMA) ;
+REMOVE (PRT) IF (0 ("<bide>")) (-1 (PUNT_PUNT) OR (PUNT_KOMA));
+REMOVE (PRT) IF (0 ("<Bide>"<HAS_MAI>")) (-1 (PUNT_PUNT) OR (PUNT_KOMA)) ;
+REMOVE (PRT) IF (0 ("<BIDE>"<DEN_MAI>")) (-1 (PUNT_PUNT) OR (PUNT_KOMA)) ;
 
 # BAKARRIK
 
@@ -2335,12 +2335,12 @@ REMOVE (IZE) IF (0 ("<ADIBIDEZ>"<DEN_MAI>")) (NOT -1 GEL) ;
 # ORDUTIK
 SELECT (ADB) IF (0 ("<ordutik>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
 SELECT (ADB) IF (0 ("<Ordutik>"<HAS_MAI>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (ADB) IF (0 ("<ORDUTIK>"<DEN_MAI>")) (-1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<ORDUTIK>"<DEN_MAI>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
 # Adibidea:  ORDUTIK, ..."
 
 SELECT (ADB) IF (0 ("<ordutik>")) (1 PUNTUAZIOA) ;##PUNT_GALD
 SELECT (ADB) IF (0 ("<Ordutik>"<HAS_MAI>")) (1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (ADB) IF (0 ("<ORDUTIK>"<DEN_MAI>")) (1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT__KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<ORDUTIK>"<DEN_MAI>")) (1 PUNTUAZIOA) ;##PUNT_GALD
 # Adibidea:  , ORDUTIK."
 
 SELECT (IZE) IF (0 ("<ordutik>")) (-1 IZAUR+) ;
@@ -2369,18 +2369,18 @@ SELECT (ADB) IF (0 ("<BENETAN>"<DEN_MAI>") LINK 0 INE) ;
 # BERRIZ ERE    HAUL
 # Adibidea:"BERRIZ ere erregelak egitera"
 
-SELECT (ADB) IF (0 ("<berriz>")) (NOT -1 ("<,>"<PUNT_KOMA")) (NOT -1 DET OR GEL) (NOT 1 ("<,>"<PUNT_KOMA>"));
-SELECT (LOT) IF (0 ("<berriz>")) (-1 ("<,>"<PUNT_KOMA>")) (1 ("<,>"<PUNT_KOMA>"));
+SELECT (ADB) IF (0 ("<berriz>")) (NOT -1 (PUNT_KOMA)) (NOT -1 DET OR GEL) (NOT 1 (PUNT_KOMA));
+SELECT (LOT) IF (0 ("<berriz>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA));
 SELECT (IZE) IF (0 ("<berriz>")) (-1 GEN/GEL) ;
 SELECT (IZE) IF (0 ("<Berriz>"<HAS_MAI>")) (-1 GEN/GEL) ;
 SELECT (IZE) IF (0 ("<BERRIZ>"<DEN_MAI>")) (-1 GEN/GEL) ;
 # Adibidea:"idazle askoren BERRIZ eta liburuz ..."
 
-SELECT (LOK) IF (0 ("<berriz>")) (-1 ("<,>"<PUNT_KOMA>")) (1 ("<,>"<PUNT_KOMA>"));
-SELECT (LOK) IF (0 ("<berriz>")) (-1 ("<,>"<PUNT_KOMA>"));
-SELECT (LOK) IF (0 ("<berriz>")) (1 ("<,>"<PUNT_KOMA>"));
-SELECT (LOK) IF (0 ("<Berriz>"<HAS_MAI>")) (-1 ("<,>"<PUNT_KOMA>")) (1 ("<,>"<PUNT_KOMA>"));
-SELECT (LOK) IF (0 ("<BERRIZ>"<DEN_MAI>")) (-1 ("<,>"<PUNT_KOMA>")) (1 ("<,>"<PUNT_KOMA>"));
+SELECT (LOK) IF (0 ("<berriz>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA));
+SELECT (LOK) IF (0 ("<berriz>")) (-1 (PUNT_KOMA));
+SELECT (LOK) IF (0 ("<berriz>")) (1 (PUNT_KOMA));
+SELECT (LOK) IF (0 ("<Berriz>"<HAS_MAI>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA));
+SELECT (LOK) IF (0 ("<BERRIZ>"<DEN_MAI>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA));
 # Adibidea: "nik, berriz, gero eta..."
 
 # BESTE
@@ -2518,7 +2518,7 @@ SELECT (ADB) IF (0 ("<LASTER>"<DEN_MAI>")) (1 ADI/ADL/ADT) ;
 
 SELECT (ADB) IF (0 ("<laster>")) (-1 ADI/ADL/ADT) (1 PUNTUAZIOA) ;##PUNT_GALD
 SELECT (ADB) IF (0 ("<Laster>"<HAS_MAI>")) (-1 ADI/ADL/ADT) (1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (ADB) IF (0 ("<LASTER>"<DEN_MAI>")) (-1 ADI/ADL/ADT) (1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT__KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<LASTER>"<DEN_MAI>")) (-1 ADI/ADL/ADT) (1 PUNTUAZIOA) ;##PUNT_GALD
 # Adibidea:"gauzatu egingo da LASTER,"
 
 # Adibidea: behin baino GEHIAGOTAN.
@@ -2580,11 +2580,11 @@ REMOVE (ADT) IF (0 ("<Zuen>"<HAS_MAI>")) ;
 REMOVE (ADT) IF (0 ("<zuen>")) (-1 (ADK));
 #07-14
 
-REMOVE (ADT) IF (0 ("<zuen>")) (NOT *1 (NK_HARK)) (1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR  ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) (NOT -1 ADPOSAG OR ABS) (-1 ADI) ;##PUNT_GALD
+REMOVE (ADT) IF (0 ("<zuen>")) (NOT *1 (NK_HARK)) (1 PUNTUAZIOA) (NOT -1 ADPOSAG OR ABS) (-1 ADI) ;##PUNT_GALD
 #09-09-28 :(NOT -1 ABS)
 REMOVE (ADT) IF (0 ("<Zuen>"<HAS_MAI>")) (NOT *1 (NK_HARK)) (1 PUNTUAZIOA) (NOT -1 ADPOSAG) (-1 ADI) ;##PUNT_GALD
 REMOVE (ADT) IF (0 ("<ZUEN>"<DEN_MAI>")) (NOT *1 (NK_HARK)) (1 PUNTUAZIOA) (NOT -1 ADPOSAG) (-1 ADI) ;##PUNT_GALD
-#2005-02-14ean gehitu giegu hiru erregela hauei BARRIER 1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_<PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>") baldintza.
+#2005-02-14ean gehitu giegu hiru erregela hauei BARRIER 1 PUNTUAZIOA baldintza.
 #2005-03-07ean gehitu diegu hiru erregela hauei (-1 ADI) baldintza.
 # Adibidea:"ZUEN hiriak larratuko ditut"
 SELECT (ADT) IF (0 ("<zuen>")) (NOT -1 (ADK))(-1 ADPOSAG) ;
@@ -2641,11 +2641,11 @@ SELECT (ADB) IF (0 ("<ERRAZ>"<DEN_MAI>")) (-1C ("izan"));
 # Adibidea: ... ez da ERRAZ ...
 
 REMOVE (ADJ) IF (0 NORBERA); # ez dut topatu eskuzkoetan ADJ interpretaziorik
-REMOVE (ADJ) IF (0 BERA) (-1 ADI/ADL/ADT) (1 ("<,>"<PUNT_KOMA>"));
+REMOVE (ADJ) IF (0 BERA) (-1 ADI/ADL/ADT) (1 (PUNT_KOMA));
 # Adibidea:"Eraman ezin dezakedanak BERAK, ..."
 
-SELECT (LOK) IF (0 ("<ordea>")) (-1 ("<,>"<PUNT_KOMA>")) (1  ("<,>"<PUNT_KOMA>") OR ("<$.>"<PUNT_PUNT>"));
-SELECT (LOK) IF (0 ("<ordea>")) (-2 ("<,>"<PUNT_KOMA>") OR ("<$.>"<PUNT_PUNT>")) (1 ("<,>"<PUNT_KOMA>") OR ("<$.>"<PUNT_PUNT>"));
+SELECT (LOK) IF (0 ("<ordea>")) (-1 (PUNT_KOMA)) (1  (PUNT_KOMA) OR (PUNT_PUNT));
+SELECT (LOK) IF (0 ("<ordea>")) (-2 (PUNT_KOMA) OR (PUNT_PUNT)) (1 (PUNT_KOMA) OR (PUNT_PUNT));
 # Adibidea:  "Eraman ezin dezakedanak berak, ORDEA, ..."
 
 
@@ -2705,24 +2705,24 @@ REMOVE (PRT) IF (0 ("<Bide>"<HAS_MAI>")) (-1 DET) (1 DET);
 REMOVE (PRT) IF (0 ("<BIDE>"<DEN_MAI>")) (-1 DET) (1 DET);
 # Adibidea:  "beste BIDE bat ..."
 
-SELECT (DET) IF (0 ("<dena>")) (-1 ("<,>"<PUNT_KOMA>")) (1C ADI);
-SELECT (DET) IF (0 ("<Dena>"<HAS_MAI>")) (-1 ("<,>"<PUNT_KOMA>")) (1C ADI);
-SELECT (DET) IF (0 ("<DENA>"<DEN_MAI>")) (-1 ("<,>"<PUNT_KOMA>")) (1C ADI);
+SELECT (DET) IF (0 ("<dena>")) (-1 (PUNT_KOMA)) (1C ADI);
+SELECT (DET) IF (0 ("<Dena>"<HAS_MAI>")) (-1 (PUNT_KOMA)) (1C ADI);
+SELECT (DET) IF (0 ("<DENA>"<DEN_MAI>")) (-1 (PUNT_KOMA)) (1C ADI);
 # Adibidea:", DENA funditua ..."
 SELECT (DET) (0 DENA) (1 DELA OR DEN);
 SELECT (MOD/DENB) (0 DELA) (-1 DENA);
-REMOVE (DET) IF (0 DENA) (-1 ADI) (NOT 1 ("<$.>"<PUNT_PUNT>));
+REMOVE (DET) IF (0 DENA) (-1 ADI) (NOT 1 (PUNT_PUNT));
 # Adibidea: abiatzen DENAK ...
 SELECT (DET) (0 DENA LINK 0 PH);
 
 # BALIO
-SELECT (MG) IF (0 ("<balio>")) (-1 ADT) (1 ("<$.>"<PUNT_PUNT>));
-SELECT (MG) IF (0 ("<Balio>"<HAS_MAI>")) (-1 ADT) (1 ("<$.>"<PUNT_PUNT>));
-SELECT (MG) IF (0 ("<BALIO>"<DEN_MAI>")) (-1 ADT) (1 ("<$.>"<PUNT_PUNT>));
+SELECT (MG) IF (0 ("<balio>")) (-1 ADT) (1 (PUNT_PUNT));
+SELECT (MG) IF (0 ("<Balio>"<HAS_MAI>")) (-1 ADT) (1 (PUNT_PUNT));
+SELECT (MG) IF (0 ("<BALIO>"<DEN_MAI>")) (-1 ADT) (1 (PUNT_PUNT));
 # Adibidea:"... ez dute BALIO"
 
 SELECT (LOK) IF (0 ("<zeren>")) (-1 PUNTUAZIOA) (1 ADI/ADL/ADT);##PUNT_GALD
-SELECT (LOK) IF (0 ("<Zeren>"<HAS_MAI>")) (-1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT__KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) (1 ADI/ADL/ADT);##PUNT_GALD
+SELECT (LOK) IF (0 ("<Zeren>"<HAS_MAI>")) (-1 PUNTUAZIOA) (1 ADI/ADL/ADT);##PUNT_GALD
 SELECT (LOK) IF (0 ("<ZEREN>"<DEN_MAI>")) (-1 PUNTUAZIOA) (1 ADI/ADL/ADT);
 # Adibidea:  ",ZEREN bazekien ..."
 
@@ -2741,9 +2741,9 @@ REMOVE (IZE) IF (0 ("<Zelarik>"<HAS_MAI>") LINK 0 ADL/ADT);
 REMOVE (IZE) IF (0 ("<ZELARIK>"<DEN_MAI>") LINK 0 ADL/ADT);
 # Adibidea:  "Adintsu ZELARIK ..."
 
-REMOVE (ITJ) IF (0 ("<jesus>")) (NOT 1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT__KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+REMOVE (ITJ) IF (0 ("<jesus>")) (NOT 1 PUNTUAZIOA);##PUNT_GALD
 REMOVE (ITJ) IF (0 ("<Jesus>"<HAS_MAI>")) (NOT 1 PUNTUAZIOA);##PUNT_GALD
-REMOVE (ITJ) IF (0 ("<JESUS>"<DEN_MAI>")) (NOT 1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT__KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+REMOVE (ITJ) IF (0 ("<JESUS>"<DEN_MAI>")) (NOT 1 PUNTUAZIOA);##PUNT_GALD
 # Adibidea:"JESUS ezkutatu zitzaien"
 # Adibidea:"JESUS itsas bazterrera zenean"
 
@@ -2780,9 +2780,9 @@ SELECT (LOT) IF (0 ("<Arren>"<HAS_MAI>")) (-1 ERL OR PART);
 SELECT (LOT) IF (0 ("<ARREN>"<DEN_MAI>")) (-1 ERL OR PART);
 # Adibidea: "kopurua harrigarria den ARREN"  eta "Burdina, herdoildua egon ARREN"
 
-SELECT (ITJ) IF (0 ("<arren>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
-SELECT (ITJ) IF (0 ("<Arren>"<HAS_MAI>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
-SELECT (ITJ) IF (0 ("<ARREN>"<DEN_MAI>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA);##PUNT_GALD
+SELECT (ITJ) IF (0 ("<arren>")) (-1 PUNTUAZIOA);##PUNT_GALD
+SELECT (ITJ) IF (0 ("<Arren>"<HAS_MAI>")) (-1 PUNTUAZIOA);##PUNT_GALD
+SELECT (ITJ) IF (0 ("<ARREN>"<DEN_MAI>")) (-1 PUNTUAZIOA);##PUNT_GALD
 
 REMOVE (PRT) IF (0 ("<bide>")) (NOT 1 NOR OR NORI OR NORK);
 REMOVE (PRT) IF (0 ("<Bide>"<HAS_MAI>")) (NOT 1 NOR OR NORI OR NORK);
@@ -2794,10 +2794,10 @@ REMOVE (GEL) IF (0 ("<Soineko>"<HAS_MAI>")) (NOT 1 IZE);
 REMOVE (GEL) IF (0 ("<SOINEKO>"<DEN_MAI>")) (NOT 1 IZE);
 # Adibidea:"Lehen baino SOINEKO maiztuagoak janzten zituen"
 
-SELECT (LOK) IF (0 ("<aldiz>")) (-1 ("<,>"<PUNT_KOMA")) (1 ("<,>"<PUNT_KOMA"));
+SELECT (LOK) IF (0 ("<aldiz>")) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA));
 # Adibidea: "Holandak eta Alemaniak, aldiz, indar legala..."
-SELECT (LOK) IF (0 ("<Aldiz>"<HAS_MAI>")) (-1 PUNTUAZIOA) (1 ("<,>"<PUNT_KOMA>"));##PUNT_GALD
-SELECT (LOK) IF (0 ("<ALDIZ>"<DEN_MAI>")) (-1 PUNTUAZIOA) (1 ("<,>"<PUNT_KOMA>"));##PUNT_GALD
+SELECT (LOK) IF (0 ("<Aldiz>"<HAS_MAI>")) (-1 PUNTUAZIOA);##PUNT_GALD
+SELECT (LOK) IF (0 ("<ALDIZ>"<DEN_MAI>")) (-1 PUNTUAZIOA);##PUNT_GALD
 # Adibidea: ". Aldiz, FONTCUBERTAk defenditzen..."
 REMOVE (LOK) IF (0 ("<aldiz>")) (-1 DET) (NOT -1 BAT);
 REMOVE (LOK) IF (0 ("<Aldiz>"<HAS_MAI>")) (-1 DET) (NOT -1 BAT);
@@ -2864,9 +2864,9 @@ SELECT (ADB) IF (0 ("<Askoz>"<HAS_MAI>")) (1 ADJ OR ADB OR DET);
 SELECT (ADB) IF (0 ("<ASKOZ>"<DEN_MAI>")) (1 ADJ OR ADB OR DET);
 
 # ORDURAKO
-SELECT (ADB) IF (0 ("<ordurako>")) (-1 ("<,>"<PUNT_KOMA>") OR LOT) ;
-SELECT (ADB) IF (0 ("<Ordurako>"<HAS_MAI>")) (-1 ("<,>"<PUNT_KOMA>") OR LOT)  (1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (ADB) IF (0 ("<ORDURAKO>"<DEN_MAI>")) (-1 ("<,>"<PUNT_KOMA>") OR LOT) (1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<ordurako>")) (-1 (PUNT_KOMA) OR LOT) ;
+SELECT (ADB) IF (0 ("<Ordurako>"<HAS_MAI>")) (-1 (PUNT_KOMA) OR LOT)  (1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<ORDURAKO>"<DEN_MAI>")) (-1 (PUNT_KOMA) OR LOT) (1 PUNTUAZIOA) ;##PUNT_GALD
 # Adibidea : "Baina ordurako ...."
 
 # ORDUAN
@@ -2882,9 +2882,9 @@ SELECT (ADB) IF (0 ("<jakina>")) (NOT -1 IZE) (1 PUNTUAZIOA) ;##PUNT_GALD
 SELECT (ADB) IF (0 ("<Jakina>"<HAS_MAI>")) (NOT -1 IZE) (1 PUNTUAZIOA) ;##PUNT_GALD
 SELECT (ADB) IF (0 ("<JAKINA>"<DEN_MAI>")) (NOT -1 IZE) (1 PUNTUAZIOA) ;##PUNT_GALD
 # Adibidea:  Jakina,...", "eta jakina, ..."
-SELECT (ADB) IF (0 ("<jakina>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (ADB) IF (0 ("<Jakina>"<HAS_MAI>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA) ;##PUNT_GALD
-SELECT (ADB) IF (0 ("<JAKINA>"<DEN_MAI>")) (-1 PUNTUAZIOA) (1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<jakina>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<Jakina>"<HAS_MAI>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (ADB) IF (0 ("<JAKINA>"<DEN_MAI>")) (-1 PUNTUAZIOA) ;##PUNT_GALD
 # Adibidea:  ..., jakina, ..."
 
 # ZEN
@@ -3004,9 +3004,9 @@ REMOVE (ADL) IF (0 ("<Gaitzak>"<HAS_MAI>")) (NOT *-1 ADI) (*1 ETA BARRIER ADI);
 REMOVE (ADL) IF (0 ("<GAITZAK>"<DEN_MAI>")) (NOT *-1 ADI) (*1 ETA BARRIER ADI);
 # Adibidea:  Mundu honetako GAITZAK egonarriz eta ...
 
-REMOVE (ADL) IF (0 ("<gaitzak>")) (-1 PUNT_KOMA) (1 ERL);
-REMOVE (ADL) IF (0 ("<Gaitzak>"<HAS_MAI>")) (-1 PUNT_KOMA) (1 ERL);
-REMOVE (ADL) IF (0 ("<GAITZAK>"<DEN_MAI>")) (-1 PUNT_KOMA) (1 ERL);
+REMOVE (ADL) IF (0 ("<gaitzak>")) (-1 (PUNT_KOMA)) (1 ERL);
+REMOVE (ADL) IF (0 ("<Gaitzak>"<HAS_MAI>")) (-1 (PUNT_KOMA)) (1 ERL);
+REMOVE (ADL) IF (0 ("<GAITZAK>"<DEN_MAI>")) (-1 (PUNT_KOMA)) (1 ERL);
 # Adibidea: ;GAITZAK zeramana
 
 SELECT (ADL) IF (0 GAITU) (-1 NOTDEK);
@@ -3038,9 +3038,9 @@ SELECT (ADB) IF (0 ("<LEHEN>"<DEN_MAI>")) (1C ADI OR ADL OR ADT) ;
 SELECT (ADB) IF (0 ("<LEHEN>"<DEN_MAI>")) (1 LEHENKIDEAK) ;
 # Adibidea: LEHEN ez zen honelakorik gertatzen...
 
-SELECT (ADB) IF (0 ("<lehen>")) (1 ("<,>"<PUNT_KOMA>")) ;
-SELECT (ADB) IF (0 ("<Lehen>"<HAS_MAI>")) (1 ("<,>"<PUNT_KOMA>")) ;
-SELECT (ADB) IF (0 ("<LEHEN>"<DEN_MAI>")) (1 ("<,>"<PUNT_KOMA>")) ;
+SELECT (ADB) IF (0 ("<lehen>")) (1 (PUNT_KOMA)) ;
+SELECT (ADB) IF (0 ("<Lehen>"<HAS_MAI>")) (1 (PUNT_KOMA)) ;
+SELECT (ADB) IF (0 ("<LEHEN>"<DEN_MAI>")) (1 (PUNT_KOMA)) ;
 # Adibidea: LEHEN, orain eta beti ...
 
 REMOVE (IZE) IF (0 ("<lehen>") LINK 0 LEHEN) ;
@@ -3354,7 +3354,7 @@ REMOVE (IZE) IF (0 ("<Gara>"<HAS_MAI>") LINK 0 ADL);
 REMOVE  (DET) IF (0 ("<dena>")) (-1 EZBU);
 # Adibidea: biltzen DENA...
 
-REMOVE (DET) IF (0 ("<denak>")) (-1 EZBU) (1 ("<,>"<PUNT_KOMA>"));
+REMOVE (DET) IF (0 ("<denak>")) (-1 EZBU) (1 (PUNT_KOMA));
 # Adibidea:  Gutxitan orrazten DENAK, ...
 
 SELECT (ADJ) IF (0 HANDIENTSU);
@@ -3436,7 +3436,7 @@ REMOVE (EZBU) IF (0 ADI) (-1 (ADK));
 REMOVE (INE) IF (0 ADL);
 
 SELECT (ADT) IF (0 ADL) (NOT *-1 EA)(*1 (@<ADILOK) BARRIER PUNTUAZIOA OR LOT);##PUNT_GALD
-REMOVE (ADL) IF (0 ADT) (NOT -1 EZ OR EA OR (BEREIZ) OR PART) (NOT *-1 NOTDEK OR EZBU BARRIER PUNTUAZIOA) (NOT *1 NOTDEK OR EZBU BARRIER ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT__KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+REMOVE (ADL) IF (0 ADT) (NOT -1 EZ OR EA OR (BEREIZ) OR PART) (NOT *-1 NOTDEK OR EZBU BARRIER PUNTUAZIOA);##PUNT_GALD
 
 REMOVE (ADT) IF (0 ADL) (NOT -2 MOD)(*-1 (BEREIZ) LINK -1  PART + NOTDEK);
 
@@ -3449,7 +3449,7 @@ REMOVE (IZE) IF (0 ADIZE) (*-1 ("nahi_izan"));
 
 REMOVE (ADJ) IF (NOT 0 (ADITZMULTZO))(NOT 0 (INS_GEL) OR (IZAUR+) OR (SUP) OR (KONP) OR (IZAUR-) OR (PRO)) (NOT -1 DET)(NOT -1 ADJ OR PAR ) (NOT -1 IZE + ZERO) (NOT -2  ADJ)(NOT -1 IZAN OR UKAN)(NOT 1 IZAN OR UKAN OR EDUN OR EDUKI OR EGON OR IKUSI OR ERABILI);
 
-REMOVE (ADL) IF (0 BAITA) (-1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA">") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+REMOVE (ADL) IF (0 BAITA) (-1 PUNTUAZIOA);##PUNT_GALD
 
 REMOVE (ADT) IF (0 BAITA) (-1 PUNTUAZIOA);##PUNT_GALD
 
@@ -3459,23 +3459,23 @@ REMOVE (ADOIN) IF (0 DET) (1 ADIZE) (2 PART) (3 LOK);
 REMOVE (ADOIN) IF (0 ADJ) (1C ADI);
 REMOVE (ADOIN) IF (0 IZE) (-1 ADL OR ADT) (1 ADB OR DET) (2 EZBU);
 REMOVE (ADOIN) IF (0 IZE) (1C ADJ OR IZE) (NOT *-1 EZ) (NOT *-2 ADL);
-REMOVE (ADOIN) IF (0 IZE) (-1 ("<,>"<PUNT_PUNT_KOMA>")) (1 ("<,>"PUNT_KOMA>")) (2 IZE);
+REMOVE (ADOIN) IF (0 IZE) (-1 (PUNT_PUNT_KOMA)) (1 ("<,>"PUNT_KOMA>")) (2 IZE);
 REMOVE (ADOIN) IF (0 IZE) (-1C IZE) (1C ADJ);
 REMOVE (ADOIN) IF (0 IZE) (1C ADJ);
 REMOVE (ADOIN) IF (0 ADJ) (1C ADJ);
 REMOVE (ADOIN) IF (0 IZE) (-1C IZE)(1C ADI) (2 ADL);
-REMOVE (ADOIN) IF (0 IZE) (-1 ("<,>"<PUNT_("<,>"<PUNT_KOMA>")) (1C DET);
-REMOVE (ADOIN) IF (0 IZE) (-1 ("<,>"<PUNT_("<,>"<PUNT_KOMA>")) (1 ("<,>"<PUNT_KOMA>")) (2C IZE);
-REMOVE (ADOIN) IF (0 IZE) (-1 JNT) (-2C IZE) (-3 ("<,>"<PUNT_("<,>"<PUNT_KOMA>")) (-4C IZE);
-REMOVE (ADOIN) IF (NOT 0 EZBU) (NOT 0 ARI) (NOT *-1 ADL1 BARRIER PUNTUAZIOA) (NOT *-1 ADPOSAG BARRIER PUNTUAZIOA)(NOT *1 ADL1 BARRIER PUNTUAZIOA)(NOT *1 ADPOSAG BARRIER PUNTUAZIOA);##PUNT_GALD
+REMOVE (ADOIN) IF (0 IZE) (-1 (PUNT_KOMA)) (1C DET);
+REMOVE (ADOIN) IF (0 IZE) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA)) (2C IZE);
+REMOVE (ADOIN) IF (0 IZE) (-1 JNT) (-2C IZE) (-3 (PUNT_KOMA)) (-4C IZE);
+REMOVE (ADOIN) IF (NOT 0 EZBU) (NOT 0 ARI) (NOT *-1 ADL1 BARRIER PUNTUAZIOA);##PUNT_GALD
 #2005-02-14ean erregela hau orokortu dugu (0 IZE) baldintza kendu dugu.
-#2005-02-14 ean BARRIER PUNTU-("<,>"<PUNT_KOMA") kendu eta BARRIER ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA")>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>") jarri dugu. (NOT 0 EZBU)  baldintza gehitu dugu.
+#2005-02-14 ean BARRIER PUNTU-PUNTUAZIOA jarri dugu. (NOT 0 EZBU)  baldintza gehitu dugu.
 REMOVE (ADOIN) IF (0 IZE) (1C DET) (NOT *-1 ADL BARRIER PUNTUAZIOA);##PUNT_GALD
 REMOVE (ADOIN) IF (0 IZE) (1 DET OR ADJ OR IZE);
 REMOVE (ADOIN) IF (NOT 0 (EZBU) OR (DA-DU) OR ADIZE OR ARI) (NOT 1 FAK) 
-                  (NOT *-1 (ADL1) BARRIER ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>"))
-                  (NOT *-1 (EZTA) BARRIER ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>"))
-                  (NOT *1 ADL1 BARRIER ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>")) ; 
+                  (NOT *-1 (ADL1) BARRIER (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (PUNT_KOMA))
+                  (NOT *-1 (EZTA) BARRIER (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (PUNT_KOMA))
+                  (NOT *1 ADL1 BARRIER (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (PUNT_KOMA)) ; 
 
 # Adibidea: *NAHAS azukrea esnearekin
 REMOVE (ADIZE) IF (0 ADOIN + EZBU) (1 ADL) (2 (PUNT_BI_PUNT));
@@ -3511,14 +3511,14 @@ SELECT (ADL) IF (0 ADT) (NOT 0 ADPOSAG) (1C PERIFRASIAK) (-1 EZ);
 
   SELECT (IOR) IF (0 ADL) (-1 ADB) (-2 ADL OR ADT);
 
-  SELECT (IOR) IF (0 ADL) (-1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+  SELECT (IOR) IF (0 ADL) (-1 PUNTUAZIOA);##PUNT_GALD
 
   SELECT (ADIZE) IF  (0 EZBU) (1C SIN);
 #2005-01-14: (1SIN)baldintzari C gehitu diogu.
   REMOVE (IZE) IF (0 ZEN)(NOT 1 NUMS)(1C IZE);
 #2005-01-25: (NOT 1 NUMS) ezaugarria gehitu dugu "1884 urtean" bezalako sintagmetan IZE analisia mantendu dadin.
 
-SELECT (ADIZE) IF (0 ADIZE + GEL)(1 IZE OR LOT OR ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) (NOT 2 POSPOZ); ##PUNT_GALD
+SELECT (ADIZE) IF (0 ADIZE + GEL)(1 IZE OR LOT OR PUNTUAZIOA) (NOT 2 POSPOZ); ##PUNT_GALD
 # Adibidea: DASTATZEKO modua*
 
   REMOVE (ARR) IF (0 (ADIZE) + (DAT)) (NOT 0 ATZ)(NOT -1 GEN/GEL);
@@ -3557,17 +3557,17 @@ REMOVE (IZE) IF  (0 ADL/ADT) (NOT 0 ADPOSAG) (NOT -1 DEK) (-1C SIN) ;
 # Adibidea: *puztuak ZITUEN / *beilegiztatuak ZIREN 	 
 # Komentarioa: "rare" jartzean hauek konponduko dira* 	 
 
-REMOVE (IOR) IF  (0 ADL/ADT) (-1 SIN) (*-1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>")  BARRIER  EZEZKOAK OR  ADL) ; 	 
+REMOVE (IOR) IF  (0 ADL/ADT) (-1 SIN) (*-1 (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (PUNT_KOMA)  BARRIER  EZEZKOAK OR  ADL) ; 	 
   	 
-REMOVE (IOR) IF  (0 ADL/ADT) (1 SIN) (*-1 EZEZKOAK BARRIER ADL OR ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>")) ; 	 
+REMOVE (IOR) IF  (0 ADL/ADT) (1 SIN) (*-1 EZEZKOAK BARRIER ADL OR (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (PUNT_KOMA)) ; 	 
   	 
 # Adibidea: zuen* 	 
   	 
-REMOVE (IOR) IF  (0 ADL/ADT) (-1 SIN) (1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>")) ; 	 
+REMOVE (IOR) IF  (0 ADL/ADT) (-1 SIN) (1 (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (PUNT_KOMA)) ; 	 
   	 
 # Adibidea:  ...ezabatuz bukatzen zuen. / ...ezabatuz bukatzen zuen eta.* 	 
   	 
-REMOVE (IOR) IF  (0 ADL/ADT) (-1 SIN) (1 LOT) (*2 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>")) ; 	 
+REMOVE (IOR) IF  (0 ADL/ADT) (-1 SIN) (1 LOT) (*2 (PUNT_PUNT) OR (PUNT_PUNT_KOMA) OR (PUNT_KOMA)) ; 	 
 # Adibidea:  ...ezabatuz bukatzen zuen. / ...ezabatuz bukatzen zuen eta.* 	 
   	 
   SELECT (IOR) IF (0 ADL/ADT) (-1C ADL/ADT) ; 	 
@@ -3633,7 +3633,7 @@ REMOVE (ADI) IF (0 DET) (-1 ADL/ADT) ;
  # Adibidea:  - DIO Dirkek eta... 	 
  #(NOT 0 DET) JMK JARRITA* 	 
   	 
-  SELECT (ADT) IF (0 ESPL) (NOT 0 DET) (*-1 ("<,>"<PUNT_KOMA>") BARRIER PERIFRASIAK) ; # 0 aplik 	 
+  SELECT (ADT) IF (0 ESPL) (NOT 0 DET) (*-1 (PUNT_KOMA) BARRIER PERIFRASIAK) ; # 0 aplik 	 
   	 
  #  Adibidea: ,eta zoologikoko gorila harrak bizitoki jakinik ez ZUENEZ... 	 
  #(NOT 0 DET) JMK JARRITA* 	 
@@ -3653,7 +3653,7 @@ REMOVE (ADI) IF (0 DET) (-1 ADL/ADT) ;
  # Adibidea: lotura besarkada .* 	 
   	 
    	 
-  REMOVE (ADT) IF (0 ADL) (*1 PERIFRASIAK BARRIER (PUNT_PUNT) OR ("<,>"<PUNT_KOMA>") OR PERIFRASIAK) (*-1 PERIFRASIAK BARRIER (PUNT_PUNT) OR ("<,>"<PUNT_KOMA>") OR PERIFRASIAK) (NOT *-1 ADL) (NOT *1 ADL); # 0 aplik
+  REMOVE (ADT) IF (0 ADL) (*1 PERIFRASIAK BARRIER (PUNT_PUNT) OR (PUNT_KOMA) OR PERIFRASIAK) (*-1 PERIFRASIAK BARRIER (PUNT_PUNT) OR (PUNT_KOMA) OR PERIFRASIAK) (NOT *-1 ADL) (NOT *1 ADL); # 0 aplik
 # 2005-02-14ean gehitu diogu (BARRIERPUNTUAZIOA) baldintza PERIFRASIAK baldintza aldatu dugu zegoen BURU baldintzagatik.
 
   	 
@@ -3713,7 +3713,7 @@ SELECT (ADL) IF (0 ADT) (NOT 0 ADPOSAG) (-1 ADP);
  SELECT (ADL) IF (0 ADL) (NOT 0 ADPOSAG OR DET OR (ADL_IZEELI)) (NOT -1 MOD)(-1 PART + NOTDEK) (NOT -1 ERL); 	 
   	 
  # Adibidea: Besteren baitan piztu DUEN grinaz pozten delarik* 	 
- REMOVE (ADL) IF (0 ADT) (1 PUNTUAZIOA)(NOT 1 KOMENTARIOAK) (NOT *-1 ADI BARRIER ("<,>"<PUNT_KOMA>")) ;##PUNT_GALD
+ REMOVE (ADL) IF (0 ADT) (1 PUNTUAZIOA) ;##PUNT_GALD
 
 REMOVE (ADL) IF (0 ADT) (NOT *-1 ADI BARRIER ("<PUNT_PUNT_KOMA>")) (NOT *1 ADI BARRIER PUNTUAZIOA);##PUNT_GALD
  	 
@@ -3832,7 +3832,7 @@ SELECT (IZE) IF  (0C IZE/ADJ) (NOT 0 ATZ) (-1 ADB LINK 0 GAL) ;
   #  IZE/ADB ANBIGUOTASUNA
  
 
-SELECT (ADB) IF (0C IZE/ADB) (-1 ("<,>"<PUNT_KOMA")) (1 ("<,>"<PUNT_KOMA")) ;
+SELECT (ADB) IF (0C IZE/ADB) (-1 (PUNT_KOMA)) (1 (PUNT_KOMA)) ;
 
 SELECT (ADB) IF (0 IZE + KONP);
 
@@ -3863,7 +3863,7 @@ SELECT (ADB) IF (0 IZE + KONP);
 # Adibidea: HIL eta bizien ...*
 
 
-  #SELECT (ADI) IF (0 PART) (1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_("<,>"<PUNT_KOMA")>") OR ("<,>"<PUNT_("<,>"<PUNT_KOMA")>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) (NOT -1 DZH OR DZG);##PUNT_GALD
+  #SELECT (ADI) IF (0 PART) (1 PUNTUAZIOA) (NOT -1 DZH OR DZG);##PUNT_GALD
 
 # Adibidea: Horri ez ESAN.*
 
@@ -3919,7 +3919,7 @@ SELECT (DET) IF (0 ADT) (-1 IZE-ZERO);
 #2005-04-11ean gehitu dugu erregela hau.
 SELECT (DET) IF (0 ADB) (-1 IZE-ZERO) (NOT -1 POSPOZ) (NOT 1 ADI) (NOT 2 ADL);
 #2005-02-21ean sortu ditugu 2  erregela hauek.
-SELECT (DET) IF (0 ADB LINK 0 ZERO) (NOT 0 LOT OR (HAS_MAI)) (NOT -1 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>") OR ADI OR ADL OR ADT) (NOT 1 ADI)(1 IZE);##PUNT_GALD
+SELECT (DET) IF (0 ADB LINK 0 ZERO) (NOT 0 LOT OR (HAS_MAI)) (NOT -1 PUNTUAZIOA OR ADI OR ADL OR ADT) (NOT 1 ADI)(1 IZE);##PUNT_GALD
 #09-09-23
 SELECT (DET) IF (0 ADB LINK 0 (GEN/GEL));
 SELECT (DET) IF (0 ADB) (-1 LOT) (-2 DET);
@@ -3927,7 +3927,7 @@ SELECT (DET) IF (0 ADB) (-1 LOT) (-2 DET);
 
 # Komentarioa: *BESTE leku batzuetara. "LEHEN asabak agertu ziren" oso zaila da: "lehen asabak/agertu ziren" edota "lehen/asabak agertu ziren"*
         # IZE/ADB ANBIGUOTASUNA
-REMOVE (IZE) IF (0 ADB) (NOT 0  NUMS OR NUMP OR MG OR POSPOZ OR ADI OR SUP OR (DEN_MAI)) (NOT -1 DET OR (ERROM) OR ADL OR (GEN/GEL)) (NOT 1 LOT)(NOT 1 ("<,>"<PUNT_KOMA>"))(NOT 1 DET OR ("egin") OR  POSPOZ OR IZE OR ADJ)(NOT 2 IZE);
+REMOVE (IZE) IF (0 ADB) (NOT 0  NUMS OR NUMP OR MG OR POSPOZ OR ADI OR SUP OR (DEN_MAI)) (NOT -1 DET OR (ERROM) OR ADL OR (GEN/GEL)) (NOT 1 LOT)(NOT 1 (PUNT_KOMA))(NOT 1 DET OR ("egin") OR  POSPOZ OR IZE OR ADJ)(NOT 2 IZE);
 #2015-12-03: (-1C GEN + ZERO) Oharra: bestela gaizki egingo du "ez zuen luze iraun ...
 
   #  PARTIKULAK
@@ -4072,7 +4072,7 @@ SELECT (ABS) IF (0 DZG) (NOT -1 ZERO OR POSPOZ) (1 ADI OR ADPOSAG);
  # Adibidea: KONTATU nahi al duzu?* 	 
   	 
   	 
-  REMOVE (BURU) IF (NOT *-1 ADL) (NOT *1 ADL) (*-1 PUNTUAZIOA) (*1 PUNTUAZIOA); ##PUNT_GALD	 
+  REMOVE (BURU) IF (NOT *-1 ADL) (NOT *1 ADL) (*-1 PUNTUAZIOA); ##PUNT_GALD	 
   	 
  # Adibidea: ; lan hau BUKATU eta zinera noa.* 	 
   	 
@@ -4193,7 +4193,7 @@ REMOVE (ADL) IF (0 ADT) (1 PUNTUAZIOA) (NOT *-1 NOTDEK OR EZBU BARRIER ADI);##PU
   	 
  # Adibidea: maitasun xamur BIHOTZEKOA* 	 
   	 
-  SELECT (ABS) IF (0 GEL) (NOT 0 ADL OR ADT) (1 ("<,>"<PUNT_PUNT_KOMA>")) (NOT 2 GEL); 	 
+  SELECT (ABS) IF (0 GEL) (NOT 0 ADL OR ADT) (1 (PUNT_PUNT_KOMA)) (NOT 2 GEL); 	 
   	 
  # Adibidea: ... interesak TARTEKO,* 	 
   	 
@@ -4425,14 +4425,14 @@ SELECT (LIB ZERO) IF (-1C LIB + GEL) (1 IZBARTEKOAK) (2 INE);
 SELECT (LIB ZERO) IF (-1C LIB + GEL) (1 IZBARTEKOAK) (2 ZERO) (3C IZE + INE);
 SELECT (LIB INE) IF (-1 IZBARTEKOAK) (0 INE);
 SELECT (LIB ZERO) IF (-1 IZBARTEKOAK) (1C IZE + INE);
-REMOVE (PLU-) IF (-1C (IZEN_ZENBAKIA ZERO));
-REMOVE (PLU-) IF (NOT -1 HAS_MAI OR ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) (1C IZE + IZEN_ZENBAKIA + HAS_MAI);##PUNT_GALD
-SELECT (IZB) IF (0 ERG + HAS_MAI) (NOT 1 HAS_MAI OR ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR (""<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) (NOT -1 PUNTUAZIOA OR GEL OR GEN);##PUNT_GALD
+REMOVE (PLU-) IF (-1C IZEN_ZENBAKIA + ZERO);
+REMOVE (PLU-) IF (NOT -1 HAS_MAI OR PUNTUAZIOA) (1C IZE + IZEN_ZENBAKIA + HAS_MAI);##PUNT_GALD
+SELECT (IZB) IF (0 ERG + HAS_MAI) (NOT 1 HAS_MAI OR PUNTUAZIOA OR GEL OR GEN);##PUNT_GALD
 SELECT (IZB ZERO) IF (1C IZB);
 SELECT (IZB ZERO) IF (0C IZB)(1 BEZALAKO);
 SELECT (LIB ZERO) IF (0C LIB)(1 BEZALAKO);
 SELECT (IZB ZERO) IF (-1C IZB) (1 IZB + DEK);
-SELECT (IZB ZERO) IF (NOT -1 PUNTUAZIOA)(NOT 1 PUNTUAZIOA) (2C IZB);##PUNT_GALD
+SELECT (IZB ZERO) IF (NOT -1 PUNTUAZIOA) (2C IZB);##PUNT_GALD
 SELECT (IZB) IF (-1C (IZB ZERO));
 SELECT (IZB MAR) IF (0C IZB);
 SELECT (IZB DES) IF (0 LIB);
@@ -4441,7 +4441,7 @@ SELECT (IZB) IF (1 LOT) (2C IZB);
 SELECT (IZB) IF (-1 LOT) (-2C IZB);
 SELECT (LIB) IF (-1 LOT) (-2C LIB);
 SELECT (IZB) IF (-1C IZB);
-SELECT (IZB ZERO) IF (-1 PUNTUAZIOA) (1 IZB) (2 ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA">") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>"));##PUNT_GALD
+SELECT (IZB ZERO) IF (-1 PUNTUAZIOA);##PUNT_GALD
 # Ezezagunetan, IZE aukeratu ondoren ADJ badago.
 SELECT (IZE) IF (0 EZEZAG) (-1 PUNTUAZIOA OR DET) (1C ADJ);##PUNT_GALD
 # Adibidea: KOAZERBATU artifizalen...
@@ -4460,7 +4460,7 @@ SELECT (DEK) IF (0C IZE) (NOT 0 IZB OR LIB OR (HAS_MAI) OR INE OR ALA OR GRA OR 
 # Adibidea: ... telefonoz HOTS egin
 # NEREA: 2001-10-18 honaino
 
-SELECT (ADT) IF  (0 ADL) (NOT -1 PERIFRASIAK OR PUNTUAZIOA OR BALDIN) (1 PUNTUAZIOA) ;##PUNT_GALD
+SELECT (ADT) IF  (0 ADL) (NOT -1 PERIFRASIAK OR PUNTUAZIOA) ;##PUNT_GALD
 
 
 REMOVE (MG) IF (0 IZE OR ADJ) (NOT 0 POSPOZ OR  ADI OR IZB OR LIB OR DET OR ITJ OR AORG)
@@ -4476,7 +4476,7 @@ REMOVE (IZE) IF  (0C IZE OR ADJ) (NOT 0 ADPOSAG) (NOT 0 POSPOZ) (NOT 0 IZEADJANB
                  (NOT -1 GEL OR GEN OR DET)(-1 IZE-ZERO);
 
 REMOVE (INE) IF (0 MOD) (1 ADL OR ADT);
-SELECT (ADT) IF (0 ADL) (NOT 0 DET) (NOT *-1 EZ BARRIER ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"<PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>") OR LOT) (NOT *-1 ADI BARRIER ADL/ADT);##PUNT_GALD
+SELECT (ADT) IF (0 ADL) (NOT 0 DET) (NOT *-1 EZ BARRIER PUNTUAZIOA OR LOT) (NOT *-1 ADI BARRIER ADL/ADT);##PUNT_GALD
 
 SELECT (ADT) IF (0 ADL) (*-1 EZ BARRIER ADI/ADL/ADT) (NOT *1 ADI BARRIER ADL/ADT);
 SECTION
@@ -4498,9 +4498,9 @@ REMOVE (IZE) IF (0 PART) (NOT 0 MOT OR ERG OR SOZ OR INE OR ALA OR GEN OR GEL OR
 
 # Adibidea: KONTATU nahi dizut ...
 
- REMOVE (ADL) IF (0 ADT) (1 PUNTUAZIOA) (NOT *-1 NOTDEK OR EZBU  BARRIER ("<,>"<PUNT_KOMA>") );##PUNT_GALD
+ REMOVE (ADL) IF (0 ADT) (1 PUNTUAZIOA );##PUNT_GALD
 
-REMOVE (ADL) IF (0 ADT) (1 ("<$.>"<PUNT_PUNT>")) (NOT *-1 NOTDEK OR EZBU BARRIER ("<,>"<PUNT_KOMA>") );
+REMOVE (ADL) IF (0 ADT) (1 (PUNT_PUNT)) (NOT *-1 NOTDEK OR EZBU BARRIER (PUNT_KOMA) );
 SECTION
 #10. cosntraints multzoa: ezezagunak desanbiguatzeko aurreko erregeletan emandako emaitza baliatuz
 REMOVE (LIB) IF (0 IZB) (-1C IZB LINK 0 (@KM>));
@@ -4518,7 +4518,7 @@ REMOVE (MG) (0 MUGM LINK 0 ABS) (NOT 0 MUGAGABEAK OR IZB OR LIB OR NUMP OR GEN O
 REMOVE (ADJ) IF (0 IZAUR+) (NOT 0 (IZE_IZEELI)) (NOT 0 ("honako")) (NOT 0 ("hurrengo")) (NOT 0 ("ondoko")) (NOT 0 ("eguneroko"))(NOT -1 IZE) (NOT 1 IZE) (NOT 1 ("baino"));
 SELECT (ERG) IF (0C IZE) (*-1 (NK_HARK) BARRIER ADL OR ADT OR LOT OR ADIZE) (NOT *-1 ERG BARRIER LOT OR ADL OR ADT) (NOT *1 ERG BARRIER ADL OR ADT OR LOT);
 SELECT (ABS) IF (0  POSTPOSIZIOAK-1IZE + MG) (-1 IZE-IOR-ADB-ADJ-SIG + ZERO) (NOT -1 GEN/GEL);
-REMOVE (ADB) IF (0 ZERO + IZE) (NOT 0 GEN OR GEL) (NOT 0 (EZEZAG)) (NOT 0 KONP) (NOT -1 DET OR PART) (NOT -1 ADB) (NOT -1 LOT)(NOT -1 ("<,>"<PUNT_KOMA>")) (NOT 1 PART) (NOT 1 LOT)(NOT 1 ("<,>"<PUNT_KOMA>"));
+REMOVE (ADB) IF (0 ZERO + IZE) (NOT 0 GEN OR GEL) (NOT 0 (EZEZAG)) (NOT 0 KONP) (NOT -1 DET OR PART) (NOT -1 ADB) (NOT -1 LOT)(NOT -1 (PUNT_KOMA)) (NOT 1 PART) (NOT 1 LOT)(NOT 1 (PUNT_KOMA));
 SELECT (LIB) IF (-1C LIB);
 SELECT (KAUS) IF (0 LOT LINK 0 JNT) (1 PUNTUAZIOA);##PUNT_GALD
 SELECT (ZHG) IF (*-1 GALDEHITZAK OR NOLGAL BARRIER PUNTUAZIOA);##PUNT_GALD
@@ -4529,7 +4529,7 @@ REMOVE (ADT) IF (0 ADL/ADT)	(*-1 EZEZKOAK) (*1C NOTDEK LINK NOT 1 ADIKONP OR ADL
 REMOVE (MG) IF (0 IZE LINK 0 INE) (NOT -1 ZENBAIT) ;
 REMOVE (ZERO) (NOT 0 GEN OR GEL OR DESK) (0 IZE) (1C ADB) (NOT 1 DET OR ADJ OR IZE);
 SELECT (ARR) IF (1C ADJ) (0 EZEZAG + HAS_MAI) (NOT 1 IZBARTEKOAK);
-SELECT (ABS HAS_MAI) IF (0 IZB OR LIB) (-1 PUNTUAZIOA) (1  PUNTUAZIOA);##PUNT_GALD
+SELECT (ABS HAS_MAI) IF (0 IZB OR LIB) (-1 PUNTUAZIOA);##PUNT_GALD
 SELECT (ADB) IF (0 ("<asko>")) (NOT -1 IZE-ZERO OR ABL);
 REMOVE (ADL) IF  (0 (ADL_IZEELI)) (NOT 0 ADT);
 SELECT (DESK) IF (0 DESKMULTZOA) (-1 DZH OR (IDENT)) (1 IZE);
@@ -4560,7 +4560,7 @@ REMOVE (ERLT) (0 MOS) (1 IOR);
 SELECT (MG) (0C DET) (0 DZH) (1C PUNTUAZIOA OR ADI_NOTDEK OR LOT OR HAOS)(NOT 1 ADL OR ADT) (NOT 2 DZH);##PUNT_GALD
 REMOVE (PLU-) IF (-1C DET OR LIB + GEL) (0 EZEZAG) (NOT 1 IZBARTEKOAK);
 REMOVE (EGI) (0 BALD) (1 ERE);
-REMOVE (PLU-) IF (NOT -1 HAS_MAI OR ("<$.>"<PUNT_PUNT>") OR ("<;>"<PUNT_PUNT_KOMA>") OR ("<,>"PUNT_KOMA>") OR ("<:>"<PUNT_BI_PUNT>")OR ("<?>"<PUNT_GALD>") OR ("<!>"<PUNT_ESKL>")) (1C IZE + ARR + HAS_MAI);##PUNT_GALD
+REMOVE (PLU-) IF (NOT -1 HAS_MAI OR PUNTUAZIOA) (1C IZE + ARR + HAS_MAI);##PUNT_GALD
 REMOVE (ADIZE) IF (0 IZE) (-1 DZG);
 REMOVE (DET) IF (0 ADB) (-1 ADL OR ADT OR ADI);
 REMOVE (PLU-) IF (-1C DET OR LIB + GEL) (NOT 0 IZB OR EZEZAG);# (NOT 1 IZE OR ADJ);
@@ -4574,13 +4574,13 @@ REMOVE (ABS) IF (0C IZE) (1 BARRU);
 REMOVE (GEN) IF (0C PART)(0 GERO) ;
 REMOVE (ERG) IF (0 ERG LINK 0 ABS) (*-1C ERG BARRIER LOT OR ADL/ADT OR ADI) (*1 (NK_HARK) LINK *2 (NK_HARK) BARRIER LOT OR ADL/ADT OR ADI);
 REMOVE (INE) IF (0 JASAN) ;
-REMOVE (LOK) IF (0 ("<Bada>"<HAS_MAI>")) (NOT 1 ("<,>"<PUNT_KOMA>"));
+REMOVE (LOK) IF (0 ("<Bada>"<HAS_MAI>")) (NOT 1 (PUNT_KOMA));
 REMOVE (ERG) IF (0 ABL) ;
 REMOVE (PLU-) IF (-1 HAS_MAI) (NOT -1 IZB OR LIB OR BST OR LOT) (NOT 0 GEL) (NOT 1 IZE LINK 0 @ADLG); 
 REMOVE (IZE GEL) IF (0 ADJ) (NOT 0 (IZAUR+) OR (IZEAUR-) OR (BIZ-) OR (EZEZAG))(NOT 0 IZB OR LIB)(NOT -1 IZE)  (NOT 0 POSPOZ) (NOT 1 DET);
 REMOVE (PLU-) IF (0 IOR OR DET OR ("azoka") OR ("txapelketa") OR ("aldundi"));
 REMOVE (PLU-) IF (-1C (IZE ARR ZERO)) (NOT 0 GEL) (NOT 1 IZE LINK 0 @ADLG);
-REMOVE (BST) IF (0 ("<ezta>")) (NOT 1 ("<?>"<PUNT_GALD>"));##PUNT_GALD/ordezkatuta
+REMOVE (BST) IF (0 ("<ezta>")) (NOT 1 (PUNT_GALD));##PUNT_GALD/ordezkatuta
 SELECT (ZERO) IF (0 ADB LINK 0  INS);#oraingo vs oraingoz 2016-11-10
 REMOVE:kendu1 RARE_ANB;
 REMOVE:kendu2 RARE_LEX;
