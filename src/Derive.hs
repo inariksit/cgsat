@@ -77,8 +77,9 @@ replacements =
   -- Terrible hacks
   , ("ADL", "ADL ADT")
   , ("ADJ", "ADJ ADB")
-  , (" IZE", " IZE ADB")
+  , ("IZE", "IZE ADB")
   , ("PUNT_deletethis", "")
+  , ("ORT_deletethis", "")
   , ("StartS", "<s>")
   , ("EndS", "</s>") 
 
@@ -90,7 +91,8 @@ replacements =
   , ("_v_", "")
   , ("(",   "")
   , (")",   "")
-  , (",",  " ")
+  , (",",  " ATZ ") --TODO remove this later
+--  , (",",  " ")
   ]
 -- This function is taken from StackOverflow
 -- http://stackoverflow.com/questions/14880299/how-can-i-replace-a-substring-of-a-string-with-another-in-haskell-without-using

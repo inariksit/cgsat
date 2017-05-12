@@ -70,8 +70,9 @@ type Case = Either CoreCase (OtherCase, Maybe ZERO)
 -- This is like KategoriaLex but only the constructor names.
 -- Just a test to do some simple thing with SAT.
 --TODO: use MorphCat
-data PartOfSpeech = EZEZAG
+data PartOfSpeech =  EZEZAG
                   | PUNT_deletethis Puntuazio
+                  | ORT_deletethis Ortografia
                   | IZE AzpIZE -- Noun
                         Case
                         DefNum
@@ -84,12 +85,13 @@ data PartOfSpeech = EZEZAG
 
                   | ADI_n_ AzpADI 
                            PART_ADIZE
-                           (Either (Case,DefNum,Aspect) NOTDEK)
+                           (Either (Case,DefNum) NOTDEK) --adding aspect makes 4x more readings
                            (Maybe Erlazioak)
 
                   | ADJ AzpADB
                         Case
                         DefNum
+                        Degree
                         AdjPosizioak
 
 --                  | ADB AdjPosizioak
@@ -119,13 +121,14 @@ instance Enumerable PartOfSpeech where
                        unary (funcurry (funcurry 
                              (funcurry ADI_n_))):
                        unary (funcurry (funcurry 
-                             (funcurry ADJ))):
+                             (funcurry (funcurry ADJ)))):
                       -- unary ( ADB):
                        unary (funcurry DET):
                        unary (funcurry IOR):
                        unary LOT:
                        unary (funcurry ( ADL)):
                        unary PUNT_deletethis:
+                       unary ORT_deletethis:
                    --    unary (funcurry ADT):
                        map pure [PRT,ITJ,BST, EZEZAG] )
 
